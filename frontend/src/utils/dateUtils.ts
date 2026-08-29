@@ -31,7 +31,8 @@ export function getIstDateDisplay(date: Date = new Date()): string {
  */
 export function getIstNow(): Date {
   const now = new Date();
-  return new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (330 * 60000));
 }
 
 /**
@@ -86,7 +87,7 @@ export function getEffectiveAppointmentDate(appt: any): string {
         if (!isNaN(parsed.getTime())) {
           return getIstDateString(parsed);
         }
-      } catch (_e) {}
+      } catch (_e) { /* ignore */ }
     } else if (directDate instanceof Date && !isNaN(directDate.getTime())) {
       return getIstDateString(directDate);
     }
@@ -99,7 +100,7 @@ export function getEffectiveAppointmentDate(appt: any): string {
       if (!isNaN(parsed.getTime())) {
         return getIstDateString(parsed);
       }
-    } catch (_e) {}
+    } catch (_e) { /* ignore */ }
   }
 
   const creationTime = appt.created_at || appt.createdAt;
@@ -109,7 +110,7 @@ export function getEffectiveAppointmentDate(appt: any): string {
       if (!isNaN(parsed.getTime())) {
         return getIstDateString(parsed);
       }
-    } catch (_e) {}
+    } catch (_e) { /* ignore */ }
   }
 
   return getIstDateString();

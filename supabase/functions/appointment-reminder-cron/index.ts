@@ -22,7 +22,13 @@ import { getIstDateString } from "../_shared/istDate.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const WABA_DECRYPTION_KEY = Deno.env.get("WABA_DECRYPTION_KEY") ?? "vitalsync_master_vault_key_2026";
+// SecOps Rule: NEVER use a hardcoded fallback for WABA_DECRYPTION_KEY.
+// If missing, all tenant tokens would be decrypted with a publicly-visible string.
+// Set via: supabase secrets set WABA_DECRYPTION_KEY=<strong-256bit-hex>
+const WABA_DECRYPTION_KEY = Deno.env.get("WABA_DECRYPTION_KEY");
+if (!WABA_DECRYPTION_KEY) {
+  console.error("[appt-cron] FATAL: WABA_DECRYPTION_KEY not set in Supabase Vault. Aborting all WABA operations.");
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -115,7 +115,8 @@ export class BillingService {
       this.recordInvoicePayment(invoiceId, paymentMethod);
 
       const sessions = load<any[]>('whatsapp_sessions', []);
-      const session = sessions.find(s => s.patientPhone === inv.patientPhone);
+      const cleanInvPhone = (inv.patientPhone || '').replace(/\D/g, '').slice(-10);
+      const session = sessions.find(s => (s.patientPhone || '').replace(/\D/g, '').slice(-10) === cleanInvPhone);
       if (session?.sessionData?.referral) {
         const ref = session.sessionData.referral;
         const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
@@ -900,6 +901,7 @@ export class BillingService {
 
       // Sync splits to Supabase with the new database columns
       const dbEntries = listToSave.map(s => ({
+        id: s.id,
         invoice_id: s.invoiceId,
         source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
         destination_entity_id: s.destinationEntityId === 'platform-admin-entity' 
@@ -917,8 +919,8 @@ export class BillingService {
         pod_id: getPodContext().podId
       }));
 
-      supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
-        if (error) console.error('Error inserting cash ledger splits in Supabase:', error);
+      supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
+        if (error) console.error('Error upserting cash ledger splits in Supabase:', error);
       });
 
       // Update platform fee and payment method in unified_invoices in Supabase
@@ -1000,6 +1002,7 @@ export class BillingService {
           }
 
           const dbDocLedger = {
+            id: consultLedger.id,
             invoice_id: saasInv.id,
             appointment_id: appt.id,
             patient_id: patId,
@@ -1017,8 +1020,8 @@ export class BillingService {
             payment_method: paymentMethod,
             pod_id: getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
           };
-          supabase.from('financial_ledgers').insert([dbDocLedger]).then(({ error }) => {
-            if (error) console.error('[BillingService] Error inserting consult ledger in Supabase:', error);
+          supabase.from('financial_ledgers').upsert([dbDocLedger], { onConflict: 'id' }).then(({ error }) => {
+            if (error) console.error('[BillingService] Error upserting consult ledger in Supabase:', error);
           });
 
           window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
@@ -1283,18 +1286,21 @@ export class BillingService {
   }
 
   static async createAppointment(appointment: {
+    id?: string;
     patient_id: string;
     doctor_id: string;
     status?: string;
   }): Promise<string> {
     const podId = getPodContext().podId;
-    const { data, error } = await supabase.from('appointments').insert({
+    const apptId = appointment.id || crypto.randomUUID();
+    const { data, error } = await supabase.from('appointments').upsert({
+      id: apptId,
       patient_id: appointment.patient_id,
       doctor_id: appointment.doctor_id,
       status: appointment.status ?? 'pending_payment',
       created_at: new Date().toISOString(),
       pod_id: podId
-    }).select('id').single();
+    }, { onConflict: 'id' }).select('id').single();
     if (error) {
       console.error('[Mediflow API] createAppointment error:', error);
       throw error;
@@ -1303,14 +1309,16 @@ export class BillingService {
     return data.id;
   }
 
-  static async generateInvoice(appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number): Promise<string> {
+  static async generateInvoice(appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number, invoiceId?: string): Promise<string> {
     const { data: patientData, error: patientErr } = await supabase.from('appointments').select('patient_id').eq('id', appointmentId).single();
     if (patientErr) {
       console.error('[Mediflow API] fetch patient for invoice error:', patientErr);
       throw patientErr;
     }
     const podId = getPodContext().podId;
-    const { data, error } = await supabase.from('unified_invoices').insert({
+    const invId = invoiceId || `inv-${appointmentId}-${type}`;
+    const { data, error } = await supabase.from('unified_invoices').upsert({
+      id: invId,
       encounter_id: appointmentId,
       patient_id: patientData.patient_id,
       doctor_fee: type === 'consult' ? amount : 0,
@@ -1321,7 +1329,7 @@ export class BillingService {
       payment_status: 'pending',  // DB constraint: only 'pending' | 'cleared' allowed
       created_at: new Date().toISOString(),
       pod_id: podId
-    }).select('id').single();
+    }, { onConflict: 'id' }).select('id').single();
     if (error) {
       console.error('[Mediflow API] generateInvoice error:', error);
       throw error;

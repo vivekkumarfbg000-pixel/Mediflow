@@ -172,7 +172,14 @@ serve(async (req) => {
         phoneId = wabaConn.phone_number_id || phoneId;
       } else {
         try {
-          const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") || "vitalsync_master_vault_key_2026";
+          const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
+          if (!wabaSecretKey) {
+            console.error("[whatsapp-dispatch] FATAL: WABA_DECRYPTION_KEY not set in Supabase Vault.");
+            return new Response(
+              JSON.stringify({ success: false, error: "WABA_DECRYPTION_KEY not configured in Vault" }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
           const { data: rpcData, error: rpcErr } = await supabase.rpc("decrypt_tenant_waba_connection", {
             p_phone_number_id: wabaConn.phone_number_id,
             p_secret_key: wabaSecretKey

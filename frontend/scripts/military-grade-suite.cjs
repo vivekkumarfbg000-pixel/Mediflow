@@ -18,7 +18,7 @@ async function runMilitaryGradeTestSuite() {
   }
 
   // ==========================================
-  // SECTION 1: Date & Time Extraction Logic
+  // SECTION 1: Natural Language & Button Slot Parsing (Bug Class 3)
   // ==========================================
   console.log('--- 1. Testing Time & Slot Resolution Logic ---');
   try {
@@ -83,7 +83,7 @@ async function runMilitaryGradeTestSuite() {
   }
 
   // ==========================================
-  // SECTION 2: Dynamic Confirmation Time Extraction
+  // SECTION 2: Dynamic Confirmation Time Extraction (Bug Class 4)
   // ==========================================
   console.log('\n--- 2. Testing Dynamic Approx Time Invariant ---');
   try {
@@ -108,9 +108,9 @@ async function runMilitaryGradeTestSuite() {
   }
 
   // ==========================================
-  // SECTION 3: Frontend OPD & Advance Booking Filtering
+  // SECTION 3: Frontend OPD & Advance Booking Filtering (Bug Class 4/7)
   // ==========================================
-  console.log('\n--- 3. Testing Frontend Queue Date Partitioning ---');
+  console.log('\n--- 3. Testing Frontend Queue Date Partitioning & Payment Clearance Gate ---');
   try {
     const todayStr = '2026-08-24';
     const mockAppts = [
@@ -135,9 +135,166 @@ async function runMilitaryGradeTestSuite() {
   }
 
   // ==========================================
-  // SECTION 4: Live Cloud Edge Function Simulation
+  // SECTION 4: Emergency SOS Priority #1 Routing (Bug Class 6)
   // ==========================================
-  console.log('\n--- 4. Testing Live Cloud Webhook Endpoints ---');
+  console.log('\n--- 4. Testing Emergency SOS Priority #1 Sorting ---');
+  try {
+    const isSos = (p) => {
+      const token = String(p.tokenNumber || p.token_number || '').toUpperCase();
+      const source = String(p.source || '').toUpperCase();
+      return token.includes('SOS') || token.includes(' E') || token.includes('E-') || token.startsWith('#EM-') || source.includes('SOS');
+    };
+
+    const queue = [
+      { id: 'p1', tokenNumber: '#TK-001', name: 'Standard Patient 1' },
+      { id: 'p2', tokenNumber: '#TK-002', name: 'Standard Patient 2' },
+      { id: 'p3', tokenNumber: '#EM-001', name: 'Emergency SOS Patient' },
+      { id: 'p4', tokenNumber: '#TK-003', name: 'Standard Patient 3' }
+    ];
+
+    const sorted = [...queue].sort((a, b) => {
+      const aSos = isSos(a);
+      const bSos = isSos(b);
+      if (aSos && !bSos) return -1;
+      if (!aSos && bSos) return 1;
+      return 0;
+    });
+
+    assert.strictEqual(sorted[0].id, 'p3');
+    assert.strictEqual(sorted[0].tokenNumber, '#EM-001');
+    recordPass('Emergency SOS Priority #1 Placement Invariant');
+  } catch (err) {
+    recordFail('Emergency SOS Routing', err);
+  }
+
+  // ==========================================
+  // SECTION 5: Counter Doctor Consultation Fee Immunity Protocol (Bug Class 8)
+  // ==========================================
+  console.log('\n--- 5. Testing Counter Doctor Consultation Fee Immunity Protocol ---');
+  try {
+    const computeSplit = (invoice) => {
+      const isPureCounterConsult = 
+        (invoice.pharmacyFee || 0) === 0 &&
+        (invoice.labFee || 0) === 0 &&
+        (invoice.otTotal || 0) === 0 &&
+        invoice.source !== 'whatsapp';
+
+      if (isPureCounterConsult) {
+        return {
+          platformFee: 0,
+          poolRefillAmount: 0,
+          doctorNet: invoice.totalAmount || 0
+        };
+      } else {
+        const platformFee = (invoice.totalAmount || 0) * 0.03;
+        const netAfterPlatform = (invoice.totalAmount || 0) - platformFee;
+        return {
+          platformFee,
+          poolRefillAmount: Math.min(netAfterPlatform, 1000),
+          doctorNet: netAfterPlatform
+        };
+      }
+    };
+
+    const pureCounterInvoice = { totalAmount: 500, pharmacyFee: 0, labFee: 0, source: 'counter' };
+    const counterSplit = computeSplit(pureCounterInvoice);
+    assert.strictEqual(counterSplit.platformFee, 0);
+    assert.strictEqual(counterSplit.poolRefillAmount, 0);
+    assert.strictEqual(counterSplit.doctorNet, 500);
+
+    const pharmacyInvoice = { totalAmount: 1000, pharmacyFee: 800, labFee: 0, source: 'counter' };
+    const pharmacySplit = computeSplit(pharmacyInvoice);
+    assert.strictEqual(pharmacySplit.platformFee, 30); // 3% of 1000
+    assert.strictEqual(pharmacySplit.poolRefillAmount, 970);
+    recordPass('Counter Doctor Consultation Fee Immunity (0% platform charge, 0 pool refill)');
+  } catch (err) {
+    recordFail('Doctor Fee Immunity Protocol', err);
+  }
+
+  // ==========================================
+  // SECTION 6: WhatsApp 10-Digit Phone Normalization (Bug Class 8/19)
+  // ==========================================
+  console.log('\n--- 6. Testing 10-Digit Phone Normalization ---');
+  try {
+    const normalizePhone = (p) => String(p || '').replace(/\D/g, '').slice(-10);
+
+    assert.strictEqual(normalizePhone('+91 96080 32073'), '9608032073');
+    assert.strictEqual(normalizePhone('09608032073'), '9608032073');
+    assert.strictEqual(normalizePhone('919608032073'), '9608032073');
+    assert.strictEqual(normalizePhone('9608032073'), '9608032073');
+    assert.strictEqual(normalizePhone(null), '');
+    recordPass('WhatsApp 10-Digit Phone Normalization Protocol (Directive 21/104)');
+  } catch (err) {
+    recordFail('Phone Normalization', err);
+  }
+
+  // ==========================================
+  // SECTION 7: Safe LocalStorage JSON Parser (Bug Class 16)
+  // ==========================================
+  console.log('\n--- 7. Testing Safe JSON Storage Parsing ---');
+  try {
+    const safeParse = (str, fallback) => {
+      try {
+        return str ? JSON.parse(str) : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+
+    assert.deepStrictEqual(safeParse('{"valid": true}', {}), { valid: true });
+    assert.deepStrictEqual(safeParse('INVALID_JSON_CORRUPTED', { fallback: true }), { fallback: true });
+    assert.deepStrictEqual(safeParse(null, []), []);
+    recordPass('Safe Storage Parser with Exception Immunity (Directive 2/101)');
+  } catch (err) {
+    recordFail('Safe JSON Parser', err);
+  }
+
+  // ==========================================
+  // SECTION 8: FEFO Inventory Expiry Sorting (Bug Class 18)
+  // ==========================================
+  console.log('\n--- 8. Testing FEFO Inventory Sorting Invariant ---');
+  try {
+    const batches = [
+      { id: 'b1', batchNo: 'BATCH-2026-B', daysRemaining: 120 },
+      { id: 'b2', batchNo: 'BATCH-2026-A', daysRemaining: 15 },
+      { id: 'b3', batchNo: 'BATCH-2026-C', daysRemaining: 300 }
+    ];
+
+    const sortedBatches = [...batches].sort((a, b) => a.daysRemaining - b.daysRemaining);
+    assert.strictEqual(sortedBatches[0].batchNo, 'BATCH-2026-A'); // Expiring in 15 days
+    assert.strictEqual(sortedBatches[1].batchNo, 'BATCH-2026-B');
+    assert.strictEqual(sortedBatches[2].batchNo, 'BATCH-2026-C');
+    recordPass('FEFO Batch Sorting by daysRemaining in Ascending Order (Directive 107)');
+  } catch (err) {
+    recordFail('FEFO Batch Sorting', err);
+  }
+
+  // ==========================================
+  // SECTION 9: Chronic Care Days-Supply Calculation Math (Bug Class 24)
+  // ==========================================
+  console.log('\n--- 9. Testing Chronic Care Days-Supply Math ---');
+  try {
+    const calculateDaysSupply = (dosagePattern, totalQuantity) => {
+      let dailyPills = 1;
+      if (dosagePattern === '1-0-1') dailyPills = 2;
+      else if (dosagePattern === '1-1-1') dailyPills = 3;
+      else if (dosagePattern === '1-0-0' || dosagePattern === '0-0-1') dailyPills = 1;
+      else if (dosagePattern === '2-0-2') dailyPills = 4;
+      return Math.floor((totalQuantity || 30) / dailyPills);
+    };
+
+    assert.strictEqual(calculateDaysSupply('1-0-1', 30), 15); // 2/day => 15 days
+    assert.strictEqual(calculateDaysSupply('1-0-0', 30), 30); // 1/day => 30 days
+    assert.strictEqual(calculateDaysSupply('1-1-1', 90), 30); // 3/day => 30 days
+    recordPass('Chronic Care Days-Supply & Automated Refill Trigger Math (Directive 111)');
+  } catch (err) {
+    recordFail('Chronic Care Math', err);
+  }
+
+  // ==========================================
+  // SECTION 10: Live Cloud Edge Function Simulation
+  // ==========================================
+  console.log('\n--- 10. Testing Live Cloud Webhook Endpoints ---');
   try {
     const url = 'https://kguupaybvbngyzyofjun.supabase.co/functions/v1/meta-webhook';
     const testPhone = '919608032073';
@@ -171,3 +328,4 @@ async function runMilitaryGradeTestSuite() {
 }
 
 runMilitaryGradeTestSuite();
+

@@ -65,6 +65,7 @@ export class LabBillingService {
             if (delErr) console.error('[LabBillingService] Error clearing old bill items:', delErr);
             if (bill.items && bill.items.length > 0) {
               const dbItems = bill.items.map(item => ({
+                id: item.id || `item-${crypto.randomUUID().substring(0, 8)}`,
                 bill_id: bill.id,
                 requisition_id: item.requisitionId || null,
                 loinc_code: item.loincCode,
@@ -74,8 +75,8 @@ export class LabBillingService {
                 gst_percent: item.gstPercent || 0,
                 line_total: item.lineTotal
               }));
-              supabase.from('lab_test_bill_items').insert(dbItems).then(({ error: insErr }) => {
-                if (insErr) console.error('[LabBillingService] Error inserting bill items:', insErr);
+              supabase.from('lab_test_bill_items').upsert(dbItems, { onConflict: 'id' }).then(({ error: insErr }) => {
+                if (insErr) console.error('[LabBillingService] Error upserting bill items:', insErr);
               });
             }
           });
@@ -178,6 +179,7 @@ export class LabBillingService {
       if (navigator.onLine) {
         const dbEntries = [
           {
+            id: platformLedger.id,
             invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
@@ -190,6 +192,7 @@ export class LabBillingService {
             pod_id: getPodContext().podId
           },
           {
+            id: labLedger.id,
             invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
             destination_entity_id: getPodContext().labEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003',
@@ -202,8 +205,8 @@ export class LabBillingService {
             pod_id: getPodContext().podId
           }
         ];
-        supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
-          if (error) console.error('[LabBillingService] Error inserting ledger splits:', error);
+        supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
+          if (error) console.error('[LabBillingService] Error upserting ledger splits:', error);
         });
       }
     }
@@ -258,7 +261,7 @@ export class LabBillingService {
 
   <div class="patient-info">
     <strong>Patient:</strong> ${bill.patientName} &nbsp;|&nbsp;
-    <strong>Phone:</strong> +91 ${bill.patientPhone} &nbsp;|&nbsp;
+    <strong>Phone:</strong> ${(bill.patientPhone || '').startsWith('+91') ? bill.patientPhone : `+91 ${bill.patientPhone || 'N/A'}`} &nbsp;|&nbsp;
     <strong>Source:</strong> ${bill.source === 'walkin' ? 'Walk-in' : 'Doctor Prescription'}
     ${bill.labGstin ? `&nbsp;|&nbsp; <strong>Lab GSTIN:</strong> ${bill.labGstin}` : ''}
   </div>
@@ -314,7 +317,7 @@ export class LabBillingService {
 
     return `🧪 *Lab Test Invoice — VitalSync Pathology*\n\n` +
       `👤 *Patient:* ${bill.patientName || 'Patient'}\n` +
-      `📱 *Phone:* +91 ${bill.patientPhone || 'N/A'}\n` +
+      `📱 *Phone:* ${(bill.patientPhone || '').startsWith('+91') ? bill.patientPhone : `+91 ${bill.patientPhone || 'N/A'}`}\n` +
       `📄 *Invoice:* #${(bill.id || 'N/A').substring(0, 8).toUpperCase()}\n` +
       `📅 *Date:* ${new Date(bill.createdAt || Date.now()).toLocaleString('en-IN')}\n\n` +
       `*Tests:*\n${itemsList}\n\n` +

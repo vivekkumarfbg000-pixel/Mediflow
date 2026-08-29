@@ -47,7 +47,11 @@ const supabase = new Proxy({}, {
 }) as any;
 
 async function decryptWabaToken(phoneId: string): Promise<string | null> {
-  const effectiveKey = wabaSecretKey || Deno.env.get("WABA_DECRYPTION_KEY") || "vitalsync_master_vault_key_2026";
+  const effectiveKey = wabaSecretKey || Deno.env.get("WABA_DECRYPTION_KEY");
+  if (!effectiveKey) {
+    console.error(`[meta-webhook] FATAL: WABA_DECRYPTION_KEY not set in Supabase Vault. Cannot decrypt token for phoneId ${phoneId}.`);
+    return null;
+  }
   try {
     const { data: rpcData, error: rpcErr } = await supabase.rpc("decrypt_tenant_waba_connection", {
       p_phone_number_id: phoneId,

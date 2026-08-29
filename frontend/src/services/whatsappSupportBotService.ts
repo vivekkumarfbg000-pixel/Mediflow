@@ -151,7 +151,18 @@ export class WhatsAppSupportBotService {
     // ── SCENARIO 3: RAG Knowledge Base Matching (How-To Guidance) ─────────────
     for (const key of Object.keys(VITALSYNC_SAAS_KNOWLEDGE_BASE)) {
       const kb = VITALSYNC_SAAS_KNOWLEDGE_BASE[key];
-      if (kb.keywords.some(kw => textLower.includes(kw))) {
+      const isMatch = kb.keywords.some(kw => {
+        if (/^\d+$/.test(kw)) {
+          return textLower === kw ||
+                 textLower.startsWith(`${kw}.`) ||
+                 textLower.startsWith(`${kw} `) ||
+                 textLower.endsWith(` ${kw}`) ||
+                 textLower.includes(`option ${kw}`);
+        }
+        return textLower.includes(kw);
+      });
+
+      if (isMatch) {
         const ragResp = `🤖 *VITALSYNC AI SUPPORT RAG ASSISTANT*\n\n${kb.answer}\n\nNeed further assistance? Reply directly to this WhatsApp chat!`;
         
         await this.logEscalationTicket({
@@ -188,8 +199,10 @@ export class WhatsAppSupportBotService {
 
   // ── Log Ticket to Local State & Supabase ───────────────────────────────────
   private static async logEscalationTicket(ticket: Omit<SupportEscalationTicket, 'id' | 'created_at'>) {
+    const cleanPhone = ticket.phone ? ticket.phone.replace(/\D/g, '').slice(-10) : undefined;
     const newTicket: SupportEscalationTicket = {
       ...ticket,
+      phone: cleanPhone,
       id: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
       created_at: new Date().toISOString()
     };
@@ -204,7 +217,7 @@ export class WhatsAppSupportBotService {
     }
 
     try {
-      await supabase.from('support_escalations').insert([newTicket]);
+      await supabase.from('support_escalations').upsert([newTicket], { onConflict: 'id' });
     } catch (_e) {
       /* ignore db insert error */
     }

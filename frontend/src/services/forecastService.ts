@@ -255,8 +255,7 @@ Return ONLY a valid JSON object matching:
       // ── TIER 1: Direct Google Gemini 2.5 Flash Audio Transcription ──────────
       if (import.meta.env.VITE_GEMINI_API_KEY && base64Data) {
         try {
-          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-          const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+          const candidateModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'];
           const parts: any[] = [
             { text: promptText },
             {
@@ -267,49 +266,62 @@ Return ONLY a valid JSON object matching:
             }
           ];
 
-          const res = await fetch(directEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: { responseMimeType: 'application/json' }
-            })
-          });
+          for (const modelName of candidateModels) {
+            try {
+              const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
+              const res = await fetch(directEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts }],
+                  generationConfig: { responseMimeType: 'application/json' }
+                })
+              });
 
-          if (res.ok) {
-            const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              let clean = text.trim();
-              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-              const parsed = JSON.parse(clean);
-              if (parsed.summary) {
-                return {
-                  summary: parsed.summary,
-                  language: parsed.language || 'Hinglish'
-                };
+              if (res.ok) {
+                const data = await res.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                  let clean = text.trim();
+                  if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                  const parsed = JSON.parse(clean);
+                  if (parsed.summary) {
+                    return {
+                      summary: parsed.summary,
+                      language: parsed.language || 'Hinglish'
+                    };
+                  }
+                }
               }
-            }
+            } catch (_err) { /* try next candidate */ }
           }
         } catch (tier1Err) {
           console.warn('[Mediflow AI] Tier 1 Gemini Audio Scribe failed:', tier1Err);
         }
       }
 
-      // ── TIER 2: Local Python Daemon (if running) ───────────────────────────
+      // ── TIER 2: Local Python Daemon (if running) with 25s timeout ─────────
       try {
         const form = new FormData();
         form.append('file', audioBlob, filename);
-        const res = await fetch(`${this.AI_BASE}/api/voice-scribe`, {
-          method: 'POST',
-          body: form,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.summary) return data;
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 25000);
+        try {
+          const res = await fetch(`${this.AI_BASE}/api/voice-scribe`, {
+            method: 'POST',
+            body: form,
+            signal: abortController.signal,
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.summary) return data;
+          }
+        } finally {
+          clearTimeout(timeoutId);
         }
       } catch (_backendErr) {
-        // non-blocking
+        // non-blocking — timeout or daemon offline
       }
 
       // Fallback
@@ -486,7 +498,7 @@ Return ONLY a valid JSON object matching:
     if (import.meta.env.VITE_GEMINI_API_KEY && suggestionsText.trim()) {
       try {
         const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
         
         const promptText = `You are a polite, compassionate clinical doctor's AI communicator in Tier 2/3 India.
 Write a warm, crystal-clear WhatsApp home-care message in polite conversational Hinglish (Hindi written in English alphabet) for the patient.
@@ -820,21 +832,24 @@ Dhyan rakhein aur jaldi theek hon!`;
   }
 
   static async saveAgentTaskPipeline(pipeline: {
+    id?: string;
     patient_id: string;
     original_prompt: string;
     parsed_intent: string;
     steps_json: any[];
     status: string;
   }): Promise<{ error: any }> {
+    const pipelineId = pipeline.id || crypto.randomUUID();
     const { error } = await supabase
       .from('agent_task_pipelines')
-      .insert({
+      .upsert({
+        id: pipelineId,
         patient_id: pipeline.patient_id,
         original_prompt: pipeline.original_prompt,
         parsed_intent: pipeline.parsed_intent,
         steps_json: pipeline.steps_json,
         status: pipeline.status
-      });
+      }, { onConflict: 'id' });
     
     if (error) {
       console.error('[Mediflow API] Error saving agent task pipeline:', error);
@@ -963,43 +978,48 @@ Rules:
 
       let parsedResult: any = null;
 
-      // ── TIER 1: Direct Google Gemini Vision API (Gemini 2.5 Flash) ──
+      // ── TIER 1: Direct Google Gemini Vision API (Resilient Model Fallback) ──
       if (!parsedResult && import.meta.env.VITE_GEMINI_API_KEY) {
-        try {
-          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-          const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-          const parts: any[] = [{ text: promptText }];
-          if (base64Data) {
-            parts.push({
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data
-              }
-            });
-          }
-
-          const res = await fetch(directEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: { responseMimeType: 'application/json' }
-            })
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              let clean = text.trim();
-              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-              parsedResult = JSON.parse(clean);
+        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const candidateModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'];
+        const parts: any[] = [{ text: promptText }];
+        if (base64Data) {
+          parts.push({
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
             }
-          } else {
-            console.warn('[Mediflow AI] Tier 1 Direct Gemini returned HTTP', res.status);
+          });
+        }
+
+        for (const candidateModel of candidateModels) {
+          if (parsedResult) break;
+          try {
+            const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
+            const res = await fetch(directEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts }],
+                generationConfig: { responseMimeType: 'application/json' }
+              })
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                let clean = text.trim();
+                if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                parsedResult = JSON.parse(clean);
+                if (parsedResult) break;
+              }
+            } else {
+              console.warn(`[Mediflow AI] Direct Gemini (${candidateModel}) returned HTTP`, res.status);
+            }
+          } catch (modelErr) {
+            console.warn(`[Mediflow AI] Direct Gemini (${candidateModel}) fetch failed:`, modelErr);
           }
-        } catch (tier1Err) {
-          console.warn('[Mediflow AI] Tier 1 Direct Gemini Vision failed:', tier1Err);
         }
       }
 
@@ -1167,7 +1187,7 @@ Rules:
     let mimeType = 'image/jpeg';
 
     if (fileOrUri instanceof File) {
-      mimeType = fileOrUri.type || (fileOrUri.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+      mimeType = fileOrUri.type || ((fileOrUri?.name || '').endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
       base64Data = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -1225,41 +1245,46 @@ Return ONLY raw valid JSON without markdown code fences or conversational text.`
 
     let parsed: any = null;
 
-    // ── TIER 1: Direct Google Gemini 2.5 Flash Vision ────────────────────────────
+    // ── TIER 1: Direct Google Gemini 2.0 Flash Vision ────────────────────────────
     if (import.meta.env.VITE_GEMINI_API_KEY && base64Data) {
-      try {
-        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-        const parts: any[] = [
-          { text: promptText },
-          {
-            inlineData: {
-              mimeType,
-              data: base64Data
-            }
-          }
-        ];
-
-        const res = await fetch(directEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: { responseMimeType: 'application/json' }
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            let clean = text.trim();
-            if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-            parsed = JSON.parse(clean);
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const candidateModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-pro'];
+      const parts: any[] = [
+        { text: promptText },
+        {
+          inlineData: {
+            mimeType,
+            data: base64Data
           }
         }
-      } catch (geminiErr) {
-        console.warn('[Mediflow AI] Tier 1 Gemini Vision Lab OCR failed:', geminiErr);
+      ];
+
+      for (const m of candidateModels) {
+        if (parsed) break;
+        try {
+          const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+          const res = await fetch(directEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: { responseMimeType: 'application/json' }
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              let clean = text.trim();
+              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+              parsed = JSON.parse(clean);
+              if (parsed) break;
+            }
+          }
+        } catch (geminiErr) {
+          console.warn(`[Mediflow AI] Tier 1 Gemini Vision Lab OCR (${m}) failed:`, geminiErr);
+        }
       }
     }
 

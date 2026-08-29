@@ -76,7 +76,7 @@ export class PaymentService {
     const cleanAmount = (Math.round(amount * 100) / 100).toFixed(2);
     const targetVpa = PaymentService.getSafeClinicUpiVpa(vpa || DEFAULT_PILOT_VPA);
     const sanitizedPayee = encodeURIComponent(payeeName);
-    const sanitizedInvoice = encodeURIComponent(invoiceId.substring(0, 30));
+    const sanitizedInvoice = encodeURIComponent((invoiceId || 'N/A').substring(0, 30));
 
     const upiDeepLink = `upi://pay?pa=${targetVpa}&pn=${sanitizedPayee}&am=${cleanAmount}&tn=${sanitizedInvoice}&cu=INR`;
 
@@ -486,7 +486,8 @@ export class PaymentService {
       // 3. Log settlement into vitalsync_pool_settlements
       await supabase
         .from('vitalsync_pool_settlements')
-        .insert({
+        .upsert({
+          id: `pool-settle-${invoiceId}`,
           invoice_id: invoiceId,
           patient_id: invoice.patient_id || invoice.patientId,
           total_amount: totalAmount,
@@ -497,7 +498,7 @@ export class PaymentService {
           payment_method: paymentMethod,
           settlement_status: 'completed',
           created_at: new Date().toISOString()
-        })
+        }, { onConflict: 'id' })
         .select();
 
       console.log(`[PaymentService] 🟢 Invoice ${invoiceId} settled via ${paymentMethod}. Doctor: ₹${doctorFee}, Platform Profit: ₹${netPlatformProfit}`);

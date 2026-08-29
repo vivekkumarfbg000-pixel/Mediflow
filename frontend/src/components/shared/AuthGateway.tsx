@@ -642,7 +642,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // 1. Call register_clinic_network RPC function
       const { data: rpcData, error: rpcError } = await supabase.rpc('register_clinic_network', {
         p_clinic_name: clinicName.trim(),
-        p_clinic_phone: phone.trim(),
+        p_clinic_phone: phone.trim().replace(/\D/g, '').slice(-10),
         p_clinic_address: address.trim(),
         p_specialization: specialization
       });
@@ -700,7 +700,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         p_clinic_code: clinicCode.trim().toUpperCase(),
         p_partner_type: partnerType,
         p_partner_name: displayName.trim(),
-        p_partner_phone: phone.trim(),
+        p_partner_phone: phone.trim().replace(/\D/g, '').slice(-10),
         p_partner_address: address.trim()
       });
 
@@ -1180,7 +1180,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             display_name: finalDisplayName,
             role: 'doctor',
             clinic_name: clinicName.trim(),
-            clinic_phone: phone.trim(),
+            clinic_phone: phone.trim().replace(/\D/g, '').slice(-10),
             clinic_address: address.trim(),
             specialization: specialization,
             pending_registration: true
@@ -1234,7 +1234,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       try {
         const { data: res, error: rpcError } = await supabase.rpc('register_clinic_network', {
           p_clinic_name: clinicName.trim(),
-          p_clinic_phone: phone.trim(),
+          p_clinic_phone: phone.trim().replace(/\D/g, '').slice(-10),
           p_clinic_address: address.trim(),
           p_specialization: specialization
         });
@@ -1379,7 +1379,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             role: userRole,
             clinic_code: clinicCode.trim().toUpperCase(),
             partner_type: partnerType,
-            partner_phone: phone.trim(),
+            partner_phone: phone.trim().replace(/\D/g, '').slice(-10),
             partner_address: address.trim(),
             pending_registration: true
           }
@@ -1421,7 +1421,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           p_clinic_code: clinicCode.trim().toUpperCase(),
           p_partner_type: partnerType,
           p_partner_name: displayName.trim(),
-          p_partner_phone: phone.trim(),
+          p_partner_phone: phone.trim().replace(/\D/g, '').slice(-10),
           p_partner_address: address.trim()
         });
       } catch (_rpcErr) {

@@ -174,6 +174,13 @@ export const RefractionDashboard: React.FC = () => {
     e.preventDefault();
     if (!refractionPatient) return;
 
+    const sanitizeDiopter = (val?: string) => {
+      if (!val) return undefined;
+      const trimmed = val.trim();
+      if (trimmed === '-0.00' || trimmed === '-0' || trimmed === '-0.0') return '0.00';
+      return trimmed;
+    };
+
     const refractionData: Partial<PatientVitals> = {
       visualAcuityOD: vaOD,
       visualAcuityOS: vaOS,
@@ -181,11 +188,11 @@ export const RefractionDashboard: React.FC = () => {
       visualAcuityAidedOS: vaAidedOS || undefined,
       iopOD: iopOD || undefined,
       iopOS: iopOS || undefined,
-      arOD_sph: arODSph || undefined,
-      arOD_cyl: arODCyl || undefined,
+      arOD_sph: sanitizeDiopter(arODSph),
+      arOD_cyl: sanitizeDiopter(arODCyl),
       arOD_axis: arODAxis || undefined,
-      arOS_sph: arOSSph || undefined,
-      arOS_cyl: arOSCyl || undefined,
+      arOS_sph: sanitizeDiopter(arOSSph),
+      arOS_cyl: sanitizeDiopter(arOSCyl),
       arOS_axis: arOSAxis || undefined,
       refractionRx: subjectiveRx,
       biometryRx: biometryRx,

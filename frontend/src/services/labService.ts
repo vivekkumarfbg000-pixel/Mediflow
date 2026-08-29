@@ -285,14 +285,15 @@ export class LabService {
         writeAuditLog('lab_result_submitted', { reqId, resultValue }, reqId);
 
         const patient = PatientService.getPatients().find(p => p.id === req.patientId);
-        await supabase.from('lab_reports').insert({
+        await supabase.from('lab_reports').upsert({
+          id: `report-${reqId}`,
           requisition_id: reqId,
           patient_id: req.patientId,
           patient_name: patient?.name || req.patientName || 'Unknown',
           biomarker_json: { testCode: req.testCode, testName: req.testName, resultValue },
           status: 'approved', // lab tech submit = auto-approved at technician level
           pod_id: getPodContext().podId
-        });
+        }, { onConflict: 'id' });
 
         // AI extraction and summary update
         try {
@@ -380,7 +381,7 @@ export class LabService {
     save('lab_requisitions', existing);
     notify();
 
-    supabase.from('lab_requisitions').insert({
+    supabase.from('lab_requisitions').upsert({
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
@@ -392,7 +393,7 @@ export class LabService {
       status: 'pending',
       assigned_technician_id: null,
       created_at: newReq.createdAt
-    }).then(({ error }) => {
+    }, { onConflict: 'id' }).then(({ error }) => {
       if (error) console.error('[Mediflow Lab] Walk-in requisition sync failed:', error);
       else writeAuditLog('walkin_lab_test_registered', { patientId, testCode, testName, barcode }, patientId);
     });
@@ -577,7 +578,7 @@ export class LabService {
     save('lab_requisitions', existing);
     notify();
 
-    supabase.from('lab_requisitions').insert({
+    supabase.from('lab_requisitions').upsert({
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
@@ -590,7 +591,7 @@ export class LabService {
       prescription_file_url: prescriptionFileUrl,
       assigned_technician_id: null,
       created_at: newReq.createdAt
-    }).then(({ error }) => {
+    }, { onConflict: 'id' }).then(({ error }) => {
       if (error) console.error('[Mediflow Lab] Prescription dispatch to lab failed:', error);
       else writeAuditLog('prescription_dispatched_to_lab', { patientId, testCode, testName, barcode, prescriptionFileUrl }, patientId);
     });

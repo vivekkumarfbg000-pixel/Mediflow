@@ -87,7 +87,7 @@ serve(async (req) => {
     } = validationResult.data;
 
     // ── Gemini Proxy Mode (BUG-05 Security Hardening) ────────────────────────
-    if (model === "gemini-2.5-flash") {
+    if (model === "gemini-2.5-flash" || (model as string) === "gemini-1.5-flash") {
       const geminiKey = Deno.env.get("GEMINI_API_KEY");
       if (!geminiKey) {
         console.error("[ai-inference] GEMINI_API_KEY not set in Vault.");
@@ -98,7 +98,7 @@ serve(async (req) => {
       }
 
       try {
-        const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+        const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
         const response = await fetch(apiEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

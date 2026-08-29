@@ -245,7 +245,7 @@ export class PharmacyService {
     const stored = load<PharmacyInventoryItem[]>('pharmacy_inventory', []);
     
     if (stored.length > 0) {
-      const hasEyeItems = stored.some(i => i.id.startsWith('eye-item-'));
+      const hasEyeItems = stored.some(i => (i?.id || '').startsWith('eye-item-'));
       // If we are in Ophthalmology but have general items only, clear and load eye items
       if (isOphthalmology && !hasEyeItems) {
         save('pharmacy_inventory', defaultOphthalmicItems);
@@ -395,9 +395,9 @@ export class PharmacyService {
     };
 
     if (navigator.onLine) {
-      const { error } = await supabase.from('pharmacy_inventory').insert(dbRow);
+      const { error } = await supabase.from('pharmacy_inventory').upsert(dbRow, { onConflict: 'id' });
       if (error) {
-        console.error('[PharmacyService] Error inserting inventory item in Supabase:', error);
+        console.error('[PharmacyService] Error upserting inventory item in Supabase:', error);
         throw error;
       }
     }
@@ -483,8 +483,8 @@ export class PharmacyService {
       writeAuditLog('pharmacy_inventory_bulk_added', { count: addedCount }, 'bulk');
 
       if (dbRows.length > 0) {
-        supabase.from('pharmacy_inventory').insert(dbRows).then(({ error }) => {
-          if (error) console.error('[PharmacyService] Error inserting bulk inventory in Supabase:', error);
+        supabase.from('pharmacy_inventory').upsert(dbRows, { onConflict: 'id' }).then(({ error }) => {
+          if (error) console.error('[PharmacyService] Error upserting bulk inventory in Supabase:', error);
         });
       }
     }
@@ -697,6 +697,7 @@ export class PharmacyService {
       }
       if (bill.items && bill.items.length > 0) {
         const dbItems = bill.items.map(item => ({
+          id: item.id || `item-${crypto.randomUUID().substring(0, 8)}`,
           bill_id: bill.id,
           inventory_item_id: item.inventoryItemId,
           name: item.name,
@@ -709,9 +710,9 @@ export class PharmacyService {
           gst_percent: item.gstPercent || 0,
           line_total: item.lineTotal
         }));
-        const { error: insErr } = await supabase.from('medicine_bill_items').insert(dbItems);
+        const { error: insErr } = await supabase.from('medicine_bill_items').upsert(dbItems, { onConflict: 'id' });
         if (insErr) {
-          console.error('Error inserting bill items in Supabase:', insErr);
+          console.error('Error upserting bill items in Supabase:', insErr);
           throw insErr;
         }
       }
@@ -839,6 +840,7 @@ export class PharmacyService {
         // Sync splits to Supabase
         const dbEntries = [
           {
+            id: platformLedger.id,
             invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
             destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic-admin/platform-admin mapping
@@ -851,6 +853,7 @@ export class PharmacyService {
             pod_id: getPodContext().podId
           },
           {
+            id: pharmacyLedger.id,
             invoice_id: id,
             source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
             destination_entity_id: getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004', // pharmacy
@@ -864,8 +867,8 @@ export class PharmacyService {
           }
         ];
 
-        supabase.from('financial_ledgers').insert(dbEntries).then(({ error }) => {
-          if (error) console.error('Error inserting pharmacy cash ledger splits in Supabase:', error);
+        supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
+          if (error) console.error('Error upserting pharmacy cash ledger splits in Supabase:', error);
         });
       }
 

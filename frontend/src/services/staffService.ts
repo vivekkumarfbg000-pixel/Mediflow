@@ -25,7 +25,7 @@ export class StaffService {
     (async () => {
       const ctx = await resolvePodContext();
       newStaff.entityId = ctx.entityId;
-      const { error } = await supabase.from('clinic_staff').insert({
+      const { error } = await supabase.from('clinic_staff').upsert({
         id: newStaff.id,
         entity_id: ctx.entityId,
         staff_name: newStaff.staffName,
@@ -33,7 +33,7 @@ export class StaffService {
         is_active: newStaff.isActive,
         created_at: newStaff.createdAt,
         pod_id: ctx.podId
-      });
+      }, { onConflict: 'id' });
       if (error) console.error('Error inserting clinic staff into Supabase:', error);
       else writeAuditLog('clinic_staff_registered', { staffId: newStaff.id, name, role }, newStaff.id);
     })();

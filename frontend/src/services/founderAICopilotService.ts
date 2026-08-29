@@ -273,13 +273,19 @@ export class FounderAICopilotService {
       }
 
       if (action.actionType === 'broadcast_whatsapp') {
-        const { data: pods } = await supabase.from('pods').select('id, name, phone').limit(50);
+        const { data: entities } = await supabase.from('entities').select('phone').limit(50);
+        const { data: profiles } = await supabase.from('profiles').select('phone').limit(50);
         const msg = "🏥 VitalSync Clinical Operations Notice: Autonomous WhatsApp Support Gateway is nominal (99.9% Uptime).";
-        const targetList = (pods && pods.length > 0) ? pods : [{ phone: '+919876543210' }];
-        for (const p of targetList) {
-          if (p.phone) api.pushWhatsAppMessageFromBot(p.phone, msg);
+        
+        const phoneSet = new Set<string>();
+        (entities || []).forEach(e => { if (e.phone) phoneSet.add(e.phone.replace(/\D/g, '').slice(-10)); });
+        (profiles || []).forEach(p => { if (p.phone) phoneSet.add(p.phone.replace(/\D/g, '').slice(-10)); });
+        
+        const targetList = phoneSet.size > 0 ? Array.from(phoneSet) : ['9876543210'];
+        for (const phone of targetList) {
+          api.pushWhatsAppMessageFromBot(phone, msg);
         }
-        return { success: true, message: `Dispatched WhatsApp announcement to ${targetList.length} clinic pods.` };
+        return { success: true, message: `Dispatched WhatsApp announcement to ${targetList.length} clinic phone numbers.` };
       }
 
       return { success: true, message: 'Action executed successfully.' };

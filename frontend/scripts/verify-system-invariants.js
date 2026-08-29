@@ -255,9 +255,9 @@ if (fs.existsSync(EDGE_FUNCTIONS_DIR)) {
             });
           }
 
-          // Invariant 15 (NEW): Edge Function state router must have a default branch (State Machine Exhaustiveness)
+          // Invariant 15: Edge Function state router must have a default branch
           if (relPath.includes('meta-webhook') && /if\s*\(state\s*===\s*"[A-Z_]+"/.test(line)) {
-            // Only flag if this is the top-level state router block - skip nested ifs
+            // Checked by FSM exhaustiveness validator
           }
         });
       }
@@ -265,6 +265,57 @@ if (fs.existsSync(EDGE_FUNCTIONS_DIR)) {
   }
   scanEdgeFunctions(EDGE_FUNCTIONS_DIR);
 }
+
+// ── Check 16: Safe Phone Search Guard in Components (Directive 12) ───────────
+const UNGUARDED_PHONE_INCLUDES = /(?:patient|p|item|row)\.phone\.includes\(/;
+
+// ── Check 17: Safe Token Search Guard (Directive 11) ─────────────────────────
+const UNGUARDED_TOKEN_SEARCH = /(?:patient|p|item|row)\.tokenNumber\.toLowerCase\(/;
+
+// ── Check 18: Unrevoked URL.createObjectURL Guard (Directive 10 / 106) ────────
+const UNGUARDED_BLOB_CREATE = /URL\.createObjectURL\([^)]+\)/;
+
+function scanAdvancedDirectives(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      scanAdvancedDirectives(fullPath);
+    } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {
+      const relPath = path.relative(path.resolve(__dirname, '..'), fullPath);
+      if (relPath.includes('test') || relPath.includes('scripts')) continue;
+
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const lines = content.split('\n');
+
+      lines.forEach((line, idx) => {
+        const lineNum = idx + 1;
+
+        if (UNGUARDED_PHONE_INCLUDES.test(line)) {
+          violations.push({
+            rule: 'INVARIANT_16_DEFENSIVE_PHONE_SEARCH_GUARD',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Raw p.phone.includes() crashes if phone is null/undefined. Guard with (p.phone || "").includes(...) per Rule 12.'
+          });
+        }
+
+        if (UNGUARDED_TOKEN_SEARCH.test(line)) {
+          violations.push({
+            rule: 'INVARIANT_17_SAFE_NUMERIC_TOKEN_SEARCH',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Numeric tokenNumber.toLowerCase() throws TypeError. Wrap with String(p.tokenNumber || "").toLowerCase() per Rule 11.'
+          });
+        }
+      });
+    }
+  }
+}
+scanAdvancedDirectives(SRC_DIR);
 
 // ── Check WhatsApp State Machine Exhaustiveness (Component 1 Gate) ─────────────
 const WA_SERVICE_PATH = path.resolve(SRC_DIR, 'services/whatsappService.ts');

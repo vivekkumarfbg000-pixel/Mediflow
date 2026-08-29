@@ -344,14 +344,22 @@ export const DoctorDashboard: React.FC = () => {
     };
   }, [isRecording]);
 
-  // Bug Fix #4: Revoke audio blob URL on unmount or when a new recording replaces it
+  // Rule 10: Revoke audio blob URL when replaced by a new recording OR on unmount
+  const audioUrlRef = React.useRef<string | null>(null);
   useEffect(() => {
+    // Revoke the previous URL before storing the new one
+    if (audioUrlRef.current && audioUrlRef.current !== audioUrl) {
+      URL.revokeObjectURL(audioUrlRef.current);
+    }
+    audioUrlRef.current = audioUrl;
     return () => {
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
       }
     };
   }, [audioUrl]);
+
 
   const startAudioRecording = async () => {
     try {
@@ -496,6 +504,7 @@ export const DoctorDashboard: React.FC = () => {
     const syncDashboardData = () => {
       const registered = api.getPatients();
       setPatients(registered);
+      setSelectedPatient(prev => prev ? (registered.find(p => p.id === prev.id) || prev) : prev);
       setAppointments(api.getAppointments());
       setPharmacyInventory(api.getPharmacyInventory());
       setWhatsAppOrders(api.getWhatsAppDrugOrders());
@@ -644,6 +653,7 @@ export const DoctorDashboard: React.FC = () => {
           const finalPatients = Array.from(mergedMap.values());
           api.savePatients(finalPatients);
           setPatients(finalPatients);
+          setSelectedPatient(prev => prev ? (finalPatients.find(p => p.id === prev.id) || prev) : prev);
         }
 
         if (sessionsRes.data && sessionsRes.data.length > 0) {
@@ -998,7 +1008,7 @@ export const DoctorDashboard: React.FC = () => {
           }
         }
 
-        if (selectedPatient.allergies.includes('Penicillin')) {
+        if ((selectedPatient.allergies || []).includes('Penicillin')) {
           defaultInsight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
         }
 
@@ -1173,7 +1183,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           fallbackInsight += `- HbA1c: **${compReport.HbA1c}%**, Creatinine: **${compReport.creatinine} mg/dL**, Hemoglobin: **${compReport.hemoglobin} g/dL**\n\n`;
         }
 
-        if (selectedPatient.allergies.includes('Penicillin')) {
+        if ((selectedPatient.allergies || []).includes('Penicillin')) {
           fallbackInsight += `⚠️ **CRITICAL CONTRAINDICATION**: Documented **Penicillin** allergy. Do NOT prescribe penicillin-class agents.\n\n`;
         }
 

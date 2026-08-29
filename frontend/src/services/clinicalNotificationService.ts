@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { WhatsAppService } from './whatsappService';
+import { WhatsAppService, normalizeWhatsAppPhone } from './whatsappService';
 import { getPodContext } from './podContext';
 import { writeAuditLog } from './apiHelper';
 
@@ -191,9 +191,8 @@ export class ClinicalNotificationService {
    */
   private static async relayMetaGraphApi(phone: string, text: string): Promise<void> {
     try {
-      const cleanDigits = (phone || '').replace(/\D/g, '');
-      if (!cleanDigits) return;
-      const cleanToPhone = cleanDigits.length === 10 ? '91' + cleanDigits : cleanDigits;
+      const cleanToPhone = normalizeWhatsAppPhone(phone);
+      if (!cleanToPhone) return;
 
       await supabase.functions.invoke('meta-webhook', {
         body: {

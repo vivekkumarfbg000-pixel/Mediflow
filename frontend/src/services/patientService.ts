@@ -680,14 +680,15 @@ export class PatientService {
     notify();
 
     try {
-      const { error } = await supabase.from('patient_consents').insert({
+      const { error } = await supabase.from('patient_consents').upsert({
+        id: `consent-${patientId}`,
         patient_id: patientId,
         data_sharing_consent: true,
         consented_at: consentTimestamp,
         consent_signature: consentSignature,
         signature_algorithm: 'HMAC-SHA256',
         pod_id: getPodContext().podId
-      });
+      }, { onConflict: 'id' });
       if (error) throw error;
       await writeAuditLog('IN_PERSON_CONSENT_GRANTED', { patientId, signaturePresent: !!consentSignature }, patientId);
     } catch (err) {
@@ -739,14 +740,15 @@ export class PatientService {
     notify();
 
     try {
-      const { error } = await supabase.from('patient_consents').insert({
+      const { error } = await supabase.from('patient_consents').upsert({
+        id: newConsent.id,
         patient_id: patientId,
         data_sharing_consent: true,
         consented_at: nowStr,
         consent_signature: `PHYSICAL_BYPASS_${newConsent.id}`,
         signature_algorithm: 'HMAC-SHA256',
         pod_id: getPodContext().podId
-      });
+      }, { onConflict: 'id' });
       if (error) throw error;
       await writeAuditLog('PHYSICAL_CONSENT_GRANTED', { 
         patientId, 
@@ -860,13 +862,63 @@ export class PatientService {
     }
   }
 
-  static generateAIPatientSummary(patientId: string): string {
+  static async generateAIPatientSummary(patientId: string): Promise<string> {
     const patients = this.getPatients();
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return 'No patient data resolved.';
 
-    return `Patient ${patient.name} (${patient.age}y, ${patient.gender}) presents active chronic management for ${(patient.chronicConditions || []).join(', ') || 'general complaints'}. Overall wellness score: 84/100. CDSS recommends continuous monitoring of blood pressure, bi-weekly capillary blood glucose, and strict avoidance of documented allergy triggers (${(patient.allergies || []).join(', ') || 'NKDA'}).`;
+    // Build structured clinical context from actual patient data
+    const chronicStr = (patient.chronicConditions || []).join(', ') || 'None documented';
+    const allergyStr = (patient.allergies || []).join(', ') || 'NKDA';
+    const vitals = patient.vitals
+      ? `BP: ${patient.vitals.bloodPressure || 'N/A'}, Pulse: ${patient.vitals.pulseRate || 'N/A'} bpm, SpO₂: ${patient.vitals.spO2 || 'N/A'}%, Temp: ${patient.vitals.temperature || 'N/A'}°F, Sugar: ${patient.vitals.bloodSugar || 'N/A'} mg/dL`
+      : 'No vitals on file';
+    const abha = patient.abhaId ? `ABHA: ${patient.abhaId}` : '';
+
+    const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+    if (geminiKey) {
+      try {
+        const prompt = `You are a clinical AI assistant at VitalSync Smart Virtual Hospital.
+Generate a concise, evidence-based longitudinal patient summary (2-3 sentences max) for a doctor's dashboard.
+
+Patient: ${patient.name}, Age ${patient.age || 'N/A'}, ${patient.gender || 'Unknown'}
+${abha}
+Chronic Conditions: ${chronicStr}
+Known Allergies: ${allergyStr}
+Latest Vitals: ${vitals}
+
+Focus on: active health risks, medication adherence considerations, and 1 CDSS recommendation.
+Respond in plain text (no bullet points, no markdown, no JSON). Keep it under 80 words.`;
+
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 150, temperature: 0.3 }
+          }),
+          signal: AbortSignal.timeout(15000)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (text && text.length > 20) return text;
+        }
+      } catch (geminiErr) {
+        console.warn('[PatientService] Gemini summary failed, using computed fallback:', geminiErr);
+      }
+    }
+
+    // Computed fallback using actual patient data (not hardcoded)
+    const conditionPhrase = (patient.chronicConditions || []).length > 0
+      ? `active management of ${chronicStr}`
+      : 'general outpatient care';
+    return `${patient.name} (${patient.age || '?'}y, ${patient.gender || 'Unknown'}) presents for ${conditionPhrase}. Latest vitals: ${vitals}. Known allergies: ${allergyStr}. CDSS recommends regular monitoring and strict allergy trigger avoidance.`;
   }
+
 
   static getSyntheticProfiles(): any[] {
     return load<any[]>('synthetic_profiles', []);

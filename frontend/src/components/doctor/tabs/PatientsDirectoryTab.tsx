@@ -57,6 +57,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
 }) => {
   const { activePod } = useClinic();
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
   const filteredPatients = React.useMemo(() => {
     const query = patientSearchQuery.trim().toLowerCase();
     let list = patients;
@@ -328,13 +329,17 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                       <button
                         type="button"
                         onClick={() => {
+                          const todayStr = getIstDateString();
+                          const defaultTimeStr = '10:30 AM';
                           const newAppt: any = {
                             id: `apt-${Date.now()}`,
                             patientId: selectedDirectoryPatient.id,
                             doctorId: 'doc-vivek',
                             isVirtual: true,
-                            virtualDate: getIstDateString(),
-                            virtualTime: '10:30 AM',
+                            date: todayStr,
+                            time: defaultTimeStr,
+                            virtualDate: todayStr,
+                            virtualTime: defaultTimeStr,
                             virtualTimeAllocated: false,
                             status: 'pending',
                             appointmentBookedAtCounter: false,
@@ -362,10 +367,10 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                             api.dispatchVirtualConsultMeetingLinkWhatsApp({
                               patientPhone: selectedDirectoryPatient.phone,
                               patientName: selectedDirectoryPatient.name,
-                              doctorName: activePod?.doctor_name,
-                              clinicName: activePod?.name,
-                              appointmentDate: newAppt.date,
-                              appointmentTime: newAppt.time,
+                              doctorName: activePod?.doctor_name || activePod?.name || 'Doctor',
+                              clinicName: activePod?.name || 'VitalSync Smart Care Clinic',
+                              appointmentDate: newAppt.virtualDate || newAppt.date || todayStr,
+                              appointmentTime: newAppt.virtualTime || newAppt.time || defaultTimeStr,
                               meetingUrl: meetUrl
                             }).catch(err => console.warn('[PatientsDirectoryTab] Virtual meeting link WhatsApp error:', err));
                           }
@@ -540,13 +545,22 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   AI Chronic Longitudinal Health Summary
                 </h3>
                 <button
-                  onClick={() => {
-                    const sum = api.generateAIPatientSummary(selectedDirectoryPatient.id);
-                    setPatientRAGSummary(sum);
+                  onClick={async () => {
+                    if (isGeneratingSummary) return;
+                    setIsGeneratingSummary(true);
+                    try {
+                      const sum = await api.generateAIPatientSummary(selectedDirectoryPatient.id);
+                      setPatientRAGSummary(sum);
+                    } catch (err) {
+                      console.warn('[PatientsDirectoryTab] AI summary failed:', err);
+                    } finally {
+                      setIsGeneratingSummary(false);
+                    }
                   }}
-                  className="text-primary hover:text-primary-700 text-xs font-bold flex items-center gap-1 cursor-pointer border-0 bg-transparent"
+                  disabled={isGeneratingSummary}
+                  className="text-primary hover:text-primary-700 text-xs font-bold flex items-center gap-1 cursor-pointer border-0 bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Generate Summary
+                  <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isGeneratingSummary ? 'animate-spin' : ''}`} /> {isGeneratingSummary ? 'Generating…' : 'Generate Summary'}
                 </button>
               </div>
 

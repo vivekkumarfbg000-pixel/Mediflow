@@ -142,6 +142,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // Key navigation controller
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (filteredItems.length === 0) return;
+
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => (prev + 1) % filteredItems.length);
@@ -161,9 +169,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           onClose();
         }
       }
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      onClose();
     }
   };
 

@@ -58,16 +58,20 @@ serve(async (req) => {
             if (wabaConn.access_token && wabaConn.access_token.startsWith("EAA")) {
               systemToken = wabaConn.access_token;
             } else if (wabaConn.encrypted_system_user_token) {
-              const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY") || "vitalsync_master_vault_key_2026";
-              try {
-                const { data: rpcData } = await supabase.rpc("decrypt_tenant_waba_connection", {
-                  p_phone_number_id: wabaConn.phone_number_id,
-                  p_secret_key: wabaSecretKey
-                });
-                if (rpcData && rpcData.length > 0 && rpcData[0].decrypted_token && rpcData[0].decrypted_token.startsWith("EAA")) {
-                  systemToken = rpcData[0].decrypted_token;
-                }
-              } catch (_rpcE) {}
+              const wabaSecretKey = Deno.env.get("WABA_DECRYPTION_KEY");
+              if (!wabaSecretKey) {
+                console.error("[whatsapp-broadcast-worker] FATAL: WABA_DECRYPTION_KEY not set in Supabase Vault.");
+              } else {
+                try {
+                  const { data: rpcData } = await supabase.rpc("decrypt_tenant_waba_connection", {
+                    p_phone_number_id: wabaConn.phone_number_id,
+                    p_secret_key: wabaSecretKey
+                  });
+                  if (rpcData && rpcData.length > 0 && rpcData[0].decrypted_token && rpcData[0].decrypted_token.startsWith("EAA")) {
+                    systemToken = rpcData[0].decrypted_token;
+                  }
+                } catch (_rpcE) {}
+              }
               if (!systemToken && wabaConn.encrypted_system_user_token.startsWith("EAA")) {
                 systemToken = wabaConn.encrypted_system_user_token;
               }

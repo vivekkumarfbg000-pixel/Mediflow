@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { PaymentService } from './paymentService';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
 
 // ─── Telemetry Types ────────────────────────────────────────────────────────────
 
@@ -760,7 +761,8 @@ export class StateHealingEngine {
       try {
         const entries = await telemetryDB.getUnsyncedEntries();
         for (const entry of entries) {
-          const { error } = await supabase.from('system_health_telemetry').insert({
+          const { error } = await supabase.from('system_health_telemetry').upsert({
+            id: entry.id,
             pod_id: entry.pod_id,
             subsystem: entry.subsystem,
             severity: entry.severity,
@@ -768,7 +770,7 @@ export class StateHealingEngine {
             error_stack: entry.error_stack,
             status: 'healed',
             healing_attempts: entry.healing_attempts
-          });
+          }, { onConflict: 'id' });
           if (!error) {
             await telemetryDB.deleteEntry(entry.id);
           }
@@ -1302,11 +1304,12 @@ export class StateHealingEngine {
       // 3. Record healing execution logs
       if (telemetryLogged) {
         try {
-          await supabase.from('self_healing_execution_logs').insert({
+          await supabase.from('self_healing_execution_logs').upsert({
+            id: `heal-log-${telemetryId}`,
             telemetry_id: telemetryId,
             action_taken: healingSteps.join('\n'),
             outcome: healingSuccess ? 'RESOLVED_SUCCESS' : 'RESOLVED_WITH_LIMITATIONS',
-          });
+          }, { onConflict: 'id' });
         } catch (err) {
           console.warn('[Auto-Healer] Failed recording healing execution log in database.');
         }
@@ -1326,12 +1329,9 @@ export class StateHealingEngine {
 
       if (healingSuccess) {
         try {
-          const raw = localStorage.getItem('founder_alerts');
-          if (raw) {
-            const alerts: any[] = JSON.parse(raw);
-            const filtered = alerts.filter(a => a.subsystem !== subsystem);
-            localStorage.setItem('founder_alerts', JSON.stringify(filtered));
-          }
+          const alerts = safeGetStorageJSON<any[]>('founder_alerts', []);
+          const filtered = alerts.filter(a => a.subsystem !== subsystem);
+          safeSetStorageJSON('founder_alerts', filtered);
         } catch { /* ignore */ }
       }
 
@@ -1540,9 +1540,9 @@ export class QAAgent {
       }
       // Persist alert to localStorage for dashboard display
       try {
-        const rawAlerts: any[] = JSON.parse(localStorage.getItem('founder_alerts') || '[]');
+        const rawAlerts = safeGetStorageJSON<any[]>('founder_alerts', []);
         rawAlerts.unshift({ errorSummary, subsystem, attempts, createdAt: new Date().toISOString() });
-        localStorage.setItem('founder_alerts', JSON.stringify(rawAlerts.slice(0, 20)));
+        safeSetStorageJSON('founder_alerts', rawAlerts.slice(0, 20));
       } catch (_e) {
         /* ignore alert storage error */
       }
@@ -1772,14 +1772,14 @@ export class FinancialGuardrailEngine {
         }
         // Persist alert for founder dashboard
         try {
-          const alerts: any[] = JSON.parse(localStorage.getItem('founder_alerts') || '[]');
+          const alerts = safeGetStorageJSON<any[]>('founder_alerts', []);
           alerts.unshift({
             type: 'SPENDING_ALERT',
             callCount,
             cap: this.DEFAULT_DAILY_CAP,
             createdAt: new Date().toISOString()
           });
-          localStorage.setItem('founder_alerts', JSON.stringify(alerts.slice(0, 20)));
+          safeSetStorageJSON('founder_alerts', alerts.slice(0, 20));
         } catch {
           /* ignore */
         }
@@ -2503,7 +2503,7 @@ export class ProactiveHealthMonitor {
         }
 
         // Reconstruct telemetry table first if missing (just in case)
-        const { error } = await supabase.from('system_health_telemetry').insert({
+        const { error } = await supabase.from('system_health_telemetry').upsert({
           id: entryId,
           pod_id: entryPodId,
           subsystem: entry.subsystem,
@@ -2513,7 +2513,7 @@ export class ProactiveHealthMonitor {
           status: entry.status,
           healing_attempts: entry.healing_attempts,
           created_at: entry.timestamp
-        });
+        }, { onConflict: 'id' });
 
         if (!error || error.message?.includes('already exists') || error.code === '23505') {
           await telemetryDB.deleteEntry(entry.id);

@@ -439,7 +439,7 @@ class MediflowApiService {
             // Execute Supabase insert sequentially with active user context
             const { error: encError } = await supabase
               .from('encounters')
-              .insert({
+              .upsert({
                 id: entry.id, // client UUID (idempotency key)
                 patient_id: payload.patientId,
                 doctor_id: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
@@ -447,29 +447,31 @@ class MediflowApiService {
                 clinical_notes: payload.clinicalNotes,
                 status: 'active',
                 pod_id: ctx.podId
-              });
+              }, { onConflict: 'id' });
             if (encError) throw encError;
 
             if (payload.medications && payload.medications.length > 0) {
-              const medsPayload = payload.medications.map((med: any) => ({
+              const medsPayload = payload.medications.map((med: any, idx: number) => ({
+                id: med.id || `enc-med-${entry.id}-${idx}`,
                 encounter_id: entry.id,
                 medicine_name: med.medicineName,
                 dosage: med.dosage,
                 frequency: med.frequency,
                 duration: med.duration
               }));
-              const { error: medsError } = await supabase.from('encounter_medications').insert(medsPayload);
+              const { error: medsError } = await supabase.from('encounter_medications').upsert(medsPayload, { onConflict: 'id' });
               if (medsError) throw medsError;
             }
 
             if (payload.diagnosticTests && payload.diagnosticTests.length > 0) {
-              const diagsPayload = payload.diagnosticTests.map((test: any) => ({
+              const diagsPayload = payload.diagnosticTests.map((test: any, idx: number) => ({
+                id: test.id || `enc-diag-${entry.id}-${idx}`,
                 encounter_id: entry.id,
                 loinc_code: test.loincCode,
                 test_name: test.name,
                 status: 'ordered'
               }));
-              const { error: diagsError } = await supabase.from('encounter_diagnostics').insert(diagsPayload);
+              const { error: diagsError } = await supabase.from('encounter_diagnostics').upsert(diagsPayload, { onConflict: 'id' });
               if (diagsError) throw diagsError;
             }
 
@@ -512,7 +514,7 @@ class MediflowApiService {
           case 'REGISTER_PATIENT': {
             const { payload } = entry;
             const ctx = getPodContext();
-            const { error } = await supabase.from('patient_registry').insert({
+            const { error } = await supabase.from('patient_registry').upsert({
               id: payload.id || entry.id,
               name: payload.name,
               phone: payload.phone,
@@ -524,7 +526,7 @@ class MediflowApiService {
               token_number: payload.tokenNumber,
               registered_at_entity: ctx.entityId && ctx.entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.entityId : null,
               pod_id: ctx.podId
-            });
+            }, { onConflict: 'id' });
             if (error) throw error;
             break;
           }
@@ -532,7 +534,7 @@ class MediflowApiService {
           case 'REGISTER_WALKIN_LAB': {
             const { payload } = entry;
             const ctx = getPodContext();
-            const { error } = await supabase.from('lab_requisitions').insert({
+            const { error } = await supabase.from('lab_requisitions').upsert({
               id: entry.id,
               encounter_id: null,
               patient_id: payload.patientId,
@@ -543,14 +545,14 @@ class MediflowApiService {
               assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
               created_at: entry.timestamp,
               pod_id: ctx.podId
-            });
+            }, { onConflict: 'id' });
             if (error) throw error;
             break;
           }
           case 'CREATE_LAB_REQ_FROM_RX': {
             const { payload } = entry;
             const ctx = getPodContext();
-            const { error } = await supabase.from('lab_requisitions').insert({
+            const { error } = await supabase.from('lab_requisitions').upsert({
               id: entry.id,
               encounter_id: null,
               patient_id: payload.patientId,
@@ -562,7 +564,7 @@ class MediflowApiService {
               assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
               created_at: entry.timestamp,
               pod_id: ctx.podId
-            });
+            }, { onConflict: 'id' });
             if (error) throw error;
             break;
           }
@@ -572,9 +574,9 @@ class MediflowApiService {
 
         await walDB.markSynced(entry.id);
         console.log(`[Mediflow WAL] Entry ${entry.id} synced successfully ✅`);
-      } catch (err) {
+      } catch (err: any) {
         console.error(`[Mediflow WAL] Replay failed for entry ${entry.id}:`, err);
-        const errString = String(err);
+        const errString = `${err?.message || ''} ${err?.code || ''} ${err?.details || ''} ${err?.hint || ''} ${String(err || '')}`;
         
         // 1. Duplicate Keys are inherently resolved
         if (errString.includes('23505') || errString.includes('already exists') || errString.includes('duplicate key')) {
@@ -1249,7 +1251,7 @@ class MediflowApiService {
     this.notify();
   }
 
-  generateAIPatientSummary(patientId: string): string {
+  async generateAIPatientSummary(patientId: string): Promise<string> {
     return PatientService.generateAIPatientSummary(patientId);
   }
 

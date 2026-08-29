@@ -112,10 +112,10 @@ class TelemetryServiceClass {
 
     let distinctId = 'Mediflow-User';
     try {
-      const profileStr = localStorage.getItem('mediflow_active_profile');
+      const profileStr = localStorage.getItem('vitalsync_cached_profile') || localStorage.getItem('mediflow_active_profile');
       if (profileStr) {
         const p = JSON.parse(profileStr);
-        distinctId = p.name || p.email || p.role || 'Mediflow-User';
+        distinctId = p.name || p.email || p.display_name || p.role || 'Mediflow-User';
       }
     } catch { /* ignore */ }
 
@@ -132,12 +132,14 @@ class TelemetryServiceClass {
     console.log(`%c[Mixpanel Log] Event: ${eventName}`, 'color: #33b5e5; font-weight: bold;', cleanProperties);
 
     // Persist BI logs directly to remote Supabase database for long-term audit analytics
-    Promise.resolve(supabase.from('activity_logs').insert({
+    const logId = properties.logId || `bi-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    Promise.resolve(supabase.from('activity_logs').upsert({
+      id: logId,
       action_type: eventName,
       details: payload,
       record_id: properties.recordId || 'telemetry-event',
       pod_id: getPodContext().podId
-    })).then(({ error }: any) => {
+    }, { onConflict: 'id' })).then(({ error }: any) => {
       if (error) {
         console.error('[Telemetry-Mixpanel] Remote ingestion failed:', error);
       }

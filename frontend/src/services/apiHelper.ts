@@ -168,7 +168,9 @@ export async function writeAuditLog(
     // falls back to seeded demo UUIDs only before auth profile loads)
     const ctx = await resolvePodContext();
 
-    const { error } = await supabase.from('activity_logs').insert({
+    const auditId = `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const { error } = await supabase.from('activity_logs').upsert({
+      id:          auditId,
       actor_id:    user.id,
       action_type: actionType,
       entity_id:   ctx.entityId,
@@ -179,7 +181,7 @@ export async function writeAuditLog(
         simulated_role: state.simulatedRole,
         timestamp:      new Date().toISOString()
       }
-    });
+    }, { onConflict: 'id' });
 
     if (error) {
       // Log but don't throw — audit failures should not crash clinical workflows

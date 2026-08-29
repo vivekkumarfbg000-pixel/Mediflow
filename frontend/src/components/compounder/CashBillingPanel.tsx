@@ -151,7 +151,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
       console.warn('[CashBillingPanel] Edge Function reachability issue, applying local pool settlement fallback:', e);
       setResult({
         success: true,
-        commission: (grossAmount * 0.05),
+        commission: parseFloat((grossAmount * COMMISSION_RATE).toFixed(2)),
         pool_status: 'cleared',
         session_id: `cash-local-${Date.now()}`,
         pool_balance: poolBalance ?? 5000,

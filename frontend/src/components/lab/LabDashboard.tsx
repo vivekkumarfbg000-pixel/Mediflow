@@ -356,10 +356,10 @@ export const LabDashboard: React.FC = () => {
 
     const q = directSearch.toLowerCase();
     return list.filter(item =>
-      (item.patient.name || '').toLowerCase().includes(q) ||
-      (item.patient.phone || '').includes(q) ||
-      String(item.tokenNumber).toLowerCase().includes(q) ||
-      item.requisitions.some(r => (r.testName || '').toLowerCase().includes(q) || r.testCode.includes(q))
+      (item.patient?.name || '').toLowerCase().includes(q) ||
+      (item.patient?.phone || '').includes(q) ||
+      (item.tokenNumber != null && String(item.tokenNumber).toLowerCase().includes(q)) ||
+      (item.requisitions || []).some(r => (r.testName || '').toLowerCase().includes(q) || (r.testCode || '').toLowerCase().includes(q))
     );
   }, [todayQueuePatients, directQueueFilterTab, directSearch, patients, requisitions]);
 
@@ -583,7 +583,7 @@ export const LabDashboard: React.FC = () => {
       pharmacyFee: 0,
       platformFee: platformFee,
       totalAmount: total,
-      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(total || 0).toFixed(2)}&cu=INR&tn=VitalSync-LAB-${(req.id || 'N/A').substring(0,6)}`,
+      upiQrPayload: PaymentService.generateDirectUpiPayload(total || 0, req.id || 'N/A').upiDeepLink,
       paymentStatus: 'pending' as const,
       createdAt: new Date().toISOString()
     };
@@ -786,7 +786,7 @@ export const LabDashboard: React.FC = () => {
       currentReqs.unshift(newReq);
       api.saveLabRequisitions(currentReqs);
 
-      await supabase.from('lab_requisitions').insert({
+      await supabase.from('lab_requisitions').upsert({
         id: reqId,
         encounter_id: 'walkin',
         patient_id: directPatientId,
@@ -799,7 +799,7 @@ export const LabDashboard: React.FC = () => {
         created_at: requisitionDate,
         updated_at: requisitionDate,
         pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-      });
+      }, { onConflict: 'id' });
 
       const reportUuid = crypto.randomUUID();
       const newReport: LabReport = {
@@ -861,6 +861,11 @@ export const LabDashboard: React.FC = () => {
           title: 'Report Published & Synced! 🚀'
         }
       }));
+
+      // Rule 10: Revoke the generated blob URL 5s after all async dispatches complete
+      if (generatedBlobUrl) {
+        setTimeout(() => URL.revokeObjectURL(generatedBlobUrl), 5000);
+      }
 
       // Keep directPatientId selected or reset for next
       setDirectFile(null);
@@ -1839,7 +1844,7 @@ export const LabDashboard: React.FC = () => {
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
                         <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>Official PDF &amp; 2-Touchpoint Care Loop Dispatched to +91 {lastDirectSubmission.patientPhone}</span>
+                        <span>Official PDF &amp; 2-Touchpoint Care Loop Dispatched to {(lastDirectSubmission.patientPhone || '').startsWith('+91') ? lastDirectSubmission.patientPhone : `+91 ${lastDirectSubmission.patientPhone || '—'}`}</span>
                       </div>
                     </div>
                   </div>
@@ -1984,7 +1989,7 @@ export const LabDashboard: React.FC = () => {
                                     )}
                                   </div>
                                   <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                                    +91 {item.patient.phone} · {item.patient.age}y/{item.patient.gender}
+                                    {(item.patient.phone || '').startsWith('+91') ? item.patient.phone : `+91 ${item.patient.phone || '—'}`} · {item.patient.age}y/{item.patient.gender}
                                   </div>
                                 </div>
                               </div>
@@ -2911,7 +2916,9 @@ export const LabDashboard: React.FC = () => {
                                 <div className="flex justify-between items-start">
                                   <div>
                                     <h4 className="font-bold text-slate-800 dark:text-white text-xs">{patient.name}</h4>
-                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">+91 {patient.phone}</p>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                      {(patient.phone || '').startsWith('+91') ? patient.phone : `+91 ${patient.phone || '—'}`}
+                                    </p>
                                   </div>
                                   <span className="text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-700 px-2 py-0.5 rounded-full font-mono">
                                     {patientReqs.length} Tests Prescribed

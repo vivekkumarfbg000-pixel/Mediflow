@@ -207,7 +207,7 @@ export class WhatsAppService {
                   activePhoneId = activePhoneId || dbConn.phone_number_id || '';
                   activeToken = activeToken || dbConn.encrypted_system_user_token || (dbConn as any).access_token || '';
                 }
-              } catch (_dbE) {}
+              } catch (_dbE) { /* ignore */ }
             }
 
             let validSystemToken: string | undefined = undefined;
@@ -354,7 +354,7 @@ export class WhatsAppService {
 
           try {
             const podCtx = getPodContext();
-            supabase.from('patient_registry').insert({
+            supabase.from('patient_registry').upsert({
               id: newPatId,
               name: regName,
               phone: phone,
@@ -363,8 +363,8 @@ export class WhatsAppService {
               queue_status: 'awaiting_vitals',
               registered_at: now,
               pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-            }).then(() => {});
-          } catch (_e) {}
+            }, { onConflict: 'id' }).then(() => {});
+          } catch (_e) { /* ignore */ }
 
           sessionData.newPatientId = newPatId;
           sessionData.newPatientName = regName;
@@ -401,7 +401,7 @@ export class WhatsAppService {
 
             try {
               const podCtx = getPodContext();
-              supabase.from('appointments').insert({
+              supabase.from('appointments').upsert({
                 id: apptId,
                 patient_id: targetPatId,
                 patient_name: targetPatName,
@@ -411,8 +411,8 @@ export class WhatsAppService {
                 appointment_time: new Date().toISOString(),
                 created_at: now,
                 pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-              }).then(() => {});
-            } catch (_e) {}
+              }, { onConflict: 'id' }).then(() => {});
+            } catch (_e) { /* ignore */ }
 
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
             nextState = 'COMPLETED';
@@ -555,7 +555,7 @@ export class WhatsAppService {
 
             const podCtx = getPodContext();
             try {
-              supabase.from('appointments').insert({
+              supabase.from('appointments').upsert({
                 id: apptId,
                 patient_id: patient.id,
                 patient_name: patient.name,
@@ -565,8 +565,8 @@ export class WhatsAppService {
                 appointment_time: new Date().toISOString(),
                 created_at: new Date().toISOString(),
                 pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-              }).then(() => {});
-            } catch (_e) {}
+              }, { onConflict: 'id' }).then(() => {});
+            } catch (_e) { /* ignore */ }
 
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
             nextState = 'COMPLETED';
@@ -692,7 +692,7 @@ export class WhatsAppService {
 
             const podCtx = getPodContext();
             try {
-              supabase.from('appointments').insert({
+              supabase.from('appointments').upsert({
                 id: apptId,
                 patient_id: patient.id,
                 patient_name: patient.name,
@@ -702,8 +702,8 @@ export class WhatsAppService {
                 appointment_time: new Date().toISOString(),
                 created_at: new Date().toISOString(),
                 pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-              }).then(() => {});
-            } catch (_e) {}
+              }, { onConflict: 'id' }).then(() => {});
+            } catch (_e) { /* ignore */ }
 
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
             nextState = 'COMPLETED';
@@ -717,77 +717,6 @@ export class WhatsAppService {
             replyMessage = `📅 *Virtual Consultation Booking* \n\n${docName} ke virtual checkup ke liye slot select kijiye${feeText}:\n\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with **1**, **2**, or **3** to book! 💻`;
           } else {
             replyMessage = `Invalid option. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
-          }
-          break;
-
-        case 'BOOKING_VIRTUAL':
-          if (['1', '2', '3'].includes(cleaned) || cleaned.includes('morning') || cleaned.includes('afternoon') || cleaned.includes('evening')) {
-            const slotMap: Record<string, string> = {
-              '1': '10:00 AM - 11:30 AM',
-              '2': '02:00 PM - 03:30 PM',
-              '3': '05:00 PM - 06:30 PM'
-            };
-            const chosenSlot = slotMap[cleaned] || '10:00 AM - 11:30 AM';
-            const apptId = crypto.randomUUID();
-            const todayStr = getIstDateString();
-            const docName = this.getDynamicDoctorName();
-            const isFree = Boolean(patient.isPremiumMember);
-            const meetUrl = `https://meet.jit.si/vitalsync-consult-${apptId}`;
-
-            const newAppt: Appointment = {
-              id: apptId,
-              patientId: patient.id,
-              patientName: patient.name,
-              patientPhone: phone,
-              doctorId: '',
-              date: todayStr,
-              appointmentTime: new Date().toISOString(),
-              isVirtual: true,
-              virtualMeetingUrl: meetUrl,
-              status: 'ready_for_consult',
-              source: isFree ? 'whatsapp_loyalty' : 'whatsapp',
-              tokenNumber: `#V-${Date.now().toString().slice(-3)}`,
-              createdAt: new Date().toISOString()
-            };
-            BillingService.saveAppointment(newAppt);
-
-            const podCtx = getPodContext();
-            try {
-              supabase.from('appointments').insert({
-                id: apptId,
-                patient_id: patient.id,
-                patient_name: patient.name,
-                status: 'ready_for_consult',
-                source: isFree ? 'whatsapp_loyalty' : 'whatsapp',
-                is_virtual: true,
-                virtual_meeting_url: meetUrl,
-                appointment_time: new Date().toISOString(),
-                created_at: new Date().toISOString(),
-                pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-              }).then(() => {});
-            } catch (_e) {}
-
-            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
-            nextState = 'COMPLETED';
-
-            const feeNotice = isFree 
-              ? "• Fee: *₹0.00 (100% Free Loyalty Follow-up Unlocked 🎁)*" 
-              : "• Fee: *₹500.00 (Settle at counter or video room)*";
-
-            replyMessage = `🎉 *VIRTUAL VIDEO CONSULT SCHEDULED!* 💻\n\nNamaste *${patient.name}*!\n${docName} ke saath aapka video consultation confirm ho gaya hai.\n\n• *Slot:* ${chosenSlot}\n• *Doctor:* ${docName}\n• *Clinic:* ${clinicName}\n${feeNotice}\n\n🔗 *1-Click Video Call Link:*\n${meetUrl}\n\nTime par upar wale link par click karke direct browser se join kijiye! Kisi app ki zaroorat nahi hai. 🩺`;
-          } else {
-            replyMessage = `Please valid slot number select kijiye:\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with 1, 2, ya 3! 💻`;
-          }
-          break;
-
-        case 'AWAITING_RESCHEDULE_TIME':
-          if (['1', '2', '3'].includes(cleaned)) {
-            const slotMap: Record<string, string> = { '1': '10:00 AM - 11:30 AM', '2': '02:00 PM - 03:30 PM', '3': '05:00 PM - 06:30 PM' };
-            const chosenSlot = slotMap[cleaned] || '10:00 AM - 11:30 AM';
-            nextState = 'COMPLETED';
-            replyMessage = `✅ *Appointment Rescheduled Successfully!* 📅\n\nAapka appointment kal ke liye shift kar diya gaya hai:\n• Slot: *${chosenSlot}*\n• Clinic: *${clinicName}*\n\nTime par pahuchein! 😊`;
-          } else {
-            replyMessage = "Please select: *1* (Morning), *2* (Afternoon), ya *3* (Evening) to reschedule.";
           }
           break;
 
@@ -808,12 +737,12 @@ export class WhatsAppService {
             
             if (patient) {
               const podId = getPodContext().podId;
-              await supabase.from('patient_consents').insert({
+              await supabase.from('patient_consents').upsert({
                 patient_id: patient.id,
                 data_sharing_consent: true,
                 consented_at: new Date().toISOString(),
                 pod_id: podId
-              });
+              }, { onConflict: 'patient_id' });
             }
 
             replyMessage = `🎉 *Consent Recorded Successfully!* \n\nAapka profile secure clinical sync loop se link ho gaya hai. \n\n*Gateways Active:*\n1. Digital e-Prescriptions (e-Rx) 💊\n2. Realtime Pathology Reports 🧪\n3. UPI Integrated Invoices 💳\n\nType **A** to check active appointments, **I** for invoices, or type a general query to chat with AI:`;
@@ -1137,6 +1066,7 @@ export class WhatsAppService {
             save('financial_ledgers', ledgerEntries);
 
             const dbSplits = doorstepSplits.map(s => ({
+              id: s.id,
               invoice_id: s.invoiceId,
               source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
               destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? (getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') : s.destinationEntityId,
@@ -1149,8 +1079,8 @@ export class WhatsAppService {
               pod_id: getPodContext().podId
             }));
 
-            supabase.from('financial_ledgers').insert(dbSplits).then(({ error }) => {
-              if (error) console.error('Error inserting doorstep splits in Supabase:', error);
+            supabase.from('financial_ledgers').upsert(dbSplits, { onConflict: 'id' }).then(({ error }) => {
+              if (error) console.error('Error upserting doorstep splits in Supabase:', error);
             });
 
             replyMessage = `Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah ${selectedSlot} par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢\n\n*Premium Collection Fee breakdown*:\n- Total: ₹100.00 Collection Fee added\n- Lab Tech fuel/incentive bonus: ₹70.00\n- Lab Partner split: ₹20.00\n- Platform commission: ₹10.00`;
@@ -1457,15 +1387,16 @@ export class WhatsAppService {
               PatientService.savePatient(currentPat!);
               try {
                 const podId = getPodContext().podId;
-                Promise.resolve(supabase.from('patient_registry').insert({
+                const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
+                Promise.resolve(supabase.from('patient_registry').upsert({
                   id: newPatId,
                   name: currentPat!.name,
-                  phone: phone,
+                  phone: cleanPhone,
                   registered_at: currentPat!.registeredAt,
                   pod_id: podId
-                }))
-                .then((res: any) => { if (res?.error) console.error('[Mediflow] patient_registry insert error:', res.error); })
-                .catch((err: any) => console.error('[Mediflow] patient_registry insert caught:', err));
+                }, { onConflict: 'id' }))
+                .then((res: any) => { if (res?.error) console.error('[Mediflow] patient_registry upsert error:', res.error); })
+                .catch((err: any) => console.error('[Mediflow] patient_registry upsert caught:', err));
               } catch (_e) { /* ignore fallback error */ }
             }
 
@@ -1507,7 +1438,7 @@ export class WhatsAppService {
               let apptTimestamp = `${chosenDate}T10:00:00.000Z`;
               try {
                 apptTimestamp = new Date(`${chosenDate}T${String(startHour).padStart(2, '0')}:00:00+05:30`).toISOString();
-              } catch (_e) {}
+              } catch (_e) { /* ignore */ }
 
               const newAppt: any = {
                 id: apptId,
@@ -1578,7 +1509,7 @@ export class WhatsAppService {
 
               try {
                 const podId = getPodContext().podId;
-                const { error } = await supabase.from('appointments').insert({
+                const { error } = await supabase.from('appointments').upsert({
                   id: apptId,
                   patient_id: activePat.id,
                   patient_name: activePat.name,
@@ -1592,7 +1523,7 @@ export class WhatsAppService {
                   virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${apptId}`,
                   created_at: new Date().toISOString(),
                   pod_id: podId
-                });
+                }, { onConflict: 'id' });
                 if (error) console.error('[WhatsApp Booking] Error creating virtual appt in Supabase:', error);
               } catch (err) {
                 console.error('[WhatsApp Booking] Error connecting to Supabase:', err);
@@ -1696,7 +1627,8 @@ export class WhatsAppService {
 
   static initiateWhatsAppSession(phone: string): WhatsAppSession {
     const sessions = this.getWhatsAppSessions();
-    const existing = sessions.find(s => s.patientPhone === phone);
+    const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
+    const existing = sessions.find(s => (s.patientPhone || '').replace(/\D/g, '').slice(-10) === cleanPhone);
     let clinicName = this.getDynamicClinicName() || 'Clinic';
     const activePodId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || '';
     if (activePodId) {

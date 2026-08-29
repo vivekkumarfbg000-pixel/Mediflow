@@ -431,7 +431,7 @@ export const CompounderDashboard: React.FC = () => {
     const map = new Map<string, boolean>();
     api.getWhatsAppSessions().forEach(s => {
       const hasMsg = !!s?.sessionData?.chatHistory?.some(
-        (m: any) => m.sender === 'bot' && (m.text.includes('🏥') || m.text.includes('Advice') || m.text.includes('spectacle') || m.text.includes('Prescription') || m.text.includes('Summary'))
+        (m: any) => m?.sender === 'bot' && ((m?.text || '').includes('🏥') || (m?.text || '').includes('Advice') || (m?.text || '').includes('spectacle') || (m?.text || '').includes('Prescription') || (m?.text || '').includes('Summary'))
       );
       if (s.patientPhone) map.set(s.patientPhone, hasMsg);
     });
@@ -503,7 +503,7 @@ export const CompounderDashboard: React.FC = () => {
       const allPatients = api.getPatients();
       const updatedList = allPatients.map(p => p.id === patient.id ? updatedPatient : p);
       localStorage.setItem('mediflow_patients', JSON.stringify(updatedList));
-    } catch (_e) {}
+    } catch (_e) { /* ignore */ }
 
     setPatients(api.getPatients());
     setDataRevision(prev => prev + 1);
@@ -516,7 +516,7 @@ export const CompounderDashboard: React.FC = () => {
           dilation_timestamp: nowIso
         })
         .eq('id', patient.id);
-    } catch (_e) {}
+    } catch (_e) { /* ignore */ }
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -638,7 +638,18 @@ export const CompounderDashboard: React.FC = () => {
   const handleSendLabReportWhatsApp = async (req: LabRequisition) => {
     try {
       const p = patients.find(pat => pat.id === req.patientId);
-      const phone = p?.phone || '919876543210';
+      const rawPhone = p?.phone || (req as any).patientPhone || (req as any).patient_phone || '';
+      if (!rawPhone) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Missing Phone Number ⚠️',
+            message: `No registered contact number found for ${req.patientName || 'this patient'}.`,
+            type: 'error'
+          }
+        }));
+        return;
+      }
+      const phone = rawPhone.replace(/\D/g, '').slice(-10);
       const patientName = req.patientName || p?.name || 'Patient';
       
       const msgText = `🔬 *VitalSync Lab Alert — Report Ready!* 📄\n\nDear *${patientName}*, your laboratory test *${req.testName}* report is ready.\n\n📊 *Result Summary:* ${req.quantitativeResult || 'Test Normal & Verified'}\n🏥 *Evening Review:* 04:30 PM - 05:30 PM at Clinic Counter with Dr. ${activePod?.doctor_name || 'Attending Physician'}.\n\n_VitalSync Virtual Hospital Network_`;
@@ -771,7 +782,7 @@ export const CompounderDashboard: React.FC = () => {
             queue_status: 'awaiting_consultation',
             token_number: String(assignedToken)
           });
-        } catch (_err) {}
+        } catch (_err) { /* ignore */ }
       })();
 
       // 5. Toast & Voice announcement
@@ -1916,7 +1927,7 @@ export const CompounderDashboard: React.FC = () => {
       gstAmount: billingTotals.gstAmount,
       totalAmount: billingTotals.totalAmount,
       paymentMode: mode === 'whatsapp' ? 'whatsapp_pay' : 'cash',
-      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(billingTotals.totalAmount || 0).toFixed(2)}&cu=INR&tn=VS-BILL-${(billId || '').substring(4, 8)}`,
+      upiQrPayload: PaymentService.generateDirectUpiPayload(billingTotals.totalAmount || 0, billId).upiDeepLink,
       status: mode === 'cash' ? 'paid' : 'draft',
       source: 'counter',
       deliveryType: deliveryType,
@@ -3530,7 +3541,7 @@ export const CompounderDashboard: React.FC = () => {
                   {(() => {
                     const todayStr = getIstDateString();
 
-                    let confirmedAppts = appointments.filter(a => {
+                    const confirmedAppts = appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       const apptDate = getEffectiveAppointmentDate(a);
                       if (opdQueueFilter === 'today') {
@@ -4792,7 +4803,7 @@ export const CompounderDashboard: React.FC = () => {
                       >
                         <p className="leading-relaxed whitespace-pre-line font-mono text-[11px] font-medium">{msg.text}</p>
                         
-                        {isBot && msg.text.includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
+                        {isBot && (msg?.text || '').includes('Welcome to Mediflow') && activeSession.currentState === 'AWAITING_WELCOME' && (
                           <div className="mt-3 pt-3 border-t border-slate-105 dark:border-slate-850 flex flex-col gap-2 select-none">
                             <button
                               onClick={() => {
@@ -4805,7 +4816,7 @@ export const CompounderDashboard: React.FC = () => {
                             </button>
                           </div>
                         )}
-                        {isBot && msg.text.includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
+                        {isBot && (msg?.text || '').includes('consent is committed') && activeSession.currentState !== 'AWAITING_WELCOME' && (
                           <div className="mt-2 flex items-center gap-1 text-emerald-600 dark:text-emerald-450 text-[9px] font-bold uppercase tracking-wider select-none">
                             <ShieldCheck className="h-3.5 w-3.5 text-emerald-655 animate-pulse" /> Consent Registered
                           </div>

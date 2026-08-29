@@ -287,7 +287,8 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             // Sync doctor consultation fee to financial ledgers
             if (invoiceId) {
               try {
-                await supabase.from('financial_ledgers').insert({
+                await supabase.from('financial_ledgers').upsert({
+                  id: `tx-doc-${invoiceId}`,
                   invoice_id: invoiceId,
                   transaction_type: 'appointment_fee',
                   gross_amount: Number(invoice?.doctor_fee) || 500,
@@ -299,9 +300,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                   gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
                   payment_method: 'razorpay',
                   pod_id: invoice?.pod_id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-                });
+                }, { onConflict: 'id' });
               } catch (_fErr) {
-                console.warn('[WhatsApp Payment] Financial ledger insert error:', _fErr);
+                console.warn('[WhatsApp Payment] Financial ledger upsert error:', _fErr);
               }
             }
           } catch (err) {
@@ -377,7 +378,8 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
       // Sync doctor consultation fee to financial ledgers
       if (invoiceId) {
         try {
-          await supabase.from('financial_ledgers').insert({
+          await supabase.from('financial_ledgers').upsert({
+            id: `tx-doc-${invoiceId}`,
             invoice_id: invoiceId,
             transaction_type: 'appointment_fee',
             gross_amount: Number(invoice?.doctor_fee) || 500,
@@ -389,9 +391,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
             payment_method: 'upi',
             pod_id: invoice?.pod_id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
-          });
+          }, { onConflict: 'id' });
         } catch (_fErr) {
-          console.warn('[WhatsApp Payment] Financial ledger insert error:', _fErr);
+          console.warn('[WhatsApp Payment] Financial ledger upsert error:', _fErr);
         }
       }
       setStatus('cleared');

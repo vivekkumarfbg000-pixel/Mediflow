@@ -884,7 +884,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                     targetPhones.forEach(phone => {
                       try {
                         api.pushWhatsAppMessageFromBot(phone, messageContent);
-                      } catch (_e) {}
+                      } catch (_e) { /* ignore */ }
                     });
 
                     // 2. Synchronous UI Update & Optimistic Audit Log
@@ -927,7 +927,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                                 wabaToken = wabaToken || parsed.encrypted_system_user_token || parsed.token || parsed.access_token;
                               }
                             }
-                          } catch (_sE) {}
+                          } catch (_sE) { /* ignore */ }
                         }
 
                         // Priority direct fast-relay to priority numbers (like 9608032073)
@@ -982,15 +982,17 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             if (clean.length === 10) clean = '91' + clean;
                             const pat = patientMap.get(clean.slice(-10));
                             try {
-                              await supabase.from('whatsapp_broadcast_queue').insert({
+                              const queueItemId = `bc-q-${campaignId}-${clean}`;
+                              await supabase.from('whatsapp_broadcast_queue').upsert({
+                                id: queueItemId,
                                 pod_id: podId,
                                 campaign_id: campaignId,
                                 patient_id: pat?.id || null,
                                 patient_phone: clean,
                                 message_text: messageContent,
                                 status: 'pending'
-                              });
-                            } catch (_insErr) {}
+                              }, { onConflict: 'id' });
+                            } catch (_insErr) { /* ignore */ }
                           }
                         }
 
@@ -1008,7 +1010,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString()
                           });
-                        } catch (_upsErr) {}
+                        } catch (_upsErr) { /* ignore */ }
 
                         // Trigger async server background worker
                         try {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { StateHealingEngine, ProactiveHealthMonitor, type ServiceHealth } from '../../services/autoHealerAgent';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
 import {
   Activity,
   Terminal,
@@ -110,15 +111,10 @@ ${rawTraceback}
 
   const loadFounderAlerts = useCallback(() => {
     try {
-      const raw = localStorage.getItem('founder_alerts');
-      if (raw) {
-        const parsed: any[] = JSON.parse(raw);
-        // Filter out benign vitals and spending metrics from founder emergency alerts
-        const genuineErrors = parsed.filter(a => a.type !== 'VITALS_BREACH' && a.type !== 'VITALS_METRIC' && a.type !== 'SPENDING_ALERT');
-        setFounderAlerts(genuineErrors);
-      } else {
-        setFounderAlerts([]);
-      }
+      const parsed = safeGetStorageJSON<any[]>('founder_alerts', []);
+      // Filter out benign vitals and spending metrics from founder emergency alerts
+      const genuineErrors = parsed.filter(a => a.type !== 'VITALS_BREACH' && a.type !== 'VITALS_METRIC' && a.type !== 'SPENDING_ALERT');
+      setFounderAlerts(genuineErrors);
     } catch {
       setFounderAlerts([]);
     }
@@ -127,9 +123,7 @@ ${rawTraceback}
   const handleResolveAlert = (idx: number) => {
     const updated = founderAlerts.filter((_, i) => i !== idx);
     setFounderAlerts(updated);
-    try {
-      localStorage.setItem('founder_alerts', JSON.stringify(updated));
-    } catch { /* ignore */ }
+    safeSetStorageJSON('founder_alerts', updated);
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: { title: 'Alert Resolved ✅', message: 'Archived incident from active queue.', type: 'success' }
     }));
@@ -743,9 +737,9 @@ ${rawTraceback}
                         <div className="rounded-xl border border-slate-200 bg-white p-3 font-mono text-[11px] text-slate-600 leading-relaxed whitespace-pre-line select-text">
                           {healLog.action_taken}
                         </div>
-                        <div className={`flex items-center gap-1.5 text-[11px] font-bold ${healLog.outcome.includes('SUCCESS') ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        <div className={`flex items-center gap-1.5 text-[11px] font-bold ${(healLog.outcome || '').includes('SUCCESS') ? 'text-emerald-700' : 'text-amber-700'}`}>
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Resolution: {healLog.outcome}
+                          Resolution: {healLog.outcome || 'IN_PROGRESS'}
                         </div>
                       </div>
                     )}

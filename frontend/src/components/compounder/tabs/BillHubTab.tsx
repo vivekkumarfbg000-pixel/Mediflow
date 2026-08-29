@@ -1016,7 +1016,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         pharmacyFee: billingLedger.pharmacySub,
         platformFee: isPureCounterConsult ? 0 : parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
-        upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(billingLedger.finalTotal || 0).toFixed(2)}&cu=INR&tn=VitalSync-${unifiedInvoiceId}`,
+        upiQrPayload: dynamicUpiPayload || PaymentService.generateDirectUpiPayload(billingLedger.finalTotal, unifiedInvoiceId).upiDeepLink,
         paymentStatus: 'cleared',
         paymentMethod: paymentMethod,
         createdAt: new Date().toISOString()
@@ -1093,7 +1093,12 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       // 2. Dispatch Digital Invoice & Medication Advice directly to WhatsApp
       const medListText = (billingLedger.medicinesList || [])
         .filter(m => selectedMedicines[(m?.name || '').toLowerCase()]?.selected)
-        .map(m => `- *${m.name || 'Medicine'}*: 1-0-1 (twice daily) for 10 days (Take after meals).`)
+        .map(m => {
+          const freq = (m as any).frequency || (m as any).freq || '1-0-1';
+          const dur = (m as any).duration || (m as any).dur || '10 Days';
+          const instr = (m as any).instructions || (m as any).dosage || 'Take after meals';
+          return `- *${m.name || 'Medicine'}*: ${freq} for ${dur} (${instr}).`;
+        })
         .join('\n');
       
       const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://mediflow.in/invoices/${unifiedInvoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
@@ -1117,10 +1122,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
   };
 
-  const dynamicUpiPayload = useMemo(() => {
-    if (!billingLedger) return '';
-    return `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(billingLedger.finalTotal || 0).toFixed(2)}&cu=INR&tn=BillHub-${(selectedPatient?.id || 'pat-0000').substring(0, 8)}`;
-  }, [billingLedger, selectedPatient]);
+  const dynamicUpiPayload = billingLedger
+    ? `upi://pay?pa=${activePod?.upiVpa || 'vitalsync@axl'}&pn=${encodeURIComponent(activePod?.name || 'VitalSync Smart Clinic')}&am=${(billingLedger.finalTotal || 0).toFixed(2)}&cu=INR&tn=BillHub-${(selectedPatient?.id || 'pat-0000').substring(0, 8)}`
+    : '';
 
   return (
     <div className="space-y-6">

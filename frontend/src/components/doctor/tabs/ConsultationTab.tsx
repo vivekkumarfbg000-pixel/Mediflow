@@ -1933,11 +1933,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         <span className="text-lg font-black font-mono tracking-tight text-slate-900 dark:text-white">{item.val}</span>
                         {baseline && item.diff !== 0 && (
                           <span className={`text-[10px] font-extrabold font-mono flex items-center gap-0.5 ${
-                            (item.diff > 0 && item.status !== 'normal') || (item.diff < 0 && item.name.includes('Hemoglobin'))
+                            (item.diff > 0 && item.status !== 'normal') || (item.diff < 0 && (item.name || '').includes('Hemoglobin'))
                               ? 'text-rose-700 dark:text-rose-400'
                               : 'text-emerald-700 dark:text-emerald-400'
                           }`}>
-                            {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff || 0).toFixed(item.name.includes('Creatinine') ? 2 : 1)}
+                            {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff || 0).toFixed((item.name || '').includes('Creatinine') ? 2 : 1)}
                           </span>
                         )}
                       </div>

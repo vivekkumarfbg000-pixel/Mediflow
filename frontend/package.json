@@ -13,6 +13,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "node scripts/verify-system-invariants.js && tsc --noEmit",
     "test": "npm run build",
+    "test:military": "node scripts/verify-system-invariants.js && node scripts/military-grade-suite.cjs && tsc --noEmit",
     "preview": "vite preview",
     "bundle:analyze": "npx vite-bundle-analyzer dist"
   },

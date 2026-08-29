@@ -115,6 +115,30 @@ export class RealtimeSyncService {
     if (record.adherence_score !== undefined) normalized.adherenceScore = typeof record.adherence_score === 'string' ? parseFloat(record.adherence_score) : record.adherence_score;
     if (record.monthly_medicine_spend !== undefined) normalized.monthlyMedicineSpend = typeof record.monthly_medicine_spend === 'string' ? parseFloat(record.monthly_medicine_spend) : record.monthly_medicine_spend;
 
+    // Financial Ledgers CDC Normalization (Rule 1 & Rule 34)
+    if (record.gross_amount !== undefined) normalized.grossAmount = typeof record.gross_amount === 'string' ? parseFloat(record.gross_amount) : record.gross_amount;
+    if (record.net_payout !== undefined) normalized.netPayout = typeof record.net_payout === 'string' ? parseFloat(record.net_payout) : record.net_payout;
+    if (record.commission_rate !== undefined) normalized.commissionRate = typeof record.commission_rate === 'string' ? parseFloat(record.commission_rate) : record.commission_rate;
+    if (record.transaction_type !== undefined) normalized.transactionType = record.transaction_type;
+    if (record.source_entity_id !== undefined) normalized.sourceEntityId = record.source_entity_id;
+    if (record.destination_entity_id !== undefined) normalized.destinationEntityId = record.destination_entity_id;
+    if (record.settled_at !== undefined) normalized.settledAt = record.settled_at;
+
+    // Clinic SOPs CDC Normalization (Rule 1 & Rule 16)
+    if (record.entity_id !== undefined) normalized.entityId = record.entity_id;
+    if (record.sop_document_url !== undefined) normalized.sopDocumentUrl = record.sop_document_url;
+    if (record.extracted_config !== undefined) normalized.extractedConfig = record.extracted_config;
+    if (record.is_active !== undefined) normalized.isActive = record.is_active === true;
+
+    // Commission Pool Settlements CDC Normalization (Rule 1 & Rule 14)
+    if (record.pool_balance !== undefined) normalized.poolBalance = typeof record.pool_balance === 'string' ? parseFloat(record.pool_balance) : record.pool_balance;
+    if (record.safety_buffer !== undefined) normalized.safetyBuffer = typeof record.safety_buffer === 'string' ? parseFloat(record.safety_buffer) : record.safety_buffer;
+    if (record.total_refilled !== undefined) normalized.totalRefilled = typeof record.total_refilled === 'string' ? parseFloat(record.total_refilled) : record.total_refilled;
+    if (record.last_refilled_at !== undefined) normalized.lastRefilledAt = record.last_refilled_at;
+
+    // SaaS Invoices CDC Normalization (Rule 1 & Rule 33)
+    if (record.appointment_id !== undefined) normalized.appointmentId = record.appointment_id;
+
     return normalized;
   }
 

@@ -537,7 +537,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         created_at: newPod.created_at
       };
 
-      const { error: insertErr } = await supabase.from('pods').insert([dbPodPayload]);
+      const { error: insertErr } = await supabase.from('pods').upsert([dbPodPayload], { onConflict: 'id' });
       if (insertErr) {
         console.error("[SaaS Admin] Failed to provision pod:", insertErr);
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -787,7 +787,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
             const pPhone = p.phone || (p as any).patient_phone;
             if (pPhone) phonesToDispatch.add(pPhone);
           }
-        } catch (_pErr) {}
+        } catch (_pErr) { /* ignore */ }
 
         try {
           const { data: dbPatients } = await supabase
@@ -800,7 +800,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
               if (dp.phone) phonesToDispatch.add(dp.phone);
             }
           }
-        } catch (_dbPErr) {}
+        } catch (_dbPErr) { /* ignore */ }
       }
 
       // Fallback if no numbers in registry
@@ -925,7 +925,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
 
       for (const item of abusiveIps) {
         try {
-          await supabase.from('blacklisted_ips').insert([item]);
+          await supabase.from('blacklisted_ips').upsert([item], { onConflict: 'ip' });
         } catch (_e) {
           /* ignore ip insert error */
         }
@@ -1422,10 +1422,10 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
     if (!newIp) return;
     setAddingIp(true);
     try {
-      const { error } = await supabase.from('blacklisted_ips').insert({
+      const { error } = await supabase.from('blacklisted_ips').upsert({
         ip: newIp.trim(),
         reason: newReason.trim() || 'Manual blacklist via Platform Operations console.'
-      });
+      }, { onConflict: 'ip' });
 
       if (error) throw error;
 

@@ -1011,7 +1011,7 @@ export const PharmacyDashboard: React.FC = () => {
                             </span>
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                            +91 {order.patientPhone} · ₹{order.amount || 0}
+                            {(order.patientPhone || '').startsWith('+91') ? order.patientPhone : `+91 ${order.patientPhone || '—'}`} · ₹{order.amount || 0}
                           </div>
                         </div>
                       ))}
@@ -1094,7 +1094,9 @@ export const PharmacyDashboard: React.FC = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-extrabold text-slate-800 dark:text-white text-xs">{order.patientName || 'Patient'}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">+91 {order.patientPhone}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              {(order.patientPhone || '').startsWith('+91') ? order.patientPhone : `+91 ${order.patientPhone || '—'}`}
+                            </p>
                           </div>
                           <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white">
                             {order.deliveryStatus || 'Pending'}
@@ -1206,7 +1208,7 @@ export const PharmacyDashboard: React.FC = () => {
                                     <div>
                                       <h4 className="font-bold text-slate-800 text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
                                       <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
-                                        Phone: +91 {patient ? patient.phone : 'N/A'}
+                                        Phone: {(patient?.phone || '').startsWith('+91') ? patient?.phone : `+91 ${patient?.phone || 'N/A'}`}
                                       </p>
                                     </div>
                                   </div>
@@ -1336,7 +1338,7 @@ export const PharmacyDashboard: React.FC = () => {
                                     <div>
                                       <h4 className="font-bold text-slate-800 text-xs">{patient ? patient.name : 'Unknown Patient'}</h4>
                                       <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
-                                        Phone: +91 {patient ? patient.phone : 'N/A'}
+                                        Phone: {(patient?.phone || '').startsWith('+91') ? patient?.phone : `+91 ${patient?.phone || 'N/A'}`}
                                       </p>
                                     </div>
                                   </div>
@@ -2273,7 +2275,9 @@ export const PharmacyDashboard: React.FC = () => {
                                     [{patient.patientCode || patient.tokenNumber || 'PAT'}]
                                   </span>
                                 </h4>
-                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone || '—'}</p>
+                                <p className="text-[10px] text-slate-500 font-mono">
+                                  {(patient.phone || '').startsWith('+91') ? patient.phone : `+91 ${patient.phone || '—'}`}
+                                </p>
                               </div>
                               <span className="text-xs font-black text-amber-600">₹{(totalAmt || 0).toFixed(0)}</span>
                             </div>

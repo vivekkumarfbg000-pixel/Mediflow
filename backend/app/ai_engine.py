@@ -32,7 +32,7 @@ except ImportError:
     logger.warning("[AI Engine] google-genai not installed. Running in fallback-only mode.")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "models/gemini-2.5-flash")  # Updated: 1.5-flash deprecated
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "models/gemini-2.0-flash")  # Primary Google production model
 
 if _GEMINI_AVAILABLE and GEMINI_API_KEY:
     _genai_client = _genai_module.Client(api_key=GEMINI_API_KEY)

@@ -611,10 +611,10 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                         <p className="text-[10px] text-slate-600 font-mono">LOINC: {loinc}</p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-extrabold text-slate-800">₹{price as number}</span>
+                        <span className="text-sm font-extrabold text-slate-800">₹{Number(price) || 0}</span>
                         <div className="text-[10px] text-slate-600 space-y-0.5 text-right">
-                          <p className="text-blue-600">Dr: ₹{((price as number) * (activeSop.extractedConfig?.splits?.doctor ?? 40) / 100).toFixed(0)}</p>
-                          <p className="text-emerald-600">Lab: ₹{((price as number) * (activeSop.extractedConfig?.splits?.lab ?? 57) / 100).toFixed(0)}</p>
+                          <p className="text-blue-600">Dr: ₹{((Number(price) || 0) * (activeSop.extractedConfig?.splits?.doctor ?? 40) / 100).toFixed(0)}</p>
+                          <p className="text-emerald-600">Lab: ₹{((Number(price) || 0) * (activeSop.extractedConfig?.splits?.lab ?? 57) / 100).toFixed(0)}</p>
                         </div>
                       </div>
                     </div>

@@ -20,6 +20,7 @@ import {
   Send
 } from 'lucide-react';
 import { ChronicCareService, CHRONIC_PROTOCOLS, type ChronicCohortRecord } from '../../../services/chronicCareService';
+import { WhatsAppService } from '../../../services/whatsappService';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
 
 interface ChronicCareTabProps {
@@ -55,7 +56,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
     const doctorSopSplit = monthlyPracticeRevenue * 0.25; // 25% SOP Split
 
     const dueRefills = cohorts.filter(c => c.status === 'due_refill').length;
-    const defaulters = cohorts.filter(c => c.status.startsWith('defaulter')).length;
+    const defaulters = cohorts.filter(c => (c.status || '').startsWith('defaulter')).length;
 
     return {
       total,
@@ -76,7 +77,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
       }
       // Status filter
       if (selectedStatusFilter === 'DUE' && c.status !== 'due_refill') return false;
-      if (selectedStatusFilter === 'DEFAULTER' && !c.status.startsWith('defaulter')) return false;
+      if (selectedStatusFilter === 'DEFAULTER' && !(c.status || '').startsWith('defaulter')) return false;
       if (selectedStatusFilter === 'ON_TRACK' && c.status !== 'active') return false;
 
       // Text search
@@ -84,7 +85,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
         const q = searchQuery.toLowerCase();
         const matchesName = (c.patientName || '').toLowerCase().includes(q);
         const matchesPhone = (c.patientPhone || '').includes(q);
-        const matchesMed = c.medications.some(m => (m.name || '').toLowerCase().includes(q));
+        const matchesMed = (c.medications || []).some(m => (m.name || '').toLowerCase().includes(q));
         const matchesCond = (c.conditionName || '').toLowerCase().includes(q);
         return matchesName || matchesPhone || matchesMed || matchesCond;
       }
@@ -94,7 +95,13 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
   }, [cohorts, selectedCondition, selectedStatusFilter, searchQuery]);
 
   const handleSendNudge = (cohort: ChronicCohortRecord) => {
-    // Dispatch native WhatsApp message simulation / toast
+    if (cohort.patientPhone) {
+      const cleanPhone = (cohort.patientPhone || '').replace(/\D/g, '').slice(-10);
+      const msg = `Namaste *${cohort.patientName}*! 🩺\n\nAapki *${cohort.conditionName}* ki regular dawai (refill) agle kuch dino mein complete ho rahi hai.\n\nVitalSync 1-Tap Pharmacy delivery ke sath 10% instant discount unlock hua hai. Refill book karne ke liye WhatsApp par *1* reply kijiye! 📦`;
+      WhatsAppService.pushWhatsAppMessageFromBot(cleanPhone, msg);
+    }
+
+    // Dispatch native WhatsApp confirmation toast
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
         title: 'Refill Nudge Dispatched 📱',
@@ -290,7 +297,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
           </div>
         ) : (
           filteredCohorts.map(cohort => {
-            const isDefaulter = cohort.status.startsWith('defaulter');
+            const isDefaulter = (cohort.status || '').startsWith('defaulter');
             const isDue = cohort.status === 'due_refill';
             const isSuccess = outreachSuccessId === cohort.id;
 

@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
 import { getPodContext, resolvePodContext } from './podContext';
 import { PatientService } from './patientService';
+import { PaymentService } from './paymentService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
@@ -81,9 +82,9 @@ export class EncounterService {
       }
       save('lab_requisitions', existingReqs);
       if (dbReqsToInsert.length > 0) {
-        Promise.resolve(supabase.from('lab_requisitions').insert(dbReqsToInsert))
-          .then((res: any) => { if (res?.error) console.error('[Mediflow] lab_requisitions insert error:', res.error); })
-          .catch((err: any) => console.error('[Mediflow] lab_requisitions background insert caught:', err));
+        Promise.resolve(supabase.from('lab_requisitions').upsert(dbReqsToInsert, { onConflict: 'id' }))
+          .then((res: any) => { if (res?.error) console.error('[Mediflow] lab_requisitions upsert error:', res.error); })
+          .catch((err: any) => console.error('[Mediflow] lab_requisitions background upsert caught:', err));
       }
     }
 
@@ -136,6 +137,8 @@ export class EncounterService {
     const platFee = Math.max(10, (docFee + labFee + pharmFee) * 0.03);
     const total = docFee + labFee + pharmFee + platFee;
 
+    const dynamicUpiPayload = PaymentService.generateDirectUpiPayload(total, encounterId).upiDeepLink;
+
     const newInvoice = {
       id: crypto.randomUUID(),
       encounterId: encounterId,
@@ -147,7 +150,7 @@ export class EncounterService {
       pharmacyFee: pharmFee,
       platformFee: platFee,
       totalAmount: total,
-      upiQrPayload: `upi://pay?pa=vitalsync@axl&pn=VitalSync&am=${(total || 0).toFixed(2)}&cu=INR&tn=VitalSync-${encounterId}`,
+      upiQrPayload: dynamicUpiPayload,
       paymentStatus: (docFee === 0 && labFee === 0 && pharmFee === 0) ? 'cleared' : 'pending',
       createdAt: new Date().toISOString()
     };
@@ -181,19 +184,22 @@ export class EncounterService {
 
         const doctorId = ctx.doctorId;
         
-        // ── Trigger Bypass (Known DB Issue) ────────────────────────────────────
-        // The `encounters` table has a Postgres trigger that fires AFTER INSERT
-        // and attempts to call a deprecated stored procedure. This trigger throws
-        // an exception on every insert, rolling back the entire transaction.
+        // ── Trigger Architecture Note ──────────────────────────────────────────
+        // The `encounters` table has two triggers:
+        //   • trg_encounter_submitted (AFTER INSERT/UPDATE): Calls on_encounter_submitted()
+        //     which auto-creates lab_requisitions, inventory_holds, and unified_invoices
+        //     when status = 'completed'. This is intentionally bypassed here by inserting
+        //     with status = 'active' because the frontend services (billingService,
+        //     pharmacyService, labService) manage billing atomically client-side.
+        //   • tr_audit_encounters (AFTER INSERT/UPDATE): Calls log_activity_trigger()
+        //     for audit logging — safe and runs on every insert.
+        //   • trg_encounters_updated_at (BEFORE UPDATE): Maintains updated_at timestamp.
         //
-        // Workaround: Insert with status = 'active'. The broken trigger only fires
-        // on status = 'completed'. The frontend maps 'active' → 'completed' in the
-        // UI layer (see api.ts syncFromSupabase encounter mapping).
-        //
-        // TODO: Fix or DROP the broken trigger in a future migration:
-        //   DROP TRIGGER IF EXISTS <trigger_name> ON encounters;
+        // Client-side billing path: After this insert, encounterService.ts calls
+        // BillingService.createInvoiceForEncounter() and
+        // PharmacyService.createInventoryHoldsForEncounter() directly.
         // ─────────────────────────────────────────────────────────────────────────
-        const { error: encError } = await supabase.from('encounters').insert({
+        const { error: encError } = await supabase.from('encounters').upsert({
           id: encounterId,
           patient_id: newEncounter.patientId,
           doctor_id: doctorId,
@@ -201,7 +207,7 @@ export class EncounterService {
           clinical_notes: newEncounter.clinicalNotes,
           status: 'active', // ← intentional bypass (see comment above)
           pod_id: ctx.podId
-        });
+        }, { onConflict: 'id' });
         if (encError) {
           console.error('[EncounterService] Error inserting encounter into Supabase:', encError);
           return;
@@ -237,7 +243,8 @@ export class EncounterService {
         // ─────────────────────────────────────────────────────────────────────
         console.error('[EncounterService] CRITICAL: Atomic care loop RPC failed:', globalErr);
         try {
-          await supabase.from('activity_logs').insert({
+          await supabase.from('activity_logs').upsert({
+            id: `err-enc-${encounterId}`,
             action_type: 'CARE_LOOP_RPC_FAILURE',
             details: {
               encounter_id: encounterId,
@@ -247,7 +254,7 @@ export class EncounterService {
             },
             entity_id: null,
             pod_id: ctx.podId
-          });
+          }, { onConflict: 'id' });
         } catch (_logErr) {
           // If even logging fails, nothing more we can do on the client
         }

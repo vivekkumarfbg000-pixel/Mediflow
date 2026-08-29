@@ -125,7 +125,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }, []);
 
   /* ─── Computed Metrics ───────────────────────────────────────── */
-  const todayStr = getIstDateString(currentTime);
+  const todayStr = useMemo(() => getIstDateString(currentTime), [currentTime]);
 
   const isPatientForToday = (p: Patient) => {
     const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');

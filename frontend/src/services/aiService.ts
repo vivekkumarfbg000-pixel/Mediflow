@@ -44,7 +44,7 @@ export class AIService {
     notify();
 
     try {
-      const { error } = await supabase.from('ai_results').insert({
+      const { error } = await supabase.from('ai_results').upsert({
         id: result.id,
         user_id: result.user_id,
         task_id: result.task_id,
@@ -57,7 +57,7 @@ export class AIService {
         created_at: result.created_at,
         model_used: result.model_used,
         duration_ms: result.duration_ms
-      });
+      }, { onConflict: 'id' });
       if (error) {
         console.warn('[AIService] DB insert warning (non-fatal):', error.message);
       } else {

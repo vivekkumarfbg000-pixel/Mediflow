@@ -180,7 +180,9 @@ export class ChronicCareService {
     } else if (clean.includes('1/2') || clean.includes('half')) {
       pillsPerDay = 0.5;
     }
-    return Math.max(7, Math.floor(totalCount / pillsPerDay));
+    const safeCount = Number(totalCount) > 0 ? Number(totalCount) : 30;
+    const safePills = pillsPerDay > 0 ? pillsPerDay : 1;
+    return Math.max(7, Math.floor(safeCount / safePills));
   }
 
   /**
@@ -233,29 +235,31 @@ export class ChronicCareService {
   public static async registerChronicPatient(record: Partial<ChronicCohortRecord>): Promise<boolean> {
     const pod = getPodContext();
     const podId = pod?.podId || record.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+    const cleanPhone = (record.patientPhone || '').replace(/\D/g, '').slice(-10);
 
     try {
       const { error } = await supabase
         .from('chronic_care_cohorts')
-        .insert([{
+        .upsert([{
+          id: record.id || `cohort-${record.patientId || crypto.randomUUID().slice(0, 8)}`,
           patient_id: record.patientId,
           patient_name: record.patientName,
-          patient_phone: record.patientPhone,
+          patient_phone: cleanPhone,
           doctor_id: record.doctorId || 'doc-primary',
           pod_id: podId,
           condition_code: record.conditionCode || 'DIABETES',
           condition_name: record.conditionName || 'Type-2 Diabetes Mellitus',
           medications: record.medications || [],
           days_supply: record.daysSupply || 30,
-          dispensed_at: new Date().toISOString(),
+          dispensed_at: record.dispensedAt || new Date().toISOString(),
           next_refill_date: record.nextRefillDate || getIstOffsetDateString(25),
           next_retest_date: record.nextRetestDate || getIstOffsetDateString(75),
           retest_test_code: record.retestTestCode || '4544-3',
           retest_test_name: record.retestTestName || 'HbA1c & Fasting Glucose Panel',
           adherence_score: record.adherenceScore || 100.0,
-          status: 'active',
+          status: record.status || 'active',
           monthly_medicine_spend: record.monthlyMedicineSpend || 1200
-        }]);
+        }], { onConflict: 'id' });
 
       return !error;
     } catch (err) {
