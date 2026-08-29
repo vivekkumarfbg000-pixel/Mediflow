@@ -6745,7 +6745,7 @@ export const CompounderDashboard: React.FC = () => {
                     type="button"
                     disabled={selectedPatientIdsForPrint.length === 0}
                     onClick={() => {
-                      const targets = vitalsDonePatients.filter(p => selectedPatientIdsForPrint.includes(p.id));
+                      const targets = (vitalsDonePatients || []).filter(p => p && p.id && selectedPatientIdsForPrint.includes(p.id));
                       handlePrintPrescriptionSlips(targets);
                     }}
                     className={`px-5 py-2 rounded-xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer border-0 ${

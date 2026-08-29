@@ -142,6 +142,33 @@ export const LabDashboard: React.FC = () => {
   const directFileInputRef = useRef<HTMLInputElement>(null);
   const directCameraInputRef = useRef<HTMLInputElement>(null);
 
+  // Rule 10: Revoke lab report and preview URLs when replaced or on unmount
+  const directPreviewRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (directPreviewRef.current && directPreviewRef.current !== directFilePreviewUrl && directPreviewRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(directPreviewRef.current);
+    }
+    directPreviewRef.current = directFilePreviewUrl;
+    return () => {
+      if (directPreviewRef.current && directPreviewRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(directPreviewRef.current);
+      }
+    };
+  }, [directFilePreviewUrl]);
+
+  const reportPreviewRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (reportPreviewRef.current && reportPreviewRef.current !== reportFilePreviewUrl && reportPreviewRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(reportPreviewRef.current);
+    }
+    reportPreviewRef.current = reportFilePreviewUrl;
+    return () => {
+      if (reportPreviewRef.current && reportPreviewRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(reportPreviewRef.current);
+      }
+    };
+  }, [reportFilePreviewUrl]);
+
   const activeReq = useMemo(
     () => requisitions.find(r => r.id === activeReqId),
     [activeReqId, requisitions]
