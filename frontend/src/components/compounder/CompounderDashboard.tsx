@@ -2134,34 +2134,7 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
           <div className="space-y-4 sm:space-y-6 animate-fade-in text-left">
-            {/* 1. WALK-IN REGISTRATION & FAST OPD INTAKE ACTION BAR */}
-            <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white shadow-md flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/15 flex items-center justify-center shrink-0 shadow-inner">
-                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs sm:text-sm font-black truncate flex items-center gap-1.5">
-                    <span>Walk-In Patient Registration</span>
-                    <span className="text-[8.5px] bg-white/20 px-1.5 py-0.2 rounded-full font-mono uppercase font-bold">Fast OPD</span>
-                  </div>
-                  <div className="text-[10px] text-indigo-100/90 truncate font-medium mt-0.5">
-                    1-Click Instant OPD Token, Vitals Intake &amp; Doctor Routing
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowInstantAppointmentModal(true)}
-                className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white hover:bg-indigo-50 active:scale-95 text-indigo-700 font-black text-[11px] sm:text-xs rounded-xl shadow-md cursor-pointer transition border-0 flex items-center gap-1.5 shrink-0"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>+ Walk-In Patient</span>
-              </button>
-            </div>
-
-            {/* 2. MODERN AESTHETIC TODAY'S DOCTOR APPOINTMENTS & OPD QUEUE WIDGET */}
+            {/* 1. MODERN AESTHETIC TODAY'S DOCTOR APPOINTMENTS & OPD QUEUE WIDGET */}
             <div className="glass-panel p-4 sm:p-6 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white via-indigo-50/15 to-purple-50/10 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20 shadow-md">
               {/* Header with Title, Doctor Badge, Live OPD Counter & View All link */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-3.5 mb-3.5 border-b border-slate-200/80 dark:border-white/10">
