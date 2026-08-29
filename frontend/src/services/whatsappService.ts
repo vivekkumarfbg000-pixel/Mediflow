@@ -1696,7 +1696,7 @@ export class WhatsAppService {
     sessions.push(newSession);
     this.saveWhatsAppSessions(sessions);
 
-    supabase.from('patient_registry').select('id').eq('phone', phone).single().then(({ data: patient }) => {
+    supabase.from('patient_registry').select('id').eq('phone', phone).maybeSingle().then(({ data: patient }) => {
       const podId = getPodContext().podId;
       supabase.from('whatsapp_sessions').upsert({
         patient_phone: phone,

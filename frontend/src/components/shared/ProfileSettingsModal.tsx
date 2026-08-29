@@ -90,7 +90,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single()
+            .maybeSingle()
             .then(({ data: profile, error }) => {
               if (profile && !error) {
                 setActiveProfile(profile);

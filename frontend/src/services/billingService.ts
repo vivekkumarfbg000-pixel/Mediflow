@@ -742,7 +742,7 @@ export class BillingService {
         .from('pods')
         .select('platform_fee_percent')
         .eq('id', podId)
-        .single();
+        .maybeSingle();
       if (podData && podData.platform_fee_percent !== null && podData.platform_fee_percent !== undefined) {
         platformFeePercent = parseFloat(podData.platform_fee_percent.toString());
       }
@@ -1177,12 +1177,12 @@ export class BillingService {
       const { data: inv } = await supabase.from('unified_invoices')
         .select('patient_id')
         .eq('id', invoiceId)
-        .single();
+        .maybeSingle();
       if (inv?.patient_id) {
         const { data: patient } = await supabase.from('patient_registry')
           .select('phone')
           .eq('id', inv.patient_id)
-          .single();
+          .maybeSingle();
         if (patient?.phone) {
           // Trigger mock whatsapp message send payload
           const pDigits = (patient.phone || '').replace(/\D/g, '').slice(-10);
@@ -1306,17 +1306,14 @@ export class BillingService {
   }
 
   static async generateInvoice(appointmentId: string, type: 'consult' | 'lab' | 'pharmacy', amount: number, invoiceId?: string): Promise<string> {
-    const { data: patientData, error: patientErr } = await supabase.from('appointments').select('patient_id').eq('id', appointmentId).single();
-    if (patientErr) {
-      console.error('[Mediflow API] fetch patient for invoice error:', patientErr);
-      throw patientErr;
-    }
+    const { data: patientData } = await supabase.from('appointments').select('patient_id').eq('id', appointmentId).maybeSingle();
+    const patientId = patientData?.patient_id || this.getAppointments().find(a => a.id === appointmentId)?.patientId || '';
     const podId = getPodContext().podId;
     const invId = invoiceId || `inv-${appointmentId}-${type}`;
     const { data, error } = await supabase.from('unified_invoices').upsert({
       id: invId,
       encounter_id: appointmentId,
-      patient_id: patientData.patient_id,
+      patient_id: patientId,
       doctor_fee: type === 'consult' ? amount : 0,
       lab_fee: type === 'lab' ? amount : 0,
       pharmacy_fee: type === 'pharmacy' ? amount : 0,

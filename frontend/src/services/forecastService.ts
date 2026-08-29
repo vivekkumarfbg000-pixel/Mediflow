@@ -895,7 +895,7 @@ Dhyan rakhein aur jaldi theek hon!`;
         .from('pods')
         .select('is_verified_for_billing, daily_spend, daily_cost_budget')
         .eq('id', podId)
-        .single();
+        .maybeSingle();
       if (podData) {
         isVerified = !!podData.is_verified_for_billing;
         dailySpend = Number(podData.daily_spend || 0);

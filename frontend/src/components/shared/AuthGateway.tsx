@@ -455,7 +455,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             .from('pods')
             .select('name')
             .eq('clinic_code', clinicCode.trim().toUpperCase())
-            .single();
+            .maybeSingle();
           if (tableData) {
             clinicName = tableData.name;
           }
@@ -505,7 +505,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             .from('profiles')
             .select('*')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
           const email = session.user.email;
           const isPlatformAdminEmail = email === 'owner@mediflow.com' || email === 'vivekkumarfbg000@gmail.com';
@@ -525,7 +525,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   .from('profiles')
                   .select('*')
                   .eq('id', user.id)
-                  .single();
+                  .maybeSingle();
                 if (healedProfile) {
                   onAuthSuccess(session, healedProfile);
                   return;

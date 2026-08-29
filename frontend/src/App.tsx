@@ -1129,7 +1129,7 @@ export default function App() {
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
-            .single()
+            .maybeSingle()
             .then(({ data: profile }) => {
               if (profile) setActiveProfile(profile);
             });
