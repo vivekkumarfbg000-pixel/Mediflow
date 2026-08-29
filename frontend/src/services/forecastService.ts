@@ -222,29 +222,105 @@ export class ForecastService {
   }
 
   static async voiceScribe(audioBlob: Blob, filename = 'recording.webm'): Promise<{ summary: string; language: string }> {
-    if (this.FORCE_MOCK_DEMO) {
-      await new Promise(r => setTimeout(r, 600));
+    try {
+      let base64Data = '';
+      const mimeType = audioBlob.type || 'audio/webm';
+
+      base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.replace(/^data:[^;]+;base64,/, ''));
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+
+      const promptText = `You are a clinical AI medical scribe for outpatient clinics.
+Listen to and transcribe this spoken doctor consultation / clinical recording accurately.
+The doctor may speak in English, Hindi, or conversational Hinglish (e.g., "Patient ko 3 din se fever hai, Tab Dolo 650 1-0-1").
+
+Format the output into clean, structured clinical SOAP notes / directions:
+- Chief Complaint & Symptoms
+- Clinical Assessment / Findings
+- Prescribed Medications & Dosage
+- Patient Advice & Follow-up
+
+Return ONLY a valid JSON object matching:
+{
+  "summary": "Clean, structured clinical directions text ready for prescription pad",
+  "language": "Hinglish" | "English" | "Hindi"
+}`;
+
+      // ── TIER 1: Direct Google Gemini 2.5 Flash Audio Transcription ──────────
+      if (import.meta.env.VITE_GEMINI_API_KEY && base64Data) {
+        try {
+          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+          const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+          const parts: any[] = [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType,
+                data: base64Data
+              }
+            }
+          ];
+
+          const res = await fetch(directEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: { responseMimeType: 'application/json' }
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              let clean = text.trim();
+              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+              const parsed = JSON.parse(clean);
+              if (parsed.summary) {
+                return {
+                  summary: parsed.summary,
+                  language: parsed.language || 'Hinglish'
+                };
+              }
+            }
+          }
+        } catch (tier1Err) {
+          console.warn('[Mediflow AI] Tier 1 Gemini Audio Scribe failed:', tier1Err);
+        }
+      }
+
+      // ── TIER 2: Local Python Daemon (if running) ───────────────────────────
+      try {
+        const form = new FormData();
+        form.append('file', audioBlob, filename);
+        const res = await fetch(`${this.AI_BASE}/api/voice-scribe`, {
+          method: 'POST',
+          body: form,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.summary) return data;
+        }
+      } catch (_backendErr) {
+        // non-blocking
+      }
+
+      // Fallback
       return { 
-        summary: 'Patient presented with sugar test result and cough state. HbA1c is 7.2 percent, serum creatinine is 1.1 mg/dL, and patient has a mild dry cough for three days. No known drug allergy.', 
+        summary: 'Patient presented with clinical symptoms. Vitals recorded, medication prescribed as directed. Review in OPD in 7 days.', 
         language: 'Hinglish' 
       };
-    }
-
-    try {
-      const form = new FormData();
-      form.append('file', audioBlob, filename);
-      const res = await fetch(`${this.AI_BASE}/api/voice-scribe`, {
-        method: 'POST',
-        body: form,
-      });
-      if (!res.ok) throw new Error(`voice-scribe HTTP status ${res.status}`);
-      const data = await res.json();
-      return data;
     } catch (err: any) {
-      console.warn('[Mediflow AI] voice-scribe backend unreachable, using mock:', err);
-      await new Promise(r => setTimeout(r, 600));
+      console.warn('[Mediflow AI] voice-scribe failed, using fallback:', err);
       return { 
-        summary: 'Patient presented with sugar test result and cough state. HbA1c is 7.2 percent, serum creatinine is 1.1 mg/dL, and patient has a mild dry cough for three days. No known drug allergy.', 
+        summary: 'Patient presented with clinical symptoms. Vitals recorded, medication prescribed as directed. Review in OPD in 7 days.', 
         language: 'Hinglish' 
       };
     }
@@ -403,16 +479,56 @@ export class ForecastService {
   }
 
   static async generateConsultHinglishSummary(patientId: string, suggestionsText: string, doctorName?: string): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 1000));
     const patient = PatientService.getPatients().find(p => p.id === patientId);
     const pName = patient ? patient.name : 'Patient';
     const doc = doctorName || 'Doctor';
 
-    return `Namaste ${pName} ji. ${doc} ne aapke suggestions record kiye hain:
-1. Aapko diet control karni hai aur meetha bilkul kam khana hai.
-2. ${suggestionsText || 'Aapki dawaiyaan update kar di gayi hain.'}
-3. Reports aane ke baad ek baar revisit time schedule par zaroor milein.
-Dhyan rakhein aur time par medicine lein!`;
+    if (import.meta.env.VITE_GEMINI_API_KEY && suggestionsText.trim()) {
+      try {
+        const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+        
+        const promptText = `You are a polite, compassionate clinical doctor's AI communicator in Tier 2/3 India.
+Write a warm, crystal-clear WhatsApp home-care message in polite conversational Hinglish (Hindi written in English alphabet) for the patient.
+
+Patient Name: ${pName}
+Doctor Name: ${doc}
+Clinical Notes & Directions:
+${suggestionsText}
+
+Requirements:
+- Begin with "Namaste ${pName} ji 🙏, ${doc} clinic se aapki health update:"
+- Include clear bullet points for medicine timings, food instructions, and home precautions.
+- Add a gentle reminder to follow up if symptoms persist.
+- Keep the language friendly, respectful, and easy for non-medical families to understand.
+- Return ONLY the final WhatsApp message text without meta commentary or markdown code blocks.`;
+
+        const res = await fetch(directEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }]
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text && text.trim()) {
+            return text.trim();
+          }
+        }
+      } catch (geminiErr) {
+        console.warn('[Mediflow AI] Hinglish Summary generation with Gemini failed, using template:', geminiErr);
+      }
+    }
+
+    // Default polite fallback template
+    return `Namaste ${pName} ji 🙏. ${doc} ne aapke liye directions record kiye hain:
+1. 💊 ${suggestionsText || 'Aapki dawaiyaan update kar di gayi hain.'}
+2. 🥗 Khane me tel-masala aur meetha kam rakhein, paani khoob piyein.
+3. 🏥 Dawa samay par lein aur revisit schedule par zaroor clinic aayein.
+Dhyan rakhein aur jaldi theek hon!`;
   }
 
   static async generateComparativeLabTrend(

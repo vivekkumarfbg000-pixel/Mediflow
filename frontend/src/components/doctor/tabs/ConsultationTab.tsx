@@ -2130,7 +2130,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       output_type: 'HINGLISH_SUMMARY',
                       status: 'SUCCESS',
                       created_at: new Date().toISOString(),
-                      model_used: 'gemini-1.5-flash',
+                      model_used: 'gemini-2.5-flash',
                       duration_ms: 1000
                     });
 
@@ -2805,38 +2805,58 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
               {/* Quick Presets / Shortcuts for General Medicine */}
               {!isOphthalmology && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 pt-2.5 border-t border-slate-100 dark:border-slate-800">
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide">Quick Frequency Presets</span>
+                    <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Frequency Presets</span>
                     <div className="flex flex-wrap gap-1.5">
                       {[
-                        { label: 'Once daily (morning)', val: '1-0-0' },
-                        { label: 'Once daily (night)', val: '0-0-1' },
-                        { label: 'Twice daily', val: '1-0-1' },
-                        { label: 'Three times daily', val: '1-1-1' },
-                        { label: 'As needed (PRN)', val: 'SOS' }
+                        { label: '1-0-0', desc: 'Morning' },
+                        { label: '0-0-1', desc: 'Night' },
+                        { label: '1-0-1', desc: 'Twice' },
+                        { label: '1-1-1', desc: 'Thrice' },
+                        { label: '1-0-0-1', desc: 'QID' },
+                        { label: 'SOS', desc: 'As needed' },
+                        { label: 'Stat', desc: 'Once now' }
                       ].map(preset => (
                         <button
-                          key={preset.val}
+                          key={preset.label}
                           type="button"
-                          onClick={() => setMedFreq(preset.val)}
-                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-650 transition-all cursor-pointer"
+                          onClick={() => setMedFreq(preset.label)}
+                          className="px-2 py-0.5 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
                         >
-                          {preset.label} ({preset.val})
+                          <span className="font-bold">{preset.label}</span> <span className="text-[9px] text-slate-400 font-normal">({preset.desc})</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-slate-600 uppercase tracking-wide">Quick Duration Presets</span>
+                    <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Food &amp; Instructions</span>
                     <div className="flex flex-wrap gap-1.5">
-                      {['3 Days', '5 Days', '7 Days', '10 Days', '15 Days', '30 Days'].map(dur => (
+                      {['After food (PC)', 'Before food (AC)', 'Empty stomach', 'With warm milk', 'Bedtime'].map(timing => (
+                        <button
+                          key={timing}
+                          type="button"
+                          onClick={() => {
+                            setMedDosage(medDosage ? `${medDosage} · ${timing}` : timing);
+                          }}
+                          className="px-2 py-0.5 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                        >
+                          {timing}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Duration Presets</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['3 Days', '5 Days', '7 Days', '10 Days', '15 Days', '30 Days', '60 Days', '90 Days'].map(dur => (
                         <button
                           key={dur}
                           type="button"
                           onClick={() => setMedDur(dur)}
-                          className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-650 transition-all cursor-pointer"
+                          className="px-2 py-0.5 bg-white dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 rounded-lg text-[10px] font-semibold text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
                         >
                           {dur}
                         </button>

@@ -173,49 +173,75 @@ serve(async (req) => {
       }
     }
 
-    // ── Groq Fallback ─────────────────────────────────────────────────────────
+    // ── Tier 2: Groq Fallback ────────────────────────────────────────────────
     if (!content) {
       const groqKey = Deno.env.get("GROQ_API_KEY");
-      if (!groqKey) {
-        console.error("[ai-inference] GROQ_API_KEY not set in Vault. No fallback available.");
-        return new Response(JSON.stringify({ error: "AI inference unavailable: API keys not configured." }), {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (groqKey) {
+        try {
+          const groqModel = "llama-3.3-70b-versatile";
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${groqKey}`,
+            },
+            body: JSON.stringify({
+              model: groqModel,
+              messages: [{ role: "user", content: prompt }],
+              temperature: temperature + 0.05,
+              max_tokens: maxTokens,
+            }),
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            content = data.choices?.[0]?.message?.content ?? "";
+            modelUsed = groqModel;
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            console.warn(`[ai-inference] Groq fallback error ${res.status}:`, errData);
+          }
+        } catch (groqErr) {
+          console.warn("[ai-inference] Groq fetch failed, falling back to Gemini:", groqErr);
+        }
       }
+    }
 
-      const groqModel = "llama-3.3-70b-versatile";
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${groqKey}`,
-        },
-        body: JSON.stringify({
-          model: groqModel,
-          messages: [{ role: "user", content: prompt }],
-          temperature: temperature + 0.05, // Groq works slightly better at +0.05
-          max_tokens: maxTokens,
-        }),
-      });
+    // ── Tier 3: Gemini 2.5 Flash Fallback ────────────────────────────────────
+    if (!content) {
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
+      if (geminiKey) {
+        try {
+          const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+          const res = await fetch(apiEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature,
+                maxOutputTokens: maxTokens
+              }
+            })
+          });
 
-      if (res.ok) {
-        const data = await res.json();
-        content = data.choices?.[0]?.message?.content ?? "";
-        modelUsed = groqModel;
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        console.error("[ai-inference] Groq fallback also failed:", errData);
-        return new Response(JSON.stringify({ error: "AI inference failed on all providers." }), {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+          if (res.ok) {
+            const data = await res.json();
+            content = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+            modelUsed = "gemini-2.5-flash";
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            console.error(`[ai-inference] Gemini Tier 3 fallback error ${res.status}:`, errData);
+          }
+        } catch (geminiErr) {
+          console.error("[ai-inference] Gemini Tier 3 fallback failed:", geminiErr);
+        }
       }
     }
 
     if (!content) {
-      return new Response(JSON.stringify({ error: "AI returned an empty response." }), {
-        status: 502,
+      return new Response(JSON.stringify({ error: "AI inference unavailable: All model providers (Mistral, Groq, Gemini) failed or lack keys." }), {
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
