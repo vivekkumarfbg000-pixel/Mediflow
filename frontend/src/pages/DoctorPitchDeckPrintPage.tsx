@@ -81,13 +81,32 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
   // Enforce pure bright executive light theme while on pitch deck
   useEffect(() => {
     const wasDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+    const oldColorScheme = document.documentElement.style.getPropertyValue('color-scheme');
+    const oldBg = document.body.style.getPropertyValue('background-color');
+
     document.documentElement.classList.remove('dark');
     document.body.classList.remove('dark');
+    
+    // Aggressively override OS-level auto-dark mode or browser extensions
+    document.documentElement.style.setProperty('color-scheme', 'light', 'important');
+    document.body.style.setProperty('background-color', '#f1f5f9', 'important');
 
     return () => {
       if (wasDark) {
         document.documentElement.classList.add('dark');
         document.body.classList.add('dark');
+      }
+      
+      if (oldColorScheme) {
+        document.documentElement.style.setProperty('color-scheme', oldColorScheme);
+      } else {
+        document.documentElement.style.removeProperty('color-scheme');
+      }
+      
+      if (oldBg) {
+        document.body.style.setProperty('background-color', oldBg);
+      } else {
+        document.body.style.removeProperty('background-color');
       }
     };
   }, []);
