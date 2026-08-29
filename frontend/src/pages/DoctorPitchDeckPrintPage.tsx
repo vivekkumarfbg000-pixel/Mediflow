@@ -1176,7 +1176,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             </div>
 
             <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
-              <span className="text-slate-800 font-bold">Zero risk. 100% control. Transform your independent clinic today.</span>
+              <span className="text-slate-800 font-bold">Secure, compliant, and fully autonomous. Modernize your independent clinic today.</span>
               <span className="text-teal-800 font-black">Get Started in 5 Minutes →</span>
             </div>
           </section>
