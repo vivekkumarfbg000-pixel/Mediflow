@@ -994,46 +994,6 @@ export const LabDashboard: React.FC = () => {
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
         <div className="space-y-6 text-left animate-fade-in">
-          {/* Modernized Compact Action & Status Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-white/5 shadow-xs">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 flex items-center gap-1.5 font-mono">
-                <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                Diagnostics Station Live · Realtime CDC
-              </span>
-              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
-                <Clock className="w-3 h-3 text-indigo-500" />
-                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-              </span>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('intake_upload');
-                  setIntakeSubTab('upload');
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-sm border-0"
-              >
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span>Direct Upload</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('intake_upload');
-                  setIntakeSubTab('walkin');
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 border border-slate-200 dark:border-white/10"
-              >
-                <UserPlus className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                <span>Walk-in Test</span>
-              </button>
-            </div>
-          </div>
-
           {/* 4 Bento KPI Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div 

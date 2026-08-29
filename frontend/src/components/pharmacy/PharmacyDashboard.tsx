@@ -693,38 +693,6 @@ export const PharmacyDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* Modernized Compact Action & Status Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-white/5 shadow-xs">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 flex items-center gap-1.5 font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Pharmacy Counter Node · Realtime CDC
-          </span>
-          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
-            <Clock className="w-3 h-3 text-indigo-500" />
-            {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="btn-primary py-1.5 px-3.5 text-xs flex items-center gap-1.5 shadow-sm hover:shadow transition-all cursor-pointer border-0"
-          >
-            <Plus className="h-3.5 w-3.5" /> 
-            <span>Add Medicine</span>
-          </button>
-          <button 
-            onClick={() => setIsCsvImportOpen(true)}
-            className="btn-secondary py-1.5 px-3.5 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" /> 
-            <span>Bulk CSV</span>
-          </button>
-        </div>
-      </div>
-
       {/* TAB CONTENT AREAS */}
       <div className="space-y-6">
 
@@ -1765,11 +1733,19 @@ export const PharmacyDashboard: React.FC = () => {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-slate-50 border-slate-200 text-white rounded-lg cursor-pointer"
+                  className="input-field text-xs py-2 px-3 focus:ring-1 focus:ring-teal-400 focus:border-teal-400 bg-slate-50 border-slate-200 text-slate-800 dark:text-white rounded-lg cursor-pointer"
                 >
                   <option value="All">All Categories</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="btn-primary py-2 px-3.5 text-xs flex items-center gap-1.5 shadow-sm hover:shadow transition-all cursor-pointer border-0 shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Medicine</span>
+                </button>
               </div>
             </div>
 
