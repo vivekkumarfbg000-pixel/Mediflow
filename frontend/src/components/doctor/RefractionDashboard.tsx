@@ -274,45 +274,45 @@ export const RefractionDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-24">
-      {/* Top Banner Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="glass-panel p-4 bg-white border border-slate-200/80 shadow-sm flex items-center justify-between rounded-2xl">
-          <div className="text-left">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Awaiting Refraction</span>
-            <span className="text-xl font-extrabold text-indigo-755 mt-1 block">{metrics.awaiting} Patients</span>
+      {/* Top Banner Stats — 2x2 Compact Grid on Mobile */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-4">
+        <div className="glass-panel p-3 sm:p-4 bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-white/5 shadow-xs flex items-center justify-between rounded-2xl">
+          <div className="text-left min-w-0">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Awaiting Refraction</span>
+            <span className="text-base sm:text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5 block">{metrics.awaiting}</span>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
-            <Clock className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="glass-panel p-4 bg-white border border-slate-200/80 shadow-sm flex items-center justify-between rounded-2xl">
-          <div className="text-left">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">In Progress</span>
-            <span className="text-xl font-extrabold text-indigo-755 mt-1 block">{metrics.inProgress} Patients</span>
-          </div>
-          <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500">
-            <Activity className="h-5 w-5" />
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-500 shrink-0">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
 
-        <div className="glass-panel p-4 bg-white border border-slate-200/80 shadow-sm flex items-center justify-between rounded-2xl">
-          <div className="text-left">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Done / Active Consult</span>
-            <span className="text-xl font-extrabold text-indigo-755 mt-1 block">{metrics.completed} Patients</span>
+        <div className="glass-panel p-3 sm:p-4 bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-white/5 shadow-xs flex items-center justify-between rounded-2xl">
+          <div className="text-left min-w-0">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">In Progress</span>
+            <span className="text-base sm:text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5 block">{metrics.inProgress}</span>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-            <CheckCircle2 className="h-5 w-5" />
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-500 shrink-0">
+            <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
 
-        <div className="glass-panel p-4 bg-white border border-slate-200/80 shadow-sm flex items-center justify-between rounded-2xl">
-          <div className="text-left">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Optometry Hub</span>
-            <span className="text-[11px] font-bold text-indigo-650 mt-1 block">Mediflow Refraction Desk</span>
+        <div className="glass-panel p-3 sm:p-4 bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-white/5 shadow-xs flex items-center justify-between rounded-2xl">
+          <div className="text-left min-w-0">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Done / Consult</span>
+            <span className="text-base sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5 block">{metrics.completed}</span>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-violet-50 flex items-center justify-center text-violet-500">
-            <Eye className="h-5 w-5" />
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-500 shrink-0">
+            <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+        </div>
+
+        <div className="glass-panel p-3 sm:p-4 bg-white dark:bg-slate-900/80 border border-slate-200/80 dark:border-white/5 shadow-xs flex items-center justify-between rounded-2xl">
+          <div className="text-left min-w-0">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Optometry Hub</span>
+            <span className="text-[10px] sm:text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 block truncate">Refraction Desk</span>
+          </div>
+          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center text-violet-500 shrink-0">
+            <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
         </div>
       </div>

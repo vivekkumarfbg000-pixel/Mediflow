@@ -933,7 +933,7 @@ export const LabDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ── TAB NAV ───────────────────────────────────────────── */}
+      {/* ── TAB NAV — Desktop Bar ───────────────────────────────────────────── */}
       <div className="hidden md:flex overflow-x-auto gap-2 pb-1.5 no-scrollbar select-none -mb-px">
         {tabItems.map(tab => (
           <button
@@ -954,6 +954,34 @@ export const LabDashboard: React.FC = () => {
             )}
           </button>
         ))}
+      </div>
+
+      {/* ── TAB NAV — Mobile Horizontal Swipe Strip ─────────────────────────── */}
+      <div className="flex md:hidden items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-x-auto no-scrollbar -mt-2 mb-3 select-none">
+        {tabItems.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1 py-1.5 px-2.5 text-[10px] font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer active:scale-95 border-0 ${
+                isActive
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-sm font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1 py-0.2 text-[8px] rounded-full font-black ${
+                  isActive ? 'bg-white/25 text-white' : 'bg-rose-500 text-white animate-pulse'
+                }`}>
+                  {tab.badge > 9 ? '9+' : tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ══════════════════════════════════════════════════════════

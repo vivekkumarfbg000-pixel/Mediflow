@@ -1075,61 +1075,76 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             });
 
             return (
-              <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none border-b border-slate-100 font-mono text-[9px] font-bold">
+              <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1.5 no-scrollbar border-b border-slate-100 dark:border-white/5 font-mono text-[9.5px] font-bold select-none">
                 <button
                   type="button"
                   onClick={() => setQueueFilter('awaiting')}
-                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
                     queueFilter === 'awaiting'
-                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
                   }`}
                 >
-                  Awaiting ({awaitingList.length})
+                  <span>Awaiting</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'awaiting' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                    {awaitingList.length}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setQueueFilter('in_consult')}
-                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
                     queueFilter === 'in_consult'
-                      ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                      ? 'bg-amber-600 text-white border-amber-700 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
                   }`}
                 >
-                  In Chamber ({inConsultList.length})
+                  <span>In Chamber</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'in_consult' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                    {inConsultList.length}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setQueueFilter('today_registered')}
-                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
                     queueFilter === 'today_registered'
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
                   }`}
                 >
-                  Today Reg ({todayRegList.length})
+                  <span>Today Reg</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'today_registered' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                    {todayRegList.length}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setQueueFilter('upcoming')}
-                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
                     queueFilter === 'upcoming'
-                      ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                      ? 'bg-purple-600 text-white border-purple-700 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
                   }`}
                 >
-                  📅 Upcoming ({upcomingList.length})
+                  <span>📅 Upcoming</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'upcoming' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                    {upcomingList.length}
+                  </span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setQueueFilter('completed')}
-                  className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer ${
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
                     queueFilter === 'completed'
-                      ? 'bg-teal-600 text-white border-teal-700 shadow-xs'
-                      : 'bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100'
+                      ? 'bg-teal-600 text-white border-teal-700 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
                   }`}
                 >
-                  Done ({completedList.length})
+                  <span>Done</span>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'completed' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                    {completedList.length}
+                  </span>
                 </button>
               </div>
             );

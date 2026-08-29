@@ -2227,6 +2227,35 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
       </div>
 
+      {/* Mobile Tab Nav Strip — Sleek Horizontal Swipe Bar for Doctors */}
+      <div className="flex lg:hidden items-center gap-1 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-x-auto no-scrollbar -mt-2 mb-3 select-none">
+        {[
+          { id: 'pod_view',          label: 'Cockpit',              icon: LayoutDashboard },
+          { id: 'consultation',      label: 'Queue 🩺',             icon: ClipboardList },
+          { id: 'virtual_schedule',  label: 'Telemedicine 💻',      icon: Video },
+          { id: 'financials',        label: 'Financials 💳',        icon: CreditCard },
+          { id: 'patients',          label: 'Directory 👥',         icon: Users },
+          { id: 'whatsapp',          label: 'WhatsApp 💬',          icon: MessageSquare }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-1 py-1.5 px-2.5 text-[10.5px] font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer active:scale-95 border-0 ${
+                isActive
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Icon className={`w-3 h-3 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Consultation Loop Guard — non-blocking warning banner */}
       {consultGuard.showNavigationWarning && (
         <div className="consultation-guard-banner mx-auto max-w-2xl mb-3">

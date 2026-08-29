@@ -677,7 +677,7 @@ export const PharmacyDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* HORIZONTAL TAB SWITCHER */}
+      {/* HORIZONTAL TAB SWITCHER — Desktop Bar */}
       <div className="hidden md:flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
         {[
           { id: 'prescription_queue', label: 'Prescription Queue', icon: <Package className="w-4 h-4 shrink-0" />, badge: activeHoldsCount },
@@ -706,6 +706,43 @@ export const PharmacyDashboard: React.FC = () => {
                 <span className={`ml-1 px-1.5 py-0.5 text-[9px] rounded-full font-bold text-white ${
                   tab.alert ? 'bg-rose-500 animate-bounce' :
                   tab.warning ? 'bg-amber-500 text-black' : 'bg-indigo-600'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* HORIZONTAL TAB SWITCHER — Mobile Swipe Strip */}
+      <div className="flex md:hidden items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-x-auto no-scrollbar -mt-2 mb-3 select-none">
+        {[
+          { id: 'prescription_queue', label: 'Rx Queue', icon: <Package className="w-3.5 h-3.5 shrink-0" />, badge: activeHoldsCount },
+          { id: 'billing_invoices', label: 'Billing 💳', icon: <Receipt className="w-3.5 h-3.5 shrink-0" /> },
+          { id: 'inventory_catalog', label: 'Catalog 📦', icon: <Database className="w-3.5 h-3.5 shrink-0" /> },
+          { id: 'stock_alerts', label: 'Alerts ⚠️', icon: <AlertTriangle className="w-3.5 h-3.5 shrink-0" />, badge: criticalStockCount, alert: true },
+          { id: 'expiry_tracker', label: 'FEFO ⏳', icon: <CalendarX className="w-3.5 h-3.5 shrink-0" />, badge: criticalExpiryCount, warning: true },
+          { id: 'settlements', label: 'Settlements', icon: <Landmark className="w-3.5 h-3.5 shrink-0" /> },
+          { id: 'pod_connect', label: 'Pod Network', icon: <Network className="w-3.5 h-3.5 shrink-0" /> },
+          { id: 'profile_settings', label: 'Settings', icon: <Settings className="w-3.5 h-3.5 shrink-0" /> }
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-1 py-1.5 px-2.5 text-[10px] font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer active:scale-95 border-0 ${
+                isActive
+                  ? 'bg-gradient-to-r from-indigo-600 to-teal-600 text-white shadow-sm font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1 py-0.2 text-[8px] rounded-full font-black ${
+                  isActive ? 'bg-white/25 text-white' : tab.alert ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
                 }`}>
                   {tab.badge}
                 </span>
@@ -1486,36 +1523,39 @@ export const PharmacyDashboard: React.FC = () => {
                   Comprehensive auditing dashboard merging shelf stock batches AND e-prescription holds. color-coded to enforce FEFO.
                 </p>
               </div>
-              <div className="flex items-center gap-3 self-stretch sm:self-auto select-none">
+              <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto select-none">
                 <button
+                  type="button"
                   onClick={() => setExpiryFilter('all')}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider cursor-pointer ${
+                  className={`px-3 py-1.5 text-[10px] font-extrabold rounded-xl border text-center transition-all cursor-pointer active:scale-95 ${
                     expiryFilter === 'all'
-                      ? 'border-teal-500 text-teal-600 bg-teal-600/5 font-black'
-                      : 'border-slate-200 text-slate-500 hover:text-white'
+                      ? 'bg-teal-600 text-white border-teal-600 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
                   }`}
                 >
-                  All
+                  All Batches
                 </button>
                 <button
+                  type="button"
                   onClick={() => setExpiryFilter('expired')}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider cursor-pointer ${
+                  className={`px-3 py-1.5 text-[10px] font-extrabold rounded-xl border text-center transition-all cursor-pointer active:scale-95 ${
                     expiryFilter === 'expired'
-                      ? 'border-rose-500 text-rose-400 bg-rose-500/5 font-black animate-pulse'
-                      : 'border-slate-200 text-slate-500 hover:text-white'
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-sm font-black animate-pulse'
+                      : 'bg-slate-50 dark:bg-slate-800 text-rose-600 dark:text-rose-400 border-slate-200/80 dark:border-white/5 hover:bg-rose-50'
                   }`}
                 >
-                  Expired
+                  Expired ⚠️
                 </button>
                 <button
+                  type="button"
                   onClick={() => setExpiryFilter('expiring')}
-                  className={`px-3 py-1.5 text-[10px] font-bold rounded-lg border uppercase tracking-wider cursor-pointer ${
+                  className={`px-3 py-1.5 text-[10px] font-extrabold rounded-xl border text-center transition-all cursor-pointer active:scale-95 ${
                     expiryFilter === 'expiring'
-                      ? 'border-amber-500 text-amber-400 bg-amber-500/5 font-black'
-                      : 'border-slate-200 text-slate-500 hover:text-white'
+                      ? 'bg-amber-600 text-white border-amber-600 shadow-sm font-black'
+                      : 'bg-slate-50 dark:bg-slate-800 text-amber-600 dark:text-amber-400 border-slate-200/80 dark:border-white/5 hover:bg-amber-50'
                   }`}
                 >
-                  Expiring Soon (&lt;90d)
+                  &lt;90 Days
                 </button>
               </div>
             </div>

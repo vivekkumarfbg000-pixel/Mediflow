@@ -198,16 +198,29 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
         )}
       </div>
 
-      {/* Sub-tabs */}
-      <div className="flex gap-2 p-1 bg-slate-100/70 border border-slate-200/50 rounded-2xl w-fit">
+      {/* Sub-tabs — 2-Column Mobile-First Horizontal Segmented Controller */}
+      <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-white/5 rounded-2xl w-full max-w-md">
         {[
-          { id: 'upload', label: 'Upload New SOP', icon: <Upload className="w-3.5 h-3.5" /> },
-          { id: 'active', label: 'Active SOP & Rules', icon: <ListChecks className="w-3.5 h-3.5" /> }
+          { id: 'upload', label: 'Upload New SOP', sublabel: 'नया एसओपी', icon: <Upload className="w-3.5 h-3.5" /> },
+          { id: 'active', label: 'Active SOP & Rules', sublabel: 'सक्रिय नियम', icon: <ListChecks className="w-3.5 h-3.5" /> }
         ].map(t => (
-          <button key={t.id} onClick={() => setSopActiveSubTab(t.id as any)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border-0 ${sopActiveSubTab === t.id ? 'bg-white text-violet-700 shadow-sm border border-violet-100' : 'bg-transparent text-slate-500 hover:text-slate-700'}`}>
+          <button 
+            key={t.id} 
+            type="button"
+            onClick={() => setSopActiveSubTab(t.id as any)}
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer border-0 ${
+              sopActiveSubTab === t.id 
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md shadow-violet-500/20' 
+                : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5'
+            }`}
+          >
             {t.icon}
-            {t.label}
+            <div className="flex flex-col text-left leading-tight">
+              <span className="text-[10.5px] font-extrabold">{t.label}</span>
+              <span className={`text-[8px] font-medium ${sopActiveSubTab === t.id ? 'text-white/75' : 'text-slate-400 dark:text-slate-500'}`}>
+                {t.sublabel}
+              </span>
+            </div>
           </button>
         ))}
       </div>

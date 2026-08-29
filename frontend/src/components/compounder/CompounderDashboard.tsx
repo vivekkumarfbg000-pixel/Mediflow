@@ -2049,78 +2049,58 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* DASHBOARD HEADER — integrated tabs & glassmorphism */}
-      <div className="border-b-0 md:border-b border-slate-200/50 dark:border-white/5 pb-4 md:pb-0 bg-white/70 dark:bg-clinical-900/60 backdrop-blur-2xl p-4 md:p-6 rounded-3xl shadow-sm mb-4 md:mb-6 z-10 relative">
-        {/* Top row: title + status */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 md:gap-6 pb-2 md:pb-6">
-          <div className="flex items-center gap-3.5">
-            <span className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-teal-500 text-white shadow-lg shadow-indigo-500/25">
-              <Stethoscope className="w-6 h-6 text-white" />
-            </span>
-            <div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                  Compounder Operations Cockpit
-                  <span className="hidden sm:inline-block text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400">
-                    Medical Assistant Desk
-                  </span>
-                </h1>
-                <span className={`text-[9px] font-mono font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-widest flex items-center gap-1.5 ${
-                  isOnline
-                    ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
-                    : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                  {isOnline ? 'Live Clinic Bus' : 'Offline'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-                {clinicTitle} · Vitals Intake, Queue Dispatch, Dilation Timers &amp; Rapid Billing
-              </p>
-            </div>
+      {/* ── COMPACT MOBILE HEADER — replaces the 30% screen-wasting header ──────────── */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-white/95 dark:bg-clinical-900/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-white/5 mb-3 md:mb-4 sticky top-0 z-20 -mx-3 md:mx-0 md:rounded-2xl md:border md:shadow-xs">
+        {/* Left: Icon + Clinic name + live status */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25">
+            <Stethoscope className="w-4 h-4" />
           </div>
-
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap lg:self-center w-full lg:w-auto justify-between lg:justify-end">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowQuickAddSheet(true)}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition active:scale-95 cursor-pointer border-0"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>+ Walk-In Patient</span>
-              </button>
+          <div className="min-w-0">
+            <div className="text-[12px] font-extrabold text-slate-900 dark:text-white truncate leading-tight">
+              {clinicTitle}
             </div>
-
-            <span className="inline-flex items-center gap-1.5 text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-full font-semibold uppercase tracking-wider font-mono">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              {staffList.find(s => s.id === activeStaffId)?.staffName || 'Compounder'}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {isOnline ? 'Live' : 'Offline'} · {staffList.find(s => s.id === activeStaffId)?.staffName || 'Compounder'}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Integrated Tab Switcher — scrollable glass pill capsules for all screen sizes */}
-        <div className="hidden md:flex overflow-x-auto gap-2 no-scrollbar select-none -mb-px p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5 backdrop-blur-md">
-          {[
-            { id: 'overview', label: 'Overview (कॉकपिट)', icon: <LayoutDashboard className="h-4 w-4 text-indigo-500" /> },
-            { id: 'opd_patients', label: 'OPD & Patients (कतार व मरीज)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
-            { id: 'clinical_hub', label: isOphthalmology ? 'Biometry & Optical (लैब व दवा)' : 'Labs & Pharmacy (लैब व दवा)', icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
-            { id: 'billing_daycare', label: isOphthalmology ? 'Billing & Daycare (बिल व सर्जरी)' : 'Billing & Minor OT (बिल व ओटी)', icon: <Receipt className="h-4 w-4 text-amber-500" /> }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2.5 text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all uppercase cursor-pointer rounded-xl ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* Right: Walk-In CTA */}
+        <button
+          type="button"
+          onClick={() => setShowQuickAddSheet(true)}
+          className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-extrabold text-[10px] rounded-xl shadow-sm flex items-center gap-1 transition cursor-pointer border-0 shrink-0"
+        >
+          <UserPlus className="w-3 h-3" />
+          + Walk-In
+        </button>
+      </div>
+
+      {/* Desktop Tab Bar — hidden on mobile (handled by bottom nav) */}
+      <div className="hidden md:flex overflow-x-auto gap-2 no-scrollbar select-none p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5 backdrop-blur-md mb-4">
+        {[
+          { id: 'overview', label: 'Overview (कॉकपिट)', icon: <LayoutDashboard className="h-4 w-4 text-indigo-500" /> },
+          { id: 'opd_patients', label: 'OPD & Patients (कतार व मरीज)', icon: <Users className="h-4 w-4 text-indigo-600" /> },
+          { id: 'clinical_hub', label: isOphthalmology ? 'Biometry & Optical (लैब व दवा)' : 'Labs & Pharmacy (लैब व दवा)', icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
+          { id: 'billing_daycare', label: isOphthalmology ? 'Billing & Daycare (बिल व सर्जरी)' : 'Billing & Minor OT (बिल व ओटी)', icon: <Receipt className="h-4 w-4 text-amber-500" /> }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-4 py-2.5 text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all uppercase cursor-pointer rounded-xl ${
+              activeTab === tab.id
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* TAB CONTENT SPACES */}
@@ -4328,12 +4308,12 @@ export const CompounderDashboard: React.FC = () => {
                                     })}
                                   </div>
 
-                                  {/* Quick Document Actions (Always visible for professional EHR access) */}
-                                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  {/* Quick Document Actions (Horizontal Scrollable Strip for Mobile) */}
+                                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                                     <button
                                       type="button"
                                       onClick={() => setActiveWorkflowDetail({ type: 'prescription', patientId: patient.id, patientName: patient.name })}
-                                      className="flex items-center gap-1 px-2 py-0.5 bg-indigo-500/10 text-indigo-450 hover:bg-indigo-500/25 border border-indigo-500/25 rounded text-[8.5px] font-bold cursor-pointer transition-colors"
+                                      className="flex items-center gap-1 px-2 py-0.5 bg-indigo-500/10 text-indigo-450 hover:bg-indigo-500/25 border border-indigo-500/25 rounded text-[8.5px] font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
                                     >
                                       <FileText className="h-2.5 w-2.5" />
                                       Prescription
@@ -4341,7 +4321,7 @@ export const CompounderDashboard: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => setActiveWorkflowDetail({ type: 'lab', patientId: patient.id, patientName: patient.name })}
-                                      className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 text-rose-450 hover:bg-rose-500/25 border border-rose-500/25 rounded text-[8.5px] font-bold cursor-pointer transition-colors"
+                                      className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 text-rose-450 hover:bg-rose-500/25 border border-rose-500/25 rounded text-[8.5px] font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
                                     >
                                       <Activity className="h-2.5 w-2.5" />
                                       Lab Results
@@ -4349,7 +4329,7 @@ export const CompounderDashboard: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleInitiateWhatsAppLoop(patient)}
-                                      className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded text-[8.5px] font-bold cursor-pointer transition-colors"
+                                      className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded text-[8.5px] font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
                                     >
                                       <Smartphone className="h-2.5 w-2.5" />
                                       WhatsApp Chat
@@ -4661,32 +4641,42 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'clinical_hub' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* Consolidated Clinical Sub-Tab Header */}
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-3">
+            {/* Consolidated Clinical Sub-Tab Header — 2-Column Mobile-First Horizontal Icon Grid */}
+            <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/60 dark:border-white/5 backdrop-blur-md mb-2">
               <button
                 type="button"
                 onClick={() => setClinicalSubTab('labs')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                className={`flex items-center justify-center gap-2 py-2.5 px-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border-0 ${
                   clinicalSubTab === 'labs'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                    ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md shadow-teal-500/20'
+                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
                 }`}
               >
-                <FlaskConical className="w-4 h-4 shrink-0 text-teal-500" />
-                {isOphthalmology ? 'Biometry & Pathology Labs (बायोमेट्री/लैब)' : 'Pathology & Lab Diagnostics (लैब जांच)'}
+                <FlaskConical className={`w-4 h-4 shrink-0 ${clinicalSubTab === 'labs' ? 'text-white' : 'text-teal-500'}`} />
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="text-[10px] font-extrabold">{isOphthalmology ? 'Biometry & Labs' : 'Pathology Labs'}</span>
+                  <span className={`text-[8px] font-medium ${clinicalSubTab === 'labs' ? 'text-white/75' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {isOphthalmology ? 'बायोमेट्री / लैब' : 'लैब जांच'}
+                  </span>
+                </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => setClinicalSubTab('pharmacy')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                className={`flex items-center justify-center gap-2 py-2.5 px-2 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer border-0 ${
                   clinicalSubTab === 'pharmacy'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                    ? 'bg-gradient-to-r from-amber-600 to-indigo-600 text-white shadow-md shadow-amber-500/20'
+                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
                 }`}
               >
-                <QrCode className="w-4 h-4 shrink-0 text-amber-500" />
-                {isOphthalmology ? 'Optical Glasses & Pharmacy (चश्मा/दवा काउंटर)' : 'Pharmacy Dispensing & Stock (दवा काउंटर)'}
+                <QrCode className={`w-4 h-4 shrink-0 ${clinicalSubTab === 'pharmacy' ? 'text-white' : 'text-amber-500'}`} />
+                <div className="flex flex-col text-left leading-tight">
+                  <span className="text-[10px] font-extrabold">{isOphthalmology ? 'Optics & Pharmacy' : 'Pharmacy Dispensing'}</span>
+                  <span className={`text-[8px] font-medium ${clinicalSubTab === 'pharmacy' ? 'text-white/75' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {isOphthalmology ? 'चश्मा / दवा काउंटर' : 'दवा काउंटर'}
+                  </span>
+                </div>
               </button>
             </div>
 
@@ -5023,51 +5013,69 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'billing_daycare' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* Consolidated Billing Sub-Tab Header */}
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-3">
+            {/* Compact 3-column horizontal icon row — replaces verbose flex-wrap buttons */}
+            <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5">
+              {/* 1. Counter Invoice */}
               <button
                 type="button"
                 onClick={() => {
                   setBillingSubTab('billing');
                   setBillHubInitialMode('manual_billing');
                 }}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition active:scale-95 cursor-pointer border-0 ${
                   billingSubTab === 'billing'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                    ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
                 }`}
               >
-                <Receipt className="w-4 h-4 shrink-0 text-indigo-500" />
-                Counter Invoices &amp; Billing (बिलिंग)
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                  billingSubTab === 'billing' ? 'bg-white/20' : 'bg-indigo-100 dark:bg-indigo-900/40'
+                }`}>
+                  <Receipt className={`w-3.5 h-3.5 ${billingSubTab === 'billing' ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
+                </div>
+                <span className="text-[9.5px] font-extrabold text-center leading-tight">Counter Bill</span>
+                <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'billing' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>बिलिंग</span>
               </button>
 
+              {/* 2. AI Scan OCR */}
               <button
                 type="button"
                 onClick={() => {
                   setBillingSubTab('ocr_scan');
                   setBillHubInitialMode('ocr_scan');
                 }}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition active:scale-95 cursor-pointer border-0 ${
                   billingSubTab === 'ocr_scan'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                    ? 'bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/20'
+                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
                 }`}
               >
-                <Camera className="w-4 h-4 shrink-0 text-purple-500" />
-                AI Prescription Scan OCR (पर्ची स्कैन)
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                  billingSubTab === 'ocr_scan' ? 'bg-white/20' : 'bg-purple-100 dark:bg-purple-900/40'
+                }`}>
+                  <Camera className={`w-3.5 h-3.5 ${billingSubTab === 'ocr_scan' ? 'text-white' : 'text-purple-600 dark:text-purple-400'}`} />
+                </div>
+                <span className="text-[9.5px] font-extrabold text-center leading-tight">AI Rx Scan</span>
+                <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'ocr_scan' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>पर्ची स्कैन</span>
               </button>
 
+              {/* 3. Minor OT / Daycare */}
               <button
                 type="button"
                 onClick={() => setBillingSubTab('ot_daycare')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition active:scale-95 cursor-pointer border-0 ${
                   billingSubTab === 'ot_daycare'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-slate-800'
+                    ? 'bg-gradient-to-br from-rose-600 to-orange-500 text-white shadow-md shadow-rose-500/20'
+                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
                 }`}
               >
-                <Scissors className="w-4 h-4 shrink-0 text-rose-600" />
-                {isOphthalmology ? 'Daycare Surgery Pipeline (डे-केयर सर्जरी)' : 'Minor OT Procedures (माइनर ओटी)'}
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                  billingSubTab === 'ot_daycare' ? 'bg-white/20' : 'bg-rose-100 dark:bg-rose-900/40'
+                }`}>
+                  <Scissors className={`w-3.5 h-3.5 ${billingSubTab === 'ot_daycare' ? 'text-white' : 'text-rose-600 dark:text-rose-400'}`} />
+                </div>
+                <span className="text-[9.5px] font-extrabold text-center leading-tight">{isOphthalmology ? 'Daycare' : 'Minor OT'}</span>
+                <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'ot_daycare' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>माइनर ओटी</span>
               </button>
             </div>
 

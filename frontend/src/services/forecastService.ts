@@ -742,23 +742,13 @@ Dhyan rakhein aur time par medicine lein!`;
     medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
     diagnosticTests: DiagnosticTest[];
   }> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.warn('[Mediflow AI] No active session found, falling back to simulated OCR data.');
-      return {
-        patientName: 'Aarav Sharma',
-        patientPhone: '9876543210',
-        patientAge: 45,
-        patientGender: 'Male',
-        medications: [
-          { medicineName: 'Metformin 500mg', dosage: '1 Tab', frequency: '1-0-1', duration: '10 Days' },
-          { medicineName: 'Atorvastatin 10mg', dosage: '1 Tab', frequency: '0-0-1', duration: '30 Days' }
-        ],
-        diagnosticTests: [
-          MASTER_TEST_CATALOG[0],
-          MASTER_TEST_CATALOG[1]
-        ]
-      };
+    // Get session non-blocking — Vision AI tiers can fire independently of auth status
+    let session: any = null;
+    try {
+      const { data } = await supabase.auth.getSession();
+      session = data?.session ?? null;
+    } catch (_sessionErr) {
+      console.warn('[Mediflow AI] Could not fetch session; proceeding without auth token.');
     }
 
     // Fetch active pod parameters for budget enforcement
@@ -857,56 +847,7 @@ Rules:
 
       let parsedResult: any = null;
 
-      // ── TIER 1: Supabase Edge Function ai-inference (Gemini 2.5 Flash Vision) ──
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const edgeFnUrl = `${supabaseUrl}/functions/v1/ai-inference`;
-        const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-        const requestParts: any[] = [{ text: promptText }];
-        if (base64Data) {
-          requestParts.push({
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data
-            }
-          });
-        }
-
-        const fcController = new AbortController();
-        const fcTimeoutId = setTimeout(() => fcController.abort(), 18000);
-
-        const response = await fetch(edgeFnUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'apikey': anonKey
-          },
-          body: JSON.stringify({
-            model,
-            contents: [{ parts: requestParts }],
-            generationConfig: { responseMimeType: "application/json" }
-          }),
-          signal: fcController.signal
-        });
-        clearTimeout(fcTimeoutId);
-
-        if (response.ok) {
-          const result = await response.json();
-          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            let clean = text.trim();
-            if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-            parsedResult = JSON.parse(clean);
-          }
-        }
-      } catch (tier1Err) {
-        console.warn('[Mediflow AI] Tier 1 Edge Function Vision call failed:', tier1Err);
-      }
-
-      // ── TIER 2: Direct Google Gemini Vision API (if VITE_GEMINI_API_KEY set) ──
+      // ── TIER 1: Direct Google Gemini Vision API — no auth required, fires immediately ──
       if (!parsedResult && import.meta.env.VITE_GEMINI_API_KEY) {
         try {
           const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -938,9 +879,62 @@ Rules:
               if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
               parsedResult = JSON.parse(clean);
             }
+          } else {
+            console.warn('[Mediflow AI] Tier 1 Direct Gemini returned HTTP', res.status);
+          }
+        } catch (tier1Err) {
+          console.warn('[Mediflow AI] Tier 1 Direct Gemini Vision failed:', tier1Err);
+        }
+      }
+
+      // ── TIER 2: Supabase Edge Function ai-inference (Gemini 2.5 Flash Vision) ──
+      if (!parsedResult) {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const edgeFnUrl = `${supabaseUrl}/functions/v1/ai-inference`;
+          const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+          const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+          const requestParts: any[] = [{ text: promptText }];
+          if (base64Data) {
+            requestParts.push({
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            });
+          }
+
+          const fcController = new AbortController();
+          const fcTimeoutId = setTimeout(() => fcController.abort(), 18000);
+
+          const response = await fetch(edgeFnUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'apikey': anonKey
+            },
+            body: JSON.stringify({
+              model,
+              contents: [{ parts: requestParts }],
+              generationConfig: { responseMimeType: "application/json" }
+            }),
+            signal: fcController.signal
+          });
+          clearTimeout(fcTimeoutId);
+
+          if (response.ok) {
+            const result = await response.json();
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              let clean = text.trim();
+              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+              parsedResult = JSON.parse(clean);
+            }
           }
         } catch (tier2Err) {
-          console.warn('[Mediflow AI] Tier 2 Direct Gemini Vision failed:', tier2Err);
+          console.warn('[Mediflow AI] Tier 2 Edge Function Vision call failed:', tier2Err);
         }
       }
 
@@ -1013,7 +1007,18 @@ Rules:
         };
       }
 
-      // Default high-fidelity clinical fallback matching the prescription
+      // All AI Vision tiers exhausted — emit visible user toast, then serve template
+      try {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: '⚠️ AI Vision Unavailable',
+            message: 'All Vision tiers unreachable. Showing template prescription. Add VITE_GEMINI_API_KEY to .env to enable real OCR.',
+            type: 'warning'
+          }
+        }));
+      } catch (_toastErr) { /* non-blocking */ }
+
+      // High-fidelity clinical template fallback
       return {
         clinicName: 'Life Line Sugar & Heart Clinic',
         doctorName: 'Dr. Pankaj Kumar',
