@@ -2213,7 +2213,7 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
                         Today's Doctor Appointments
                       </h3>
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-bold rounded-full shrink-0">
@@ -2221,11 +2221,6 @@ export const CompounderDashboard: React.FC = () => {
                         {activeOpdAppointments.length} Active in Queue
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1">
-                      <span>Attending:</span>
-                      <span className="font-bold text-slate-700 dark:text-slate-200">{activePod?.doctor_name || 'Dr. Attending Physician'}</span>
-                      <span>· Live OPD Token Stream</span>
-                    </p>
                   </div>
                 </div>
 
