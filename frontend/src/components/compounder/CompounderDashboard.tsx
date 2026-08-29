@@ -597,11 +597,43 @@ export const CompounderDashboard: React.FC = () => {
 
   const arrivedLabReports = useMemo(() => {
     const reqs = LabService.getLabRequisitions();
-    return reqs.filter(r => {
-      const isDone = r.status === 'completed' || r.status === 'processed' || Boolean(r.quantitativeResult);
-      return isDone;
-    }).slice(0, 10);
+    const seen = new Set<string>();
+    const uniqueReqs: typeof reqs = [];
+
+    for (const r of reqs) {
+      const isDone = r.status === 'collected' || Boolean(r.quantitativeResult) || (r as any).status === 'completed' || (r as any).status === 'processed';
+      if (!isDone) continue;
+      const key = `${r.patientId || (r as any).patient_id}-${r.testCode || r.testName}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueReqs.push(r);
+      }
+    }
+    return uniqueReqs.slice(0, 8);
   }, [dataRevision]);
+
+  const formatBiomarkerResult = (res: any): string => {
+    if (!res) return 'Verified Normal ✅';
+    if (typeof res === 'object') {
+      const obj = res.biomarkers || res;
+      return Object.entries(obj).map(([k, v]) => `${k}: ${v}${typeof v === 'number' && k.toLowerCase().includes('hba1c') ? '%' : ''}`).join(', ') || 'Verified ✅';
+    }
+    if (typeof res === 'string') {
+      if (res.startsWith('{') || res.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(res);
+          const obj = parsed.biomarkers || parsed;
+          if (typeof obj === 'object') {
+            return Object.entries(obj).map(([k, v]) => `${k}: ${v}${typeof v === 'number' && k.toLowerCase().includes('hba1c') ? '%' : ''}`).join(', ') || res;
+          }
+        } catch {
+          return res;
+        }
+      }
+      return res;
+    }
+    return String(res);
+  };
 
   const handleSendLabReportWhatsApp = async (req: LabRequisition) => {
     try {
@@ -2469,99 +2501,103 @@ export const CompounderDashboard: React.FC = () => {
 
             {/* 4. LAB REPORTS ARRIVED & EVENING REVIEW WIDGET */}
             <div className="w-full">
-              <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
-                        <FlaskConical className="w-4 h-4 text-purple-600" />
-                        Lab Reports Arrived
-                      </h3>
-                      <span className="text-[10px] font-mono font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
-                        {arrivedLabReports.length} Reports Ready
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
-                      Instant biomarker alerts &amp; evening physical/video doctor follow-up review dispatcher.
-                    </p>
+              <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                      <FlaskConical className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      Lab Reports Arrived
+                    </h3>
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/80 px-2.5 py-0.5 rounded-full border border-purple-200 dark:border-purple-800 shadow-xs">
+                      {arrivedLabReports.length} Reports Ready
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3.5">
+                    Instant biomarker alerts &amp; evening physical/video doctor follow-up review dispatcher.
+                  </p>
 
-                    <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                      {arrivedLabReports.map((req) => (
-                        <div 
-                          key={req.id}
-                          className="p-3 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 hover:border-purple-300 transition"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-900 dark:text-white">{req.patientName}</span>
-                                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 text-[9px] font-mono font-bold rounded-md">
-                                  {req.barcode || 'LAB-READY'}
-                                </span>
-                              </div>
-                              <div className="text-[11px] font-bold text-purple-800 dark:text-purple-300 mt-0.5">
-                                {req.testName}
-                              </div>
-                              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold mt-0.5">
-                                Result: {req.quantitativeResult || 'Normal / Completed ✅'}
-                              </div>
-                              <div className="text-[9px] text-slate-500 font-mono mt-0.5">
-                                Evening Slot: {req.revisitScheduledAt ? new Date(req.revisitScheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '04:30 PM - 05:30 PM'}
-                              </div>
+                  <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                    {arrivedLabReports.map((req) => (
+                      <div 
+                        key={req.id}
+                        className="p-3.5 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-gradient-to-r from-purple-50/50 via-white to-indigo-50/30 dark:from-purple-950/30 dark:via-slate-900/90 dark:to-indigo-950/20 hover:border-purple-300 dark:hover:border-purple-700 transition shadow-xs"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold text-slate-900 dark:text-white">{req.patientName}</span>
+                              <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[9px] font-mono font-bold rounded-lg border border-purple-200/60 dark:border-purple-800">
+                                #{(req.barcode || 'LAB').slice(-8)}
+                              </span>
                             </div>
-
-                            <div className="flex flex-col gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => handleSendLabReportWhatsApp(req)}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-[9px] font-bold rounded-lg cursor-pointer transition border-0 flex items-center gap-1 shadow-xs"
-                              >
-                                <Smartphone className="w-3 h-3" /> WhatsApp Alert 📲
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveTab('clinical_hub');
-                                  setClinicalSubTab('labs');
-                                }}
-                                className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-purple-50 text-purple-700 dark:text-purple-300 font-mono text-[9px] font-bold rounded-lg cursor-pointer transition border border-purple-200 dark:border-purple-800 flex items-center gap-1"
-                              >
-                                <FileText className="w-3 h-3" /> View Worklist
-                              </button>
+                            <div className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                              {req.testName}
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                📊 {formatBiomarkerResult(req.quantitativeResult)}
+                              </span>
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                🕒 Evening Slot: {req.revisitScheduledAt ? new Date(req.revisitScheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '04:30 PM - 05:30 PM'}
+                              </span>
                             </div>
                           </div>
-                        </div>
-                      ))}
 
-                      {arrivedLabReports.length === 0 && (
-                        <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
-                          <FlaskConical className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Arrived Reports Pending Review</div>
-                          <p className="text-[10px] text-slate-400 mt-1">Completed lab investigations will automatically appear here with 1-click WhatsApp alerts.</p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveTab('clinical_hub');
-                              setClinicalSubTab('labs');
-                            }}
-                            className="mt-2.5 px-3 py-1 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[10px] font-bold rounded-lg cursor-pointer inline-flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3" /> Open Lab Requisition Worklist
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSendLabReportWhatsApp(req)}
+                              className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-[11px] font-bold rounded-xl cursor-pointer transition border-0 flex items-center gap-1.5 shadow-sm"
+                            >
+                              <Smartphone className="w-3.5 h-3.5" />
+                              <span>WhatsApp Alert</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTab('clinical_hub');
+                                setClinicalSubTab('labs');
+                              }}
+                              className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer transition border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 shadow-xs"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>Worklist</span>
+                            </button>
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
+
+                    {arrivedLabReports.length === 0 && (
+                      <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
+                        <FlaskConical className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
+                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">No Arrived Reports Pending Review</div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Completed lab investigations will automatically appear here with 1-click WhatsApp alerts.</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('clinical_hub');
+                            setClinicalSubTab('labs');
+                          }}
+                          className="mt-3 px-3.5 py-1.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer inline-flex items-center gap-1.5 hover:bg-purple-100 transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Open Lab Requisition Worklist
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+            </div>
 
             {/* 5. Specialization Station: Eye Dilation (Ophthalmology) vs Clinical Procedures & Triage (GP) */}
             <div className="w-full">
               {isOphthalmology ? (
-                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
+                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Eye className="w-4 h-4 text-cyan-600" />
+                    <div className="flex items-center justify-between mb-2.5">
+                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Eye className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                         15-Min Eye Dilation Station
                       </h3>
                       <button
@@ -2571,7 +2607,7 @@ export const CompounderDashboard: React.FC = () => {
                           if (candidate) setShowDilationModal(candidate);
                           else setShowQuickAddSheet(true);
                         }}
-                        className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                        className="text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
                         <Plus className="w-3.5 h-3.5" /> Start Dilation
                       </button>
@@ -2582,9 +2618,9 @@ export const CompounderDashboard: React.FC = () => {
 
                     {activeDilationPatients.length === 0 ? (
                       <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
-                        <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400">No Active Eye Dilations Running</div>
-                        <p className="text-[10px] text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
+                        <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
+                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">No Active Eye Dilations Running</div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -2598,7 +2634,7 @@ export const CompounderDashboard: React.FC = () => {
                           return (
                             <div 
                               key={p.id} 
-                              className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
+                              className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between shadow-xs ${
                                 isReady
                                   ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
                                   : 'bg-cyan-50/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/60'
@@ -2607,18 +2643,18 @@ export const CompounderDashboard: React.FC = () => {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-bold text-slate-900 dark:text-white">{p.name}</span>
-                                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                     Token #{p.tokenNumber || 'TK-01'}
                                   </span>
                                 </div>
-                                <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                                   Drops given: Tropicamide + Phenylephrine (BE)
                                 </div>
                               </div>
 
                               <div className="text-right">
                                 {isReady ? (
-                                  <span className="px-2.5 py-1 bg-emerald-600 text-white font-mono text-[10px] font-bold rounded-lg shadow-sm">
+                                  <span className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-lg shadow-sm">
                                     Ready for Fundus 👁️
                                   </span>
                                 ) : (
@@ -2637,17 +2673,17 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               ) : (
                 /* GENERAL CLINIC / GP / CARDIOLOGY / PEDIATRICS / DERMATOLOGY STATION */
-                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
+                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-600" />
+                    <div className="flex items-center justify-between mb-2.5">
+                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         Clinical Procedures &amp; Triage Station
                       </h3>
                       <button
                         type="button"
                         onClick={() => setShowVitalsBottomSheet(true)}
-                        className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
                         <Plus className="w-3.5 h-3.5" /> Record Procedure
                       </button>
@@ -2657,40 +2693,40 @@ export const CompounderDashboard: React.FC = () => {
                     </p>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/50 rounded-2xl">
-                        <div className="flex items-center justify-between text-teal-700 dark:text-teal-400 mb-1">
-                          <span className="text-[10px] font-bold font-mono uppercase">🫁 Nebulizer</span>
+                      <div className="p-3.5 bg-gradient-to-br from-teal-50/80 to-teal-100/40 dark:from-teal-950/40 dark:to-teal-900/20 border border-teal-200/80 dark:border-teal-800/50 rounded-2xl shadow-xs">
+                        <div className="flex items-center justify-between text-teal-800 dark:text-teal-300 mb-1.5">
+                          <span className="text-[11px] font-bold">🫁 Nebulizer</span>
                           <span className="text-[9px] bg-teal-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">15m</span>
                         </div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Duolin / Budecort</div>
-                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Triage Bed #1 Ready</div>
+                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">Duolin / Budecort</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Triage Bed #1 Ready</div>
                       </div>
 
-                      <div className="p-3 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-2xl">
-                        <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 mb-1">
-                          <span className="text-[10px] font-bold font-mono uppercase">💧 IV Infusion</span>
+                      <div className="p-3.5 bg-gradient-to-br from-blue-50/80 to-blue-100/40 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/80 dark:border-blue-800/50 rounded-2xl shadow-xs">
+                        <div className="flex items-center justify-between text-blue-800 dark:text-blue-300 mb-1.5">
+                          <span className="text-[11px] font-bold">💧 IV Infusion</span>
                           <span className="text-[9px] bg-blue-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Flowing</span>
                         </div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">NS 500ml / RL</div>
-                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Drip Stand Ready</div>
+                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">NS 500ml / RL</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Drip Stand Ready</div>
                       </div>
 
-                      <div className="p-3 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl">
-                        <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 mb-1">
-                          <span className="text-[10px] font-bold font-mono uppercase">🩹 Wound Care</span>
+                      <div className="p-3.5 bg-gradient-to-br from-amber-50/80 to-amber-100/40 dark:from-amber-950/40 dark:to-amber-900/20 border border-amber-200/80 dark:border-amber-800/50 rounded-2xl shadow-xs">
+                        <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 mb-1.5">
+                          <span className="text-[11px] font-bold">🩹 Wound Care</span>
                           <span className="text-[9px] bg-amber-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Clean</span>
                         </div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Sterile Dressing</div>
-                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Tray Sterilized</div>
+                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">Sterile Dressing</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Tray Sterilized</div>
                       </div>
 
-                      <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50 rounded-2xl">
-                        <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-400 mb-1">
-                          <span className="text-[10px] font-bold font-mono uppercase">💉 Injections</span>
+                      <div className="p-3.5 bg-gradient-to-br from-indigo-50/80 to-indigo-100/40 dark:from-indigo-950/40 dark:to-indigo-900/20 border border-indigo-200/80 dark:border-indigo-800/50 rounded-2xl shadow-xs">
+                        <div className="flex items-center justify-between text-indigo-800 dark:text-indigo-300 mb-1.5">
+                          <span className="text-[11px] font-bold">💉 Injections</span>
                           <span className="text-[9px] bg-indigo-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">IM/IV</span>
                         </div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200">Diclo / Pantop / TT</div>
-                        <div className="text-[9px] text-slate-500 mt-1 font-mono">Counter Stocked</div>
+                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">Diclo / Pantop / TT</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Counter Stocked</div>
                       </div>
                     </div>
                   </div>
