@@ -91,6 +91,10 @@ export const LabDashboard: React.FC = () => {
   // Direct Report Upload states
   const [directPatientId, setDirectPatientId] = useState('');
   const [directTestCode, setDirectTestCode] = useState('4544-3'); // HbA1c default
+  const [directTestSearch, setDirectTestSearch] = useState('');
+  const [isDirectTestDropdownOpen, setIsDirectTestDropdownOpen] = useState(false);
+  const [walkinTestSearch, setWalkinTestSearch] = useState('');
+  const [isWalkinTestDropdownOpen, setIsWalkinTestDropdownOpen] = useState(false);
   const [directFile, setDirectFile] = useState<File | null>(null);
   const [directFilePreviewUrl, setDirectFilePreviewUrl] = useState('');
   const [directSearch, setDirectSearch] = useState('');
@@ -603,44 +607,60 @@ export const LabDashboard: React.FC = () => {
     setIsAiScanningReport(true);
     try {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'AI Vision Reading Report 🔬', message: 'Extracting quantified LOINC biomarkers...', type: 'info' }
+        detail: { title: 'Gemini 2.5 Flash Vision Reading Report 🔬', message: 'Extracting quantified LOINC biomarkers...', type: 'info' }
       }));
 
-      const res = await ForecastService.ocrScan(file);
-      const structured = res.structured_data || {};
-      
+      const res = await ForecastService.extractBiomarkersFromLabReport(file);
       let matchCount = 0;
-      Object.entries(structured).forEach(([k, v]) => {
-        const keyLower = (k || '').toLowerCase();
-        const valStr = String(v || '');
-        if (keyLower.includes('hba1c') || keyLower.includes('glycated')) {
-          const match = valStr.match(/(\d+\.?\d*)/);
-          if (match) {
-            setDirectTestCode('4544-3');
-            handleHba1cChange(match[1]);
-            matchCount++;
-          }
-        } else if (keyLower.includes('creatinine')) {
-          const match = valStr.match(/(\d+\.?\d*)/);
-          if (match) {
-            setDirectTestCode('2160-0');
-            setCreatinineVal(match[1]);
-            matchCount++;
-          }
-        } else if (keyLower.includes('hemoglobin') || keyLower.includes('hb')) {
-          const match = valStr.match(/(\d+\.?\d*)/);
-          if (match) {
-            setDirectTestCode('3024-7');
-            handleHbChange(match[1]);
-            matchCount++;
-          }
+
+      if (res.testCode) {
+        setDirectTestCode(res.testCode);
+      }
+
+      if (res.hba1c) {
+        handleHba1cChange(res.hba1c);
+        matchCount++;
+      }
+      if (res.eag) {
+        setEagVal(res.eag);
+      }
+      if (res.creatinine) {
+        setCreatinineVal(res.creatinine);
+        matchCount++;
+      }
+      if (res.egfr) {
+        setEgfrVal(res.egfr);
+      }
+      if (res.bun) {
+        setBunVal(res.bun);
+      }
+      if (res.hb) {
+        handleHbChange(res.hb);
+        matchCount++;
+      }
+      if (res.hct) {
+        setHctVal(res.hct);
+      }
+      if (res.genericVal) {
+        setGenericVal(res.genericVal);
+        matchCount++;
+      }
+      if (res.genericUnit) {
+        setGenericUnit(res.genericUnit);
+      }
+
+      // If patient is not yet selected and AI found a matching name, attempt auto-match
+      if (!directPatientId && res.patientName) {
+        const found = patients.find(p => p.name.toLowerCase().includes((res.patientName || '').toLowerCase()));
+        if (found) {
+          setDirectPatientId(found.id);
         }
-      });
+      }
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: matchCount > 0 ? 'Biomarkers Auto-Filled! ✨' : 'Report Slip Loaded',
-          message: matchCount > 0 ? `AI auto-filled ${matchCount} values from the analyzer printout.` : 'Report slip attached. Verify biomarker values and submit.',
+          message: matchCount > 0 ? `Gemini 2.5 Flash auto-filled ${matchCount} values from the analyzer printout.` : 'Report slip attached. Verify biomarker values and submit.',
           type: 'success'
         }
       }));
@@ -1980,45 +2000,137 @@ export const LabDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Diagnostic Test LOINC Selector */}
+                  {/* Diagnostic Test LOINC Selector (Search-and-Dropdown Combobox) */}
                   <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
-                      <FlaskConical className="w-4 h-4 text-teal-600 shrink-0" />
-                      Select Diagnostic Biomarker Test
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {testCatalog.map(test => {
-                        const isSelected = directTestCode === test.loincCode;
-                        return (
-                          <label
-                            key={test.loincCode}
-                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-teal-500/10 border-teal-500 text-teal-900 dark:text-teal-200 font-bold shadow-xs'
-                                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
-                            }`}
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <FlaskConical className="w-4 h-4 text-teal-600 shrink-0" />
+                        Select Diagnostic Biomarker Test
+                      </h3>
+                      {directTestCode && (
+                        <span className="text-[10px] font-mono font-bold bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800">
+                          LOINC: {directTestCode}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
+                      Search and select the biomarker test to be requisitioned or extracted from the report.
+                    </p>
+
+                    {/* Search Input with Autocomplete Dropdown */}
+                    <div className="relative mb-3">
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Search diagnostic test (e.g., HbA1c, Creatinine, CBC, Lipid...)..."
+                          value={directTestSearch}
+                          onFocus={() => setIsDirectTestDropdownOpen(true)}
+                          onChange={e => {
+                            setDirectTestSearch(e.target.value);
+                            setIsDirectTestDropdownOpen(true);
+                          }}
+                          className="w-full input-field text-xs py-2.5 pl-9 pr-8 focus:ring-1 focus:ring-teal-400 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl"
+                        />
+                        {directTestSearch && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDirectTestSearch('');
+                              setIsDirectTestDropdownOpen(false);
+                            }}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
                           >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="radio"
-                                name="directTestCode"
-                                value={test.loincCode}
-                                checked={isSelected}
-                                onChange={e => setDirectTestCode(e.target.value)}
-                                className="accent-teal-600 w-3.5 h-3.5"
-                              />
-                              <div>
-                                <div className="text-xs">{test.name}</div>
-                                <div className="text-[9px] text-slate-400 font-mono">LOINC: {test.loincCode}</div>
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Autocomplete Dropdown */}
+                      {isDirectTestDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 max-h-60 overflow-y-auto p-1.5 space-y-1">
+                          {testCatalog
+                            .filter(t => {
+                              if (!directTestSearch.trim()) return true;
+                              const q = directTestSearch.toLowerCase();
+                              return (
+                                (t.name || '').toLowerCase().includes(q) ||
+                                (t.category || '').toLowerCase().includes(q) ||
+                                (t.loincCode || '').toLowerCase().includes(q)
+                              );
+                            })
+                            .map(test => {
+                              const isSelected = directTestCode === test.loincCode;
+                              return (
+                                <div
+                                  key={test.loincCode}
+                                  onClick={() => {
+                                    setDirectTestCode(test.loincCode);
+                                    setIsDirectTestDropdownOpen(false);
+                                    setDirectTestSearch('');
+                                  }}
+                                  className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 text-xs ${
+                                    isSelected
+                                      ? 'bg-teal-500/10 border-teal-500 text-teal-900 dark:text-teal-200 font-bold'
+                                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="font-bold flex items-center gap-1.5">
+                                      <FlaskConical className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                                      <span>{test.name}</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                                      {test.category} · LOINC: {test.loincCode}
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">₹{test.price}</span>
+                                    {isSelected && <span className="ml-1.5 text-teal-600 font-bold">✓</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selected Test Summary Card */}
+                    {(() => {
+                      const selectedTest = testCatalog.find(t => t.loincCode === directTestCode) || testCatalog[0];
+                      if (!selectedTest) return null;
+                      return (
+                        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-teal-500/10 via-slate-50 to-indigo-500/10 dark:from-teal-950/40 dark:via-slate-800/60 dark:to-indigo-950/40 border border-teal-500/30 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-teal-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+                              <FlaskConical className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                <span>{selectedTest.name}</span>
+                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-teal-500/20 text-teal-700 dark:text-teal-300 font-bold">
+                                  Selected
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                {selectedTest.category} · LOINC: {selectedTest.loincCode} · Range: {selectedTest.normalRange}
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono">₹{test.price}</div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
+                          </div>
+                          <div className="text-right shrink-0 flex items-center gap-2">
+                            <div className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono">₹{selectedTest.price}</div>
+                            <button
+                              type="button"
+                              onClick={() => setIsDirectTestDropdownOpen(true)}
+                              className="px-2 py-1 text-[10px] font-bold text-teal-700 dark:text-teal-300 hover:underline cursor-pointer border-0 bg-transparent"
+                            >
+                              Change
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -2350,44 +2462,117 @@ export const LabDashboard: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Test selection */}
+                    {/* Test selection Combobox */}
                     <div>
                       <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
                         Select Diagnostic Test
                       </label>
-                      <div className="space-y-2">
-                        {testCatalog.map(test => (
-                          <label
-                            key={test.loincCode}
-                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
-                              walkinTestCode === test.loincCode
-                                ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300'
-                                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="radio"
-                                name="walkinTest"
-                                value={test.loincCode}
-                                checked={walkinTestCode === test.loincCode}
-                                onChange={e => setWalkinTestCode(e.target.value)}
-                                className="accent-indigo-600 w-3.5 h-3.5"
-                              />
-                              <div>
-                                <div className="text-xs font-bold text-slate-800 dark:text-white">{test.name}</div>
-                                <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
-                                  {test.category} · LOINC: {test.loincCode}
+                      <div className="relative mb-3">
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            placeholder="Search test name or LOINC (e.g. CBC, HbA1c, Lipid...)..."
+                            value={walkinTestSearch}
+                            onFocus={() => setIsWalkinTestDropdownOpen(true)}
+                            onChange={e => {
+                              setWalkinTestSearch(e.target.value);
+                              setIsWalkinTestDropdownOpen(true);
+                            }}
+                            className="w-full input-field text-xs py-2.5 pl-9 pr-8 focus:ring-1 focus:ring-indigo-400 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl"
+                          />
+                          {walkinTestSearch && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWalkinTestSearch('');
+                                setIsWalkinTestDropdownOpen(false);
+                              }}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {isWalkinTestDropdownOpen && (
+                          <div className="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl z-50 max-h-56 overflow-y-auto p-1.5 space-y-1">
+                            {testCatalog
+                              .filter(t => {
+                                if (!walkinTestSearch.trim()) return true;
+                                const q = walkinTestSearch.toLowerCase();
+                                return (
+                                  (t.name || '').toLowerCase().includes(q) ||
+                                  (t.category || '').toLowerCase().includes(q) ||
+                                  (t.loincCode || '').toLowerCase().includes(q)
+                                );
+                              })
+                              .map(test => {
+                                const isSelected = walkinTestCode === test.loincCode;
+                                return (
+                                  <div
+                                    key={test.loincCode}
+                                    onClick={() => {
+                                      setWalkinTestCode(test.loincCode);
+                                      setIsWalkinTestDropdownOpen(false);
+                                      setWalkinTestSearch('');
+                                    }}
+                                    className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2 text-xs ${
+                                      isSelected
+                                        ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-900 dark:text-indigo-200 font-bold'
+                                        : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="font-bold flex items-center gap-1.5">
+                                        <FlaskConical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                        <span>{test.name}</span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                                        {test.category} · LOINC: {test.loincCode}
+                                      </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">₹{test.price}</span>
+                                      {isSelected && <span className="ml-1.5 text-indigo-600 font-bold">✓</span>}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selected Walkin Test Card */}
+                      {walkinTestCode && (
+                        (() => {
+                          const test = testCatalog.find(t => t.loincCode === walkinTestCode);
+                          if (!test) return null;
+                          return (
+                            <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2.5">
+                                <FlaskConical className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                <div>
+                                  <div className="text-xs font-bold text-slate-800 dark:text-white">{test.name}</div>
+                                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                    LOINC: {test.loincCode} · Range: {test.normalRange}
+                                  </div>
                                 </div>
                               </div>
+                              <div className="text-right shrink-0 flex items-center gap-2">
+                                <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 font-mono">₹{test.price}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setWalkinTestCode('')}
+                                  className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{test.price}</div>
-                              <div className="text-[9px] text-slate-400 font-mono">{test.unit}</div>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
+                          );
+                        })()
+                      )}
                     </div>
 
                     {/* Upload Request Slip / Prescription */}

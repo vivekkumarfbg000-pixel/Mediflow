@@ -216,6 +216,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   // Interactive Prescription Pad Workspace States
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
   const [testSearchQuery, setTestSearchQuery] = useState('');
+  const [isTestDropdownOpen, setIsTestDropdownOpen] = useState(false);
+  const testDropdownRef = useRef<HTMLDivElement>(null);
   const [activeSubTab, setActiveSubTab] = useState<'workup' | 'prescription'>('prescription');
 
   // Live PDF Lab Report Modal & Overlay States
@@ -319,11 +321,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     setActiveSuggestionIdx(0);
   }, [medName, isOphthalmology]);
 
-  // Click outside to close dropdown
+  // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+      }
+      if (testDropdownRef.current && !testDropdownRef.current.contains(event.target as Node)) {
+        setIsTestDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -2868,83 +2873,149 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
 
 
-          {/* Diagnostic Requisitions Section */}
+          {/* Diagnostic Requisitions Section (Search & Autocomplete Combobox) */}
           <div className="space-y-3 text-left">
             <div className="flex justify-between items-center">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                <FlaskConical className="w-3.5 h-3.5 text-primary" />
-                Diagnostic Panel & Radiology Requisitions ({selectedTests.length} Selected)
+                <FlaskConical className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
+                Prescribe Diagnostics &amp; Panels ({selectedTests.length} Selected)
               </label>
-            </div>
-
-            {/* Quick search & custom test creator */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search blood tests, fever panels, X-Ray, USG, MRI or type custom test..."
-                value={testSearchQuery}
-                onChange={(e) => setTestSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-24 py-2 bg-slate-50 border border-slate-200/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/25 rounded-xl text-xs outline-none font-sans"
-              />
-              {testSearchQuery.trim() && !testCatalog.some(t => t.name.toLowerCase() === testSearchQuery.trim().toLowerCase()) && (
+              {selectedTests.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    const customTest: DiagnosticTest = {
-                      loincCode: `CUSTOM-${Date.now()}`,
-                      name: testSearchQuery.trim(),
-                      category: 'Custom Requisition',
-                      normalRange: 'As per lab spec',
-                      unit: 'unit',
-                      price: 400
-                    };
-                    handleToggleTest(customTest);
-                    setTestSearchQuery('');
-                  }}
-                  className="absolute right-1.5 top-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 text-white-force"
+                  onClick={() => selectedTests.forEach(t => handleToggleTest(t))}
+                  className="text-[10px] font-bold text-rose-500 hover:text-rose-700 cursor-pointer border-0 bg-transparent"
                 >
-                  + Add Custom
+                  Clear All
                 </button>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
-              {testCatalog
-                .filter((test: DiagnosticTest) => {
-                  if (!testSearchQuery) return true;
-                  const q = (testSearchQuery || '').toLowerCase();
-                  const nameLower = (test.name || '').toLowerCase();
-                  const catLower = (test.category || '').toLowerCase();
-                  const loincLower = (test.loincCode || '').toLowerCase();
-                  return nameLower.includes(q) || catLower.includes(q) || loincLower.includes(q);
-                })
-                .map((test: DiagnosticTest) => {
-                const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode || (t.name || '').toLowerCase() === (test.name || '').toLowerCase());
-                return (
-                  <button
+            {/* Selected Diagnostic Tests Pills/Badges */}
+            {selectedTests.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-2.5 bg-indigo-50/60 border border-indigo-200/80 rounded-2xl animate-fade-in">
+                {selectedTests.map(test => (
+                  <div
                     key={test.loincCode}
-                    onClick={() => handleToggleTest(test)}
-                    className={`flex items-center justify-between p-3 rounded-xl border text-left text-xs transition-all duration-200 cursor-pointer ${
-                      isChecked
-                        ? 'bg-indigo-50/80 border-indigo-400 text-slate-900 shadow-xs'
-                        : 'bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100/80'
-                    }`}
+                    className="flex items-center gap-2 pl-2.5 pr-1.5 py-1 bg-white border border-indigo-300 rounded-xl shadow-xs text-xs font-bold text-slate-900"
                   >
-                    <div className="truncate pr-2">
-                      <span className="font-bold block text-slate-800 text-[11px] truncate">{test.name}</span>
-                      <span className="text-[9px] text-slate-500 font-mono mt-0.5 inline-block uppercase">
-                        {test.category || 'General'} • LOINC: {test.loincCode}
-                      </span>
-                    </div>
-                    <div className={`w-5 h-5 rounded-lg border flex items-center justify-center shrink-0 transition-all ${
-                      isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-white'
-                    }`}>
-                      {isChecked && <Check className="w-3.5 h-3.5 font-bold text-white-force" />}
-                    </div>
-                  </button>
-                );
-              })}
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>{test.name}</span>
+                    <span className="text-[9px] font-mono text-slate-500 font-normal">LOINC: {test.loincCode}</span>
+                    <span className="text-[10px] font-mono font-black text-indigo-600">₹{test.price || 350}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleTest(test)}
+                      className="p-1 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 cursor-pointer transition-colors border-0"
+                      title="Remove test"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Search Input with Autocomplete Dropdown */}
+            <div ref={testDropdownRef} className="relative">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search blood tests, fever panels, X-Ray, USG, MRI or type custom test..."
+                  value={testSearchQuery}
+                  onFocus={() => setIsTestDropdownOpen(true)}
+                  onChange={(e) => {
+                    setTestSearchQuery(e.target.value);
+                    setIsTestDropdownOpen(true);
+                  }}
+                  className="w-full pl-9 pr-28 py-2.5 bg-slate-50 border border-slate-200/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/25 rounded-xl text-xs outline-none font-sans"
+                />
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {testSearchQuery.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestSearchQuery('');
+                        setIsTestDropdownOpen(false);
+                      }}
+                      className="p-1 text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  {testSearchQuery.trim() && !testCatalog.some(t => (t.name || '').toLowerCase() === testSearchQuery.trim().toLowerCase()) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const customTest: DiagnosticTest = {
+                          loincCode: `CUSTOM-${Date.now()}`,
+                          name: testSearchQuery.trim(),
+                          category: 'Custom Requisition',
+                          normalRange: 'As per lab spec',
+                          unit: 'unit',
+                          price: 400
+                        };
+                        handleToggleTest(customTest);
+                        setTestSearchQuery('');
+                        setIsTestDropdownOpen(false);
+                      }}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer border-0 text-white-force"
+                    >
+                      + Custom
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Floating Dropdown */}
+              {isTestDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-64 overflow-y-auto p-1.5 space-y-1">
+                  {testCatalog
+                    .filter((test: DiagnosticTest) => {
+                      if (!testSearchQuery.trim()) return true;
+                      const q = (testSearchQuery || '').toLowerCase();
+                      const nameLower = (test.name || '').toLowerCase();
+                      const catLower = (test.category || '').toLowerCase();
+                      const loincLower = (test.loincCode || '').toLowerCase();
+                      return nameLower.includes(q) || catLower.includes(q) || loincLower.includes(q);
+                    })
+                    .map((test: DiagnosticTest) => {
+                      const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode || (t.name || '').toLowerCase() === (test.name || '').toLowerCase());
+                      return (
+                        <div
+                          key={test.loincCode}
+                          onClick={() => {
+                            handleToggleTest(test);
+                          }}
+                          className={`p-2.5 rounded-xl border text-left text-xs transition-all duration-200 cursor-pointer flex items-center justify-between gap-2 ${
+                            isChecked
+                              ? 'bg-indigo-50/80 border-indigo-400 text-slate-900 shadow-xs'
+                              : 'bg-slate-50/60 border-slate-200/60 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="truncate pr-2">
+                            <div className="font-bold flex items-center gap-1.5 text-slate-800 text-[11px] truncate">
+                              <FlaskConical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                              <span>{test.name}</span>
+                            </div>
+                            <span className="text-[9px] text-slate-500 font-mono mt-0.5 inline-block uppercase">
+                              {test.category || 'General'} • LOINC: {test.loincCode}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-mono font-bold text-indigo-600">₹{test.price}</span>
+                            <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
+                              isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-white'
+                            }`}>
+                              {isChecked && <Check className="w-3.5 h-3.5 font-bold text-white-force" />}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           </div>
 
