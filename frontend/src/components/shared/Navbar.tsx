@@ -83,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
   const [activeCompounderTab, setActiveCompounderTab] = useState<string>('overview');
-  const [activePharmacyTab, setActivePharmacyTab] = useState<string>('prescription_queue');
+  const [activePharmacyTab, setActivePharmacyTab] = useState<string>('overview');
   const [activeLabTab, setActiveLabTab] = useState<string>('overview');
   const [activeAdminTab, setActiveAdminTab] = useState<string>('saas_health');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -141,9 +141,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (currentRole === 'compounder') {
       setActiveCompounderTab('overview');
     } else if (currentRole === 'pharmacy') {
-      setActivePharmacyTab('prescription_queue');
+      setActivePharmacyTab('overview');
     } else if (currentRole === 'lab') {
-      setActiveLabTab('queue');
+      setActiveLabTab('overview');
     } else if (currentRole === 'saas_admin') {
       setActiveAdminTab('saas_health');
     } else if (currentRole === 'doctor') {
@@ -1040,11 +1040,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             if (currentRole === 'pharmacy') {
               const pharmaTabs = [
-                { id: 'prescription_queue', label: 'Queue', icon: FileText },
-                { id: 'inventory_catalog', label: 'Catalog', icon: ShoppingBag },
-                { id: 'expiry_tracker', label: 'Expiry', icon: ShieldAlert },
-                { id: 'settlements', label: 'Ledger', icon: QrCode },
-                { id: 'profile_settings', label: 'Settings', icon: Settings }
+                { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                { id: 'dispensation_queue', label: 'Dispense', icon: FileText },
+                { id: 'inventory_catalog', label: 'Inventory', icon: ShoppingBag },
+                { id: 'financials_ledger', label: 'Financials', icon: Coins }
               ];
               return pharmaTabs.map(t => {
                 const Icon = t.icon;
@@ -1054,12 +1053,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                     key={t.id}
                     type="button"
                     onClick={() => {
-                      if (t.id === 'profile_settings') {
-                        setIsProfileModalOpen(true);
-                      } else {
-                        setActivePharmacyTab(t.id);
-                        window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: t.id }));
-                      }
+                      setActivePharmacyTab(t.id);
+                      window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: t.id }));
                     }}
                     className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
                       isActive 

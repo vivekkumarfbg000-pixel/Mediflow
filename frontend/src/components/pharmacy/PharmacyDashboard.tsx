@@ -38,8 +38,19 @@ import {
   QrCode,
   PlusCircle,
   X,
-  Send
+  Send,
+  Clock,
+  ChevronRight,
+  Smartphone,
+  ArrowRight,
+  CheckCheck,
+  Check,
+  Activity,
+  Truck,
+  Upload
 } from 'lucide-react';
+
+export type PharmacyTab = 'overview' | 'dispensation_queue' | 'inventory_catalog' | 'financials_ledger';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
@@ -47,7 +58,25 @@ import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 export const PharmacyDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { activePod, activeEntity, podEntities, refreshClinic } = useClinic();
-  const [activeTab, setActiveTab] = useState<'prescription_queue' | 'inventory_catalog' | 'stock_alerts' | 'expiry_tracker' | 'settlements' | 'pod_connect' | 'profile_settings' | 'billing_invoices'>('prescription_queue');
+  const [activeTab, setActiveTab] = useState<PharmacyTab>('overview');
+  const [dispensationSubTab, setDispensationSubTab] = useState<'holds' | 'whatsapp_refills'>('holds');
+  const [inventorySubTab, setInventorySubTab] = useState<'catalog' | 'expiry_alerts' | 'csv_import'>('catalog');
+  const [financialsSubTab, setFinancialsSubTab] = useState<'invoices' | 'settlements' | 'pod_network' | 'profile'>('invoices');
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleDownloadCsvTemplate = () => {
+    const link = document.createElement('a');
+    link.href = 'data:text/csv;charset=utf-8,Name,Generic Name,Category,Manufacturer,Batch No,Expiry Date,MRP,Price,Stock,Unit,Threshold,Dosage,HSN%0AMetformin 500mg,Metformin,Antidiabetic,Sun Pharma,MET26X,2027-12-31,15,13.5,100,tabs,30,500mg,300490';
+    link.download = 'mediflow_inventory_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Pharmacy Profile Settings States
   const [profileName, setProfileName] = useState('');
@@ -137,7 +166,28 @@ export const PharmacyDashboard: React.FC = () => {
     const handlePharmacyTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
-        setActiveTab(customEvent.detail as any);
+        const target = customEvent.detail;
+        if (target === 'overview' || target === 'dispensation_queue' || target === 'inventory_catalog' || target === 'financials_ledger') {
+          setActiveTab(target as PharmacyTab);
+        } else if (target === 'prescription_queue') {
+          setActiveTab('dispensation_queue');
+          setDispensationSubTab('holds');
+        } else if (target === 'stock_alerts' || target === 'expiry_tracker') {
+          setActiveTab('inventory_catalog');
+          setInventorySubTab('expiry_alerts');
+        } else if (target === 'billing_invoices') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('invoices');
+        } else if (target === 'settlements') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('settlements');
+        } else if (target === 'pod_connect') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('pod_network');
+        } else if (target === 'profile_settings') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('profile');
+        }
       }
     };
     window.addEventListener('mediflow-pharmacy-tab-changed', handlePharmacyTabChange);
@@ -643,120 +693,494 @@ export const PharmacyDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* DASHBOARD HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 border-b-0 md:border-b border-slate-200 pb-3 md:pb-6">
-        <div className="hidden md:block">
-          <h1 className="text-base font-semibold text-slate-900 tracking-tight flex items-center gap-3">
-            <Pill className="w-5 h-5 text-indigo-600 shrink-0" />
-            {nomenclature.pharmacyTitle}
-            <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border uppercase tracking-widest ${
-              isOnline 
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-600 animate-pulse' 
-                : 'bg-rose-50 border-rose-200 text-rose-600'
-            }`}>
-              {isOnline ? 'Online' : 'Offline Mode (Local Cache)'}
-            </span>
-          </h1>
-          <p className="hidden sm:block text-xs text-slate-500 mt-1">
-            Clinic ecosystem pharmacy dispatcher center connected with doctor holds, WhatsApp automated billing, and live FEFO batch compliance tracker.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="btn-primary"
-          >
-            <Plus className="h-4 w-4" /> Add Medicine
-          </button>
-          <button 
-            onClick={() => setIsCsvImportOpen(true)}
-            className="btn-secondary"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> Bulk CSV Import
-          </button>
-        </div>
-      </div>
+      {/* MODERNIZED EXECUTIVE HEADER (REDUNDANT TABS REMOVED) */}
+      <div className="glass-panel p-5 border-slate-200/60 shadow-lg relative overflow-hidden bg-white/90 dark:bg-slate-900/90 backdrop-blur-md">
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 opacity-90" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-md shrink-0">
+                <Pill className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <span>{nomenclature.pharmacyTitle}</span>
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 uppercase tracking-widest">
+                    {activePod?.name || 'Central Pod Network'}
+                  </span>
+                </h1>
+                <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                  <span className="flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500 animate-spin-slow" />
+                    {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Realtime CDC Synchronized
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      {/* HORIZONTAL TAB SWITCHER — Desktop Bar */}
-      <div className="hidden md:flex overflow-x-auto gap-2 pb-2.5 no-scrollbar select-none -mb-px">
-        {[
-          { id: 'prescription_queue', label: 'Prescription Queue', icon: <Package className="w-4 h-4 shrink-0" />, badge: activeHoldsCount },
-          { id: 'billing_invoices', label: 'Billing & Invoices', icon: <Receipt className="w-4 h-4 shrink-0" /> },
-          { id: 'inventory_catalog', label: 'Inventory Catalog', icon: <Database className="w-4 h-4 shrink-0" /> },
-          { id: 'stock_alerts', label: 'Stock Alerts', icon: <AlertTriangle className="w-4 h-4 shrink-0" />, badge: criticalStockCount, alert: true },
-          { id: 'expiry_tracker', label: 'Expiry Tracker', icon: <CalendarX className="w-4 h-4 shrink-0" />, badge: criticalExpiryCount, warning: true },
-          { id: 'settlements', label: 'Settlements', icon: <Landmark className="w-4 h-4 shrink-0" /> },
-          { id: 'pod_connect', label: 'Pod Interconnect', icon: <Network className="w-4 h-4 shrink-0" /> },
-          { id: 'profile_settings', label: 'Profile & GSTIN', icon: <Settings className="w-4 h-4 shrink-0" /> }
-        ].map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative whitespace-nowrap ${
-                isActive
-                  ? 'premium-nav-pill-active'
-                  : 'bg-slate-50 border-slate-200/60 text-slate-650 hover:border-slate-300 hover:text-slate-850 hover:bg-slate-100/50'
-              }`}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="btn-primary py-2 px-3.5 text-xs flex items-center gap-1.5 shadow-sm hover:shadow transition-all cursor-pointer border-0"
             >
-              {tab.icon}
-              {tab.label}
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className={`ml-1 px-1.5 py-0.5 text-[9px] rounded-full font-bold text-white ${
-                  tab.alert ? 'bg-rose-500 animate-bounce' :
-                  tab.warning ? 'bg-amber-500 text-black' : 'bg-indigo-600'
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
+              <Plus className="h-4 w-4" /> 
+              <span>Add Medicine</span>
             </button>
-          );
-        })}
-      </div>
-
-      {/* HORIZONTAL TAB SWITCHER — Mobile Swipe Strip */}
-      <div className="flex md:hidden items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-x-auto no-scrollbar -mt-2 mb-3 select-none">
-        {[
-          { id: 'prescription_queue', label: 'Rx Queue', icon: <Package className="w-3.5 h-3.5 shrink-0" />, badge: activeHoldsCount },
-          { id: 'billing_invoices', label: 'Billing 💳', icon: <Receipt className="w-3.5 h-3.5 shrink-0" /> },
-          { id: 'inventory_catalog', label: 'Catalog 📦', icon: <Database className="w-3.5 h-3.5 shrink-0" /> },
-          { id: 'stock_alerts', label: 'Alerts ⚠️', icon: <AlertTriangle className="w-3.5 h-3.5 shrink-0" />, badge: criticalStockCount, alert: true },
-          { id: 'expiry_tracker', label: 'FEFO ⏳', icon: <CalendarX className="w-3.5 h-3.5 shrink-0" />, badge: criticalExpiryCount, warning: true },
-          { id: 'settlements', label: 'Settlements', icon: <Landmark className="w-3.5 h-3.5 shrink-0" /> },
-          { id: 'pod_connect', label: 'Pod Network', icon: <Network className="w-3.5 h-3.5 shrink-0" /> },
-          { id: 'profile_settings', label: 'Settings', icon: <Settings className="w-3.5 h-3.5 shrink-0" /> }
-        ].map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1 py-1.5 px-2.5 text-[10px] font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer active:scale-95 border-0 ${
-                isActive
-                  ? 'bg-gradient-to-r from-indigo-600 to-teal-600 text-white shadow-sm font-black'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800'
-              }`}
+            <button 
+              onClick={() => setIsCsvImportOpen(true)}
+              className="btn-secondary py-2 px-3.5 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
             >
-              {tab.icon}
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className={`px-1 py-0.2 text-[8px] rounded-full font-black ${
-                  isActive ? 'bg-white/25 text-white' : tab.alert ? 'bg-rose-500 text-white animate-pulse' : 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300'
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
+              <FileSpreadsheet className="h-4 w-4 text-emerald-500" /> 
+              <span>Bulk CSV</span>
             </button>
-          );
-        })}
+          </div>
+        </div>
       </div>
 
       {/* TAB CONTENT AREAS */}
       <div className="space-y-6">
-           {/* TAB 1: PRESCRIPTION QUEUE (SAAS PAYMENTS GATED VERIFICATION HUB) */}
-        {activeTab === 'prescription_queue' && (
-          <div className="grid grid-cols-1 gap-6">
+
+        {/* ══════════════════════════════════════════════════════════
+            TAB 1: EXECUTIVE OVERVIEW COCKPIT (MODERN BENTO GRID)
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6 text-left animate-fade-in">
+            {/* Bento KPI Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {/* Card 1: Active Prescriptions */}
+              <div 
+                onClick={() => {
+                  setActiveTab('dispensation_queue');
+                  setDispensationSubTab('holds');
+                }}
+                className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-emerald-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
+              >
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Prescription Queue</span>
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Package className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                  {activeHoldsCount}
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+                  <span>Doctor e-prescriptions</span>
+                  <span className="text-emerald-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                    Dispense <ChevronRight className="w-3 h-3" />
+                  </span>
+                </p>
+              </div>
+
+              {/* Card 2: WhatsApp 1-Click Orders */}
+              <div 
+                onClick={() => {
+                  setActiveTab('dispensation_queue');
+                  setDispensationSubTab('whatsapp_refills');
+                }}
+                className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-indigo-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
+              >
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">WhatsApp Refills</span>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Smartphone className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                  {whatsAppOrders.length}
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+                  <span>1-Click delivery orders</span>
+                  <span className="text-indigo-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                    View <ChevronRight className="w-3 h-3" />
+                  </span>
+                </p>
+              </div>
+
+              {/* Card 3: Today's Revenue */}
+              <div 
+                onClick={() => {
+                  setActiveTab('financials_ledger');
+                  setFinancialsSubTab('invoices');
+                }}
+                className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-teal-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
+              >
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Today's Revenue</span>
+                  <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Coins className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                  ₹{liveMedicineBills.reduce((sum, b) => sum + (Number(b.total_amount || b.totalAmount || 0) || 0), 0).toFixed(0)}
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+                  <span>Cash / Paytm / UPI</span>
+                  <span className="text-teal-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                    Ledger <ChevronRight className="w-3 h-3" />
+                  </span>
+                </p>
+              </div>
+
+              {/* Card 4: FEFO Risk & Low Stock */}
+              <div 
+                onClick={() => {
+                  setActiveTab('inventory_catalog');
+                  setInventorySubTab('expiry_alerts');
+                }}
+                className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-rose-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
+              >
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">FEFO Expiry Risk</span>
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-mono">
+                  {criticalStockCount + criticalExpiryCount}
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+                  <span>{criticalExpiryCount} critical &lt;30d</span>
+                  <span className="text-rose-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                    Inspect <ChevronRight className="w-3 h-3" />
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            {/* Overview 2-Column Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left: Incoming Fast-Track Dispensing Worklist */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-60" />
+                  
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+                        Gate 3 Fast-Track Dispensation Worklist
+                      </h2>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Incoming e-prescriptions awaiting dispensation or counter clearance.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setActiveTab('dispensation_queue');
+                        setDispensationSubTab('holds');
+                      }}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1 transition-all cursor-pointer border-0 bg-transparent"
+                    >
+                      <span>Full Gate 3 Queue</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {holds.filter(h => h.holdStatus === 'held').length === 0 ? (
+                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">
+                      <CheckCheck className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">All prescription holds have been cleared!</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">New e-prescriptions from Doctor EMR will arrive in realtime.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {holds.filter(h => h.holdStatus === 'held').slice(0, 4).map(hold => (
+                        <div 
+                          key={hold.id}
+                          className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-slate-50/70 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold text-slate-800 dark:text-white">
+                                Patient (ID: {hold.patientId ? hold.patientId.slice(0, 8) : 'Unknown'})
+                              </span>
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60">
+                                {hold.dosage || 'Prescribed'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono flex items-center gap-2">
+                              <span>💊 {hold.medicineName} (x{hold.quantity})</span>
+                              <span>·</span>
+                              <span className="text-slate-400">Batch: {hold.batchNumber || 'FEFO'}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                            <button
+                              onClick={() => {
+                                api.dispenseInventoryHold(hold.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    title: 'Medicine Dispensed',
+                                    message: 'Dispensed ' + hold.medicineName + '.',
+                                    type: 'success'
+                                  }
+                                }));
+                              }}
+                              className="flex-1 sm:flex-initial py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer border-0 shadow-xs flex items-center justify-center gap-1"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Dispense</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setActiveTab('dispensation_queue');
+                                setDispensationSubTab('holds');
+                              }}
+                              className="py-1.5 px-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg transition-all cursor-pointer border-0"
+                            >
+                              Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: FEFO Batch Radar & WhatsApp Refill Summary */}
+              <div className="lg:col-span-4 space-y-6">
+                {/* FEFO Health Radar Barometer */}
+                <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 opacity-60" />
+                  
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-indigo-500" />
+                      FEFO Batch Health Radar
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">{inventory.length} Batches</span>
+                  </h3>
+
+                  <div className="space-y-3">
+                    {/* Expired */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-mono">
+                        <span className="text-rose-600 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Expired (Quarantine)
+                        </span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {consolidatedExpiryBatches.filter(b => b.tier === 'EXPIRED').length}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-rose-500 h-full rounded-full transition-all"
+                          style={{ width: ((consolidatedExpiryBatches.filter(b => b.tier === 'EXPIRED').length / Math.max(1, inventory.length)) * 100).toFixed(0) + '%' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Critical <30d */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-mono">
+                        <span className="text-amber-600 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Critical (&lt;30 Days)
+                        </span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {consolidatedExpiryBatches.filter(b => b.tier === 'CRITICAL').length}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-amber-500 h-full rounded-full transition-all"
+                          style={{ width: ((consolidatedExpiryBatches.filter(b => b.tier === 'CRITICAL').length / Math.max(1, inventory.length)) * 100).toFixed(0) + '%' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Caution <90d */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-mono">
+                        <span className="text-yellow-600 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" /> Caution (&lt;90 Days)
+                        </span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {consolidatedExpiryBatches.filter(b => b.tier === 'CAUTION').length}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-yellow-500 h-full rounded-full transition-all"
+                          style={{ width: ((consolidatedExpiryBatches.filter(b => b.tier === 'CAUTION').length / Math.max(1, inventory.length)) * 100).toFixed(0) + '%' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Safe >90d */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-mono">
+                        <span className="text-emerald-600 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Safe (&gt;90 Days)
+                        </span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">
+                          {consolidatedExpiryBatches.filter(b => b.tier === 'SAFE').length}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-full transition-all"
+                          style={{ width: ((consolidatedExpiryBatches.filter(b => b.tier === 'SAFE').length / Math.max(1, inventory.length)) * 100).toFixed(0) + '%' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* WhatsApp 1-Click Refill Stream */}
+                <div className="glass-panel p-5 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-indigo-500" />
+                      WhatsApp 1-Click Refills
+                    </h3>
+                    <span className="text-[10px] font-mono font-bold text-indigo-600">{whatsAppOrders.length} Orders</span>
+                  </div>
+                  {whatsAppOrders.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-3 text-center">No active WhatsApp refill orders.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {whatsAppOrders.slice(0, 3).map(order => (
+                        <div key={order.id} className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 text-xs">
+                          <div className="flex justify-between items-center font-bold">
+                            <span>{order.patientName || 'Patient'}</span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 font-mono">
+                              {order.deliveryStatus || 'Pending'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                            +91 {order.patientPhone} · ₹{order.amount || 0}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            TAB 2: DISPENSATION WORKLIST & GATE 3 HUB
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'dispensation_queue' && (
+          <div className="space-y-6 text-left animate-fade-in">
+            {/* Sub Switcher */}
+            <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+              <button
+                type="button"
+                onClick={() => setDispensationSubTab('holds')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  dispensationSubTab === 'holds'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Gate 3: Paid Invoices &amp; Prescription Holds</span>
+                {activeHoldsCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-white/20 text-white ml-1">
+                    {activeHoldsCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDispensationSubTab('whatsapp_refills')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  dispensationSubTab === 'whatsapp_refills'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <Truck className="w-4 h-4" />
+                <span>WhatsApp 1-Click Refill Delivery Hub</span>
+                {whatsAppOrders.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-white/20 text-white ml-1">
+                    {whatsAppOrders.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {dispensationSubTab === 'whatsapp_refills' && (
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-indigo-500 shrink-0" />
+                      WhatsApp 1-Click Medicine Refills &amp; Home Deliveries
+                    </h2>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Chronic patient refill orders dispatched automatically via WhatsApp Day-25 interactive buttons.
+                    </p>
+                  </div>
+                </div>
+
+                {whatsAppOrders.length === 0 ? (
+                  <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60">
+                    <Smartphone className="w-10 h-10 text-indigo-500 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No pending WhatsApp refill orders</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Orders confirmed by patients on WhatsApp will appear here in realtime.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {whatsAppOrders.map(order => (
+                      <div key={order.id} className="p-4 rounded-xl border border-indigo-200/80 dark:border-indigo-800/60 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-extrabold text-slate-800 dark:text-white text-xs">{order.patientName || 'Patient'}</h4>
+                            <p className="text-[10px] text-slate-500 font-mono">+91 {order.patientPhone}</p>
+                          </div>
+                          <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white">
+                            {order.deliveryStatus || 'Pending'}
+                          </span>
+                        </div>
+                        <div className="text-xs font-black text-slate-800 dark:text-white">
+                          Total: ₹{order.amount || 0}
+                        </div>
+                        <button
+                          onClick={() => {
+                            const updated = whatsAppOrders.map(o => o.id === order.id ? { ...o, deliveryStatus: 'dispatching' as const } : o);
+                            api.saveWhatsAppDrugOrders(updated);
+                            setWhatsAppOrders(updated);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Refill Dispatched',
+                                message: 'Dispatched refill for ' + (order.patientName || 'Patient') + ' via delivery partner.',
+                                type: 'success'
+                              }
+                            }));
+                          }}
+                          className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-all cursor-pointer border-0 shadow-xs flex items-center justify-center gap-1.5"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>Dispatch Home Delivery</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {dispensationSubTab === 'holds' && (
+              <div className="grid grid-cols-1 gap-6">
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
               
@@ -1242,11 +1666,106 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+            )}
+          </div>
         )}
 
-        {/* TAB 2: INVENTORY CATALOG */}
+        {/* ══════════════════════════════════════════════════════════
+            TAB 3: SMART INVENTORY & FEFO ENGINE
+        ══════════════════════════════════════════════════════════ */}
         {activeTab === 'inventory_catalog' && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+          <div className="space-y-6 text-left animate-fade-in">
+            {/* Sub Switcher */}
+            <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+              <button
+                type="button"
+                onClick={() => setInventorySubTab('catalog')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  inventorySubTab === 'catalog'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <Database className="w-4 h-4" />
+                <span>Medicine Master Catalog</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-white/20 text-white ml-1">
+                  {inventory.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInventorySubTab('expiry_alerts')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  inventorySubTab === 'expiry_alerts'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <CalendarX className="w-4 h-4" />
+                <span>FEFO Expiry Tracker &amp; Alerts</span>
+                {(criticalStockCount + criticalExpiryCount) > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-500 text-white ml-1 animate-pulse">
+                    {criticalStockCount + criticalExpiryCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setInventorySubTab('csv_import')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  inventorySubTab === 'csv_import'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Bulk CSV Batch Importer</span>
+              </button>
+            </div>
+
+            {inventorySubTab === 'csv_import' && (
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-600 opacity-60" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                      Bulk Medicine CSV Batch Importer
+                    </h2>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Import full pharmacy inventories, FEFO batches, HSN codes, and pricing in seconds via CSV templates.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={handleDownloadCsvTemplate}
+                      className="py-2 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border-0"
+                    >
+                      <Download className="w-4 h-4 text-emerald-600" />
+                      <span>Download CSV Template</span>
+                    </button>
+                    <button
+                      onClick={() => setIsCsvImportOpen(true)}
+                      className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border-0 shadow-md"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Upload CSV File</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-3">
+                  <FileSpreadsheet className="w-12 h-12 text-emerald-500 mx-auto" />
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white">Import Hundreds of Medicine Batches in 1-Click</h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Download our formatted CSV template, fill in your batch numbers, expiry dates, and MRP, then click upload to update your FEFO inventory.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {inventorySubTab === 'catalog' && (
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             
             {/* Catalog search/filter headers */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -1416,11 +1935,12 @@ export const PharmacyDashboard: React.FC = () => {
 
             </div>
           </div>
-        )}
+            )}
 
-        {/* TAB 3: STOCK ALERTS */}
-        {activeTab === 'stock_alerts' && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+            {inventorySubTab === 'expiry_alerts' && (
+              <div className="space-y-6">
+                <div>
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -1508,11 +2028,9 @@ export const PharmacyDashboard: React.FC = () => {
             )}
 
           </div>
-        )}
-
-        {/* TAB 4: EXPIRY TRACKER */}
-        {activeTab === 'expiry_tracker' && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+                </div>
+                <div>
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200/60 pb-4 gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -1670,13 +2188,329 @@ export const PharmacyDashboard: React.FC = () => {
             )}
 
           </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
+        {/* ══════════════════════════════════════════════════════════
+            TAB 4: FINANCIALS, LEDGER & SETTLEMENTS
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'financials_ledger' && (
+          <div className="space-y-6 text-left animate-fade-in">
+            {/* Sub Switcher */}
+            <div className="grid grid-cols-4 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+              <button
+                type="button"
+                onClick={() => setFinancialsSubTab('invoices')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  financialsSubTab === 'invoices'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <Receipt className="w-4 h-4" />
+                <span>Dispensed Invoices</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFinancialsSubTab('settlements')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  financialsSubTab === 'settlements'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <Landmark className="w-4 h-4" />
+                <span>Commission Pool</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFinancialsSubTab('pod_network')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  financialsSubTab === 'pod_network'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <Network className="w-4 h-4" />
+                <span>Pod Network</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFinancialsSubTab('profile')}
+                className={'flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ' + (
+                  financialsSubTab === 'profile'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                )}
+              >
+                <Settings className="w-4 h-4" />
+                <span>Profile &amp; GSTIN</span>
+              </button>
+            </div>
 
+            {financialsSubTab === 'invoices' && (
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
+                Pharmacy Billing & Invoices
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Generate itemized medicine invoices from prescription holds, collect payments, print invoices, and send to patients via WhatsApp.
+              </p>
+            </div>
+          </div>
 
-        {/* TAB 6: SETTLEMENTS */}
-        {activeTab === 'settlements' && (
-          <div className="space-y-6">
+          {(() => {
+            const patients = api.getPatients();
+            const medicineBills = api.getMedicineBills();
+            const activeHolds = holds.filter(h => h.holdStatus === 'held');
+
+            // Group holds by patientId
+            const holdsByPatient: Record<string, typeof activeHolds> = {};
+            activeHolds.forEach(h => {
+              if (!holdsByPatient[h.patientId]) holdsByPatient[h.patientId] = [];
+              holdsByPatient[h.patientId].push(h);
+            });
+
+            const pendingBills = medicineBills.filter(b => b.status === 'draft' || b.status === 'confirmed');
+            const paidBills = medicineBills.filter(b => b.status === 'paid');
+
+            return (
+              <div className="space-y-8">
+                {/* Section 1: Unbilled Holds — auto-generate bills */}
+                <div>
+                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Prescription Holds Awaiting Billing ({Object.keys(holdsByPatient).length} patients)
+                  </h3>
+                  {Object.keys(holdsByPatient).length === 0 ? (
+                    <InlineEmptyState
+                      icon="medication"
+                      label="No Prescription Holds"
+                      sublabel="All pending prescription holds have been billed and cleared."
+                      variant="success"
+                    />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(holdsByPatient).map(([patientId, patientHolds]) => {
+                        const patient = patients.find(p => p.id === patientId);
+                        if (!patient) return null;
+                        const totalAmt = patientHolds.reduce((sum, h) => {
+                          const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
+                          return sum + (invItem ? invItem.price * h.quantity : 150);
+                        }, 0);
+
+                        return (
+                          <div key={patientId} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                  {patient.name} 
+                                  <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded font-mono">
+                                    [{patient.patientCode || patient.tokenNumber || 'PAT'}]
+                                  </span>
+                                </h4>
+                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone || '—'}</p>
+                              </div>
+                              <span className="text-xs font-black text-amber-600">₹{(totalAmt || 0).toFixed(0)}</span>
+                            </div>
+                            <div className="space-y-1">
+                              {patientHolds.map(h => {
+                                const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
+                                return (
+                                  <div key={h.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
+                                    <span>💊 {h.medicineName} x{h.quantity}</span>
+                                    <span>₹{invItem ? ((invItem.price || 0) * (h.quantity || 1)).toFixed(0) : '150'}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => {
+                                const billItems = patientHolds.map(h => {
+                                  const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
+                                  const price = invItem?.price || 150;
+                                  const mrp = invItem?.mrp || price;
+                                  return {
+                                    inventoryItemId: invItem?.id || h.id,
+                                    name: h.medicineName,
+                                    genericName: invItem?.genericName || h.medicineName,
+                                    dosage: h.dosage || invItem?.dosage || '',
+                                    batchNumber: h.batchNumber,
+                                    expiryDate: h.expiryDate,
+                                    quantity: h.quantity,
+                                    mrp,
+                                    sellingPrice: price,
+                                    discountPercent: 0,
+                                    gstPercent: 5,
+                                    lineTotal: price * h.quantity * 1.05,
+                                    alternativeSuggested: undefined,
+                                    alternativeInventoryId: undefined,
+                                    isStockDeducted: true
+                                  };
+                                });
+                                const subtotal = billItems.reduce((s, i) => s + i.sellingPrice * i.quantity, 0);
+                                const gstAmount = parseFloat((subtotal * 0.05).toFixed(2));
+                                const pharmacyGstin = podEntities.find(pe => pe.entityType === 'pharmacy')?.gstin;
+                                const bill = {
+                                  id: crypto.randomUUID(),
+                                  patientId: patient.id,
+                                  patientName: patient.name,
+                                  patientPhone: patient.phone,
+                                  pharmacyGstin: pharmacyGstin || undefined,
+                                  items: billItems,
+                                  subtotal,
+                                  loyaltyDiscountPercent: 0,
+                                  loyaltyDiscountAmount: 0,
+                                  itemDiscountAmount: 0,
+                                  gstAmount,
+                                  totalAmount: subtotal + gstAmount,
+                                  paymentMode: 'cash' as const,
+                                  upiQrPayload: `upi://pay?pa=${activePod?.upiVpa || 'vitalsync@axl'}&pn=${encodeURIComponent(activePod?.name || 'VitalSync')}&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
+                                  status: 'draft' as const,
+                                  source: 'counter' as const,
+                                  createdAt: new Date().toISOString()
+                                };
+                                api.saveMedicineBill(bill);
+                                
+                                // Clean up / dispense the matching inventory holds so they disappear from the awaiting list
+                                patientHolds.forEach(h => {
+                                  api.dispenseInventoryHold(h.id);
+                                });
+
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Medicine bill ₹${(bill.totalAmount || 0).toFixed(0)} generated for ${patient.name}!`, type: 'success', title: 'Invoice Created' }
+                                }));
+                                syncData();
+                              }}
+                              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer transition-all"
+                            >
+                              Generate Medicine Bill
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 2: Pending Bills — collect payment */}
+                <div>
+                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                    Pending Payment ({pendingBills.length})
+                  </h3>
+                  {pendingBills.length === 0 ? (
+                    <ZeroQueueState queueType="billing" className="mx-0" />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {pendingBills.map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
+                          <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                            {(bill.status || '').toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
+                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} items</p>
+                          </div>
+                          <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                api.dispenseMedicineBill(bill.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
+                                }));
+                                syncData();
+                              }}
+                              className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                            >
+                              Cash
+                            </button>
+                            <button
+                              onClick={() => {
+                                api.dispenseMedicineBill(bill.id);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
+                                }));
+                                syncData();
+                              }}
+                              className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
+                            >
+                              UPI
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3: Paid Bills — print & send */}
+                <div>
+                  <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Paid Invoices ({paidBills.length})
+                  </h3>
+                  {paidBills.length === 0 ? (
+                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
+                      No paid invoices yet.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {paidBills.slice(0, 12).map(bill => (
+                        <div key={bill.id} className="p-4 bg-white border border-emerald-200 rounded-xl space-y-2 relative">
+                          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                            ✓ PAID
+                          </div>
+                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName || 'Patient'}</h4>
+                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {(bill.items || []).length} items</p>
+                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                const html = api.generatePharmacyInvoiceHtml(bill);
+                                const blob = new Blob([html], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, '_blank');
+                                // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
+                                setTimeout(() => URL.revokeObjectURL(url), 1500);
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Printer className="w-3 h-3 shrink-0" /> Print
+                            </button>
+                            <button
+                              onClick={() => {
+                                api.sendPharmacyInvoiceToPatient(bill);
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: { message: `Invoice sent to ${bill.patientName} on WhatsApp!`, type: 'success', title: 'Invoice Sent' }
+                                }));
+                              }}
+                              className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Send className="w-3 h-3 shrink-0" /> WhatsApp
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+            )}
+
+            {financialsSubTab === 'settlements' && (
+              <div className="space-y-6">
             <SettlementWidget 
               entityId={activeEntity?.id || ''}
               podId={activeEntity?.podId || ''}
@@ -1713,11 +2547,10 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+            )}
 
-        {/* TAB 7: POD INTERCONNECT */}
-        {activeTab === 'pod_connect' && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
+            {financialsSubTab === 'pod_network' && (
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
             <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -1783,10 +2616,10 @@ export const PharmacyDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        )}
+            )}
 
-        {activeTab === 'profile_settings' && (
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6 bg-white text-slate-800">
+            {financialsSubTab === 'profile' && (
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6 bg-white text-slate-800">
             <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
               <div>
                 <h2 className="text-sm font-semibold text-slate-855 flex items-center gap-2">
@@ -1852,10 +2685,13 @@ export const PharmacyDashboard: React.FC = () => {
               </button>
             </form>
           </div>
+            )}
+          </div>
         )}
 
       </div>
 
+      {/* ALL MODALS & PORTALS (OUTSIDE TABS) */}
       {/* V2.0 PREMIUM LASER BARCODE SCANNER SIMULATION MODAL */}
       {scanningHold && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/85 backdrop-blur-md p-4 animate-fade-in">
@@ -2270,268 +3106,6 @@ export const PharmacyDashboard: React.FC = () => {
         </div>,
         document.body
       )}
-
-
-
-      {/* TAB: BILLING & INVOICES */}
-      {activeTab === 'billing_invoices' && (
-        <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
-                Pharmacy Billing & Invoices
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Generate itemized medicine invoices from prescription holds, collect payments, print invoices, and send to patients via WhatsApp.
-              </p>
-            </div>
-          </div>
-
-          {(() => {
-            const patients = api.getPatients();
-            const medicineBills = api.getMedicineBills();
-            const activeHolds = holds.filter(h => h.holdStatus === 'held');
-
-            // Group holds by patientId
-            const holdsByPatient: Record<string, typeof activeHolds> = {};
-            activeHolds.forEach(h => {
-              if (!holdsByPatient[h.patientId]) holdsByPatient[h.patientId] = [];
-              holdsByPatient[h.patientId].push(h);
-            });
-
-            const pendingBills = medicineBills.filter(b => b.status === 'draft' || b.status === 'confirmed');
-            const paidBills = medicineBills.filter(b => b.status === 'paid');
-
-            return (
-              <div className="space-y-8">
-                {/* Section 1: Unbilled Holds — auto-generate bills */}
-                <div>
-                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    Prescription Holds Awaiting Billing ({Object.keys(holdsByPatient).length} patients)
-                  </h3>
-                  {Object.keys(holdsByPatient).length === 0 ? (
-                    <InlineEmptyState
-                      icon="medication"
-                      label="No Prescription Holds"
-                      sublabel="All pending prescription holds have been billed and cleared."
-                      variant="success"
-                    />
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(holdsByPatient).map(([patientId, patientHolds]) => {
-                        const patient = patients.find(p => p.id === patientId);
-                        if (!patient) return null;
-                        const totalAmt = patientHolds.reduce((sum, h) => {
-                          const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
-                          return sum + (invItem ? invItem.price * h.quantity : 150);
-                        }, 0);
-
-                        return (
-                          <div key={patientId} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                                  {patient.name} 
-                                  <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-1.5 py-0.2 rounded font-mono">
-                                    [{patient.patientCode || patient.tokenNumber || 'PAT'}]
-                                  </span>
-                                </h4>
-                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone || '—'}</p>
-                              </div>
-                              <span className="text-xs font-black text-amber-600">₹{(totalAmt || 0).toFixed(0)}</span>
-                            </div>
-                            <div className="space-y-1">
-                              {patientHolds.map(h => {
-                                const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
-                                return (
-                                  <div key={h.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
-                                    <span>💊 {h.medicineName} x{h.quantity}</span>
-                                    <span>₹{invItem ? ((invItem.price || 0) * (h.quantity || 1)).toFixed(0) : '150'}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                            <button
-                              onClick={() => {
-                                const billItems = patientHolds.map(h => {
-                                  const invItem = inventory.find(i => (i.name || '').toLowerCase() === (h.medicineName || '').toLowerCase());
-                                  const price = invItem?.price || 150;
-                                  const mrp = invItem?.mrp || price;
-                                  return {
-                                    inventoryItemId: invItem?.id || h.id,
-                                    name: h.medicineName,
-                                    genericName: invItem?.genericName || h.medicineName,
-                                    dosage: h.dosage || invItem?.dosage || '',
-                                    batchNumber: h.batchNumber,
-                                    expiryDate: h.expiryDate,
-                                    quantity: h.quantity,
-                                    mrp,
-                                    sellingPrice: price,
-                                    discountPercent: 0,
-                                    gstPercent: 5,
-                                    lineTotal: price * h.quantity * 1.05,
-                                    alternativeSuggested: undefined,
-                                    alternativeInventoryId: undefined,
-                                    isStockDeducted: true
-                                  };
-                                });
-                                const subtotal = billItems.reduce((s, i) => s + i.sellingPrice * i.quantity, 0);
-                                const gstAmount = parseFloat((subtotal * 0.05).toFixed(2));
-                                const pharmacyGstin = podEntities.find(pe => pe.entityType === 'pharmacy')?.gstin;
-                                const bill = {
-                                  id: crypto.randomUUID(),
-                                  patientId: patient.id,
-                                  patientName: patient.name,
-                                  patientPhone: patient.phone,
-                                  pharmacyGstin: pharmacyGstin || undefined,
-                                  items: billItems,
-                                  subtotal,
-                                  loyaltyDiscountPercent: 0,
-                                  loyaltyDiscountAmount: 0,
-                                  itemDiscountAmount: 0,
-                                  gstAmount,
-                                  totalAmount: subtotal + gstAmount,
-                                  paymentMode: 'cash' as const,
-                                  upiQrPayload: `upi://pay?pa=${activePod?.upiVpa || 'vitalsync@axl'}&pn=${encodeURIComponent(activePod?.name || 'VitalSync')}&am=${(subtotal + gstAmount).toFixed(2)}&cu=INR`,
-                                  status: 'draft' as const,
-                                  source: 'counter' as const,
-                                  createdAt: new Date().toISOString()
-                                };
-                                api.saveMedicineBill(bill);
-                                
-                                // Clean up / dispense the matching inventory holds so they disappear from the awaiting list
-                                patientHolds.forEach(h => {
-                                  api.dispenseInventoryHold(h.id);
-                                });
-
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Medicine bill ₹${(bill.totalAmount || 0).toFixed(0)} generated for ${patient.name}!`, type: 'success', title: 'Invoice Created' }
-                                }));
-                                syncData();
-                              }}
-                              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer transition-all"
-                            >
-                              Generate Medicine Bill
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Section 2: Pending Bills — collect payment */}
-                <div>
-                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                    Pending Payment ({pendingBills.length})
-                  </h3>
-                  {pendingBills.length === 0 ? (
-                    <ZeroQueueState queueType="billing" className="mx-0" />
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {pendingBills.map(bill => (
-                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
-                          <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            {(bill.status || '').toUpperCase()}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} items</p>
-                          </div>
-                          <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                api.dispenseMedicineBill(bill.id);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
-                                }));
-                                syncData();
-                              }}
-                              className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
-                            >
-                              Cash
-                            </button>
-                            <button
-                              onClick={() => {
-                                api.dispenseMedicineBill(bill.id);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
-                                }));
-                                syncData();
-                              }}
-                              className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
-                            >
-                              UPI
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Section 3: Paid Bills — print & send */}
-                <div>
-                  <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Paid Invoices ({paidBills.length})
-                  </h3>
-                  {paidBills.length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                      No paid invoices yet.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {paidBills.slice(0, 12).map(bill => (
-                        <div key={bill.id} className="p-4 bg-white border border-emerald-200 rounded-xl space-y-2 relative">
-                          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            ✓ PAID
-                          </div>
-                          <h4 className="font-bold text-slate-800 text-xs">{bill.patientName || 'Patient'}</h4>
-                          <p className="text-[10px] text-slate-500 font-mono">#{(bill.id || 'N/A').substring(0, 8)} • ₹{(bill.totalAmount || 0).toFixed(2)} • {(bill.items || []).length} items</p>
-                          <p className="text-[10px] text-slate-400">{new Date(bill.createdAt || Date.now()).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={() => {
-                                const html = api.generatePharmacyInvoiceHtml(bill);
-                                const blob = new Blob([html], { type: 'text/html' });
-                                const url = URL.createObjectURL(blob);
-                                window.open(url, '_blank');
-                                // Bug Fix #4: Revoke blob URL after tab opens to prevent memory leak
-                                setTimeout(() => URL.revokeObjectURL(url), 1500);
-                              }}
-                              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
-                            >
-                              <Printer className="w-3 h-3 shrink-0" /> Print
-                            </button>
-                            <button
-                              onClick={() => {
-                                api.sendPharmacyInvoiceToPatient(bill);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Invoice sent to ${bill.patientName} on WhatsApp!`, type: 'success', title: 'Invoice Sent' }
-                                }));
-                              }}
-                              className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1"
-                            >
-                              <Send className="w-3 h-3 shrink-0" /> WhatsApp
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
       {/* Desktop Enterprise Status Footer */}
       <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
         <div className="flex items-center gap-2">
