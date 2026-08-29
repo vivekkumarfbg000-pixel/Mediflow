@@ -4127,330 +4127,338 @@ export const CompounderDashboard: React.FC = () => {
             </div>
 
             {/* Sub-View 1: Pathology & Biometry */}
+            {/* Sub-View 1: Pathology & Biometry */}
             {clinicalSubTab === 'labs' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
-            {/* Left Column: Scheduled Pathology Tests Queue */}
-            <div className="lg:col-span-7 space-y-6 text-left">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                  <FlaskConical className="w-4 h-4 text-indigo-600" />
-                  🔬 Pathology Lab Requisition Queue
-                </h2>
-                <p className="text-xs text-slate-500 mb-4">
-                  Clinical operational queue showing all laboratory orders, sample collection tracking, and processing status.
-                </p>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
+                {/* Left Column: Scheduled Pathology Tests Queue */}
+                <div className="lg:col-span-7 space-y-6 text-left">
+                  <div className="glass-panel p-4 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900/90 text-slate-800 dark:text-white rounded-3xl">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-600 opacity-80" />
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <FlaskConical className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        Pathology Lab Requisition Queue
+                      </h2>
+                      <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/80 px-2.5 py-0.5 rounded-full border border-teal-200 dark:border-teal-800">
+                        Live Worklist
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      Clinical operational queue showing all laboratory orders, sample collection tracking, and processing status.
+                    </p>
 
-                {(() => {
-                  const reqs = LabService.getLabRequisitions();
-                  if (reqs.length === 0) {
-                    return (
-                      <InlineEmptyState
-                        icon="biotech"
-                        label="No Lab Orders Today"
-                        sublabel="Doctor-ordered pathology tests and sample collection requests will appear here."
-                        variant="neutral"
-                      />
-                    );
-                  }
-                  return (
-                    <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono">Patient Name</th>
-                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono">Test Order</th>
-                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-center">Status</th>
-                            <th className="p-3 font-bold text-slate-655 text-[9px] uppercase font-mono text-right">Action / Alert</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reqs.map((req) => {
-                            let statusClass = "bg-slate-100 text-slate-700 border-slate-200";
-                            if (req.status === 'pending') statusClass = "bg-amber-100 text-amber-850 border-amber-200 animate-pulse";
-                            else if (req.status === 'collected') statusClass = "bg-blue-100 text-blue-800 border-blue-200";
-                            else if (req.status === 'processed') statusClass = "bg-indigo-100 text-indigo-850 border-indigo-200";
-                            else if (req.status === 'completed') statusClass = "bg-emerald-105 text-emerald-850 border-emerald-200";
-
-                            const isReady = req.status === 'completed' || Boolean(req.quantitativeResult);
-
-                            return (
-                              <tr key={req.id} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 transition-colors">
-                                <td className="p-3">
-                                  <div className="font-bold text-slate-800">{req.patientName}</div>
-                                  <span className="text-[9px] text-slate-400 block font-mono">ID: {(req.patientId || '').substring(0, 8)}</span>
-                                </td>
-                                <td className="p-3">
-                                  <div className="font-semibold text-slate-800">{req.testName}</div>
-                                  <span className="text-[9px] text-slate-455 block font-mono">LOINC: {req.testCode}</span>
-                                </td>
-                                <td className="p-3 text-center">
-                                  <span className={`px-2 py-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider ${statusClass}`}>
-                                    {req.status}
-                                  </span>
-                                </td>
-                                <td className="p-3 text-right">
-                                  {isReady ? (
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        const p = patients.find(pt => pt.id === req.patientId);
-                                        if (p?.phone) {
-                                          await api.dispatchLabArrivalRevisitAlert({
-                                            patientPhone: p.phone,
-                                            patientName: req.patientName,
-                                            testName: req.testName,
-                                            revisitSlotTime: '04:30 PM - 05:30 PM',
-                                            doctorName: activePod?.doctor_name,
-                                            clinicName: clinicTitle
-                                          });
-                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                            detail: {
-                                              title: 'Revisit WhatsApp Sent 📲',
-                                              message: `Doctor re-visit timing alert sent to ${req.patientName} on WhatsApp!`,
-                                              type: 'success'
-                                            }
-                                          }));
-                                        }
-                                      }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg text-[9px] font-bold cursor-pointer transition active:scale-95 shadow-xs"
-                                    >
-                                      <MessageSquare className="w-3 h-3 text-indigo-600" />
-                                      <span>Send Re-visit Alert 📲</span>
-                                    </button>
-                                  ) : (
-                                    <span className="font-mono text-slate-400 text-[10px] font-bold">
-                                      {req.barcode}
-                                    </span>
-                                  )}
-                                </td>
+                    {(() => {
+                      const reqs = LabService.getLabRequisitions();
+                      if (reqs.length === 0) {
+                        return (
+                          <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
+                            <FlaskConical className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
+                            <div className="text-xs font-bold text-slate-700 dark:text-slate-300">No Lab Orders Today</div>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Doctor-ordered pathology tests and sample collection requests will appear here.</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/50 shadow-xs">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-100/90 dark:bg-slate-900 border-b border-slate-200/80 dark:border-white/10">
+                                <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono">Patient</th>
+                                <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono">Test Order</th>
+                                <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono text-center">Status</th>
+                                <th className="p-3 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono text-right">Action</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
+                              {reqs.map((req) => {
+                                let statusClass = "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+                                if (req.status === 'pending') statusClass = "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-700 animate-pulse";
+                                else if (req.status === 'collected') statusClass = "bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-700";
+                                else if ((req as any).status === 'processed') statusClass = "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700";
+                                else if ((req as any).status === 'completed' || Boolean(req.quantitativeResult)) statusClass = "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700";
+
+                                const isReady = (req as any).status === 'completed' || Boolean(req.quantitativeResult);
+
+                                return (
+                                  <tr key={req.id} className="hover:bg-white/60 dark:hover:bg-white/5 transition-colors">
+                                    <td className="p-3">
+                                      <div className="font-extrabold text-slate-900 dark:text-white">{req.patientName}</div>
+                                      <span className="text-[9px] text-slate-400 font-mono block">ID: {(req.patientId || '').substring(0, 8)}</span>
+                                    </td>
+                                    <td className="p-3">
+                                      <div className="font-bold text-slate-800 dark:text-slate-200">{req.testName}</div>
+                                      <span className="text-[9px] text-slate-500 dark:text-slate-400 font-mono block">LOINC: {req.testCode}</span>
+                                    </td>
+                                    <td className="p-3 text-center">
+                                      <span className={`px-2 py-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider ${statusClass}`}>
+                                        {req.status}
+                                      </span>
+                                    </td>
+                                    <td className="p-3 text-right">
+                                      {isReady ? (
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            const p = patients.find(pt => pt.id === req.patientId);
+                                            if (p?.phone) {
+                                              await api.dispatchLabArrivalRevisitAlert({
+                                                patientPhone: p.phone,
+                                                patientName: req.patientName,
+                                                testName: req.testName,
+                                                revisitSlotTime: '04:30 PM - 05:30 PM',
+                                                doctorName: activePod?.doctor_name,
+                                                clinicName: clinicTitle
+                                              });
+                                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                detail: {
+                                                  title: 'Revisit WhatsApp Sent 📲',
+                                                  message: `Doctor re-visit timing alert sent to ${req.patientName} on WhatsApp!`,
+                                                  type: 'success'
+                                                }
+                                              }));
+                                            }
+                                          }}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-[10px] font-bold cursor-pointer transition active:scale-95 shadow-sm border-0"
+                                        >
+                                          <MessageSquare className="w-3 h-3 text-white" />
+                                          <span>WhatsApp Alert</span>
+                                        </button>
+                                      ) : (
+                                        <span className="font-mono text-slate-500 dark:text-slate-400 text-[10px] font-bold">
+                                          {req.barcode || 'SAMPLE-AWAITING'}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Right Column: Approved Lab Reports Timeline */}
+                <div className="lg:col-span-5 space-y-6 text-left select-none">
+                  <div className="glass-panel p-4 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900/90 text-slate-800 dark:text-white rounded-3xl">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-teal-500 opacity-80" />
+                    
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        Approved Diagnostics
+                      </h2>
+                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                        Verified
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      Chronological log of verified diagnostic outcomes, critical biomarkers, and scheduled physician final review timings.
+                    </p>
+
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                      {(() => {
+                        const approved = fullLabReports.filter(r => r.status === 'approved');
+                        if (approved.length === 0) {
+                          return (
+                            <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
+                              No verified pathology reports logged today.
+                            </div>
+                          );
+                        }
+
+                        return approved.map((report) => {
+                          const biomarkers = report.biomarkerJson?.biomarkers || {};
+                          return (
+                            <div key={report.id} className="p-3.5 border border-slate-200/80 dark:border-white/10 rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 space-y-2.5 shadow-xs">
+                              <div className="flex justify-between items-center border-b border-slate-200/60 dark:border-white/10 pb-2">
+                                <div>
+                                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">{report.patientName}</h4>
+                                  <span className="text-[9px] text-slate-400 font-mono block">ID: {(report.patientId || '').substring(0, 8)}</span>
+                                </div>
+                                <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
+                                  Verified ✅
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <span className="block text-[8px] font-black text-slate-500 dark:text-slate-400 tracking-widest uppercase font-mono">Biomarker Log</span>
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                  {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
+                                    const val = biomarkers[key];
+                                    const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
+                                    return (
+                                      <span key={key} className="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-lg font-mono font-bold">
+                                        {key}: {val} {unit}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {report.revisitScheduledAt && (
+                                <div className="p-2.5 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-[10px] text-emerald-900 dark:text-emerald-200 leading-relaxed">
+                                  <strong>📅 Locked Revisit Consult:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                  {report.revisitNote && <p className="mt-0.5 text-slate-600 dark:text-slate-400 italic">Note: {report.revisitNote}</p>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-View 2: Pharmacy Dispensing & Stock */}
+            {clinicalSubTab === 'pharmacy' && (
+              <div className="space-y-6 text-left animate-fade-in">
+                {/* Reorder limit alerts banner */}
+                {(() => {
+                  const lowStockItems = activeInventory.filter(item => item.stock <= item.threshold);
+                  if (lowStockItems.length === 0) return null;
+                  return (
+                    <div className="glass-panel p-4 border-amber-200/80 dark:border-amber-800/50 bg-amber-50/50 dark:bg-amber-950/30 rounded-2xl flex items-start gap-3 shadow-md">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5 animate-bounce" />
+                      <div className="space-y-1">
+                        <h3 className="text-xs font-bold text-amber-900 dark:text-amber-200">⚠️ Low Stock &amp; Reorder Limit Alerts</h3>
+                        <p className="text-[11px] text-amber-800/90 dark:text-amber-300 leading-relaxed">
+                          The following {lowStockItems.length} pharmacy items are running below designated safety thresholds. Please notify procurement:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1.5">
+                          {lowStockItems.map(item => (
+                            <span key={item.id} className="bg-amber-600/10 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 border border-amber-600/20 dark:border-amber-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                              💊 {item.name} ({item.stock} {item.unit} left | Min: {item.threshold})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   );
                 })()}
 
-              </div>
-            </div>
+                {/* Main inventory stock list catalog */}
+                <div className="glass-panel p-4 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900/90 text-slate-800 dark:text-white rounded-3xl">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-amber-500 to-indigo-600 opacity-80" />
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="space-y-1">
+                      <h2 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Pill className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        Pharmacy Inventory &amp; Stock Catalog
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Real-time clinic medicine catalog lookup. View expiry dates, FEFO batches, prices, and stock indicators.
+                      </p>
+                    </div>
 
-            {/* Right Column: Approved Lab Reports Timeline */}
-            <div className="lg:col-span-5 space-y-6 text-left select-none">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-60" />
-                
-                <h2 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  Approved Pathology Reports Timeline
-                </h2>
-                <p className="text-xs text-slate-500 mb-4">
-                  Chronological log of verified diagnostic outcomes, critical biomarkers, and scheduled physician final review timings.
-                </p>
+                    {/* Search Bar */}
+                    <div className="w-full sm:w-80 relative select-none">
+                      <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                        <Search className="w-4 h-4" />
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Search medicine or generic name..."
+                        value={medSearchQuery}
+                        onChange={(e) => setMedSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none transition-all shadow-xs"
+                      />
+                      {medSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setMedSearchQuery('')}
+                          className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer border-0 bg-transparent"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="space-y-4">
                   {(() => {
-                    const approved = fullLabReports.filter(r => r.status === 'approved');
-                    if (approved.length === 0) {
+                    const filtered = activeInventory.filter(item => 
+                      (item.name || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+                      (item.genericName || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
+                      (item.category || '').toLowerCase().includes(medSearchQuery.toLowerCase())
+                    );
+
+                    if (filtered.length === 0) {
                       return (
-                        <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium">
-                          No verified pathology reports logged today.
+                        <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-xs text-slate-500 dark:text-slate-400 font-medium select-none">
+                          No medicines matched your search query.
                         </div>
                       );
                     }
 
-                    return approved.map((report) => {
-                      const biomarkers = report.biomarkerJson?.biomarkers || {};
-                      return (
-                        <div key={report.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 shadow-xs">
-                          <div className="flex justify-between items-center border-b border-slate-200/60 pb-2">
-                            <div>
-                              <h4 className="font-bold text-xs text-slate-800">{report.patientName}</h4>
-                              <span className="text-[9px] text-slate-400 font-mono block">ID: {(report.patientId || '').substring(0, 8)}</span>
-                            </div>
-                            <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
-                              Verified
-                            </span>
-                          </div>
+                    return (
+                      <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/50 shadow-xs">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-100/90 dark:bg-slate-900 border-b border-slate-200/80 dark:border-white/10">
+                              <th className="p-3.5 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono">Medicine Details</th>
+                              <th className="p-3.5 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono">Category / Mfr</th>
+                              <th className="p-3.5 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono text-center">Stock Level</th>
+                              <th className="p-3.5 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono">Batch / Expiry</th>
+                              <th className="p-3.5 font-bold text-slate-600 dark:text-slate-400 text-[9px] uppercase tracking-wider font-mono text-right">Price (MRP)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200/60 dark:divide-white/5">
+                            {filtered.map((item) => {
+                              const isLowStock = item.stock <= item.threshold && item.stock > 0;
+                              const isOutOfStock = item.stock === 0;
+                              
+                              let stockStatus = "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20";
+                              let stockText = "In Stock";
+                              if (isOutOfStock) {
+                                stockStatus = "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20";
+                                stockText = "Out of Stock";
+                              } else if (isLowStock) {
+                                stockStatus = "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 animate-pulse";
+                                stockText = "Low Stock";
+                              }
 
-                          <div className="space-y-1">
-                            <span className="block text-[8px] font-black text-slate-655 tracking-widest uppercase font-mono">Biomarker Log</span>
-                            <div className="flex flex-wrap gap-1.5 pt-1">
-                              {Object.keys(biomarkers).filter(k => !k.endsWith('_unit')).map(key => {
-                                const val = biomarkers[key];
-                                const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
-                                return (
-                                  <span key={key} className="bg-indigo-50 border border-indigo-150 text-indigo-755 text-[9px] px-2 py-0.5 rounded font-mono font-bold">
-                                    {key}: {val} {unit}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {report.revisitScheduledAt && (
-                            <div className="p-2.5 bg-emerald-50 border border-emerald-150 rounded-lg text-[9.5px] text-emerald-800 font-medium leading-relaxed">
-                              <strong>📅 Locked Revisit Consult:</strong> {new Date(report.revisitScheduledAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                              {report.revisitNote && <p className="mt-1 text-slate-650 font-semibold italic">Note: {report.revisitNote}</p>}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    });
+                              return (
+                                <tr key={item.id} className="hover:bg-white/60 dark:hover:bg-white/5 transition-colors">
+                                  <td className="p-3.5">
+                                    <div className="font-extrabold text-slate-900 dark:text-white">{item.name}</div>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">{item.genericName}</span>
+                                  </td>
+                                  <td className="p-3.5">
+                                    <span className="font-mono bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-1.5 py-0.2 rounded text-[10px]">{item.category}</span>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5">{item.manufacturer}</span>
+                                  </td>
+                                  <td className="p-3.5 text-center">
+                                    <div className="font-bold text-slate-900 dark:text-white">{item.stock} {item.unit}</div>
+                                    <span className={`inline-block px-2 py-0.2 mt-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider ${stockStatus}`}>
+                                      {stockText}
+                                    </span>
+                                  </td>
+                                  <td className="p-3.5">
+                                    <div className="font-mono font-bold text-slate-700 dark:text-slate-300">Batch: {item.batchNumber}</div>
+                                    <span className={`text-[10px] font-medium block ${new Date(item.expiryDate) < new Date() ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
+                                      Exp: {new Date(item.expiryDate).toLocaleDateString()}
+                                    </span>
+                                  </td>
+                                  <td className="p-3.5 text-right">
+                                    <div className="font-extrabold text-slate-900 dark:text-white">₹{(item.price || 0).toFixed(2)}</div>
+                                    <span className="text-[9px] text-slate-500 dark:text-slate-400 block font-mono">MRP: ₹{(item.mrp || 0).toFixed(2)}</span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
                   })()}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-          {/* Sub-View 2: Pharmacy Dispensing & Stock */}
-          {clinicalSubTab === 'pharmacy' && (
-            <div className="space-y-6 text-left animate-fade-in">
-            {/* Reorder limit alerts banner */}
-            {(() => {
-              const lowStockItems = activeInventory.filter(item => item.stock <= item.threshold);
-              if (lowStockItems.length === 0) return null;
-              return (
-                <div className="glass-panel p-4 border-amber-200/80 bg-amber-50/40 rounded-2xl flex items-start gap-3 shadow-md">
-                  <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5 animate-bounce" />
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-bold text-amber-900">⚠️ Low Stock &amp; Reorder Limit Alerts</h3>
-                    <p className="text-[11px] text-amber-800/95 leading-relaxed">
-                      The following {lowStockItems.length} pharmacy items are running below their designated safety thresholds. Please notify procurement to restock:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 pt-1.5">
-                      {lowStockItems.map(item => (
-                        <span key={item.id} className="bg-amber-600/10 text-amber-900 border border-amber-600/20 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                          💊 {item.name} ({item.stock} {item.unit} left | Min: {item.threshold})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Main inventory stock list catalog */}
-            <div className="glass-panel p-6 border-slate-200 shadow-xl relative overflow-hidden bg-white text-slate-800">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-              
-              <div className="md:flex md:items-center md:justify-between gap-4 mb-6">
-                <div className="space-y-1">
-                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                    <Pill className="w-4 h-4 text-indigo-600" />
-                    Pharmacy Inventory &amp; Stock Catalog
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Real-time clinic ecosystem medicine catalog lookup. View expiry dates, FEFO batches, prices, and stock indicators.
-                  </p>
-                </div>
-
-                {/* Search Bar */}
-                <div className="w-full md:w-80 relative mt-3 md:mt-0 select-none">
-                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                    <Search className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Search medicine or generic name..."
-                    value={medSearchQuery}
-                    onChange={(e) => setMedSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 text-slate-800 rounded-xl focus:bg-white focus:outline-none transition-all shadow-sm"
-                  />
-                  {medSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setMedSearchQuery('')}
-                      className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-650"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {(() => {
-                const filtered = activeInventory.filter(item => 
-                  (item.name || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
-                  (item.genericName || '').toLowerCase().includes(medSearchQuery.toLowerCase()) ||
-                  (item.category || '').toLowerCase().includes(medSearchQuery.toLowerCase())
-                );
-
-                if (filtered.length === 0) {
-                  return (
-                    <div className="p-8 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium select-none">
-                      No medicines matched your search query.
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono">Medicine Details</th>
-                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono">Category / Mfr</th>
-                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono text-center">Stock Level</th>
-                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono">Batch / Expiry</th>
-                          <th className="p-3.5 font-bold text-slate-650 text-[9px] uppercase font-mono text-right">Price (MRP)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered.map((item) => {
-                          const isLowStock = item.stock <= item.threshold && item.stock > 0;
-                          const isOutOfStock = item.stock === 0;
-                          
-                          let stockStatus = "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
-                          let stockText = "In Stock";
-                          if (isOutOfStock) {
-                            stockStatus = "bg-rose-500/10 text-rose-700 border-rose-500/20";
-                            stockText = "Out of Stock";
-                          } else if (isLowStock) {
-                            stockStatus = "bg-amber-500/10 text-amber-700 border-amber-500/20 animate-pulse";
-                            stockText = "Low Stock";
-                          }
-
-                          return (
-                            <tr key={item.id} className="border-b border-slate-200/50 dark:border-slate-800/50 last:border-0 hover:bg-slate-50/80 transition-colors">
-                              <td className="p-3.5">
-                                <div className="font-bold text-slate-850">{item.name}</div>
-                                <span className="text-[10px] text-slate-500 block font-medium">{item.genericName}</span>
-                              </td>
-                              <td className="p-3.5">
-                                <span className="font-mono bg-slate-200/60 text-slate-700 font-bold px-1.5 py-0.2 rounded text-[10px]">{item.category}</span>
-                                <span className="text-[10px] text-slate-455 block">{item.manufacturer}</span>
-                              </td>
-                              <td className="p-3.5 text-center">
-                                <div className="font-bold text-slate-800">{item.stock} {item.unit}</div>
-                                <span className={`inline-block px-2 py-0.2 mt-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider ${stockStatus}`}>
-                                  {stockText}
-                                </span>
-                              </td>
-                              <td className="p-3.5">
-                                <div className="font-mono font-bold text-slate-700">Batch: {item.batchNumber}</div>
-                                <span className={`text-[10px] font-medium block ${new Date(item.expiryDate) < new Date() ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                                  Exp: {new Date(item.expiryDate).toLocaleDateString()}
-                                </span>
-                              </td>
-                              <td className="p-3.5 text-right">
-                                <div className="font-bold text-slate-850">₹{(item.price || 0).toFixed(2)}</div>
-                                <span className="text-[9px] text-slate-455 block font-mono">MRP: ₹{(item.mrp || 0).toFixed(2)}</span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
-
-            </div>
-          </div>
-        )}
+            )}
       </div>
     )}
 
