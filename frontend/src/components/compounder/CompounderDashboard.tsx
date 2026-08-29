@@ -2049,8 +2049,8 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* ── COMPACT MOBILE HEADER — replaces the 30% screen-wasting header ──────────── */}
-      <div className="flex items-center justify-between gap-2 px-3 py-2.5 bg-white/95 dark:bg-clinical-900/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-white/5 mb-3 md:mb-4 sticky top-0 z-20 -mx-3 md:mx-0 md:rounded-2xl md:border md:shadow-xs">
+      {/* ── DESKTOP HEADER (Hidden on mobile to prevent duplicate headers with global navbar) ──────────── */}
+      <div className="hidden md:flex items-center justify-between gap-2 px-3 py-2.5 bg-white/95 dark:bg-clinical-900/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-white/5 mb-3 md:mb-4 sticky top-0 z-20 md:mx-0 md:rounded-2xl md:border md:shadow-xs">
         {/* Left: Icon + Clinic name + live status */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25">
@@ -2163,8 +2163,8 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
 
                 {/* Next Up Token Caller & Dispatch Action */}
-                <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-slate-800 shrink-0">
-                  {nextQueuedPatient ? (
+                {nextQueuedPatient && (
+                  <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-slate-800 shrink-0">
                     <div className="flex items-center gap-2 w-full md:w-auto">
                       <div className="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 p-2.5 rounded-2xl flex-1 md:flex-initial">
                         <div className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono">
@@ -2184,17 +2184,8 @@ export const CompounderDashboard: React.FC = () => {
                         <span>📢 Call Token</span>
                       </button>
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowVitalsBottomSheet(true)}
-                      className="w-full md:w-auto py-2.5 px-4 bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white text-xs font-black rounded-xl shadow-md cursor-pointer transition active:scale-95 border-0 flex items-center justify-center gap-1.5"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>+ Record Vitals for Waiting Patient</span>
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
 
