@@ -20,7 +20,7 @@ import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { generateLabReportPdf } from '../../utils/pdfGenerator';
 import { ClinicalNotificationService } from '../../services/clinicalNotificationService';
 import type { ReagentStock } from '../../services/api';
-import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice } from '../../types';
+import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice, DiagnosticTest } from '../../types';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';

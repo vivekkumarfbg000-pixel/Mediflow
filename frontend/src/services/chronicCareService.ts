@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getPodContext } from './podContext';
 import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
 import { ClinicalNotificationService } from './clinicalNotificationService';
+import { safeGetStorageJSON } from '../utils/storage';
 
 export interface ChronicConditionProtocol {
   code: string;
@@ -225,10 +226,8 @@ export class ChronicCareService {
       // Check if current user is on demo account
       let isDemoAccount = false;
       if (typeof window !== 'undefined') {
-        try {
-          const profile = JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}');
-          isDemoAccount = profile?.isDemo === true || profile?.email === 'demo@mediflow.com';
-        } catch (_e) { /* ignore */ }
+        const profile = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+        isDemoAccount = profile?.isDemo === true || profile?.email === 'demo@mediflow.com';
       }
 
       if (isDemoAccount) {

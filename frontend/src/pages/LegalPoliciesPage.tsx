@@ -485,7 +485,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   </div>
                   <div className="space-y-1 text-xs text-slate-400 leading-normal">
                     <p className="font-semibold text-slate-200">VitalSync Connected Clinic HQ</p>
-                    <p>Kankarbagh Main Road, Opp. Colony Park</p>
+                    <p>Main Health Plaza, Tech Park</p>
                     <p>Patna, Bihar - 800020, India</p>
                   </div>
                 </div>

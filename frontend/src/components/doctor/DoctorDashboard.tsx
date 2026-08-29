@@ -1583,6 +1583,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   medications={medications}
                   setMedications={setMedications}
                   selectedTests={selectedTests}
+                  setSelectedTests={setSelectedTests}
                   notes={notes}
                   setNotes={setNotes}
                   medName={medName}
@@ -1690,7 +1691,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   manualChatMsg={manualChatMsg}
                   setManualChatMsg={setManualChatMsg}
                   activePod={activePod}
-                  telemetryLogs={telemetryLogs}
+                  telemetryLogs={[]}
                 />
               );
             case 'sop':

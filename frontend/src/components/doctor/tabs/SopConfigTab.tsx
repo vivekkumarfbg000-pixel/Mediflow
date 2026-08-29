@@ -60,11 +60,11 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
   const sops = api.getClinicSops();
   const activeSop = api.getActiveSop();
 
-  const [templateDocName, setTemplateDocName] = React.useState(() => api.getPrescriptionTemplate().doctorName || 'Dr. Amit Arya');
+  const [templateDocName, setTemplateDocName] = React.useState(() => api.getPrescriptionTemplate().doctorName || 'Attending Physician');
   const [templateDocQual, setTemplateDocQual] = React.useState(() => api.getPrescriptionTemplate().doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)');
   const [templateDocReg, setTemplateDocReg] = React.useState(() => api.getPrescriptionTemplate().doctorRegNo || 'MCI-84992-A');
-  const [templateClinicName, setTemplateClinicName] = React.useState(() => api.getPrescriptionTemplate().clinicName || 'Apex Eye & Dental Care Clinic');
-  const [templateClinicAddress, setTemplateClinicAddress] = React.useState(() => api.getPrescriptionTemplate().clinicAddress || 'Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar');
+  const [templateClinicName, setTemplateClinicName] = React.useState(() => api.getPrescriptionTemplate().clinicName || 'Smart Care Clinic & Hospital');
+  const [templateClinicAddress, setTemplateClinicAddress] = React.useState(() => api.getPrescriptionTemplate().clinicAddress || 'Main Road, Health Plaza, City Center');
   const [templateClinicPhone, setTemplateClinicPhone] = React.useState(() => api.getPrescriptionTemplate().clinicPhone || '+91 99342 98453');
   const [templateHeaderColor, setTemplateHeaderColor] = React.useState(() => api.getPrescriptionTemplate().headerColor || '#0284c7');
   const [templateFooterNote, setTemplateFooterNote] = React.useState(() => api.getPrescriptionTemplate().footerNote || 'Emergency Care: Available 24x7 • Valid for Follow-up Review within 15 Days • Please bring this prescription for your review.');
@@ -706,7 +706,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       type="text"
                       value={templateDocName}
                       onChange={(e) => setTemplateDocName(e.target.value)}
-                      placeholder="e.g. Dr. Amit Arya"
+                      placeholder="e.g. Dr. Attending Physician"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
                     />
                   </div>
@@ -739,7 +739,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       type="text"
                       value={templateClinicName}
                       onChange={(e) => setTemplateClinicName(e.target.value)}
-                      placeholder="e.g. Apex Eye & Dental Care Clinic"
+                      placeholder="e.g. Smart Care Clinic & Hospital"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
                     />
                   </div>
@@ -761,7 +761,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       type="text"
                       value={templateClinicAddress}
                       onChange={(e) => setTemplateClinicAddress(e.target.value)}
-                      placeholder="e.g. Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar"
+                      placeholder="e.g. Main Road, Health Plaza, City Center"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
                     />
                   </div>
@@ -789,8 +789,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     {/* 1. Clinic Header at Top */}
                     <div className="border-b-2 border-indigo-600 pb-2 flex justify-between items-start flex-wrap gap-2">
                       <div>
-                        <h4 className="font-black text-sm text-slate-900">🏥 {templateClinicName || 'Apex Eye & Dental Care Clinic'}</h4>
-                        <p className="text-[10px] text-slate-500">{templateClinicAddress || 'Kankarbagh Main Road, Purnea, Bihar'}</p>
+                        <h4 className="font-black text-sm text-slate-900">🏥 {templateClinicName || 'Smart Care Clinic & Hospital'}</h4>
+                        <p className="text-[10px] text-slate-500">{templateClinicAddress || 'Main Road, Health Plaza, City Center'}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-mono font-bold text-indigo-700">📞 {templateClinicPhone || '+91 99342 98453'}</p>
@@ -831,7 +831,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     {/* 4. Doctor Information & Signature in Bottom Footer */}
                     <div className="pt-2 border-t border-dashed border-slate-200 flex justify-between items-end text-[9px] text-slate-600">
                       <div>
-                        <h3 className="font-black text-xs text-slate-900">👨‍⚕️ {templateDocName || 'Dr. Amit Arya'}</h3>
+                        <h3 className="font-black text-xs text-slate-900">👨‍⚕️ {templateDocName || 'Attending Physician'}</h3>
                         <p className="text-[9px] font-semibold text-indigo-700">{templateDocQual || 'MBBS, MS (Ophthalmology), FICO'}</p>
                         <p className="text-[8px] font-mono text-slate-500">Reg No: <strong>{templateDocReg || 'MCI-84992-A'}</strong></p>
                         <p className="text-[8px] text-slate-400 mt-1">{templateFooterNote || 'Valid for 15 Days · Emergency 24x7'}</p>

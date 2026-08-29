@@ -133,6 +133,7 @@ export interface MedicationRequest {
   dosage: string;
   frequency: string;
   duration: string;
+  instructions?: string;
   expiryDate?: string;
   batchNumber?: string;
 }
@@ -167,12 +168,14 @@ export interface FHIRMedicationRequest {
 }
 
 export interface DiagnosticTest {
+  id?: string;
   loincCode: string;
   name: string;
   category: string;
   normalRange: string;
   unit: string;
   price?: number;
+  testName?: string;
 }
 
 export interface Encounter {

@@ -853,7 +853,7 @@ export class WhatsAppService {
                 
                 sessionData.medicineOrderStage = 'AWAITING_ADDRESS';
                 
-                replyMessage = `🚚 *Shiprocket Delivery Selected!* \n\nPlease delivery address type kijiye (For example: 'Sector-C, Kankarbagh, Patna'):`;
+                replyMessage = `🚚 *Shiprocket Delivery Selected!* \n\nPlease delivery address type kijiye (For example: 'Sector-C, Central Colony, City Center'):`;
               } else {
                 replyMessage = "Invalid option. Please choose:\n*1* - Counter Pickup (₹0.00)\n*2* - Shiprocket Home Delivery (₹45.00)";
               }

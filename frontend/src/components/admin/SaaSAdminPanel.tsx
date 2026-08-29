@@ -173,8 +173,8 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   }));
   const [podsList, setPodsList] = useState<PodInfo[]>(() => [{
     id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-    name: 'Kankarbagh Medical Pod, Patna',
-    doctor_name: 'Dr. Vivek Kumar',
+    name: 'Central Medical Pod, Patna',
+    doctor_name: 'Dr. Rohit Sharma',
     phone: '+919608032073',
     location: 'Patna Central Hub',
     clinic_code: 'VS-V01R',
@@ -438,7 +438,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       } else {
         const demoPods: PodInfo[] = [{
           id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-          name: 'Kankarbagh Medical Pod, Patna',
+          name: 'Central Medical Pod, Patna',
           location: 'Clinic Hub',
           clinic_code: 'VS-V01R',
           is_active: true,

@@ -1185,7 +1185,7 @@ Thank you for choosing VitalSync! 🟢`;
       patientPhone: activePatient.phone,
       drugNames: [`${selectedDrug.name} x${qty}`],
       amount,
-      location: 'Kankarbagh, Patna',
+      location: 'Central Healthcare Hub',
       deliveryStatus: 'pending',
       timestamp: new Date().toISOString()
     };

@@ -171,7 +171,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
                 required
                 value={formData.doctorName}
                 onChange={(e) => setFormData({ ...formData, doctorName: e.target.value })}
-                placeholder="e.g. Dr. Amit Arya"
+                placeholder="e.g. Dr. Rajesh Kumar"
                 className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
             </div>

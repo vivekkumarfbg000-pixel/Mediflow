@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { MASTER_TEST_CATALOG } from './labService';
-import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient } from '../types';
+import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
 import { getPodContext } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString } from '../utils/dateUtils';
@@ -1338,7 +1338,7 @@ export class BillingService {
     const defaultSop: ClinicSop = {
       id: 'sop-standard-1',
       entityId: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-      sopFileName: 'Kankarbagh_Clinic_Standard_SOP.txt',
+      sopFileName: 'VitalSync_Clinic_Standard_SOP.txt',
       sopText: 'Doctor consultation fee: INR 500. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
       extractedConfig: {
         doctor_fee: 500,
@@ -1410,11 +1410,11 @@ export class BillingService {
     const sopTemplate = activeSop?.extractedConfig?.prescriptionTemplate;
     const ctx = getPodContext();
     return {
-      doctorName: sopTemplate?.doctorName || 'Dr. Amit Arya',
+      doctorName: sopTemplate?.doctorName || 'Attending Physician',
       doctorQualification: sopTemplate?.doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)',
       doctorRegNo: sopTemplate?.doctorRegNo || 'MCI-84992-A',
-      clinicName: sopTemplate?.clinicName || ctx.clinicName || 'Apex Eye & Dental Care Clinic',
-      clinicAddress: sopTemplate?.clinicAddress || 'Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar',
+      clinicName: sopTemplate?.clinicName || (ctx as any).clinicName || 'Smart Care Clinic & Hospital',
+      clinicAddress: sopTemplate?.clinicAddress || 'Main Road, Health Plaza, City Center',
       clinicPhone: sopTemplate?.clinicPhone || '+91 99342 98453',
       headerColor: sopTemplate?.headerColor || '#0284c7',
       footerNote: sopTemplate?.footerNote || 'Emergency Care: Available 24x7 • Valid for Follow-up Review within 15 Days • Please bring this prescription for your review.'

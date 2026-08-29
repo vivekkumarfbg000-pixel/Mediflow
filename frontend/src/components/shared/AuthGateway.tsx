@@ -2697,7 +2697,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                           });
                         }
                       }}
-                      placeholder="Kankarbagh Connected Clinic"
+                      placeholder="City Central Connected Clinic"
                       className={`w-full bg-white border ${validationErrors.clinicName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                       required
                     />
@@ -2774,7 +2774,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                         });
                       }
                     }}
-                    placeholder="Main Road, Kankarbagh, Patna, Bihar"
+                    placeholder="Main Road, City Center, Patna, Bihar"
                     className={`w-full bg-white border ${validationErrors.address ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                     required
                   />
@@ -3259,7 +3259,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                               });
                             }
                           }}
-                          placeholder={partnerType === 'pharmacy' ? 'Kankarbagh Smart Pharmacy' : 'Patna Pathology Lab'}
+                          placeholder={partnerType === 'pharmacy' ? 'City Smart Pharmacy' : 'Patna Pathology Lab'}
                           className={`w-full bg-white border ${validationErrors.displayName ? 'border-rose-500 focus:border-rose-500/40 animate-shake' : 'border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500'} rounded-xl py-2.5 px-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-medium font-sans`}
                           required
                         />
@@ -3483,7 +3483,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       <span className="w-2 h-2 rounded-full bg-slate-400"></span> 4. Grievance Redressal Officer
                     </h4>
                     <p className="text-slate-600 text-[11px] leading-relaxed">
-                      For any privacy inquiries or statutory data requests, contact our Data Protection Officer at <strong>privacy@vitalsync.in</strong> or phone <strong>+91 8986426029</strong> (Kankarbagh, Patna, Bihar).
+                      For any privacy inquiries or statutory data requests, contact our Data Protection Officer at <strong>privacy@vitalsync.in</strong> or phone <strong>+91 8986426029</strong> (Central Tech Hub, Patna, Bihar).
                     </p>
                   </section>
                 </div>

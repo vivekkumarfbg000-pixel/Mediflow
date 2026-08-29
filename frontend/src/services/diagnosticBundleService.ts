@@ -11,8 +11,18 @@
  * Designed to maximize clinic in-house pathology lab utilization and revenue.
  */
 
-import type { DiagnosticTest } from '../types';
 import { LabService } from './labService';
+import type { DiagnosticTest } from '../types';
+
+export interface DiagnosticBundleTest {
+  id: string;
+  testName: string;
+  loincCode: string;
+  price: number;
+  turnaroundHours: number;
+  category: string;
+  isStatAvailable: boolean;
+}
 
 export interface DiagnosticBundle {
   id: string;
@@ -20,7 +30,7 @@ export interface DiagnosticBundle {
   badge: string;
   description: string;
   color: string;
-  tests: DiagnosticTest[];
+  tests: DiagnosticBundleTest[];
 }
 
 export const CLINIC_DIAGNOSTIC_BUNDLES: DiagnosticBundle[] = [

@@ -144,6 +144,14 @@ export const CompounderDashboard: React.FC = () => {
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
+  // Core Registry & Live Sync States
+  const [patients, setPatients] = useState<Patient[]>(() => api.getPatients());
+  const [sessions, setSessions] = useState<WhatsAppSession[]>(() => api.getWhatsAppSessions());
+  const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
+  const [dataRevision, setDataRevision] = useState(0);
+  const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
+  const [heightVal, setHeightVal] = useState('170');
+
   // Modern Mobile Native Sheets & Modals
   const [showInstantAppointmentModal, setShowInstantAppointmentModal] = useState(false);
   const [lastIssuedInstantToken, setLastIssuedInstantToken] = useState<{ token: string; name: string } | null>(null);
@@ -191,10 +199,10 @@ export const CompounderDashboard: React.FC = () => {
           <div class="header" style="border-bottom: 2.5px solid ${template.headerColor || '#0284c7'};">
             <div class="header-clinic-info">
               <h1 style="color: ${template.headerColor || '#0284c7'}; font-size: 20px; font-weight: 800;">
-                🏥 ${template.clinicName || 'Apex Eye & Dental Care Clinic'}
+                🏥 ${template.clinicName || 'Smart Care Clinic & Hospital'}
               </h1>
               <p class="address" style="font-size: 11px; color: #475569; margin-top: 2px;">
-                ${template.clinicAddress || 'Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar'}
+                ${template.clinicAddress || 'Main Road, Health Plaza, City Center'}
               </p>
             </div>
             <div class="header-timing-contact" style="text-align: right;">
@@ -287,7 +295,7 @@ export const CompounderDashboard: React.FC = () => {
             <div class="footer-left">
               <div class="doc-info-block">
                 <h3 class="doc-name" style="color: ${template.headerColor || '#0284c7'}; font-size: 13px; font-weight: 800;">
-                  👨‍⚕️ ${template.doctorName || 'Dr. Amit Arya'}
+                  👨‍⚕️ ${template.doctorName || 'Attending Physician'}
                 </h3>
                 <p class="doc-qual" style="font-size: 10px; font-weight: 600; color: #475569;">
                   ${template.doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)'}
@@ -621,12 +629,6 @@ export const CompounderDashboard: React.FC = () => {
     patientId: string;
     patientName: string;
   } | null>(null);
-
-  // Registry state
-  const [patients, setPatients] = useState<Patient[]>(() => api.getPatients());
-  const [sessions, setSessions] = useState<WhatsAppSession[]>(() => api.getWhatsAppSessions());
-  const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
-  const [dataRevision, setDataRevision] = useState(0);
 
   // Central Realtime CDC & Ecosystem Event Listener (Sub-250ms Live Sync)
   useEffect(() => {
@@ -6785,8 +6787,8 @@ export const CompounderDashboard: React.FC = () => {
                       {/* Top Clinic Header */}
                       <div className="border-b-2 border-blue-600 pb-2 flex justify-between items-start">
                         <div>
-                          <h3 className="text-sm font-extrabold text-blue-700">🏥 {template.clinicName || 'Apex Eye & Dental Care Clinic'}</h3>
-                          <p className="text-[9px] text-slate-500">{template.clinicAddress || 'Kankarbagh Main Road, Purnea, Bihar'}</p>
+                          <h3 className="text-sm font-extrabold text-blue-700">🏥 {template.clinicName || 'Smart Care Clinic & Hospital'}</h3>
+                          <p className="text-[9px] text-slate-500">{template.clinicAddress || 'Main Road, Health Plaza, City Center'}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-[10px] font-mono text-blue-600 font-bold">{template.clinicPhone || '+91 99342 98453'}</p>
@@ -6835,7 +6837,7 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="col-span-3">Duration &amp; Instructions</div>
                           </div>
                           {[1, 2, 3].map(i => (
-                            <div key={i} className="grid grid-cols-12 p-1 border-b border-slate-100 last:border-0 h-5 items-center">
+                            <div key={`pad-rx-line-${i}`} className="grid grid-cols-12 p-1 border-b border-slate-100 last:border-0 h-5 items-center">
                               <div className="col-span-1 text-slate-400">{i}.</div>
                               <div className="col-span-5 border-r border-dashed border-slate-200 h-full"></div>
                               <div className="col-span-3 border-r border-dashed border-slate-200 h-full"></div>
@@ -6851,7 +6853,7 @@ export const CompounderDashboard: React.FC = () => {
                       {/* Doctor Information in Bottom Footer of Page */}
                       <div className="pt-2.5 border-t border-dashed border-slate-200 flex justify-between items-end text-[9px] text-slate-600">
                         <div>
-                          <div className="font-extrabold text-blue-700 text-[11px]">{template.doctorName || 'Dr. Amit Arya'}</div>
+                          <div className="font-extrabold text-blue-700 text-[11px]">{template.doctorName || 'Attending Physician'}</div>
                           <div className="text-[9px] text-slate-600 font-semibold">{template.doctorQualification || 'MBBS, MS (Ophthalmology), FICO'}</div>
                           <div className="text-[8px] font-mono text-slate-400">Reg No: {template.doctorRegNo || 'MCI-84992-A'}</div>
                           <div className="mt-1 text-[8.5px] font-bold text-slate-500">Next Review: ____________________</div>
