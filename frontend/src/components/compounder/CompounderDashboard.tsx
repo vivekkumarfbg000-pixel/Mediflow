@@ -134,7 +134,8 @@ export const CompounderDashboard: React.FC = () => {
   const { podEntities, activePod, activeProfile } = useClinic();
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
   const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
-  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
+  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'scheduled' | 'directory' | 'history'>('today_queue');
+  const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
   const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
   const [billingSubTab, setBillingSubTab] = useState<'billing' | 'ocr_scan' | 'ot_daycare'>('billing');
   const [billHubInitialMode, setBillHubInitialMode] = useState<'ocr_scan' | 'manual_billing'>('ocr_scan');
@@ -910,6 +911,72 @@ export const CompounderDashboard: React.FC = () => {
       return nameMatch || idMatch || codeMatch || abhaMatch || tokenMatch || phoneMatch;
     });
   }, [patients, cleanApptQuery, cleanApptDigits]);
+
+  // 1-Click Professional Past Appointments CSV Export
+  const handleDownloadPastAppointmentsCsv = useCallback(() => {
+    const todayStr = getIstDateString();
+    const pastAppts = appointments.filter(a => {
+      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+      const apptDate = getEffectiveAppointmentDate(a);
+      return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
+    }).sort((a, b) => {
+      const dateA = getEffectiveAppointmentDate(a);
+      const dateB = getEffectiveAppointmentDate(b);
+      return dateB.localeCompare(dateA);
+    });
+
+    if (pastAppts.length === 0) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'No Past Records', message: 'There are no past appointment records available for export.', type: 'info' }
+      }));
+      return;
+    }
+
+    const headers = ['Token #', 'Patient Name', 'Phone', 'Age', 'Gender', 'Appointment Date', 'Time Slot', 'Consult Mode', 'Doctor', 'Status', 'Fee Clearance'];
+    const rows = pastAppts.map((appt, idx) => {
+      const p = patients.find(pt => pt.id === (appt.patientId || (appt as any).patient_id));
+      const pName = (appt.patientName || p?.name || 'Patient').replace(/"/g, '""');
+      const pPhone = appt.patientPhone || p?.phone || '';
+      const pAge = p?.age || (appt as any).patientAge || '';
+      const pGender = p?.gender || (appt as any).patientGender || '';
+      const apptDate = getEffectiveAppointmentDate(appt) || (appt.createdAt || '').split('T')[0];
+      const slot = appt.virtual_time || (appt as any).virtualTime || 'Standard OPD';
+      const mode = (appt.is_virtual || appt.isVirtual) ? 'Virtual Video' : 'Physical Chamber';
+      const doctor = (activePod?.doctor_name || 'Dr. Attending Physician').replace(/"/g, '""');
+      const status = appt.status === 'completed' ? 'Completed' : 'Seen / Archived';
+      const fee = appt.amount === 0 ? 'Waived / Free' : 'Cleared (₹500.00)';
+      const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token || `TK-${String(idx + 1).padStart(2, '0')}`;
+
+      return [
+        `"${rawToken}"`,
+        `"${pName}"`,
+        `"${pPhone}"`,
+        `"${pAge}"`,
+        `"${pGender}"`,
+        `"${apptDate}"`,
+        `"${slot}"`,
+        `"${mode}"`,
+        `"${doctor}"`,
+        `"${status}"`,
+        `"${fee}"`
+      ].join(',');
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `mediflow_past_appointments_${getIstDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: { title: 'Export Downloaded 📥', message: `Exported ${pastAppts.length} past appointment records to CSV.`, type: 'success' }
+    }));
+  }, [appointments, patients, activePod]);
 
   // Vernacular Dosage Assistant States
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
@@ -2638,8 +2705,8 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'opd_patients' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* 3-Column Mobile-Native Horizontal OPD Sub-Tab Switcher */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+            {/* 4-Column Mobile-Native Horizontal OPD Sub-Tab Switcher */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
               <button
                 type="button"
                 onClick={() => setOpdSubTab('today_queue')}
@@ -2659,6 +2726,31 @@ export const CompounderDashboard: React.FC = () => {
                     return appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       return getEffectiveAppointmentDate(a) === todayStr;
+                    }).length;
+                  })()}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOpdSubTab('scheduled')}
+                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
+                  opdSubTab === 'scheduled'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Scheduled</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
+                  opdSubTab === 'scheduled' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}>
+                  {(() => {
+                    const todayStr = getIstDateString();
+                    return appointments.filter(a => {
+                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      const apptDate = getEffectiveAppointmentDate(a);
+                      return Boolean(apptDate && apptDate > todayStr);
                     }).length;
                   })()}
                 </span>
@@ -2687,7 +2779,7 @@ export const CompounderDashboard: React.FC = () => {
                 }`}
               >
                 <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">History</span>
+                <span className="truncate">Past History</span>
                 <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
                   opdSubTab === 'history' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
@@ -2696,7 +2788,7 @@ export const CompounderDashboard: React.FC = () => {
                     return appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       const apptDate = getEffectiveAppointmentDate(a);
-                      return Boolean(apptDate && apptDate !== todayStr);
+                      return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
                     }).length;
                   })()}
                 </span>
@@ -3178,8 +3270,8 @@ export const CompounderDashboard: React.FC = () => {
       </div>
     )}
 
-            {/* Sub-View 2: Upcoming Advance & Past Consultation History */}
-            {opdSubTab === 'history' && (
+            {/* Sub-View 2: Scheduled Future Date & Virtual Appointments */}
+            {opdSubTab === 'scheduled' && (
               <div className="space-y-8 animate-fade-in">
                 {/* Section 1: Virtual Video Consultations Roster */}
                 <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
@@ -3286,7 +3378,6 @@ export const CompounderDashboard: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {(() => {
-                          const now = new Date();
                           const todayStr = getIstDateString();
                           const futureAppts = appointments
                             .filter(appt => {
@@ -3315,9 +3406,8 @@ export const CompounderDashboard: React.FC = () => {
                             const apptDate = getEffectiveAppointmentDate(appt);
                             const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
                             const tokenDisplay = String(rawToken || `T-${String(idx + 1).padStart(2, '0')}`);
-                            const patName = pat?.name || (appt as any).patientName || 'Vivek Kumar';
-                            const patPhone = pat?.phone || (appt as any).patientPhone || '9608032073';
-                            const isWhatsAppBooking = true; // WhatsApp advance booking
+                            const patName = pat?.name || (appt as any).patientName || 'Patient';
+                            const patPhone = pat?.phone || (appt as any).patientPhone || '';
 
                             return (
                               <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
@@ -3431,282 +3521,185 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* Sub-View 3: Today's Active OPD Queue & Consultation Intake */}
-            {opdSubTab === 'today_queue' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
-                {/* Left Column: Create Appointment & Today's Appointments List */}
-                <div className="lg:col-span-8 space-y-6">
+            {/* Sub-View 3: Past Consultation History & Clinic Records with 1-Click CSV Export */}
+            {opdSubTab === 'history' && (
+              <div className="space-y-6 animate-fade-in text-left">
+                <div className="glass-panel p-4 sm:p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-600 to-indigo-600 opacity-80" />
                   
-                  {/* Appointment Booking & Search Form */}
-                  <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
-                    <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                      <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                        <CalendarPlus className="w-4 h-4 text-indigo-500 shrink-0" />
-                        Book Consultation Appointment (अपॉइंटमेंट बुकिंग)
+                  {/* Header with Title, Count, and 1-Click Export CSV Action */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-3.5 border-b border-slate-200/60 dark:border-white/10">
+                    <div>
+                      <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-indigo-500 shrink-0" />
+                        Past Consultation History & Clinic Records (पूर्व परामर्श रिकॉर्ड्स)
                       </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Comprehensive log of all completed patient visits, token numbers, and clinical encounters.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                      <span className="text-xs font-mono font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-xl">
+                        {(() => {
+                          const todayStr = getIstDateString();
+                          return appointments.filter(a => {
+                            if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                            const apptDate = getEffectiveAppointmentDate(a);
+                            return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
+                          }).length;
+                        })()} Records
+                      </span>
+
                       <button
                         type="button"
-                        onClick={() => setShowAllApptPatients(prev => !prev)}
-                        className="text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/60 bg-indigo-50/70 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center gap-1.5 cursor-pointer w-fit transition-all"
+                        onClick={handleDownloadPastAppointmentsCsv}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer border-0"
                       >
-                        <Users className="w-3.5 h-3.5" />
-                        {showAllApptPatients ? 'Hide Patient List' : `Browse All Patients (${patients.length})`}
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download Past Records (CSV)</span>
                       </button>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                      Search registered patient by Name, Phone, Patient ID, or Smart Code (e.g. T2, V1) to book a consultation slot.
-                    </p>
+                  </div>
 
-                    <div className="space-y-4">
-                      {/* Search input */}
-                      <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1">
-                            Search Patient (Name / Phone / ID / Code)
-                          </label>
-                          <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold">
-                            {filteredApptPatients.length} patient{filteredApptPatients.length === 1 ? '' : 's'} available
-                          </span>
-                        </div>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="Search by Name, Phone (e.g. 98765), ID, or Smart Code (e.g. T2, V1)..."
-                            value={searchApptPatient}
-                            onFocus={() => setShowAllApptPatients(true)}
-                            onChange={(e) => {
-                              setSearchApptPatient(e.target.value);
-                              if (!showAllApptPatients) setShowAllApptPatients(true);
-                            }}
-                            className="w-full input-field text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg outline-none placeholder:text-slate-400"
-                          />
-                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                          {searchApptPatient && (
-                            <button
-                              type="button"
-                              onClick={() => setSearchApptPatient('')}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer p-0.5"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Search Results / Full Patient Directory list */}
-                      {(showAllApptPatients || searchApptPatient.trim().length > 0) && (
-                        <div className="border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/80 p-2.5 max-h-[220px] overflow-y-auto space-y-1.5 shadow-inner">
-                          <div className="flex justify-between items-center px-1 pb-1 mb-1 border-b border-slate-200/60 dark:border-white/5">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                              {searchApptPatient ? `Matching "${searchApptPatient}"` : 'All Registered Patients'}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {filteredApptPatients.length} found
-                            </span>
-                          </div>
-                          {filteredApptPatients.length === 0 ? (
-                            <div className="py-4 text-center space-y-2">
-                              <p className="text-xs text-slate-500 dark:text-slate-400">No patient found matching "{searchApptPatient}".</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveTab('opd_patients');
-                                  setOpdSubTab('directory');
-                                  setPatientsSubTab('register');
-                                  setNewPatientName(searchApptPatient);
-                                }}
-                                className="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1 cursor-pointer shadow-xs"
-                              >
-                                <UserPlus className="w-3.5 h-3.5" />
-                                Register as New Patient
-                              </button>
-                            </div>
-                          ) : (
-                            filteredApptPatients.map(p => {
-                              const code = p.patientCode || (p as any).patient_code || `P-${(p.id || '').substring(0, 4).toUpperCase()}`;
-                              return (
-                                <div 
-                                  key={p.id}
-                                  onClick={() => {
-                                    setSelectedApptPatient(p);
-                                    setSearchApptPatient('');
-                                    setShowAllApptPatients(false);
-                                  }}
-                                  className="p-2.5 bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 rounded-xl hover:border-indigo-500 hover:bg-indigo-50/30 dark:hover:bg-indigo-500/10 cursor-pointer flex justify-between items-center transition-all group"
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <span className="shrink-0 text-[10px] font-mono font-black bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-700/50">
-                                      {code}
-                                    </span>
-                                    <div className="min-w-0">
-                                      <h5 className="font-bold text-xs text-slate-800 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                        {p.name}
-                                      </h5>
-                                      <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                                        <span>📱 +91 {p.phone || 'N/A'}</span>
-                                        <span>·</span>
-                                        <span>{p.age}y ({p.gender})</span>
-                                        {p.tokenNumber && (
-                                          <>
-                                            <span>·</span>
-                                            <span className="text-emerald-600 font-bold">Tk #{p.tokenNumber}</span>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <span className="text-[10px] bg-slate-100 dark:bg-slate-700 group-hover:bg-indigo-600 group-hover:text-white text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 ml-2">
-                                    Select 👉
-                                  </span>
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      )}
-
-                      {/* Booking form details (visible once patient is selected) */}
-                      {selectedApptPatient && (
-                        <div className="p-4 bg-indigo-50/30 dark:bg-indigo-900/20 border border-indigo-100/50 dark:border-indigo-700/40 rounded-2xl space-y-4 animate-fade-in">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 tracking-widest uppercase font-mono block">Selected Patient</span>
-                              <h4 className="font-bold text-sm text-slate-800 dark:text-white mt-1">{selectedApptPatient.name}</h4>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Phone: +91 {selectedApptPatient.phone} · Age: {selectedApptPatient.age}y ({selectedApptPatient.gender})</p>
-                            </div>
-                            <button 
-                              onClick={() => setSelectedApptPatient(null)}
-                              className="text-[10px] text-rose-500 hover:underline bg-transparent border-0 cursor-pointer"
-                            >
-                              Clear Selection
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/30 dark:border-white/10">
-                            <div>
-                              <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Payment Mode</label>
-                              <select
-                                value={apptPaymentMode}
-                                onChange={(e) => setApptPaymentMode(e.target.value as any)}
-                                className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-800 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-lg cursor-pointer font-bold"
-                              >
-                                <option value="cash">💵 Cash Payment</option>
-                                <option value="upi">📱 UPI QR / Handle</option>
-                                <option value="razorpay">💳 Razorpay 0% Gateway</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase tracking-wider font-mono block pl-1 mb-1">Consultation Fee</label>
-                              <div className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-mono font-bold text-sm rounded-lg py-2 px-3 flex items-center justify-between">
-                                <span>₹500.00</span>
-                                <span className="text-[8px] uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">Calculated</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end pt-2">
-                            <button
-                              type="button"
-                              disabled={isBookingAppt}
-                              onClick={async () => {
-                                if (!selectedApptPatient || isBookingAppt) return;
-                                setIsBookingAppt(true);
-
-                                try {
-                                  const newInvoice = BillingService.createGate1Consult(selectedApptPatient.id);
-                                  const paymentModeLabel = apptPaymentMode;
-
-                                  if (newInvoice) {
-                                    await BillingService.recordInvoicePayment(newInvoice.id, apptPaymentMode as any);
-                                  }
-
-                                  const assignedToken = api.generateNextTokenNumber();
-                                  
-                                  // Non-blocking background sync to Supabase appointments table
-                                  (async () => {
-                                    try {
-                                      const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
-                                      const podCtx = (() => {
-                                        try {
-                                          const r = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('vitalsync_cached_active_pod') || localStorage.getItem('mediflow_active_pod');
-                                          return r ? JSON.parse(r) : null;
-                                        } catch {
-                                          return null;
-                                        }
-                                      })();
-                                      const resolvedDocId = getPodContext().doctorId || podCtx?.id || podCtx?.doctorId || null;
-                                      await supabase.from('appointments').insert({
-                                        id: newInvoice?.appointmentId || crypto.randomUUID(),
-                                        patient_id: selectedApptPatient.id.length === 36 ? selectedApptPatient.id : null,
-                                        doctor_id: resolvedDocId,
-                                        status: 'ready_for_consult',
-                                        payment_status: 'cleared',
-                                        source: 'counter',
-                                        created_at: new Date().toISOString(),
-                                        token_number: assignedToken,
-                                        pod_id: podId
-                                      });
-                                    } catch (err) {
-                                      console.warn('Supabase appt insert note:', err);
-                                    }
-                                  })();
-
-                                  api.updatePatientQueueStatus(selectedApptPatient.id, 'awaiting_vitals');
-
-                                  const bookedPatient = { ...selectedApptPatient, tokenNumber: assignedToken };
-                                  setSelectedApptPatient(null);
-                                  setApptPaymentMode('cash');
-                                  setIsBookingAppt(false);
-
-                                  syncData();
-                                  fetchLiveAppointments();
-                                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  setVitalsPatient(bookedPatient);
-
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      message: `Appointment for ${bookedPatient.name} booked & fee settled via ${paymentModeLabel.toUpperCase()}. Vitals modal is open for clinical dispatch!`,
-                                      type: 'success',
-                                      title: 'Appointment Active — Record Vitals 🩺'
-                                    }
-                                  }));
-                                } catch (e) {
-                                  console.error('[CompounderDashboard] Appointment Booking Error:', e);
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      message: 'Booking completed locally. Please record vitals.',
-                                      type: 'success',
-                                      title: 'Appointment Active'
-                                    }
-                                  }));
-                                  if (selectedApptPatient) {
-                                    setVitalsPatient(selectedApptPatient);
-                                  }
-                                  setIsBookingAppt(false);
-                                }
-                              }}
-                              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:scale-105 active:scale-95 text-white font-bold tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform shadow-lg shadow-indigo-500/20"
-                            >
-                              Book Appointment &amp; Pay 💳
-                            </button>
-                          </div>
-                        </div>
+                  {/* Search Bar for Past Records */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search past appointments by Patient Name, Phone, Token #, or Date..."
+                        value={pastHistorySearchQuery}
+                        onChange={(e) => setPastHistorySearchQuery(e.target.value)}
+                        className="w-full input-field text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-xl outline-none placeholder:text-slate-400"
+                      />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                      {pastHistorySearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setPastHistorySearchQuery('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer p-0.5 bg-transparent border-0"
+                        >
+                          ✕
+                        </button>
                       )}
                     </div>
                   </div>
 
-              {/* Today's Appointments List */}
-              <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
-                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                    {(opdSubTab as string) === 'past_history' 
-                      ? "Past Appointments History (पूर्व नियुक्तियां)" 
-                      : "Today's Appointments Queue (दैनिक नियुक्तियां)"}
-                  </h2>
+                  {/* Table of Past Records */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase font-mono font-bold text-[10px]">
+                        <tr>
+                          <th className="p-3">Token #</th>
+                          <th className="p-3">Patient Name</th>
+                          <th className="p-3">Phone</th>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Mode</th>
+                          <th className="p-3">Attending Doctor</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Fee Clearance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                        {(() => {
+                          const todayStr = getIstDateString();
+                          const q = (pastHistorySearchQuery || '').trim().toLowerCase();
+                          const pastAppts = appointments
+                            .filter(a => {
+                              if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                              const apptDate = getEffectiveAppointmentDate(a);
+                              return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
+                            })
+                            .filter(appt => {
+                              if (!q) return true;
+                              const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
+                              const name = (appt.patientName || pat?.name || '').toLowerCase();
+                              const phone = (appt.patientPhone || pat?.phone || '').toLowerCase();
+                              const token = String(appt.token_number || appt.tokenNumber || (appt as any).token || '').toLowerCase();
+                              const date = (getEffectiveAppointmentDate(appt) || '').toLowerCase();
+                              return name.includes(q) || phone.includes(q) || token.includes(q) || date.includes(q);
+                            })
+                            .sort((a, b) => {
+                              const dateA = getEffectiveAppointmentDate(a);
+                              const dateB = getEffectiveAppointmentDate(b);
+                              return dateB.localeCompare(dateA);
+                            });
+
+                          if (pastAppts.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={8} className="p-8 text-center text-slate-400">
+                                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                                  <p className="text-xs font-medium">No past appointment records found matching your search.</p>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return pastAppts.map((appt, idx) => {
+                            const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
+                            const apptDate = getEffectiveAppointmentDate(appt) || (appt.createdAt || '').split('T')[0];
+                            const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
+                            const tokenDisplay = String(rawToken || `TK-${String(idx + 1).padStart(2, '0')}`);
+                            const patName = appt.patientName || pat?.name || 'Patient';
+                            const patPhone = appt.patientPhone || pat?.phone || 'N/A';
+
+                            return (
+                              <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
+                                <td className="p-3">
+                                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-black text-[11px] border border-slate-200 dark:border-white/10">
+                                    #{tokenDisplay.startsWith('TK-') || tokenDisplay.startsWith('T-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`}
+                                  </span>
+                                </td>
+                                <td className="p-3 font-bold text-slate-900 dark:text-white">
+                                  <div>
+                                    <div className="text-xs">{patName}</div>
+                                    <div className="text-[10px] text-slate-500 font-mono font-normal">{pat?.age ? `${pat.age}y (${pat.gender})` : ''}</div>
+                                  </div>
+                                </td>
+                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{patPhone}</td>
+                                <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 font-mono">
+                                  {apptDate}
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(appt.is_virtual || appt.isVirtual) ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300'}`}>
+                                    {(appt.is_virtual || appt.isVirtual) ? 'Virtual 💻' : 'Physical 🏥'}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-slate-700 dark:text-slate-300 text-xs">
+                                  {activePod?.doctor_name || 'Dr. Attending Physician'}
+                                </td>
+                                <td className="p-3">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                                    Completed ✅
+                                  </span>
+                                </td>
+                                <td className="p-3 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                                  Cleared ✅
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-View 4: Today's Active OPD Queue & Consultation Intake */}
+            {opdSubTab === 'today_queue' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+                {/* Left Column: Today's Appointments List */}
+                <div className="lg:col-span-8 space-y-6">
+                  <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
+                      <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                        <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
+                        Today's Appointments Queue (दैनिक नियुक्तियां)
+                      </h2>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 px-3 py-1.5 rounded-xl">
                       {(() => {
