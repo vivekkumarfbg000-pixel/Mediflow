@@ -5,7 +5,8 @@ import {
   Lock, Tag, ClipboardEdit, ShieldCheck, FileText, Printer, Send, Search,
   UserCheck, CheckCircle2, RefreshCw, PlusCircle, Info, PieChart,
   CloudUpload, Microscope, Calendar, Coins, Activity, Sparkles, Eye, Camera,
-  FileCheck, ArrowRight, Clock, Smartphone, CheckCheck, QrCode, AlertTriangle, Trash2
+  FileCheck, ArrowRight, Clock, Smartphone, CheckCheck, QrCode, AlertTriangle, Trash2,
+  LayoutDashboard, UploadCloud, CreditCard, TrendingUp, Zap, AlertCircle, ArrowUpRight
 } from 'lucide-react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
@@ -30,12 +31,14 @@ import { getIstDateString, getIstDateDisplay } from '../../utils/dateUtils';
    Interconnected clinical node — Doctor › Lab › Pharmacy › WhatsApp
  ───────────────────────────────────────────────────────────────────────────── */
 
-type LabTab = 'queue' | 'walkin' | 'upload_report' | 'analytics' | 'settlements' | 'pod_network' | 'billing_invoices';
+export type LabTab = 'overview' | 'worklist' | 'intake_upload' | 'financials_ledger';
 
 export const LabDashboard: React.FC = () => {
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
   const { activePod, activeEntity, podEntities } = useClinic();
-  const [activeTab, setActiveTab] = useState<LabTab>('queue');
+  const [activeTab, setActiveTab] = useState<LabTab>('overview');
+  const [intakeSubTab, setIntakeSubTab] = useState<'upload' | 'walkin'>('upload');
+  const [financialsSubTab, setFinancialsSubTab] = useState<'invoices' | 'settlements' | 'analytics' | 'pod_network'>('invoices');
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
@@ -118,7 +121,27 @@ export const LabDashboard: React.FC = () => {
     const handleLabTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
-        setActiveTab(customEvent.detail as any);
+        const d = customEvent.detail;
+        if (d === 'overview' || d === 'worklist' || d === 'intake_upload' || d === 'financials_ledger') {
+          setActiveTab(d);
+        } else if (d === 'queue') {
+          setActiveTab('worklist');
+        } else if (d === 'upload_report') {
+          setActiveTab('intake_upload');
+          setIntakeSubTab('upload');
+        } else if (d === 'walkin') {
+          setActiveTab('intake_upload');
+          setIntakeSubTab('walkin');
+        } else if (d === 'settlements') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('settlements');
+        } else if (d === 'billing_invoices') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('invoices');
+        } else if (d === 'analytics') {
+          setActiveTab('financials_ledger');
+          setFinancialsSubTab('analytics');
+        }
       }
     };
     window.addEventListener('mediflow-lab-tab-changed', handleLabTabChange);
@@ -904,13 +927,10 @@ export const LabDashboard: React.FC = () => {
   };
 
   const tabItems: { id: LabTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'queue', label: 'Test Queue', icon: <FlaskConical className="w-4 h-4 shrink-0" />, badge: pendingList.length + collectedList.length },
-    { id: 'billing_invoices', label: 'Billing & Invoices', icon: <Receipt className="w-4 h-4 shrink-0" /> },
-    { id: 'walkin', label: 'Walk-in Register', icon: <UserPlus className="w-4 h-4 shrink-0" />, badge: walkinList.length },
-    { id: 'upload_report', label: 'Direct Report Upload', icon: <Upload className="w-4 h-4 shrink-0" /> },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4 shrink-0" /> },
-    { id: 'settlements', label: 'Settlements', icon: <Landmark className="w-4 h-4 shrink-0" /> },
-    { id: 'pod_network', label: 'Pod Network', icon: <Network className="w-4 h-4 shrink-0" /> }
+    { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4 shrink-0" /> },
+    { id: 'worklist', label: 'Worklist Queue', icon: <FlaskConical className="w-4 h-4 shrink-0" />, badge: pendingList.length + collectedList.length },
+    { id: 'intake_upload', label: 'Intake & Upload', icon: <UploadCloud className="w-4 h-4 shrink-0" />, badge: walkinList.length },
+    { id: 'financials_ledger', label: 'Financials & Ledger', icon: <Receipt className="w-4 h-4 shrink-0" /> }
   ];
 
   /* ══════════════════════════════════════════════════════════════
@@ -933,7 +953,7 @@ export const LabDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* ── TAB NAV — Desktop Bar ───────────────────────────────────────────── */}
+      {/* ── TAB NAV — Desktop Bar (Clean, uncluttered, matching Compounder & Doctor) ───────────────────────────────────────────── */}
       <div className="hidden md:flex overflow-x-auto gap-2 pb-1.5 no-scrollbar select-none -mb-px">
         {tabItems.map(tab => (
           <button
@@ -942,13 +962,13 @@ export const LabDashboard: React.FC = () => {
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative whitespace-nowrap ${
               activeTab === tab.id
                 ? 'premium-nav-pill-active'
-                : 'bg-slate-50 border-slate-200/60 text-slate-650 hover:border-slate-300 hover:text-slate-850 hover:bg-slate-100/50'
+                : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200/60 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/50'
             }`}
           >
             {tab.icon}
             {tab.label}
             {tab.badge !== undefined && tab.badge > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-slate-800 text-[9px] font-black flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
                 {tab.badge > 9 ? '9+' : tab.badge}
               </span>
             )}
@@ -956,39 +976,260 @@ export const LabDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* ── TAB NAV — Mobile Horizontal Swipe Strip ─────────────────────────── */}
-      <div className="flex md:hidden items-center gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-x-auto no-scrollbar -mt-2 mb-3 select-none">
-        {tabItems.map(tab => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1 py-1.5 px-2.5 text-[10px] font-extrabold rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer active:scale-95 border-0 ${
-                isActive
-                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-sm font-black'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-white/60 dark:hover:bg-slate-800'
-              }`}
+      {/* ══════════════════════════════════════════════════════════
+          TAB 1: EXECUTIVE OVERVIEW COCKPIT
+      ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6 text-left animate-fade-in">
+          {/* Header Banner */}
+          <div className="glass-panel p-5 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl relative overflow-hidden bg-gradient-to-br from-teal-900/20 via-slate-900/10 to-indigo-900/20 dark:from-slate-900/90 dark:to-slate-950/90 rounded-3xl">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 via-indigo-500 to-purple-500 opacity-90" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                    Diagnostics Station Active
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                    {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Pathology &amp; Diagnostics Cockpit
+                </h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {activePod?.name || activeEntity?.name || 'VitalSync Care Clinic'} · Dr. {activePod?.doctor_name || 'Attending Physician'}
+                </p>
+              </div>
+
+              {/* Quick Actions in Header */}
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('intake_upload');
+                    setIntakeSubTab('upload');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-sm border-0"
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>Direct Upload</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('intake_upload');
+                    setIntakeSubTab('walkin');
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 border border-slate-200 dark:border-white/10"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  <span>Walk-in Test</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Bento KPI Metric Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div 
+              onClick={() => setActiveTab('worklist')}
+              className="glass-panel p-4 sm:p-5 border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/70 to-amber-100/30 dark:from-amber-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
             >
-              {tab.icon}
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className={`px-1 py-0.2 text-[8px] rounded-full font-black ${
-                  isActive ? 'bg-white/25 text-white' : 'bg-rose-500 text-white animate-pulse'
-                }`}>
-                  {tab.badge > 9 ? '9+' : tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+              <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 mb-2">
+                <span className="text-[11px] font-bold">Awaiting Draws</span>
+                <FlaskConical className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                {pendingList.length}
+              </div>
+              <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80 mt-1 font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                Phlebotomy queue ready
+              </p>
+            </div>
+
+            <div 
+              onClick={() => setActiveTab('worklist')}
+              className="glass-panel p-4 sm:p-5 border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-br from-blue-50/70 to-blue-100/30 dark:from-blue-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
+            >
+              <div className="flex items-center justify-between text-blue-700 dark:text-blue-300 mb-2">
+                <span className="text-[11px] font-bold">In Analyzer</span>
+                <Microscope className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                {collectedList.length}
+              </div>
+              <p className="text-[10px] text-blue-700/80 dark:text-blue-400/80 mt-1 font-medium">
+                Machine processing active
+              </p>
+            </div>
+
+            <div 
+              onClick={() => setActiveTab('worklist')}
+              className="glass-panel p-4 sm:p-5 border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50/70 to-emerald-100/30 dark:from-emerald-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
+            >
+              <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 mb-2">
+                <span className="text-[11px] font-bold">Verified Today</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                {todayCompleted.length}
+              </div>
+              <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 font-medium">
+                Dispatched via WhatsApp
+              </p>
+            </div>
+
+            <div 
+              onClick={() => {
+                setActiveTab('financials_ledger');
+                setFinancialsSubTab('invoices');
+              }}
+              className="glass-panel p-4 sm:p-5 border-indigo-200/80 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/70 to-indigo-100/30 dark:from-indigo-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
+            >
+              <div className="flex items-center justify-between text-indigo-700 dark:text-indigo-300 mb-2">
+                <span className="text-[11px] font-bold">Diagnostic Volume</span>
+                <TrendingUp className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div className="text-2xl font-black text-slate-900 dark:text-white">
+                ₹{todayRevenue.toFixed(0)}
+              </div>
+              <p className="text-[10px] text-indigo-700/80 dark:text-indigo-400/80 mt-1 font-medium">
+                30% Lab SOP split
+              </p>
+            </div>
+          </div>
+
+          {/* Today's Prescribed Doctor Requisition Inflow & Quick Action Hub */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Live Doctor Order Inflow */}
+            <div className="lg:col-span-7 space-y-4">
+              <div className="glass-panel p-5 border-slate-200/80 dark:border-white/10 shadow-xl bg-white dark:bg-slate-900/90 rounded-3xl">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                      <Zap className="w-4 h-4" />
+                    </span>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Live Prescribed Diagnostic Inflow
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/80 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800">
+                    Real-time CDC
+                  </span>
+                </div>
+
+                {pendingList.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
+                    <FlaskConical className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">All Sample Draws Completed</div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Doctor-prescribed lab orders will appear here in sub-300ms.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                    {pendingList.slice(0, 6).map(req => {
+                      return (
+                        <div key={req.id} className="p-3.5 border border-slate-200/80 dark:border-white/10 rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 flex items-center justify-between gap-3 hover:bg-slate-100/60 dark:hover:bg-slate-800 transition-colors">
+                          <div>
+                            <div className="font-extrabold text-xs text-slate-900 dark:text-white">{req.patientName}</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                              {req.testName} · LOINC: {req.testCode}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[9px] font-mono font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700 px-2 py-0.5 rounded-full uppercase">
+                              Draw Pending
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCollectSample(req)}
+                              className="px-3 py-1 bg-gradient-to-r from-teal-600 to-indigo-600 hover:from-teal-700 hover:to-indigo-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition active:scale-95 shadow-xs border-0"
+                            >
+                              Collect
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Recent Verified Diagnostics Timeline */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="glass-panel p-5 border-slate-200/80 dark:border-white/10 shadow-xl bg-white dark:bg-slate-900/90 rounded-3xl">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <ShieldCheck className="w-4 h-4" />
+                    </span>
+                    <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                      Recent Verified Reports
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('worklist')}
+                    className="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer bg-transparent border-0"
+                  >
+                    View All →
+                  </button>
+                </div>
+
+                {completedList.length === 0 ? (
+                  <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
+                    <ShieldCheck className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
+                    <div className="text-xs font-bold text-slate-700 dark:text-slate-300">No Verified Reports Yet</div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Processed diagnostic report cards will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                    {completedList.slice(0, 5).map(req => {
+                      const rep = api.getFullLabReports().find(r => r.requisitionId === req.id);
+                      return (
+                        <div key={req.id} className="p-3 border border-slate-200/80 dark:border-white/10 rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-xs text-slate-900 dark:text-white">{req.patientName}</span>
+                            <span className="text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.2 rounded-full uppercase">
+                              Verified ✅
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                            {req.testName}
+                          </div>
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 font-mono">
+                              {typeof req.quantitativeResult === 'string' ? req.quantitativeResult : JSON.stringify(req.quantitativeResult || {})}
+                            </span>
+                            {rep?.reportFileUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setViewingDocUrl(rep.reportFileUrl || null)}
+                                className="px-2 py-0.5 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded text-[9px] font-bold cursor-pointer border-0"
+                              >
+                                View PDF
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════
-          TAB: TEST QUEUE
+          TAB 2: WORKLIST & PROCESSING QUEUE
       ══════════════════════════════════════════════════════════ */}
-      {activeTab === 'queue' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {activeTab === 'worklist' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
           {/* Left: Requisition queue cards */}
           <div className="lg:col-span-8 space-y-6">
 
@@ -1559,240 +1800,748 @@ export const LabDashboard: React.FC = () => {
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          TAB: WALK-IN REGISTRATION
+          TAB 3: INTAKE & SMART UPLOAD STATION
       ══════════════════════════════════════════════════════════ */}
-      {activeTab === 'walkin' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Registration form */}
-          <div className="lg:col-span-5 space-y-5">
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-blue-400 shrink-0" />
-                Walk-in Lab Test Registration
-              </h2>
-              <p className="text-[11px] text-slate-500 mb-5 leading-relaxed">
-                Register a patient for lab tests without a doctor's prescription. Walk-in tests are tagged separately in the Queue.
-              </p>
-
-              <form onSubmit={handleWalkinRegister} className="space-y-4">
-                {/* Patient search */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                    Search Patient
-                  </label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Search by name or phone..."
-                      value={walkinSearch}
-                      onChange={e => { setWalkinSearch(e.target.value); setWalkinPatientId(''); }}
-                      className="w-full input-field text-xs py-2.5 pl-9 focus:ring-1 focus:ring-blue-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Patient list */}
-                {walkinSearch.length >= 2 && (
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {filteredPatients.length === 0 ? (
-                      <div className="text-center py-3 text-xs text-slate-400">No matching patients found.</div>
-                    ) : filteredPatients.map(p => (
-                      <button
-                        type="button"
-                        key={p.id}
-                        onClick={() => { setWalkinPatientId(p.id); setWalkinSearch(''); }}
-                        className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
-                          walkinPatientId === p.id
-                            ? 'bg-blue-500/15 border-blue-500/40 text-slate-800'
-                            : 'bg-slate-50 border-slate-200 hover:border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        <div className="font-bold text-xs">{p.name}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{p.phone} · {p.age}y {p.gender}</div>
-                        {p.abhaId && <div className="text-[9px] text-blue-400 font-mono mt-0.5">ABHA: {p.abhaId}</div>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Selected patient badge */}
-                {walkinPatientId && !walkinSearch && (
-                  <div className="flex items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                    <UserCheck className="w-4 h-4 text-blue-400 shrink-0" />
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-slate-800">
-                        {patients.find(p => p.id === walkinPatientId)?.name || 'Selected Patient'}
-                      </div>
-                      <div className="text-[10px] text-blue-300 font-mono">
-                        {patients.find(p => p.id === walkinPatientId)?.phone}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setWalkinPatientId('')}
-                      className="text-slate-500 hover:text-slate-800 text-[10px] cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-
-                {/* Test selection */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                    Select Diagnostic Test
-                  </label>
-                  <div className="space-y-2">
-                    {testCatalog.map(test => (
-                      <label
-                        key={test.loincCode}
-                        className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
-                          walkinTestCode === test.loincCode
-                            ? 'bg-indigo-50 border-indigo-300'
-                            : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="radio"
-                            name="walkinTest"
-                            value={test.loincCode}
-                            checked={walkinTestCode === test.loincCode}
-                            onChange={e => setWalkinTestCode(e.target.value)}
-                            className="accent-indigo-600 w-3.5 h-3.5"
-                          />
-                          <div>
-                            <div className="text-xs font-bold text-slate-800">{test.name}</div>
-                            <div className="text-[9px] text-slate-500 font-mono">
-                              {test.category} · LOINC: {test.loincCode}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-indigo-600">₹{test.price}</div>
-                          <div className="text-[9px] text-slate-400 font-mono">{test.unit}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Upload Request Slip / Prescription */}
-                <div className="mt-2.5">
-                  <label className="block text-[10px] font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                    Upload Request Slip / Prescription (Optional)
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors">
-                      <Upload className="w-5 h-5 text-blue-400 shrink-0" />
-                      <span>{walkinFileUrl ? 'Re-upload / Change Slip' : 'Upload File (JPG, PNG, PDF)'}</span>
-                      <input 
-                        type="file" 
-                        accept="image/*,application/pdf" 
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              setWalkinFileUrl(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-                  {walkinFileUrl && (
-                    <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                      <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                        Slip Attached
-                      </span>
-                      <button 
-                        type="button" 
-                        onClick={() => setWalkinFileUrl(null)} 
-                        className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!walkinPatientId || !walkinTestCode || walkinBusy}
-                  className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
-                >
-                  {walkinBusy ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <PlusCircle className="w-4 h-4" />
-                  )}
-                  {walkinBusy ? 'Registering...' : 'Register Walk-in Test'}
-                </button>
-              </form>
-            </div>
-
-            {/* Info box */}
-            <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl text-[11px] text-blue-300 leading-relaxed">
-              <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-              <span>
-                Walk-in tests are auto-tagged with a <strong className="font-mono">WALK-</strong> barcode prefix and appear immediately in the test queue. No encounter ID is required — billing is handled separately at the counter.
-              </span>
-            </div>
+      {activeTab === 'intake_upload' && (
+        <div className="space-y-6 text-left animate-fade-in">
+          {/* Sub Switcher */}
+          <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+            <button
+              type="button"
+              onClick={() => setIntakeSubTab('upload')}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ${
+                intakeSubTab === 'upload'
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Upload className="w-4 h-4" />
+              <span>Direct Report Upload &amp; AI Camera</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIntakeSubTab('walkin')}
+              className={`flex items-center justify-center gap-1.5 py-2.5 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ${
+                intakeSubTab === 'walkin'
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Walk-in Patient Registration</span>
+              {walkinList.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-white/20 text-white ml-1">
+                  {walkinList.length}
+                </span>
+              )}
+            </button>
           </div>
 
-          {/* Walk-in history */}
-          <div className="lg:col-span-7">
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-50" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
-                Walk-in Test History ({walkinList.length})
-              </h2>
-              {walkinList.length === 0 ? (
-                <div className="text-center py-12 text-slate-400 text-sm space-y-2">
-                  <UserPlus className="w-8 h-8 text-slate-300 mx-auto block" />
-                  No walk-in tests registered yet today.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {walkinList.map(req => {
-                    const invoices = api.getUnifiedInvoices();
-                    const inv = invoices.find(i => i.encounterId === req.id);
-                    const isPaid = inv && inv.paymentStatus === 'cleared';
-                    const test = testCatalog.find(t => t.loincCode === req.testCode) || { price: 350 };
-                    const testPrice = test.price || 350;
+          {/* SubTab 1: Direct Report Upload & AI Camera Scanner */}
+          {intakeSubTab === 'upload' && (
+            <form onSubmit={handleDirectReportUploadSubmit} className="space-y-6">
+              {/* Post-Submission Success Card if recently submitted */}
+              {lastDirectSubmission && (
+                <div className="glass-panel p-5 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <CheckCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Report Published &amp; Synced! 🚀</span>
+                        <span className="text-[10px] text-slate-500 font-mono">({lastDirectSubmission.time})</span>
+                      </div>
+                      <div className="text-sm font-bold text-slate-800 dark:text-white">
+                        {lastDirectSubmission.patientName} · {lastDirectSubmission.testName} (LOINC: {lastDirectSubmission.loincCode})
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                        <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>Official PDF &amp; 2-Touchpoint Care Loop Dispatched to +91 {lastDirectSubmission.patientPhone}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                    return (
-                      <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors gap-3">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            req.status === 'completed' ? 'bg-emerald-400' :
-                            req.status === 'collected' || req.status === 'processed' ? 'bg-indigo-600 animate-pulse' :
-                            'bg-amber-400 animate-pulse'
-                          }`} />
+                  <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
+                    {lastDirectSubmission.pdfBlobUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (lastDirectSubmission.pdfBlobUrl) {
+                            window.open(lastDirectSubmission.pdfBlobUrl, '_blank');
+                          }
+                        }}
+                        className="flex-1 md:flex-initial py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer border-0"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>📄 Open / Print PDF</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLastDirectSubmission(null);
+                        setDirectPatientId('');
+                        setDirectSearch('');
+                      }}
+                      className="flex-1 md:flex-initial py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border-0"
+                    >
+                      <PlusCircle className="w-4 h-4 text-indigo-500" />
+                      <span>Next Patient</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left: Patient Queue Selector & Diagnostic Test */}
+                <div className="lg:col-span-6 space-y-6">
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-60" />
+                    
+                    <div className="flex items-center justify-between mb-2">
+                      <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                        1. Select Patient from Today's Queue
+                      </h2>
+                      <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-bold font-mono">
+                        {directFilteredQueuePatients.length} Active
+                      </span>
+                    </div>
+                    
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+                      Select the patient who completed consultation or has ordered lab tests for today. Mediflow will automatically sync the report across Doctor EMR and Compounder Desk.
+                    </p>
+
+                    {/* Queue Filter Tabs */}
+                    <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl mb-3 text-[11px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setDirectQueueFilterTab('prescribed_lab')}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer border-0 ${
+                          directQueueFilterTab === 'prescribed_lab'
+                            ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Doctor Requisitions ({requisitions.filter(r => r.status === 'pending').length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDirectQueueFilterTab('today_consultations')}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer border-0 ${
+                          directQueueFilterTab === 'today_consultations'
+                            ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Today's Visits
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDirectQueueFilterTab('all')}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer border-0 ${
+                          directQueueFilterTab === 'all'
+                            ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        All Registry
+                      </button>
+                    </div>
+
+                    {/* Search Field */}
+                    <div className="relative mb-3">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search patient name, phone or ABHA ID..."
+                        value={directSearch}
+                        onChange={e => setDirectSearch(e.target.value)}
+                        className="w-full input-field text-xs py-2 pl-9 focus:ring-1 focus:ring-teal-400"
+                      />
+                    </div>
+
+                    {/* Queue Patient Cards List */}
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {directFilteredQueuePatients.length === 0 ? (
+                        <div className="text-center py-6 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                          No matching active patients in this view.
+                        </div>
+                      ) : (
+                        directFilteredQueuePatients.map(item => {
+                          const isSelected = directPatientId === item.patient.id;
+                          return (
+                            <div
+                              key={item.patient.id}
+                              onClick={() => {
+                                setDirectPatientId(item.patient.id);
+                                if (item.testCode) {
+                                  setDirectTestCode(item.testCode);
+                                }
+                              }}
+                              className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                                isSelected
+                                  ? 'bg-gradient-to-r from-teal-500/15 to-indigo-500/15 border-teal-500/50 shadow-sm'
+                                  : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                                  isSelected ? 'border-teal-500 bg-teal-500' : 'border-slate-400'
+                                }`}>
+                                  {isSelected && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
+                                </div>
+                                <div>
+                                  <div className="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                                    <span>{item.patient.name}</span>
+                                    {item.req && (
+                                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-mono font-bold">
+                                        Prescribed: {item.req.testName}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                    +91 {item.patient.phone} · {item.patient.age}y/{item.patient.gender}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                  {item.source === 'lab_queue' ? 'Lab Order' : item.source === 'appointment' ? 'Today OPD' : 'Patient'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Diagnostic Test LOINC Selector */}
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
+                      <FlaskConical className="w-4 h-4 text-teal-600 shrink-0" />
+                      Select Diagnostic Biomarker Test
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {testCatalog.map(test => {
+                        const isSelected = directTestCode === test.loincCode;
+                        return (
+                          <label
+                            key={test.loincCode}
+                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-teal-500/10 border-teal-500 text-teal-900 dark:text-teal-200 font-bold shadow-xs'
+                                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="directTestCode"
+                                value={test.loincCode}
+                                checked={isSelected}
+                                onChange={e => setDirectTestCode(e.target.value)}
+                                className="accent-teal-600 w-3.5 h-3.5"
+                              />
+                              <div>
+                                <div className="text-xs">{test.name}</div>
+                                <div className="text-[9px] text-slate-400 font-mono">LOINC: {test.loincCode}</div>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono">₹{test.price}</div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Biomarker Entry Form & File Dropzone & Submit Action */}
+                <div className="lg:col-span-6 space-y-6 flex flex-col justify-between">
+                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex-1">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+                    
+                    <h3 className="font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-sm">
+                      <ClipboardEdit className="w-4 h-4 text-teal-600 shrink-0" />
+                      2. Upload Report File &amp; Review Biomarkers
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
+                      Attach an analyzer slip/PDF or type biomarker numbers. An official signed LOINC PDF will be created and delivered to WhatsApp instantly.
+                    </p>
+
+                    {/* File Dropzone & Camera */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2">
+                        <label
+                          className={`flex-1 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
+                            directFile
+                              ? 'border-teal-500 bg-teal-500/5'
+                              : 'border-slate-300 dark:border-slate-700 hover:border-teal-400 bg-slate-50 dark:bg-slate-800/40'
+                          }`}
+                        >
+                          <CloudUpload className="w-6 h-6 text-teal-600" />
+                          <div className="text-xs font-bold text-slate-800 dark:text-white">
+                            {directFile ? directFile.name : 'Upload Report (PDF / Image)'}
+                          </div>
+                          <span className="text-[10px] text-slate-400">Drag and drop analyzer report or scan slip</span>
+                          <input
+                            ref={directFileInputRef}
+                            type="file"
+                            accept="application/pdf,image/*"
+                            className="hidden"
+                            onChange={handleDirectFileChange}
+                          />
+                        </label>
+
+                        {/* Direct Mobile Camera Action */}
+                        <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-400 rounded-2xl p-4 bg-slate-50 dark:bg-slate-800/40 cursor-pointer text-center shrink-0">
+                          <Camera className="w-6 h-6 text-indigo-600" />
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">Camera</span>
+                          <input
+                            ref={directCameraInputRef}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={handleDirectFileChange}
+                          />
+                        </label>
+                      </div>
+
+                      {/* AI OCR Scanner indicator */}
+                      {isAiScanningReport && (
+                        <div className="mt-2 p-2.5 bg-gradient-to-r from-teal-500/10 via-indigo-500/10 to-purple-500/10 border border-teal-500/30 rounded-xl flex items-center gap-2.5 animate-pulse text-xs text-teal-700 dark:text-teal-300 font-bold">
+                          <Sparkles className="w-4 h-4 text-teal-500 animate-spin" />
+                          <span>AI Scanning Diagnostic Values &amp; Normalizing LOINC Values...</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dynamic Biomarker inputs based on selected test */}
+                    <div className="space-y-4 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                      <div className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                        <span>Biomarker Quantitative Values</span>
+                        <span className="text-[10px] text-teal-600 font-mono">LOINC Verified</span>
+                      </div>
+
+                      {directTestCode === '4544-3' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <div className="text-xs font-bold text-slate-800">{req.patientName}</div>
-                            <div className="text-[10px] text-slate-500 font-mono">{req.testName} · {req.testCode}</div>
-                            <div className="text-[9px] text-blue-400 font-mono mt-0.5">Barcode: {req.barcode}</div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              HbA1c (% of Total Hb)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              step="0.1"
+                              min="3"
+                              max="20"
+                              value={hba1cVal}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setHba1cVal(val);
+                                const num = parseFloat(val);
+                                if (!isNaN(num)) {
+                                  setEagVal(Math.round(28.7 * num - 46.7).toString());
+                                }
+                              }}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              Estimated Avg Glucose (eAG mg/dL)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={eagVal}
+                              onChange={e => setEagVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 justify-end">
-                          {/* Invoice Billing Options */}
-                          {isPaid ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-mono">
-                                PAID ✅ (₹{inv.totalAmount})
-                              </span>
-                              <button
-                                onClick={() => {
-                                  // Open lab receipt print window
-                                  const html = `<!DOCTYPE html>
+                      ) : directTestCode === '2160-0' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              Serum Creatinine (mg/dL)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              step="0.01"
+                              min="0.1"
+                              max="15"
+                              value={creatinineVal}
+                              onChange={e => setCreatinineVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              eGFR (mL/min/1.73m²)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={egfrVal}
+                              onChange={e => setEgfrVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              BUN (mg/dL)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={bunVal}
+                              onChange={e => setBunVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                        </div>
+                      ) : directTestCode === '3024-7' ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              Hemoglobin (g/dL)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              step="0.1"
+                              min="2"
+                              max="25"
+                              value={hbVal}
+                              onChange={e => setHbVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              Hematocrit (%)
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              value={hctVal}
+                              onChange={e => setHctVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              Quantitative Value
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g., 142"
+                              value={genericVal}
+                              onChange={e => setGenericVal(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                              Unit of Measure
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g., mg/dL"
+                              value={genericUnit}
+                              onChange={e => setGenericUnit(e.target.value)}
+                              className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* LOINC Reference Range graphic */}
+                      <div className="bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1.5">
+                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
+                          LOINC Clinical Reference Band
+                        </span>
+                        <div className="h-[3px] w-full bg-slate-200 dark:bg-slate-700 relative rounded-full overflow-hidden">
+                          <div className="absolute left-[25%] right-[25%] h-full bg-teal-500" />
+                        </div>
+                        <div className="flex justify-between text-[8px] text-slate-500 font-mono">
+                          {directTestCode === '4544-3' ? (
+                            <><span>{'< 5.7% Normal'}</span><span className="text-teal-600 font-bold">5.7–6.4% Pre-diab</span><span>≥ 6.5% Diabetic</span></>
+                          ) : directTestCode === '2160-0' ? (
+                            <><span>{'< 0.6 mg/dL'}</span><span className="text-teal-600 font-bold">0.6–1.2 mg/dL</span><span>{'> 1.2 mg/dL'}</span></>
+                          ) : directTestCode === '3024-7' ? (
+                            <><span>{'< 12.0 g/dL'}</span><span className="text-teal-600 font-bold">12.0–16.0 g/dL</span><span>{'> 16.0 g/dL'}</span></>
+                          ) : (
+                            <><span>Low</span><span className="text-teal-600 font-bold">Normal Range</span><span>High</span></>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-5">
+                      <button
+                        type="submit"
+                        disabled={!directPatientId || !directTestCode || directBusy}
+                        className="w-full py-3.5 px-6 text-xs sm:text-sm font-black flex items-center justify-center gap-2 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-500 shadow-xl text-white cursor-pointer border-0 text-white-force"
+                      >
+                        {directBusy ? (
+                          <RefreshCw className="w-4 h-4 animate-spin text-white-force" />
+                        ) : (
+                          <CloudUpload className="w-4 h-4 text-white-force" />
+                        )}
+                        <span>{directBusy ? 'Publishing Report & Dispatching PDF...' : '🚀 Submit Verified Report & Dispatch WhatsApp PDF'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {/* SubTab 2: Walk-in Test Registration */}
+          {intakeSubTab === 'walkin' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Registration form */}
+              <div className="lg:col-span-5 space-y-5">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-1 flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-blue-400 shrink-0" />
+                    Walk-in Lab Test Registration
+                  </h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+                    Register a patient for lab tests without a doctor's prescription. Walk-in tests are tagged separately in the Queue.
+                  </p>
+
+                  <form onSubmit={handleWalkinRegister} className="space-y-4">
+                    {/* Patient search */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                        Search Patient
+                      </label>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Search by name or phone..."
+                          value={walkinSearch}
+                          onChange={e => { setWalkinSearch(e.target.value); setWalkinPatientId(''); }}
+                          className="w-full input-field text-xs py-2.5 pl-9 focus:ring-1 focus:ring-blue-400"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Patient list */}
+                    {walkinSearch.length >= 2 && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {filteredPatients.length === 0 ? (
+                          <div className="text-center py-3 text-xs text-slate-400">No matching patients found.</div>
+                        ) : filteredPatients.map(p => (
+                          <button
+                            type="button"
+                            key={p.id}
+                            onClick={() => { setWalkinPatientId(p.id); setWalkinSearch(''); }}
+                            className={`w-full text-left p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+                              walkinPatientId === p.id
+                                ? 'bg-blue-500/15 border-blue-500/40 text-slate-800 dark:text-white'
+                                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <div className="font-bold text-xs">{p.name}</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{p.phone} · {p.age}y {p.gender}</div>
+                            {p.abhaId && <div className="text-[9px] text-blue-400 font-mono mt-0.5">ABHA: {p.abhaId}</div>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Selected patient badge */}
+                    {walkinPatientId && !walkinSearch && (
+                      <div className="flex items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                        <UserCheck className="w-4 h-4 text-blue-400 shrink-0" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-slate-800 dark:text-white">
+                            {patients.find(p => p.id === walkinPatientId)?.name || 'Selected Patient'}
+                          </div>
+                          <div className="text-[10px] text-blue-500 font-mono">
+                            {patients.find(p => p.id === walkinPatientId)?.phone}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setWalkinPatientId('')}
+                          className="text-slate-500 hover:text-slate-800 text-[10px] cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Test selection */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                        Select Diagnostic Test
+                      </label>
+                      <div className="space-y-2">
+                        {testCatalog.map(test => (
+                          <label
+                            key={test.loincCode}
+                            className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                              walkinTestCode === test.loincCode
+                                ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300'
+                                : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="radio"
+                                name="walkinTest"
+                                value={test.loincCode}
+                                checked={walkinTestCode === test.loincCode}
+                                onChange={e => setWalkinTestCode(e.target.value)}
+                                className="accent-indigo-600 w-3.5 h-3.5"
+                              />
+                              <div>
+                                <div className="text-xs font-bold text-slate-800 dark:text-white">{test.name}</div>
+                                <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
+                                  {test.category} · LOINC: {test.loincCode}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{test.price}</div>
+                              <div className="text-[9px] text-slate-400 font-mono">{test.unit}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Upload Request Slip / Prescription */}
+                    <div className="mt-2.5">
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">
+                        Upload Request Slip / Prescription (Optional)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border border-dashed border-slate-200 dark:border-slate-700 hover:border-blue-400 rounded-xl p-3 bg-slate-50 dark:bg-slate-800/40 text-center cursor-pointer text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-800 transition-colors">
+                          <Upload className="w-5 h-5 text-blue-400 shrink-0" />
+                          <span>{walkinFileUrl ? 'Re-upload / Change Slip' : 'Upload File (JPG, PNG, PDF)'}</span>
+                          <input 
+                            type="file" 
+                            accept="image/*,application/pdf" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  setWalkinFileUrl(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {walkinFileUrl && (
+                        <div className="flex items-center justify-between mt-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                            Slip Attached
+                          </span>
+                          <button 
+                            type="button" 
+                            onClick={() => setWalkinFileUrl(null)} 
+                            className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={!walkinPatientId || !walkinTestCode || walkinBusy}
+                      className="w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all cursor-pointer"
+                    >
+                      {walkinBusy ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <PlusCircle className="w-4 h-4" />
+                      )}
+                      {walkinBusy ? 'Registering...' : 'Register Walk-in Test'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Info box */}
+                <div className="flex items-start gap-3 p-4 bg-blue-500/5 border border-blue-500/15 rounded-xl text-[11px] text-blue-500 leading-relaxed">
+                  <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <span>
+                    Walk-in tests are auto-tagged with a <strong className="font-mono">WALK-</strong> barcode prefix and appear immediately in the test queue. No encounter ID is required — billing is handled separately at the counter.
+                  </span>
+                </div>
+              </div>
+
+              {/* Walk-in history */}
+              <div className="lg:col-span-7">
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-blue-500 to-indigo-500 opacity-50" />
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-blue-400 shrink-0" />
+                    Walk-in Test History ({walkinList.length})
+                  </h2>
+                  {walkinList.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 text-sm space-y-2">
+                      <UserPlus className="w-8 h-8 text-slate-300 mx-auto block" />
+                      No walk-in tests registered yet today.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {walkinList.map(req => {
+                        const invoices = api.getUnifiedInvoices();
+                        const inv = invoices.find(i => i.encounterId === req.id);
+                        const isPaid = inv && inv.paymentStatus === 'cleared';
+                        const test = testCatalog.find(t => t.loincCode === req.testCode) || { price: 350 };
+                        const testPrice = test.price || 350;
+
+                        return (
+                          <div key={req.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-slate-300 transition-colors gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                                req.status === 'completed' ? 'bg-emerald-400' :
+                                req.status === 'collected' || req.status === 'processed' ? 'bg-indigo-600 animate-pulse' :
+                                'bg-amber-400 animate-pulse'
+                              }`} />
+                              <div>
+                                <div className="text-xs font-bold text-slate-800 dark:text-white">{req.patientName}</div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{req.testName} · {req.testCode}</div>
+                                <div className="text-[9px] text-blue-400 font-mono mt-0.5">Barcode: {req.barcode}</div>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 justify-end">
+                              {/* Invoice Billing Options */}
+                              {isPaid ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-black uppercase text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-mono">
+                                    PAID ✅ (₹{inv.totalAmount})
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      // Open lab receipt print window
+                                      const html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><title>Lab Bill Receipt</title>
 <style>
@@ -1835,908 +2584,423 @@ export const LabDashboard: React.FC = () => {
   <div class="total">Total Paid (incl. platform commission): ₹${inv.totalAmount}</div>
   <div class="footer">Diagnostics bill cleared at counter. Test results will sync to physician console. VitalSync Pod network &copy; ${new Date().getFullYear()}</div>
 </div><script>window.onload=function(){window.print()}<\/script></body></html>`;
-                                  const win = window.open('','_blank','width=720,height=800');
-                                  if (win) { win.document.write(html); win.document.close(); }
-                                }}
-                                className="px-2.5 py-1 bg-slate-200 hover:bg-slate-350 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer flex items-center gap-1 border-0"
-                              >
-                                <Printer className="w-3 h-3" />
-                                Receipt
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-black text-rose-500 font-mono">UNPAID (₹{testPrice}) ⚠️</span>
-                              <button
-                                onClick={() => handleBillWalkinTest(req.id, 'cash')}
-                                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 active:scale-95 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer border-0"
-                              >
-                                Collect Cash
-                              </button>
-                              <button
-                                onClick={() => handleBillWalkinTest(req.id, 'upi')}
-                                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black rounded-lg cursor-pointer border-0"
-                              >
-                                UPI QR
-                              </button>
-                            </div>
-                          )}
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono border ${
-                            req.status === 'completed'
-                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                              : req.status === 'collected'
-                              ? 'text-indigo-600 bg-indigo-50 border-indigo-200'
-                              : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                          }`}>
-                            {req.status}
-                          </span>
-                          <div className="text-[9px] text-slate-400 font-mono">
-                            {new Date(req.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          TAB: DIRECT REPORT UPLOAD
+                                      const win = window.open('','_blank','width=720,height=800');
+                                      if (win) { win.document.write(html); win.document.close(); }
+                                    }}
+                                    className="px-2.5 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-800 dark:text-white text-[9px] font-black rounded-lg cursor-pointer flex items-center gap-1 border-0"
+                                  >
+                                    <Printer className="w-3 h-3" />
+                                    Receipt
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-black text-rose-500 font-mono">UNPAID (₹{testPrice}) ⚠️</span>
+                                  <button
+                                    onClick={() => handleBillWalkinTest(req.id, 'cash')}
+                                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 active:scale-95 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer border-0"
+{/* ══════════════════════════════════════════════════════════
+          TAB 4: FINANCIALS, LEDGER & SETTLEMENTS
       ══════════════════════════════════════════════════════════ */}
-      {activeTab === 'upload_report' && (
-        <form onSubmit={handleDirectReportUploadSubmit} className="space-y-6">
-          {/* Post-Submission Success Card if recently submitted */}
-          {lastDirectSubmission && (
-            <div className="glass-panel p-5 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md">
-                  <CheckCheck className="w-5 h-5" />
-                </div>
+      {activeTab === 'financials_ledger' && (
+        <div className="space-y-6 text-left animate-fade-in">
+          {/* Sub Switcher */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+            <button
+              type="button"
+              onClick={() => setFinancialsSubTab('invoices')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ${
+                financialsSubTab === 'invoices'
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span className="truncate">Billing Invoices</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFinancialsSubTab('settlements')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ${
+                financialsSubTab === 'settlements'
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Landmark className="w-3.5 h-3.5" />
+              <span className="truncate">SOP Settlements</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFinancialsSubTab('analytics')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ${
+                financialsSubTab === 'analytics'
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="truncate">Diagnostics Analytics</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFinancialsSubTab('pod_network')}
+              className={`flex items-center justify-center gap-1.5 py-2 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer border-0 ${
+                financialsSubTab === 'pod_network'
+                  ? 'bg-gradient-to-r from-teal-600 to-indigo-600 text-white shadow-md font-black'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span className="truncate">Pod Network</span>
+            </button>
+          </div>
+
+          {/* SubTab 1: Billing & Invoices */}
+          {financialsSubTab === 'invoices' && (
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden text-left bg-white dark:bg-slate-900">
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4 mb-6">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">Report Published &amp; Synced! 🚀</span>
-                    <span className="text-[10px] text-slate-500 font-mono">({lastDirectSubmission.time})</span>
-                  </div>
-                  <div className="text-sm font-bold text-slate-800 dark:text-white">
-                    {lastDirectSubmission.patientName} · {lastDirectSubmission.testName} (LOINC: {lastDirectSubmission.loincCode})
-                  </div>
-                  <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
-                    <Smartphone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Official PDF &amp; 2-Touchpoint Care Loop Dispatched to +91 {lastDirectSubmission.patientPhone}</span>
-                  </div>
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
+                    Lab Billing &amp; Invoices
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Generate itemized pathology invoices from doctor-prescribed test requisitions, process walk-in bills, and print/send invoices.
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
-                {lastDirectSubmission.pdfBlobUrl && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (lastDirectSubmission.pdfBlobUrl) {
-                        window.open(lastDirectSubmission.pdfBlobUrl, '_blank');
-                      }
-                    }}
-                    className="flex-1 md:flex-initial py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow cursor-pointer border-0"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>📄 Open / Print PDF</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLastDirectSubmission(null);
-                    setDirectPatientId('');
-                    setDirectSearch('');
-                  }}
-                  className="flex-1 md:flex-initial py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border-0"
-                >
-                  <PlusCircle className="w-4 h-4 text-indigo-500" />
-                  <span>Next Patient</span>
-                </button>
+              {(() => {
+                const labTestBills = api.getLabTestBills();
+                const activeRequisitions = requisitions.filter(r => {
+                  if (r.status !== 'pending') return false;
+                  // Check if paid via unified invoice
+                  const inv = invoices.find(i => i.encounterId === r.encounterId);
+                  if (inv && inv.paymentStatus === 'cleared') return false;
+                  // Check if already linked to any active lab test bill (draft, confirmed, or paid)
+                  const hasBill = labTestBills.some(b => b.status !== 'cancelled' && b.items.some(item => item.requisitionId === r.id));
+                  if (hasBill) return false;
+                  return true;
+                });
+
+                // Group requisitions by patientId
+                const reqsByPatient: Record<string, typeof activeRequisitions> = {};
+                activeRequisitions.forEach(r => {
+                  if (!reqsByPatient[r.patientId]) reqsByPatient[r.patientId] = [];
+                  reqsByPatient[r.patientId].push(r);
+                });
+
+                const pendingBills = labTestBills.filter(b => b.status === 'draft' || b.status === 'confirmed');
+                const paidBills = labTestBills.filter(b => b.status === 'paid');
+
+                return (
+                  <div className="space-y-8">
+                    {/* 1. Pending Requisitions Awaiting Billing */}
+                    <div>
+                      <h3 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                        Unbilled Doctor Test Requisitions ({Object.keys(reqsByPatient).length} Patients)
+                      </h3>
+                      {Object.keys(reqsByPatient).length === 0 ? (
+                        <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-xs text-slate-400">
+                          No unbilled requisitions right now. All doctor lab orders are billed or cleared.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {Object.entries(reqsByPatient).map(([patientId, patientReqs]) => {
+                            const patient = api.getPatients().find(p => p.id === patientId) || {
+                              id: patientId,
+                              name: patientReqs[0]?.patientName || 'Unknown Patient',
+                              phone: '—',
+                              age: 0,
+                              gender: '—'
+                            };
+
+                            const totalCost = patientReqs.reduce((sum, req) => {
+                              const test = testCatalog.find(t => t.loincCode === req.testCode);
+                              return sum + (test?.price || 350);
+                            }, 0);
+
+                            return (
+                              <div key={patientId} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 shadow-xs">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h4 className="font-bold text-slate-800 dark:text-white text-xs">{patient.name}</h4>
+                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">+91 {patient.phone}</p>
+                                  </div>
+                                  <span className="text-[9px] font-black uppercase text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-700 px-2 py-0.5 rounded-full font-mono">
+                                    {patientReqs.length} Tests Prescribed
+                                  </span>
+                                </div>
+                                <div className="space-y-1 bg-slate-50 dark:bg-slate-900/60 p-2.5 rounded-lg text-xs">
+                                  {patientReqs.map(r => {
+                                    const test = testCatalog.find(t => t.loincCode === r.testCode);
+                                    return (
+                                      <div key={r.id} className="flex justify-between text-[11px]">
+                                        <span className="text-slate-600 dark:text-slate-300 font-medium">{r.testName}</span>
+                                        <span className="font-bold text-slate-800 dark:text-white font-mono">₹{test?.price || 350}</span>
+                                      </div>
+                                    );
+                                  })}
+                                  <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 mt-1.5 flex justify-between font-black text-xs text-indigo-600 dark:text-indigo-400">
+                                    <span>Total Value:</span>
+                                    <span>₹{totalCost}</span>
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const billItems = patientReqs.map(r => {
+                                      const test = testCatalog.find(t => t.loincCode === r.testCode);
+                                      const price = test?.price || 350;
+                                      return {
+                                        requisitionId: r.id,
+                                        loincCode: r.testCode,
+                                        testName: r.testName,
+                                        price,
+                                        discountPercent: 0,
+                                        gstPercent: 0,
+                                        lineTotal: price
+                                      };
+                                    });
+                                    const subtotal = billItems.reduce((s, i) => s + i.price, 0);
+                                    const bill = {
+                                      id: crypto.randomUUID(),
+                                      patientId: patient.id,
+                                      patientName: patient.name,
+                                      patientPhone: patient.phone,
+                                      encounterId: patientReqs[0]?.encounterId,
+                                      items: billItems,
+                                      subtotal,
+                                      discountAmount: 0,
+                                      gstAmount: 0,
+                                      totalAmount: subtotal,
+                                      paymentMode: 'cash' as const,
+                                      status: 'draft' as const,
+                                      source: 'encounter' as const,
+                                      createdAt: new Date().toISOString()
+                                    };
+                                    api.saveLabTestBill(bill);
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: { message: `Lab test bill generated for ${patient.name}!`, type: 'success', title: 'Lab Bill Created' }
+                                    }));
+                                  }}
+                                  className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer transition-all border-0"
+                                >
+                                  Generate Lab Invoice
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Pending Invoices (Awaiting Payment Collection) */}
+                    <div>
+                      <h3 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                        Pending Payments ({pendingBills.length})
+                      </h3>
+                      {pendingBills.length === 0 ? (
+                        <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-xs text-slate-400">
+                          No pending bills.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {pendingBills.map(bill => (
+                            <div key={bill.id} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 relative">
+                              <div className="absolute top-0 right-0 bg-amber-500 text-slate-900 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                                {(bill.status || '').toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-slate-800 dark:text-white text-xs">{bill.patientName}</h4>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} tests</p>
+                              </div>
+                              <div className="text-xs font-black text-slate-800 dark:text-white">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    api.payLabTestBill(bill.id, 'cash');
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: { message: `Collected ₹${(bill.totalAmount || 0).toFixed(0)} cash! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
+                                    }));
+                                  }}
+                                  className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-900 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
+                                >
+                                  Cash
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    api.payLabTestBill(bill.id, 'upi');
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: { message: `Collected ₹${(bill.totalAmount || 0).toFixed(0)} via UPI! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
+                                    }));
+                                  }}
+                                  className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
+                                >
+                                  UPI / QR
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Paid Invoices (Receipts & WhatsApp) */}
+                    <div>
+                      <h3 className="text-xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        Paid Invoices ({paidBills.length})
+                      </h3>
+                      {paidBills.length === 0 ? (
+                        <div className="p-6 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded-xl text-center text-xs text-slate-400">
+                          No paid invoices yet.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {paidBills.map(bill => (
+                            <div key={bill.id} className="p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 relative">
+                              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
+                                PAID
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-slate-800 dark:text-white text-xs">{bill.patientName || 'Patient'}</h4>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} tests</p>
+                              </div>
+                              <div className="text-xs font-black text-emerald-600 dark:text-emerald-400">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const url = URL.createObjectURL(new Blob([`Lab Invoice #${bill.id || 'N/A'}\nPatient: ${bill.patientName || 'Patient'}\nTotal: ₹${(bill.totalAmount || 0).toFixed(2)}`], { type: 'text/plain' }));
+                                    window.open(url, '_blank');
+                                    setTimeout(() => URL.revokeObjectURL(url), 1500);
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
+                                >
+                                  <Printer className="w-3 h-3" /> Print
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    api.sendLabInvoiceToPatient(bill);
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: { message: `Invoice sent to ${bill.patientName} on WhatsApp!`, type: 'success', title: 'Invoice Sent' }
+                                    }));
+                                  }}
+                                  className="flex-1 px-2 py-1.5 bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
+                                >
+                                  <Send className="w-3 h-3" /> WhatsApp
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* SubTab 2: SOP Settlements */}
+          {financialsSubTab === 'settlements' && (
+            <div className="space-y-6">
+              <SettlementWidget 
+                entityId={activeEntity?.id || ''}
+                podId={activeEntity?.podId || ''}
+                entityType="lab"
+                displayName="Pathology Lab Settlements"
+                theme="dark"
+              />
+              
+              {/* Split rules display */}
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4 bg-white dark:bg-slate-900">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                  Active SOP Split Configuration
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  These percentages represent your shared payouts calculated dynamically on invoice clearance.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Your Split</p>
+                    <p className="text-xl font-extrabold text-slate-800 dark:text-white mt-1">Lab Split</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Calculated per test catalog price</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Doctor Split</p>
+                    <p className="text-xl font-extrabold text-slate-800 dark:text-white mt-1">Managed by SOP</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Based on active agreements</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Platform Fee</p>
+                    <p className="text-xl font-extrabold text-slate-800 dark:text-white mt-1">3%</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Platform service charge</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left: Patient Queue Selector & Diagnostic Test */}
-            <div className="lg:col-span-6 space-y-6">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-60" />
-                
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                    1. Select Patient from Today's Queue (आज के मरीज़)
-                  </h2>
-                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-md font-bold font-mono">
-                    {directFilteredQueuePatients.length} Active
-                  </span>
-                </div>
-                
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
-                  Select the patient who completed consultation or has ordered lab tests for today. Mediflow will automatically sync the report across Doctor EMR and Compounder Desk.
-                </p>
-
-                {/* Queue Filter Tabs */}
-                <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl mb-3 text-[11px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setDirectQueueFilterTab('prescribed_lab')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer border-0 ${
-                      directQueueFilterTab === 'prescribed_lab'
-                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    🧪 Prescribed Lab ({todayQueuePatients.filter(p => p.isPrescribedLab || p.requisitions.length > 0).length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDirectQueueFilterTab('today_consultations')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer border-0 ${
-                      directQueueFilterTab === 'today_consultations'
-                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    👨‍⚕️ Consultations ({todayQueuePatients.filter(p => !!p.appointment).length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDirectQueueFilterTab('all')}
-                    className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center cursor-pointer border-0 ${
-                      directQueueFilterTab === 'all'
-                        ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm font-bold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                    }`}
-                  >
-                    🔍 All ({patients.length})
-                  </button>
-                </div>
-
-                {/* Patient Search Input */}
-                <div className="relative mb-3">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Filter by name, phone, or token (#TK-001)..."
-                    value={directSearch}
-                    onChange={e => setDirectSearch(e.target.value)}
-                    className="w-full input-field text-xs py-2 pl-9 pr-8 focus:ring-1 focus:ring-indigo-400"
-                  />
-                  {directSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setDirectSearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-
-                {/* Selected Patient Confirmation Banner */}
-                {directPatientId && (
-                  <div className="mb-4 p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-xl flex items-center justify-between gap-3 shadow-sm">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shrink-0">
-                        ✓
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
-                          <span>{patients.find(p => p.id === directPatientId)?.name || 'Selected Patient'}</span>
-                          <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">Selected</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          +91 {patients.find(p => p.id === directPatientId)?.phone} · {patients.find(p => p.id === directPatientId)?.age}y ({patients.find(p => p.id === directPatientId)?.gender})
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setDirectPatientId('')}
-                      className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer border-0 bg-transparent"
-                    >
-                      Change
-                    </button>
-                  </div>
-                )}
-
-                {/* Scrollable Patient Queue List */}
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1 mb-5">
-                  {directFilteredQueuePatients.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-                      No matching patients in this view. Try switching to "All" or searching.
-                    </div>
-                  ) : (
-                    directFilteredQueuePatients.map(item => {
-                      const isSelected = directPatientId === item.patient.id;
-                      const reqTest = item.requisitions[0];
-
-                      return (
-                        <div
-                          key={`queue-${item.patient.id}`}
-                          onClick={() => {
-                            setDirectPatientId(item.patient.id);
-                            if (reqTest && reqTest.testCode) {
-                              setDirectTestCode(reqTest.testCode);
-                            }
-                          }}
-                          className={`p-3 rounded-xl border transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${
-                            isSelected
-                              ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-500 ring-2 ring-indigo-500/20 text-slate-800 dark:text-white shadow-sm'
-                              : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-indigo-300 text-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-black shrink-0 font-mono">
-                              {String(item.tokenNumber || '#TK').slice(-3)}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-bold text-xs flex items-center gap-1.5 truncate">
-                                <span>{item.patient.name}</span>
-                                {item.source === 'whatsapp' && (
-                                  <span className="text-[8px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1 py-0.2 rounded font-bold">🟢 WA</span>
-                                )}
-                                {item.source === 'qr' && (
-                                  <span className="text-[8px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-bold">📲 QR</span>
-                                )}
-                                {item.source === 'emergency' && (
-                                  <span className="text-[8px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1 py-0.2 rounded font-bold">🚨 SOS</span>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-slate-500 font-mono truncate">
-                                +91 {item.patient.phone} · {item.patient.age}y {item.patient.gender}
-                              </div>
-                              {reqTest && (
-                                <div className="text-[9px] text-purple-600 dark:text-purple-400 font-bold flex items-center gap-1 mt-0.5 truncate font-mono">
-                                  <FlaskConical className="w-2.5 h-2.5 shrink-0" />
-                                  <span>Prescribed: {reqTest.testName}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono ${
-                              isSelected
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                            }`}>
-                              {isSelected ? 'Selected ✓' : 'Select'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Test Selection */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">
-                    Select Diagnostic Test (जांच चुनें)
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {testCatalog.map(test => (
-                      <label
-                        key={test.loincCode}
-                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200 ${
-                          directTestCode === test.loincCode
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 shadow-sm'
-                            : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <input
-                            type="radio"
-                            name="directTest"
-                            value={test.loincCode}
-                            checked={directTestCode === test.loincCode}
-                            onChange={e => setDirectTestCode(e.target.value)}
-                            className="accent-indigo-600 w-3.5 h-3.5 shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-slate-800 dark:text-white truncate">{test.name}</div>
-                            <div className="text-[9px] text-slate-500 font-mono">
-                              LOINC: {test.loincCode}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-mono">₹{test.price}</div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Biomarker Entry Form & File Dropzone & Submit Action */}
-            <div className="lg:col-span-6 space-y-6 flex flex-col justify-between">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex-1">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                
-                <h3 className="font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-sm">
-                  <ClipboardEdit className="w-4 h-4 text-teal-600 shrink-0" />
-                  2. Upload Report File &amp; Review Biomarkers
-                </h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
-                  Attach an analyzer slip/PDF or type biomarker numbers. An official signed LOINC PDF will be created and delivered to WhatsApp instantly.
-                </p>
-
-                {/* File Dropzone & Camera */}
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <label
-                      className={`flex-1 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
-                        directFile
-                          ? 'border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20'
-                          : 'border-slate-300 dark:border-slate-700 hover:border-indigo-500 bg-slate-50 dark:bg-slate-800/40'
-                      }`}
-                    >
-                      <Upload className="w-5 h-5 text-indigo-600 shrink-0" />
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        {directFile ? directFile.name : 'Click to Upload Report File (PDF / JPG / PNG)'}
-                      </span>
-                      <span className="text-[10px] text-slate-400">Drag &amp; drop physical analyzer slip or generated PDF</span>
-                      <input 
-                        ref={directFileInputRef}
-                        type="file" 
-                        accept="image/*,application/pdf" 
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setDirectFile(file);
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              setDirectFilePreviewUrl(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => directCameraInputRef.current?.click()}
-                      className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all shadow-sm"
-                      title="Snap photo with camera"
-                    >
-                      <Camera className="w-5 h-5 text-indigo-600" />
-                      <span className="text-[9px] font-bold">Camera</span>
-                      <input
-                        ref={directCameraInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setDirectFile(file);
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              setDirectFilePreviewUrl(reader.result as string);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Loaded File Actions & AI Vision Auto-Fill */}
-                  {directFile && (
-                    <div className="flex flex-wrap items-center justify-between mt-2.5 p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl gap-2">
-                      <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5 truncate">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span className="truncate">{directFile.name} ({(directFile.size / 1024).toFixed(1)} KB)</span>
-                      </span>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          disabled={isAiScanningReport}
-                          onClick={() => handleAutoExtractLabReport(directFile)}
-                          className="py-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-extrabold flex items-center gap-1 cursor-pointer border-0 shadow-sm disabled:opacity-50"
-                        >
-                          {isAiScanningReport ? (
-                            <RefreshCw className="w-3 h-3 animate-spin text-white" />
-                          ) : (
-                            <Sparkles className="w-3 h-3 text-amber-300" />
-                          )}
-                          <span>{isAiScanningReport ? 'Reading...' : '✨ Auto-Read Biomarkers'}</span>
-                        </button>
-
-                        <button 
-                          type="button" 
-                          onClick={() => { setDirectFile(null); setDirectFilePreviewUrl(''); }} 
-                          className="text-[10px] text-rose-500 hover:text-rose-400 cursor-pointer bg-transparent border-0 font-bold"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Biomarker Form Inputs */}
-                <div className="space-y-3.5">
-                  {directTestCode === '4544-3' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          HbA1c (%)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          step="0.1"
-                          min="3"
-                          max="20"
-                          value={hba1cVal}
-                          onChange={e => handleHba1cChange(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          eAG (mg/dL)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={eagVal}
-                          onChange={e => setEagVal(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                        <span className="text-[8px] text-slate-400 font-mono mt-0.5 block">Auto: eAG = 28.7 × HbA1c − 46.7</span>
-                      </div>
-                    </div>
-                  ) : directTestCode === '2160-0' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          Serum Creatinine (mg/dL)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          step="0.01"
-                          min="0.1"
-                          max="15"
-                          value={creatinineVal}
-                          onChange={e => setCreatinineVal(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          eGFR (mL/min/1.73m²)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={egfrVal}
-                          onChange={e => setEgfrVal(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          BUN (mg/dL)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={bunVal}
-                          onChange={e => setBunVal(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                    </div>
-                  ) : directTestCode === '3024-7' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          Hemoglobin (g/dL)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          step="0.1"
-                          min="2"
-                          max="25"
-                          value={hbVal}
-                          onChange={e => handleHbChange(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          Hematocrit (%)
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          value={hctVal}
-                          onChange={e => setHctVal(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                        <span className="text-[8px] text-slate-400 font-mono mt-0.5 block">Auto: Hct ≈ Hb × 3</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          Result Value
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g., 98.4"
-                          value={genericVal}
-                          onChange={e => setGenericVal(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
-                          Unit
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g., mg/dL"
-                          value={genericUnit}
-                          onChange={e => setGenericUnit(e.target.value)}
-                          className="w-full input-field text-sm font-bold focus:ring-1 focus:ring-teal-400"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* LOINC Reference Range graphic */}
-                  <div className="bg-slate-50 dark:bg-slate-800/60 p-3 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1.5">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider font-mono">
-                      LOINC Clinical Reference Band
-                    </span>
-                    <div className="h-[3px] w-full bg-slate-200 dark:bg-slate-700 relative rounded-full overflow-hidden">
-                      <div className="absolute left-[25%] right-[25%] h-full bg-teal-500" />
-                    </div>
-                    <div className="flex justify-between text-[8px] text-slate-500 font-mono">
-                      {directTestCode === '4544-3' ? (
-                        <><span>{'< 5.7% Normal'}</span><span className="text-teal-600 font-bold">5.7–6.4% Pre-diab</span><span>≥ 6.5% Diabetic</span></>
-                      ) : directTestCode === '2160-0' ? (
-                        <><span>{'< 0.6 mg/dL'}</span><span className="text-teal-600 font-bold">0.6–1.2 mg/dL</span><span>{'> 1.2 mg/dL'}</span></>
-                      ) : directTestCode === '3024-7' ? (
-                        <><span>{'< 12.0 g/dL'}</span><span className="text-teal-600 font-bold">12.0–16.0 g/dL</span><span>{'> 16.0 g/dL'}</span></>
-                      ) : (
-                        <><span>Low</span><span className="text-teal-600 font-bold">Normal Range</span><span>High</span></>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-5">
-                  <button
-                    type="submit"
-                    disabled={!directPatientId || !directTestCode || directBusy}
-                    className="w-full py-3.5 px-6 text-xs sm:text-sm font-black flex items-center justify-center gap-2 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-95 transition-all bg-gradient-to-r from-indigo-600 via-purple-600 to-teal-500 shadow-xl text-white cursor-pointer border-0 text-white-force"
-                  >
-                    {directBusy ? (
-                      <RefreshCw className="w-4 h-4 animate-spin text-white-force" />
-                    ) : (
-                      <CloudUpload className="w-4 h-4 text-white-force" />
-                    )}
-                    <span>{directBusy ? 'Publishing Report & Dispatching PDF...' : '🚀 Submit Report to Database & WhatsApp (रिपोर्ट सुरक्षित करें व भेजें)'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </form>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          TAB: ANALYTICS
-      ══════════════════════════════════════════════════════════ */}
-      {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Tests Processed', value: totalTests, icon: <BarChart3 className="w-5 h-5 text-indigo-600" />, color: 'primary' },
-              { label: "Today's Tests", value: todayCompleted.length, icon: <Calendar className="w-5 h-5 text-emerald-500" />, color: 'emerald' },
-              { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString('en-IN')}`, icon: <Coins className="w-5 h-5 text-amber-500" />, color: 'amber' },
-              { label: 'Walk-in Tests', value: walkinList.length, icon: <UserPlus className="w-5 h-5 text-blue-500" />, color: 'blue' }
-            ].map(card => (
-              <div key={card.label} className="glass-panel p-5 border-slate-200/60 relative overflow-hidden">
-                <div className={`absolute top-0 left-0 w-full h-[2px] ${
-                  card.color === 'primary' ? 'bg-indigo-600' :
-                  card.color === 'emerald' ? 'bg-emerald-500' :
-                  card.color === 'amber' ? 'bg-amber-500' : 'bg-blue-500'
-                } opacity-60`} />
-                <div className="mb-2">{card.icon}</div>
-                <div className="text-2xl font-bold text-slate-800 mt-2 font-mono">{card.value}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mt-1">{card.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Test frequency breakdown */}
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-50" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-5 flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-indigo-600 shrink-0" />
-                Test Frequency Breakdown
-              </h2>
-              {testBreakdown.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-sm">No completed tests to analyze yet.</div>
-              ) : (
-                <div className="space-y-3">
-                  {testBreakdown.map(([name, count]) => {
-                    const pct = Math.round((count / totalTests) * 100);
-                    return (
-                      <div key={name}>
-                        <div className="flex justify-between text-xs mb-1.5">
-                          <span className="text-slate-700 font-semibold truncate max-w-[200px]">{name}</span>
-                          <span className="text-slate-500 font-mono font-bold ml-2">{count} tests ({pct}%)</span>
-                        </div>
-                        <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-indigo-600 to-teal-500 rounded-full transition-all duration-700"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* LOINC catalog pricing reference */}
-            <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-secondary to-indigo-500 opacity-50" />
-              <h2 className="text-sm font-semibold text-slate-800 mb-5 flex items-center gap-2">
-                <Microscope className="w-4 h-4 text-teal-600 shrink-0" />
-                LOINC Test Catalog & Pricing
-              </h2>
-              <div className="space-y-2">
-                {testCatalog.map(test => (
-                  <div key={test.loincCode} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div>
-                      <div className="text-xs font-bold text-slate-800">{test.name}</div>
-                      <div className="text-[9px] text-slate-500 font-mono">
-                        LOINC: {test.loincCode} · {test.category} · Range: {test.normalRange} {test.unit}
-                      </div>
-                    </div>
-                    <div className="text-sm font-bold text-indigo-600 font-mono ml-3 shrink-0">₹{test.price}</div>
+          {/* SubTab 3: Diagnostics Analytics */}
+          {financialsSubTab === 'analytics' && (
+            <div className="space-y-6">
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { label: 'Total Tests Processed', value: totalTests, icon: <BarChart3 className="w-5 h-5 text-indigo-600" />, color: 'primary' },
+                  { label: "Today's Tests", value: todayCompleted.length, icon: <Calendar className="w-5 h-5 text-emerald-500" />, color: 'emerald' },
+                  { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString('en-IN')}`, icon: <Coins className="w-5 h-5 text-amber-500" />, color: 'amber' },
+                  { label: 'Walk-in Tests', value: walkinList.length, icon: <UserPlus className="w-5 h-5 text-blue-500" />, color: 'blue' }
+                ].map(card => (
+                  <div key={card.label} className="glass-panel p-5 border-slate-200/60 relative overflow-hidden bg-white dark:bg-slate-900">
+                    <div className={`absolute top-0 left-0 w-full h-[2px] ${
+                      card.color === 'primary' ? 'bg-indigo-600' :
+                      card.color === 'emerald' ? 'bg-emerald-500' :
+                      card.color === 'amber' ? 'bg-amber-500' : 'bg-blue-500'
+                    } opacity-60`} />
+                    <div className="mb-2">{card.icon}</div>
+                    <div className="text-2xl font-bold text-slate-800 dark:text-white mt-2 font-mono">{card.value}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold mt-1">{card.label}</div>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
 
-          {/* Chemical deduction audit log */}
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-amber-500 opacity-40" />
-            <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-amber-500 shrink-0" />
-              Chemical Reagent Deduction Audit Log
-            </h2>
-            {completedList.flatMap(r => r.reagentDeductions || []).length === 0 ? (
-              <div className="text-center py-6 text-slate-400 text-sm">No reagent deductions logged yet.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead className="text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
-                    <tr>
-                      <th className="p-3">Test</th>
-                      <th className="p-3">Patient</th>
-                      <th className="p-3">Reagent</th>
-                      <th className="p-3 text-right">Deducted</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200/40">
-                    {completedList.flatMap(req =>
-                      (req.reagentDeductions || []).map((ded, i) => (
-                        <tr key={`${req.id}-${i}`} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-semibold text-slate-800">{req.testName}</td>
-                          <td className="p-3 text-slate-600">{req.patientName}</td>
-                          <td className="p-3 text-amber-600 font-mono">{ded.reagentName}</td>
-                          <td className="p-3 text-right text-rose-400 font-bold font-mono">−{ded.volumeDeducted}{ded.unit}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-
-
-      {/* TAB: SETTLEMENTS */}
-      {activeTab === 'settlements' && (
-        <div className="space-y-6">
-          <SettlementWidget 
-            entityId={activeEntity?.id || ''}
-            podId={activeEntity?.podId || ''}
-            entityType="lab"
-            displayName="Pathology Lab Settlements"
-            theme="dark"
-          />
-          
-          {/* Split rules display */}
-          <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-              Active SOP Split Configuration
-            </h3>
-            <p className="text-xs text-slate-500">
-              These percentages represent your shared payouts calculated dynamically on invoice clearance.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Your Split</p>
-                <p className="text-xl font-extrabold text-slate-800 mt-1">Lab Split</p>
-                <p className="text-xs text-slate-400 mt-0.5 font-semibold">Calculated per test catalog price</p>
-              </div>
-              <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Doctor Split</p>
-                <p className="text-xl font-extrabold text-slate-800 mt-1">Managed by SOP</p>
-                <p className="text-xs text-slate-400 mt-0.5 font-semibold">Based on active agreements</p>
-              </div>
-              <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Platform Fee</p>
-                <p className="text-xl font-extrabold text-slate-800 mt-1">3%</p>
-                <p className="text-xs text-slate-400 mt-0.5 font-semibold">Platform service charge</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB: BILLING & INVOICES */}
-      {activeTab === 'billing_invoices' && (
-        <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden text-left">
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
-                Lab Billing & Invoices
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Generate itemized pathology invoices from doctor-prescribed test requisitions, process walk-in bills, and print/send invoices.
-              </p>
-            </div>
-          </div>
-
-          {(() => {
-            const labTestBills = api.getLabTestBills();
-            const activeRequisitions = requisitions.filter(r => {
-              if (r.status !== 'pending') return false;
-              // Check if paid via unified invoice
-              const inv = invoices.find(i => i.encounterId === r.encounterId);
-              if (inv && inv.paymentStatus === 'cleared') return false;
-              // Check if already linked to any active lab test bill (draft, confirmed, or paid)
-              const hasBill = labTestBills.some(b => b.status !== 'cancelled' && b.items.some(item => item.requisitionId === r.id));
-              if (hasBill) return false;
-              return true;
-            });
-            const patientsList = api.getPatients();
-
-            // Group requisitions by patientId
-            const reqsByPatient: Record<string, typeof activeRequisitions> = {};
-            activeRequisitions.forEach(r => {
-              if (!reqsByPatient[r.patientId]) reqsByPatient[r.patientId] = [];
-              reqsByPatient[r.patientId].push(r);
-            });
-
-            const pendingBills = labTestBills.filter(b => b.status === 'draft' || b.status === 'confirmed');
-            const paidBills = labTestBills.filter(b => b.status === 'paid');
-
-            return (
-              <div className="space-y-8">
-                {/* 1. Pending Requisitions Awaiting Billing */}
-                <div>
-                  <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                    Doctor Requisitions Awaiting Billing ({Object.keys(reqsByPatient).length} patients)
-                  </h3>
-                  {Object.keys(reqsByPatient).length === 0 ? (
-                    <InlineEmptyState
-                      icon="receipt_long"
-                      label="No Pending Requisitions"
-                      sublabel="All doctor-ordered test requisitions have been billed."
-                      variant="success"
-                    />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Test frequency breakdown */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-600 to-teal-500 opacity-50" />
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+                    <PieChart className="w-4 h-4 text-indigo-600 shrink-0" />
+                    Test Frequency Breakdown
+                  </h2>
+                  {testBreakdown.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400 text-sm">No completed tests to analyze yet.</div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {Object.entries(reqsByPatient).map(([patientId, patientReqs]) => {
-                        const patient = patientsList.find(p => p.id === patientId);
-                        if (!patient) return null;
-                        const totalAmt = patientReqs.reduce((sum, r) => {
-                          const test = testCatalog.find(t => t.loincCode === r.testCode);
-                          return sum + (test?.price || 350);
-                        }, 0);
-
+                    <div className="space-y-3">
+                      {testBreakdown.map(([name, count]) => {
+                        const pct = Math.round((count / totalTests) * 100);
                         return (
-                          <div key={patientId} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-bold text-slate-800 text-xs">{patient.name}</h4>
-                                <p className="text-[10px] text-slate-500 font-mono">+91 {patient.phone}</p>
-                              </div>
-                              <span className="text-xs font-black text-amber-600">₹{totalAmt.toFixed(0)}</span>
+                          <div key={name}>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className="text-slate-700 dark:text-slate-300 font-semibold truncate max-w-[200px]">{name}</span>
+                              <span className="text-slate-500 dark:text-slate-400 font-mono font-bold ml-2">{count} tests ({pct}%)</span>
                             </div>
-                            <div className="space-y-1">
-                              {patientReqs.map(r => {
-                                const test = testCatalog.find(t => t.loincCode === r.testCode);
-                                return (
-                                  <div key={r.id} className="flex justify-between text-[10px] text-slate-600 font-mono">
-                                    <span>🧪 {r.testName}</span>
-                                    <span>₹{test?.price || '350'}</span>
-                                  </div>
-                                );
-                              })}
+                            <div className="h-2 bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-indigo-600 to-teal-500 rounded-full transition-all duration-700"
+                                style={{ width: `${pct}%` }}
+                              />
                             </div>
-                            <button
-                              onClick={() => {
-                                const billItems = patientReqs.map(r => {
-                                  const test = testCatalog.find(t => t.loincCode === r.testCode);
-                                  const price = test?.price || 350;
-                                  return {
-                                    requisitionId: r.id,
-                                    loincCode: r.testCode,
-                                    testName: r.testName,
-                                    price,
-                                    discountPercent: 0,
-                                    gstPercent: 0,
-                                    lineTotal: price
-                                  };
-                                });
-                                const subtotal = billItems.reduce((s, i) => s + i.price, 0);
-                                const bill = {
-                                  id: crypto.randomUUID(),
-                                  patientId: patient.id,
-                                  patientName: patient.name,
-                                  patientPhone: patient.phone,
-                                  encounterId: patientReqs[0]?.encounterId,
-                                  items: billItems,
-                                  subtotal,
-                                  discountAmount: 0,
-                                  gstAmount: 0,
-                                  totalAmount: subtotal,
-                                  paymentMode: 'cash' as const,
-                                  status: 'draft' as const,
-                                  source: 'encounter' as const,
-                                  createdAt: new Date().toISOString()
-                                };
-                                api.saveLabTestBill(bill);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Lab test bill generated for ${patient.name}!`, type: 'success', title: 'Lab Bill Created' }
-                                }));
-                              }}
-                              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider rounded-lg cursor-pointer transition-all border-0"
-                            >
-                              Generate Lab Invoice
-                            </button>
                           </div>
                         );
                       })}
@@ -2744,147 +3008,6 @@ export const LabDashboard: React.FC = () => {
                   )}
                 </div>
 
-                {/* 2. Pending Invoices (Awaiting Payment Collection) */}
-                <div>
-                  <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-indigo-505" />
-                    Pending Payments ({pendingBills.length})
-                  </h3>
-                  {pendingBills.length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                      No pending bills.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {pendingBills.map(bill => (
-                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
-                          <div className="absolute top-0 right-0 bg-amber-500 text-slate-800 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            {(bill.status || '').toUpperCase()}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} tests</p>
-                          </div>
-                          <div className="text-xs font-black text-slate-800">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                api.payLabTestBill(bill.id, 'cash');
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Collected ₹${(bill.totalAmount || 0).toFixed(0)} cash! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
-                                }));
-                              }}
-                              className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
-                            >
-                              Cash
-                            </button>
-                            <button
-                              onClick={() => {
-                                api.payLabTestBill(bill.id, 'upi');
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Collected ₹${(bill.totalAmount || 0).toFixed(0)} via UPI! Invoice marked paid.`, type: 'success', title: 'Payment Collected' }
-                                }));
-                              }}
-                              className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
-                            >
-                              UPI / QR
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Paid Invoices (Receipts & WhatsApp) */}
-                <div>
-                  <h3 className="text-xs font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Paid Invoices ({paidBills.length})
-                  </h3>
-                  {paidBills.length === 0 ? (
-                    <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-400">
-                      No paid invoices yet.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {paidBills.map(bill => (
-                        <div key={bill.id} className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 relative">
-                          <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase px-2.5 py-0.5 rounded-bl">
-                            PAID
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-xs">{bill.patientName || 'Patient'}</h4>
-                            <p className="text-[10px] text-slate-500 font-mono">Invoice #{(bill.id || 'N/A').substring(0, 8)} • {(bill.items || []).length} tests</p>
-                          </div>
-                          <div className="text-xs font-black text-emerald-600">Total: ₹{(bill.totalAmount || 0).toFixed(2)}</div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                const url = URL.createObjectURL(new Blob([`Lab Invoice #${bill.id || 'N/A'}\nPatient: ${bill.patientName || 'Patient'}\nTotal: ₹${(bill.totalAmount || 0).toFixed(2)}`], { type: 'text/plain' }));
-                                window.open(url, '_blank');
-                                setTimeout(() => URL.revokeObjectURL(url), 1500);
-                              }}
-                              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
-                            >
-                              <Printer className="w-3 h-3" /> Print
-                            </button>
-                            <button
-                              onClick={() => {
-                                api.sendLabInvoiceToPatient(bill);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `Invoice sent to ${bill.patientName} on WhatsApp!`, type: 'success', title: 'Invoice Sent' }
-                                }));
-                              }}
-                              className="flex-1 px-2 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-[9px] font-bold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1 border-0"
-                            >
-                              <Send className="w-3 h-3" /> WhatsApp
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      {/* TAB: POD NETWORK */}
-      {activeTab === 'pod_network' && (
-        <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6">
-          <div className="flex justify-between items-center border-b border-slate-200/60 pb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <Network className="w-4 h-4 text-indigo-400 shrink-0" />
-                Pod Network HUB
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Connected clinical clinic node and ecosystem partner network details.
-              </p>
-            </div>
-            <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded-full uppercase tracking-wider border ${
-              activeEntity?.status === 'approved' 
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-            }`}>
-              {activeEntity?.status || 'Pending Connection'}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-            <div className="space-y-4">
-              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">
-                🏥 Primary Clinic Connection
-              </h3>
-              <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
-                <p className="text-xs font-bold text-slate-800">{activePod?.name || 'Primary Clinical Network'}</p>
-                <div className="text-[10px] text-slate-500 space-y-1">
-                  <div>Clinic Code: <span className="font-mono font-bold text-slate-800 bg-slate-800/40 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
-                  <div>Location: {activePod?.location || 'Clinic Hub'}</div>
-                  <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
                 </div>
               </div>
             </div>

@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [activeDoctorTab, setActiveDoctorTab] = useState<string>('pod_view');
   const [activeCompounderTab, setActiveCompounderTab] = useState<string>('overview');
   const [activePharmacyTab, setActivePharmacyTab] = useState<string>('prescription_queue');
-  const [activeLabTab, setActiveLabTab] = useState<string>('queue');
+  const [activeLabTab, setActiveLabTab] = useState<string>('overview');
   const [activeAdminTab, setActiveAdminTab] = useState<string>('saas_health');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalInitialTab, setProfileModalInitialTab] = useState<SettingsTabType>('profile');
@@ -1080,10 +1080,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             if (currentRole === 'lab') {
               const labTabs = [
-                { id: 'queue', label: 'Queue', icon: FlaskConical },
-                { id: 'walkin', label: 'Walk-in', icon: UserPlus },
-                { id: 'upload_report', label: 'Upload', icon: UploadCloud },
-                { id: 'settlements', label: 'Ledger', icon: CreditCard }
+                { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+                { id: 'worklist', label: 'Worklist', icon: FlaskConical },
+                { id: 'intake_upload', label: 'Intake', icon: UploadCloud },
+                { id: 'financials_ledger', label: 'Financials', icon: Receipt }
               ];
               return labTabs.map(t => {
                 const Icon = t.icon;
@@ -1095,19 +1095,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => {
                       setActiveLabTab(t.id);
                       window.dispatchEvent(new CustomEvent('mediflow-lab-tab-changed', { detail: t.id }));
+                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: t.id }));
                     }}
-                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-150 cursor-pointer bg-transparent border-0 outline-none select-none ${
+                    className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none select-none relative rounded-xl ${
                       isActive 
                         ? 'text-teal-600 dark:text-teal-400 font-extrabold' 
                         : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                   >
-                    <div className={`flex items-center justify-center h-5 w-5 shrink-0 overflow-hidden transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>
+                    {isActive && (
+                      <span className="absolute inset-0 bg-teal-50 dark:bg-teal-950/80 rounded-xl -z-10 border border-teal-200/50 dark:border-teal-800/50 shadow-sm" />
+                    )}
+                    <div className={`flex items-center justify-center h-4.5 w-4.5 shrink-0 overflow-hidden transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
                       <Icon className="h-4 w-4 shrink-0" />
                     </div>
-                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-1 ${isActive ? 'font-black text-teal-600 dark:text-teal-400' : 'font-semibold'}`}>
+                    <span className={`text-[9.5px] tracking-tight leading-tight whitespace-nowrap mt-0.5 ${isActive ? 'font-black text-teal-600 dark:text-teal-400' : 'font-semibold'}`}>
                       {t.label}
                     </span>
+                    {isActive && (
+                      <span className="w-1 h-1 rounded-full bg-teal-600 dark:bg-teal-400 mt-0.5 animate-pulse" />
+                    )}
                   </button>
                 );
               });
