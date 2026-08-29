@@ -78,6 +78,20 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
     setActiveSlide((prev) => (prev > 1 ? prev - 1 : prev));
   };
 
+  // Enforce pure bright executive light theme while on pitch deck
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains('dark') || document.body.classList.contains('dark');
+    document.documentElement.classList.remove('dark');
+    document.body.classList.remove('dark');
+
+    return () => {
+      if (wasDark) {
+        document.documentElement.classList.add('dark');
+        document.body.classList.add('dark');
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
@@ -1089,7 +1103,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             </div>
 
             <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
-              <span className="text-slate-800 font-bold">Zero extra staff needed. 100% automated accounting and bank settlement.</span>
+              <span className="text-slate-800 font-bold">Seamlessly integrates with your existing clinic workflow. Automated ledger reconciliation and secure bank settlements.</span>
               <span className="text-teal-800 font-black">Doctor FAQs →</span>
             </div>
           </section>
