@@ -99,6 +99,132 @@ export const DEFAULT_REAGENT_STOCKS: ReagentStock[] = [
 ];
 
 export class LabService {
+  /**
+   * Retrieves the live diagnostic test catalog merged with custom clinic/pathology rate card fees
+   */
+  static getTestCatalog(podId?: string): DiagnosticTest[] {
+    const currentPod = podId || getPodContext().podId || 'default';
+    const storageKey = `vitalsync_lab_rate_card_${currentPod}`;
+    const customRateCard = safeGetStorageJSON<Record<string, Partial<DiagnosticTest>>>(storageKey, {}) || {};
+    const fallbackRateCard = safeGetStorageJSON<Record<string, Partial<DiagnosticTest>>>('vitalsync_lab_rate_card', {}) || {};
+    const mergedCard = { ...fallbackRateCard, ...customRateCard };
+
+    // Custom added tests that may not exist in MASTER_TEST_CATALOG
+    const customAddedKey = `vitalsync_custom_tests_${currentPod}`;
+    const customAdded = safeGetStorageJSON<DiagnosticTest[]>(customAddedKey, []) || [];
+
+    const baseCatalog = MASTER_TEST_CATALOG.map(t => {
+      const override = mergedCard[t.loincCode] || mergedCard[t.name.toLowerCase()];
+      if (override) {
+        return {
+          ...t,
+          price: typeof override.price === 'number' ? override.price : t.price,
+          category: override.category || t.category,
+          normalRange: override.normalRange || t.normalRange,
+          unit: override.unit || t.unit
+        };
+      }
+      return { ...t };
+    });
+
+    // Merge in custom tests ensuring no duplicates
+    const finalCatalog = [...baseCatalog];
+    for (const ct of customAdded) {
+      if (!finalCatalog.some(t => t.loincCode === ct.loincCode)) {
+        finalCatalog.push(ct);
+      }
+    }
+
+    return finalCatalog;
+  }
+
+  /**
+   * Updates an individual test fee in the clinic/pathology rate card and broadcasts realtime CDC update
+   */
+  static updateTestPrice(loincCode: string, newPrice: number, podId?: string): DiagnosticTest[] {
+    const currentPod = podId || getPodContext().podId || 'default';
+    const storageKey = `vitalsync_lab_rate_card_${currentPod}`;
+    const customRateCard = safeGetStorageJSON<Record<string, Partial<DiagnosticTest>>>(storageKey, {}) || {};
+    
+    customRateCard[loincCode] = {
+      ...(customRateCard[loincCode] || {}),
+      price: Math.max(0, Math.round(newPrice))
+    };
+
+    save(storageKey, customRateCard);
+    save('vitalsync_lab_rate_card', customRateCard); // Global fallback
+    notify();
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'lab_rate_card' } }));
+    }
+
+    return this.getTestCatalog(currentPod);
+  }
+
+  /**
+   * Adds a new custom diagnostic test to the pathology catalog
+   */
+  static addNewDiagnosticTest(test: DiagnosticTest, podId?: string): DiagnosticTest[] {
+    const currentPod = podId || getPodContext().podId || 'default';
+    const customAddedKey = `vitalsync_custom_tests_${currentPod}`;
+    const customAdded = safeGetStorageJSON<DiagnosticTest[]>(customAddedKey, []) || [];
+
+    const existingIdx = customAdded.findIndex(t => t.loincCode === test.loincCode);
+    if (existingIdx >= 0) {
+      customAdded[existingIdx] = test;
+    } else {
+      customAdded.push(test);
+    }
+
+    save(customAddedKey, customAdded);
+    notify();
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'lab_rate_card' } }));
+    }
+
+    return this.getTestCatalog(currentPod);
+  }
+
+  /**
+   * Bulk uploads rate card items (from CSV, JSON, or batch table)
+   */
+  static bulkUploadRateCard(items: Array<Partial<DiagnosticTest>>, podId?: string): { successCount: number; updatedCatalog: DiagnosticTest[] } {
+    const currentPod = podId || getPodContext().podId || 'default';
+    const storageKey = `vitalsync_lab_rate_card_${currentPod}`;
+    const customRateCard = safeGetStorageJSON<Record<string, Partial<DiagnosticTest>>>(storageKey, {}) || {};
+    let count = 0;
+
+    for (const item of items) {
+      if (!item.name && !item.loincCode) continue;
+      const code = item.loincCode || `CUSTOM-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const price = typeof item.price === 'number' ? item.price : Number(item.price) || 0;
+      
+      customRateCard[code] = {
+        loincCode: code,
+        name: item.name || code,
+        category: item.category || 'General Requisition',
+        normalRange: item.normalRange || 'Standard reference',
+        unit: item.unit || 'unit',
+        price: Math.max(0, price)
+      };
+      count++;
+    }
+
+    save(storageKey, customRateCard);
+    save('vitalsync_lab_rate_card', customRateCard);
+    notify();
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'lab_rate_card' } }));
+    }
+
+    return {
+      successCount: count,
+      updatedCatalog: this.getTestCatalog(currentPod)
+    };
+  }
   static getLabRequisitions(): LabRequisition[] {
     let isDemoAccount = false;
     if (typeof window !== 'undefined') {
@@ -125,7 +251,7 @@ export class LabService {
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
         'pat-101', 'pat-102', 'pat-103'
       ]);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown', 'unknown patient']);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       reqs = reqs.filter(r => {
         const pod = (r as any).podId || (r as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
@@ -134,7 +260,7 @@ export class LabService {
         }
         const pName = String(r.patientName || '').toLowerCase().trim();
         const pId = String(r.patientId || '');
-        if (demoNames.has(pName)) return false;
+        if (testSyntheticNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
       });
@@ -404,14 +530,14 @@ export class LabService {
   static getPathologyReports(): PathologyReport[] {
     let reports = load<PathologyReport[]>('pathology_reports', []);
     const currentPodId = getPodContext().podId;
-    const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'neha yadav', 'vikram prasad']);
+    const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
     reports = reports.filter(r => {
       const pod = (r as any).podId || (r as any).pod_id;
       if (pod && currentPodId && pod !== currentPodId) return false;
       if (!pod && currentPodId) return false;
       const pName = String(r.patientName || '').toLowerCase().trim();
       if (r.id === 'rep-201' || r.id === 'rep-202') return false;
-      if (demoNames.has(pName)) return false;
+      if (testSyntheticNames.has(pName)) return false;
       return true;
     });
     return reports;

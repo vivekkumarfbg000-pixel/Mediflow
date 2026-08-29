@@ -245,17 +245,6 @@ export class PharmacyService {
     const stored = load<PharmacyInventoryItem[]>('pharmacy_inventory', []);
     
     if (stored.length > 0) {
-      const hasEyeItems = stored.some(i => (i?.id || '').startsWith('eye-item-'));
-      // If we are in Ophthalmology but have general items only, clear and load eye items
-      if (isOphthalmology && !hasEyeItems) {
-        save('pharmacy_inventory', defaultOphthalmicItems);
-        return defaultOphthalmicItems;
-      }
-      // If we are in General Medicine but have eye items only, clear and load general items
-      if (!isOphthalmology && hasEyeItems) {
-        save('pharmacy_inventory', defaultGeneralItems);
-        return defaultGeneralItems;
-      }
       return stored;
     }
     
@@ -266,6 +255,10 @@ export class PharmacyService {
   static savePharmacyInventory(items: PharmacyInventoryItem[]) {
     save('pharmacy_inventory', items);
     notify();
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'pharmacy_inventory' } }));
+    }
 
     // Asynchronously upsert modified inventory items to Supabase
     (async () => {
@@ -325,10 +318,10 @@ export class PharmacyService {
     const inventory = this.getPharmacyInventory();
 
     // Map inventory items for matching
-    const inventoryMap = new Map();
+    const inventoryMap = new Map<string, PharmacyInventoryItem>();
     inventory.forEach(item => {
       if (item?.name) {
-        inventoryMap.set((item.name || '').toLowerCase(), item.stock || 0);
+        inventoryMap.set((item.name || '').toLowerCase(), item);
       }
     });
 
@@ -339,11 +332,20 @@ export class PharmacyService {
     masterList.forEach(item => {
       const matchName = (item.name || '').toLowerCase().includes(q) || (item.genericName || '').toLowerCase().includes(q) || (item.category || '').toLowerCase().includes(q);
       if (matchName) {
-        const stock = inventoryMap.has((item.name || '').toLowerCase()) ? inventoryMap.get((item.name || '').toLowerCase()) : 0;
+        const invItem = inventoryMap.get((item.name || '').toLowerCase());
+        const stock = invItem ? (invItem.stock || 0) : 0;
+        const inInventory = Boolean(invItem);
+        const stockStatus = inInventory ? (stock > 10 ? 'in_stock' : stock > 0 ? 'low_stock' : 'out_of_stock') : 'catalog';
         results.push({
           ...item,
           stock,
-          inInventory: inventoryMap.has((item.name || '').toLowerCase())
+          inInventory,
+          stockStatus,
+          price: invItem?.price || invItem?.mrp || 0,
+          mrp: invItem?.mrp || 0,
+          batchNumber: invItem?.batchNumber || 'BATCH-STD',
+          expiryDate: invItem?.expiryDate || '',
+          unit: invItem?.unit || 'tabs'
         });
       }
     });
@@ -354,6 +356,8 @@ export class PharmacyService {
       if (!isAlreadyAdded) {
         const matchName = (item.name || '').toLowerCase().includes(q) || (item.genericName && item.genericName.toLowerCase().includes(q)) || (item.category && item.category.toLowerCase().includes(q));
         if (matchName) {
+          const stock = item.stock || 0;
+          const stockStatus = stock > 10 ? 'in_stock' : stock > 0 ? 'low_stock' : 'out_of_stock';
           results.push({
             name: item.name,
             genericName: item.genericName || 'N/A',
@@ -361,8 +365,14 @@ export class PharmacyService {
             dosage: item.dosage || '',
             frequency: isOphthalmology ? 'TDS (3 times daily)' : '1-0-1',
             duration: '5 Days',
-            stock: item.stock,
-            inInventory: true
+            stock,
+            inInventory: true,
+            stockStatus,
+            price: item.price || item.mrp || 0,
+            mrp: item.mrp || 0,
+            batchNumber: item.batchNumber || 'BATCH-STD',
+            expiryDate: item.expiryDate || '',
+            unit: item.unit || 'tabs'
           });
         }
       }
@@ -1137,11 +1147,11 @@ Thank you for choosing VitalSync! 🟢`;
 
   static getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {
     let orders = load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', []);
-    const demoNames = new Set(['aarav sharma', 'priyanka verma', 'neha yadav', 'rahul kumar test', 'rls test patient']);
+    const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
     orders = orders.filter(o => {
       const pName = String(o.patientName || '').toLowerCase().trim();
       if (o.id === 'ord-101' || o.id === 'ord-102') return false;
-      if (demoNames.has(pName)) return false;
+      if (testSyntheticNames.has(pName)) return false;
       return true;
     });
     return orders;

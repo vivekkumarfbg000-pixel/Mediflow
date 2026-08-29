@@ -55,10 +55,10 @@ export class PatientService {
       rawPatients = load<Patient[]>('patient_registry', []);
     }
     
-    // Purge pre-seeded initial demo patient IDs and mock names from local storage cache
+    // Purge pre-seeded initial demo patient IDs and mock artifacts from local storage cache
     const currentPodId = getPodContext().podId;
     const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
-    const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown', 'unknown patient', 'john doe', 'vikram prasad', 'vikram verma']);
+    const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
     
     rawPatients = rawPatients.filter(p => {
       const pod = (p as any).podId || (p as any).pod_id;
@@ -68,7 +68,7 @@ export class PatientService {
       }
       const cleanName = String(p.name || '').toLowerCase().trim();
       if (demoIds.has(p.id)) return false;
-      if (demoNames.has(cleanName)) return false;
+      if (testSyntheticNames.has(cleanName)) return false;
       if (cleanName.includes('test patient') || cleanName.includes('auto test patient')) return false;
       return true;
     });

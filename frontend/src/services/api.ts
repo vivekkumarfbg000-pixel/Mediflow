@@ -1759,6 +1759,18 @@ class MediflowApiService {
     return BillingService.getActiveSop();
   }
 
+  getPrescriptionTemplate(podId?: string) {
+    return BillingService.getPrescriptionTemplate(podId);
+  }
+
+  savePrescriptionTemplate(template: import('../types').PrescriptionTemplateConfig): void {
+    BillingService.savePrescriptionTemplate(template);
+    this.notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'prescription_template' } }));
+    }
+  }
+
   createOTPackageInvoice(patientId: string, details: { procedure: string; eye: string; lensType: string; packageTier: string; totalAmount: number }): void {
     BillingService.createOTPackageInvoice(patientId, details);
     this.notify();
@@ -2173,6 +2185,24 @@ class MediflowApiService {
 
   async dispatchDailyDosageReminderWhatsApp(params: any): Promise<string> {
     return ClinicalNotificationService.dispatchDailyDosageReminderWhatsApp(params);
+  }
+
+  // ── Dynamic Pathology Lab Rate Card & Diagnostic Test Catalog ──────────
+
+  getDiagnosticTests(podId?: string): DiagnosticTest[] {
+    return LabService.getTestCatalog(podId);
+  }
+
+  updateDiagnosticTestPrice(loincCode: string, newPrice: number, podId?: string): DiagnosticTest[] {
+    return LabService.updateTestPrice(loincCode, newPrice, podId);
+  }
+
+  addNewDiagnosticTest(test: DiagnosticTest, podId?: string): DiagnosticTest[] {
+    return LabService.addNewDiagnosticTest(test, podId);
+  }
+
+  uploadLabRateCard(items: Array<Partial<DiagnosticTest>>, podId?: string) {
+    return LabService.bulkUploadRateCard(items, podId);
   }
 
   async dispatchLabArrivalRevisitAlert(params: any): Promise<string> {

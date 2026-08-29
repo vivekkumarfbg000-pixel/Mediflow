@@ -199,33 +199,46 @@ export class ChronicCareService {
         .eq('pod_id', podId)
         .order('next_refill_date', { ascending: true });
 
-      if (error || !data || data.length === 0) {
+      if (!error && data) {
+        return data.map(row => ({
+          id: row.id,
+          patientId: row.patient_id,
+          patientName: row.patient_name,
+          patientPhone: row.patient_phone || '',
+          doctorId: row.doctor_id,
+          podId: row.pod_id,
+          conditionCode: row.condition_code,
+          conditionName: row.condition_name,
+          medications: row.medications || [],
+          daysSupply: row.days_supply,
+          dispensedAt: row.dispensed_at,
+          nextRefillDate: row.next_refill_date,
+          nextRetestDate: row.next_retest_date,
+          retestTestCode: row.retest_test_code,
+          retestTestName: row.retest_test_name,
+          adherenceScore: Number(row.adherence_score) || 100,
+          status: row.status,
+          monthlyMedicineSpend: Number(row.monthly_medicine_spend) || 0
+        }));
+      }
+
+      // Check if current user is on demo account
+      let isDemoAccount = false;
+      if (typeof window !== 'undefined') {
+        try {
+          const profile = JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}');
+          isDemoAccount = profile?.isDemo === true || profile?.email === 'demo@mediflow.com';
+        } catch (_e) { /* ignore */ }
+      }
+
+      if (isDemoAccount) {
         return this.getFallbackMockCohorts();
       }
 
-      return data.map(row => ({
-        id: row.id,
-        patientId: row.patient_id,
-        patientName: row.patient_name,
-        patientPhone: row.patient_phone || '',
-        doctorId: row.doctor_id,
-        podId: row.pod_id,
-        conditionCode: row.condition_code,
-        conditionName: row.condition_name,
-        medications: row.medications || [],
-        daysSupply: row.days_supply,
-        dispensedAt: row.dispensed_at,
-        nextRefillDate: row.next_refill_date,
-        nextRetestDate: row.next_retest_date,
-        retestTestCode: row.retest_test_code,
-        retestTestName: row.retest_test_name,
-        adherenceScore: Number(row.adherence_score) || 100,
-        status: row.status,
-        monthlyMedicineSpend: Number(row.monthly_medicine_spend) || 0
-      }));
+      return [];
     } catch (err) {
-      console.warn('[ChronicCareService] Using fallback mock cohorts:', err);
-      return this.getFallbackMockCohorts();
+      console.warn('[ChronicCareService] Error loading chronic cohorts:', err);
+      return [];
     }
   }
 

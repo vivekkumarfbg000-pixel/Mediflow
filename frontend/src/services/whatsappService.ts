@@ -57,8 +57,8 @@ export class WhatsAppService {
     let sessions = load<WhatsAppSession[]>('whatsapp_sessions', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const demoPhones = new Set(['9876543210', '8765432109', '919608032073', '916205449265', '9999999999', '9896108860', '9934952333', '8888884707']);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'unknown patient', 'john doe', 'rahul kumar test', 'rls test patient', 'unknown']);
+      const testSyntheticPhones = new Set(['9999999999', '9876543210', '0000000000']);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
       sessions = sessions.filter(s => {
         const pod = (s as any).podId || (s as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
@@ -67,9 +67,9 @@ export class WhatsAppService {
         const pName = String((s as any).patientName || (s as any).patient_name || '').toLowerCase().trim();
         const pPhone = String(s.patientPhone || s.patient_phone || '').trim();
         if (id.startsWith('sess-demo') || id.startsWith('sess-sample')) return false;
-        if (demoPhones.has(pPhone)) return false;
-        if (demoNames.has(pName)) return false;
-        if (pName.includes('unknown') || pName.includes('test patient')) return false;
+        if (testSyntheticPhones.has(pPhone)) return false;
+        if (testSyntheticNames.has(pName)) return false;
+        if (pName.includes('auto test') || pName.includes('rls test')) return false;
         return true;
       });
     }

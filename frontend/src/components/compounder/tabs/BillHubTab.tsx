@@ -182,7 +182,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       .slice(0, 5)
       .map(m => ({ id: m.id, name: m.name || 'Medicine Item', type: 'pharmacy' as const, price: m.price || 0, item: m }));
 
-    const matchedTests = MASTER_TEST_CATALOG
+    const matchedTests = LabService.getTestCatalog()
       .filter(t => (t.name || '').toLowerCase().includes(query))
       .slice(0, 5)
       .map(t => ({ id: t.loincCode, name: t.name || 'Lab Test', type: 'lab' as const, price: t.price || 0, item: t }));
@@ -272,7 +272,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     const newTestsList = [...manualTestsList];
     const newTestsRecord = { ...selectedTests };
 
-    MASTER_TEST_CATALOG.forEach(test => {
+    LabService.getTestCatalog().forEach(test => {
       const nameLower = (test.name || '').toLowerCase();
       if (nameLower && (textLower.includes(nameLower) || (textLower.includes('hba1c') && (test.name || '').includes('HbA1c')))) {
         if (!newTestsList.some(t => t.loincCode === test.loincCode)) {
@@ -413,7 +413,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         });
 
         (latest.diagnosticTests || []).forEach(test => {
-          const matched = MASTER_TEST_CATALOG.find(t => t.loincCode === test.loincCode);
+          const matched = LabService.getTestCatalog().find(t => t.loincCode === test.loincCode);
           testsList.push({
             loincCode: test.loincCode,
             name: test.name,
@@ -447,7 +447,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             return;
           }
 
-          const matchedTest = MASTER_TEST_CATALOG.find(t => (t.name || '').toLowerCase().includes(itemLower));
+          const matchedTest = LabService.getTestCatalog().find(t => (t.name || '').toLowerCase().includes(itemLower));
           if (matchedTest) {
             if (!combinedTests.some(t => t.loincCode === matchedTest.loincCode)) {
               combinedTests.push(matchedTest);
@@ -627,7 +627,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       (digitized.diagnosticTests || []).forEach((t: any) => {
         const testCode = t.loincCode || '4544-3';
-        const matchedTest = MASTER_TEST_CATALOG.find(cat => cat.loincCode === testCode || (cat.name || '').toLowerCase().includes((t.name || '').toLowerCase()));
+        const matchedTest = LabService.getTestCatalog().find(cat => cat.loincCode === testCode || (cat.name || '').toLowerCase().includes((t.name || '').toLowerCase()));
         if (matchedTest) {
           initialTests[matchedTest.loincCode] = true;
           structuredData[matchedTest.name] = `LOINC: ${matchedTest.loincCode}`;

@@ -5,6 +5,8 @@ import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ClinicalSafetySentry } from '../../../services/clinicalSafetySentry';
+import { DoctorLabIntelligenceService, type DoctorLabInsightReport } from '../../../services/doctorLabIntelligenceService';
+import { CLINIC_DIAGNOSTIC_BUNDLES, getClinicDiagnosticBundles } from '../../../services/diagnosticBundleService';
 import { generateLabReportPdf } from '../../../utils/pdfGenerator';
 import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
@@ -223,9 +225,32 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
   // Live PDF Lab Report Modal & Overlay States
   const [selectedLabReportForPdf, setSelectedLabReportForPdf] = useState<any | null>(null);
+  const [doctorLabInsight, setDoctorLabInsight] = useState<DoctorLabInsightReport | null>(null);
+  const [activePdfViewMode, setActivePdfViewMode] = useState<'electronic' | 'uploaded'>('electronic');
   const [labPdfBlobUrl, setLabPdfBlobUrl] = useState<string | null>(null);
   const [isLabPdfLoading, setIsLabPdfLoading] = useState(false);
   const [isResendingWhatsApp, setIsResendingWhatsApp] = useState(false);
+
+  // Package C States: Follow-up Scheduler & Pediatric Calculator
+  const [followUpDays, setFollowUpDays] = useState<number | null>(null);
+  const [isPediatricCalcOpen, setIsPediatricCalcOpen] = useState(false);
+  const [pediatricWeight, setPediatricWeight] = useState<number>(15);
+
+  // Dynamic Live Pathology Rate Card State
+  const [liveTestCatalog, setLiveTestCatalog] = useState<DiagnosticTest[]>(() => api.getDiagnosticTests());
+
+  useEffect(() => {
+    const handleRateCardChange = (e: any) => {
+      if (e?.detail?.entity === 'lab_rate_card' || !e?.detail?.entity) {
+        setLiveTestCatalog(api.getDiagnosticTests());
+        setDataRevision(r => r + 1);
+      }
+    };
+    window.addEventListener('mediflow-state-change', handleRateCardChange);
+    return () => window.removeEventListener('mediflow-state-change', handleRateCardChange);
+  }, []);
+
+  const dynamicLabBundles = useMemo(() => getClinicDiagnosticBundles(), [dataRevision, liveTestCatalog]);
 
   // Clean up blob URL on unmount or URL change (Rule 10)
   useEffect(() => {
@@ -265,6 +290,23 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     setIsLabPdfLoading(true);
 
     try {
+      const historicalReports = api.getFullLabReports().filter(r => (r.patientId === selectedPatient.id || (r as any).patient_id === selectedPatient.id));
+      const insight = DoctorLabIntelligenceService.analyzeLabReport({
+        reportItem,
+        patientName: selectedPatient.name,
+        patientAge: selectedPatient.age,
+        patientGender: selectedPatient.gender,
+        historicalReports
+      });
+      setDoctorLabInsight(insight);
+
+      // Check if uploaded direct URL is available
+      if (reportItem.reportFileUrl || reportItem.fileUrl) {
+        setActivePdfViewMode('uploaded');
+      } else {
+        setActivePdfViewMode('electronic');
+      }
+
       let biomarkersObj: Record<string, any> = {};
       if (reportItem.biomarkerJson) {
         biomarkersObj = reportItem.biomarkerJson.biomarkers || reportItem.biomarkerJson;
@@ -282,7 +324,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       const interpretation = ClinicalNotificationService.generateHinglishLabInterpretation(loincCode, testName, biomarkersObj);
 
       const pdfBytes = await generateLabReportPdf({
-        reportId: reportItem.id || reportItem.barcode,
+        reportId: reportItem.id || reportItem.barcode || `LAB-${Date.now().toString().slice(-6)}`,
         patientName: selectedPatient.name,
         patientPhone: selectedPatient.phone,
         age: selectedPatient.age,
@@ -303,8 +345,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       console.error('[ConsultationTab] Failed to render Lab PDF:', pdfErr);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'PDF Rendering Notice',
-          message: 'Displaying digital biomarker results summary.',
+          title: 'PDF Notice',
+          message: 'Displaying digital biomarker & clinical insight analysis.',
           type: 'info'
         }
       }));
@@ -319,7 +361,32 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       setLabPdfBlobUrl(null);
     }
     setSelectedLabReportForPdf(null);
+    setDoctorLabInsight(null);
   };
+
+  // Keyboard Shortcuts for Ultra-Fast Consultations (Ctrl+S: Save, Ctrl+L: Lab PDF, Ctrl+N: Focus Notes)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSaveEncounter();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
+        if (patientLabReports.length > 0) {
+          e.preventDefault();
+          handleOpenLabPdfModal(patientLabReports[0]);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        const el = document.getElementById('consultation-notes-textarea');
+        if (el) el.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSaveEncounter, patientLabReports]);
 
   useEffect(() => {
     if (isSelectingFromDropdown) {
@@ -335,7 +402,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     setSuggestions(results);
     setShowSuggestions(results.length > 0);
     setActiveSuggestionIdx(0);
-  }, [medName, isOphthalmology]);
+  }, [medName, isOphthalmology, dataRevision]);
 
   // Click outside to close dropdowns
   useEffect(() => {
@@ -2446,14 +2513,46 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
         {/* Clinical Notes (placed at the bottom of the workup tab) */}
             <div className="space-y-2 text-left mt-4 pt-4 border-t border-slate-100">
-              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                <FileEdit className="w-3.5 h-3.5 text-indigo-500 font-bold shrink-0" />
-                Consultation & Clinical Notes
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                  <FileEdit className="w-3.5 h-3.5 text-indigo-500 font-bold shrink-0" />
+                  Consultation & Clinical Notes
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!notes.trim()) return;
+                    const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
+                    let soap = `### SOAP Clinical Encounter Note\n\n`;
+                    soap += `**S (Subjective / Chief Complaints)**:\n- ${lines.slice(0, 2).join('\n- ') || 'Patient reports symptoms.'}\n\n`;
+                    soap += `**O (Objective / Vitals & Examination)**:\n`;
+                    if (selectedPatient?.vitals) {
+                      soap += `- BP: ${selectedPatient.vitals.bloodPressure || '120/80 mmHg'}, Pulse: ${selectedPatient.vitals.pulseRate || 72} bpm, Temp: ${selectedPatient.vitals.temperature || '98.6°F'}, SpO2: ${selectedPatient.vitals.spO2 || 98}%\n`;
+                    } else {
+                      soap += `- Vitals stable on clinical evaluation.\n`;
+                    }
+                    soap += `\n**A (Clinical Assessment & Diagnosis)**:\n- ${notes.toLowerCase().includes('fever') ? 'Acute Febrile Illness' : notes.toLowerCase().includes('diabetes') ? 'Type-2 Diabetes Mellitus review' : 'Outpatient clinical evaluation'}\n\n`;
+                    soap += `**P (Treatment & Investigation Plan)**:\n- Prescribed medications as per e-Rx pad.\n- Diagnostic investigations queued. Follow-up scheduled.\n`;
+                    setNotes(soap);
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'SOAP Note Formatted ✨',
+                        message: 'Standardized clinical encounter into Subjective, Objective, Assessment, Plan format.',
+                        type: 'success'
+                      }
+                    }));
+                  }}
+                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95"
+                >
+                  <Sparkles className="w-3 h-3 text-indigo-600 font-bold" />
+                  Auto-Format to SOAP Note
+                </button>
+              </div>
               <textarea
+                id="consultation-notes-textarea"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Presenting complaints, systemic examination notes, and diagnosis..."
+                placeholder="Presenting complaints, systemic examination notes, and diagnosis (Press Ctrl+N to focus)..."
                 rows={3}
                 className="w-full input-field resize-none text-xs leading-relaxed bg-white border border-slate-200"
               />
@@ -2509,19 +2608,199 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               flashPrescriptionPanel ? 'bg-indigo-50/80 border border-indigo-200 ring-4 ring-indigo-500/20' : ''
             }`}
           >
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-2">
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                 <Pill className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
                 Prescribe Medications (e-Rx)
               </label>
-              <button
-                type="button"
-                onClick={() => setIsPrescriptionModalOpen(true)}
-                className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-500 text-indigo-700 hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
-              >
-                <FileText className="w-3.5 h-3.5 font-bold shrink-0" />
-                Interactive E-Rx Pad
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPediatricCalcOpen(!isPediatricCalcOpen)}
+                  className="px-3 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-xl text-[10px] font-extrabold uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600 font-bold shrink-0" />
+                  👶 Pediatric Dose Calculator
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrescriptionModalOpen(true)}
+                  className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-500 text-indigo-700 hover:text-white rounded-xl text-[10px] font-extrabold uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-[0.98]"
+                >
+                  <FileText className="w-3.5 h-3.5 font-bold shrink-0" />
+                  Interactive E-Rx Pad
+                </button>
+              </div>
+            </div>
+
+            {/* Pediatric Weight-Based Dose Helper Popover */}
+            {isPediatricCalcOpen && (
+              <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-3 animate-fade-in text-left">
+                <div className="flex items-center justify-between border-b border-amber-200/60 pb-2">
+                  <h5 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                    👶 Pediatric Suspension Weight-Based Auto-Dose Calculator
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={() => setIsPediatricCalcOpen(false)}
+                    className="text-amber-800 hover:text-amber-950 text-xs font-bold cursor-pointer border-0 bg-transparent"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-700">Child Weight:</span>
+                    <input
+                      type="number"
+                      min={2}
+                      max={60}
+                      value={pediatricWeight}
+                      onChange={(e) => setPediatricWeight(Number(e.target.value) || 10)}
+                      className="w-16 px-2 py-1 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold outline-none"
+                    />
+                    <span className="text-xs text-slate-500">kg</span>
+                  </div>
+                  <span className="text-[10px] text-amber-800 font-mono">
+                    Age: {selectedPatient?.age || '—'} Y • Est. Body Surface Area: {(0.024265 * Math.pow(pediatricWeight * 1000, 0.5378) / 10).toFixed(2)} m²
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                  {[
+                    { drug: 'paracetamol', label: 'Paracetamol 250mg/5ml Syrup', strength: '250mg_5ml' },
+                    { drug: 'amoxicillin', label: 'Amoxicillin 125mg/5ml Dry Syrup', strength: '125mg_5ml' },
+                    { drug: 'ibuprofen', label: 'Ibuprofen 100mg/5ml Suspension', strength: '100mg_5ml' },
+                    { drug: 'azithromycin', label: 'Azithromycin 100mg/5ml Suspension', strength: '100mg_5ml' },
+                    { drug: 'cetirizine', label: 'Cetirizine 5mg/5ml Syrup', strength: '5mg_5ml' }
+                  ].map((calcItem) => {
+                    const calc = ClinicalSafetySentry.calculatePediatricDose({
+                      drug: calcItem.drug as any,
+                      weightKg: pediatricWeight,
+                      strength: calcItem.strength as any
+                    });
+                    return (
+                      <div key={calcItem.drug} className="p-2.5 bg-white border border-amber-200 rounded-xl space-y-1 text-xs">
+                        <strong className="block text-slate-900 font-bold text-[11px] truncate">{calc.drugName}</strong>
+                        <div className="text-emerald-700 font-black text-xs font-mono">
+                          👉 Give {calc.calculatedVolumeMl} mL ({calc.totalDoseMg} mg)
+                        </div>
+                        <div className="text-[9px] text-slate-500 leading-tight">
+                          {calc.dosingFrequency}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMedications([
+                              ...medications,
+                              {
+                                medicineName: calc.drugName,
+                                dosage: `${calc.calculatedVolumeMl} mL (${calc.totalDoseMg}mg)`,
+                                frequency: calc.dosingFrequency.split(' (')[0],
+                                duration: '5 Days',
+                                instructions: `Calculated for ${pediatricWeight} kg child.`
+                              }
+                            ]);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Pediatric Dose Added! 👶',
+                                message: `Added ${calc.drugName} (${calc.calculatedVolumeMl} mL) for ${pediatricWeight}kg.`,
+                                type: 'success'
+                              }
+                            }));
+                          }}
+                          className="w-full mt-1 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg border-0 cursor-pointer text-white-force"
+                        >
+                          + Add {calc.calculatedVolumeMl} mL to Rx
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 1-Click Quick-Rx Clinical Favorites Packs (Saves 3-5 Mins per Patient) */}
+            <div className="p-3.5 bg-gradient-to-r from-indigo-50/70 via-purple-50/50 to-blue-50/70 border border-indigo-200/80 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-[11px] font-black text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600 font-bold" />
+                  1-Click Quick-Rx Clinical Favorites (Top Practice Protocols)
+                </span>
+                <span className="text-[9px] font-mono text-indigo-600 font-bold bg-indigo-100/80 px-2 py-0.5 rounded-full">
+                  ⚡ 1-Tap Auto-Populate
+                </span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                {[
+                  {
+                    id: 'fever-uri',
+                    label: '🌡️ Fever / URI Pack',
+                    color: 'bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300',
+                    meds: [
+                      { medicineName: 'Paracetamol 650mg', dosage: 'Paracetamol IP 650mg', frequency: '1-0-1 (Twice daily after food)', duration: '5 Days', instructions: 'Take after meals. Drink warm water.' },
+                      { medicineName: 'Cetirizine 10mg', dosage: 'Cetirizine HCl 10mg', frequency: '0-0-1 (Once at bedtime)', duration: '5 Days', instructions: 'May cause mild drowsiness.' },
+                      { medicineName: 'Azithromycin 500mg', dosage: 'Azithromycin IP 500mg', frequency: '1-0-0 (Once daily before food)', duration: '3 Days', instructions: 'Take 1 hour before breakfast.' },
+                      { medicineName: 'Pantoprazole 40mg', dosage: 'Pantoprazole 40mg', frequency: '1-0-0 (Once daily before food)', duration: '5 Days', instructions: 'Take empty stomach in morning.' }
+                    ]
+                  },
+                  {
+                    id: 't2dm-init',
+                    label: '🩸 T2DM Protocol',
+                    color: 'bg-blue-100 hover:bg-blue-200 text-blue-900 border-blue-300',
+                    meds: [
+                      { medicineName: 'Metformin 500mg SR', dosage: 'Metformin HCl 500mg SR', frequency: '1-0-1 (Twice daily with meals)', duration: '30 Days', instructions: 'Take strictly with breakfast and dinner.' },
+                      { medicineName: 'Teneligliptin 20mg', dosage: 'Teneligliptin 20mg', frequency: '1-0-0 (Once daily with breakfast)', duration: '30 Days', instructions: 'DPP-4 inhibitor for post-prandial control.' },
+                      { medicineName: 'Atorvastatin 10mg', dosage: 'Atorvastatin IP 10mg', frequency: '0-0-1 (Once at bedtime)', duration: '30 Days', instructions: 'Cardioprotective lipid management.' }
+                    ]
+                  },
+                  {
+                    id: 'htn-protocol',
+                    label: '❤️ HTN Protocol',
+                    color: 'bg-rose-100 hover:bg-rose-200 text-rose-900 border-rose-300',
+                    meds: [
+                      { medicineName: 'Telmisartan 40mg', dosage: 'Telmisartan IP 40mg', frequency: '1-0-0 (Once daily morning)', duration: '30 Days', instructions: 'Monitor BP weekly.' },
+                      { medicineName: 'Amlodipine 5mg', dosage: 'Amlodipine Besylate 5mg', frequency: '1-0-0 (Once daily morning)', duration: '30 Days', instructions: 'Take morning with water.' }
+                    ]
+                  },
+                  {
+                    id: 'pain-spasm',
+                    label: '🦵 Pain & Spasm',
+                    color: 'bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border-emerald-300',
+                    meds: [
+                      { medicineName: 'Paracetamol 650mg', dosage: 'Paracetamol IP 650mg', frequency: '1-0-1 (Twice daily after food)', duration: '5 Days', instructions: 'Renally safe analgesic.' },
+                      { medicineName: 'Thiocolchicoside 4mg', dosage: 'Thiocolchicoside 4mg', frequency: '1-0-1 (Twice daily after food)', duration: '5 Days', instructions: 'Muscle relaxant for spasms.' },
+                      { medicineName: 'Pantoprazole 40mg', dosage: 'Pantoprazole 40mg', frequency: '1-0-0 (Once daily empty stomach)', duration: '5 Days', instructions: 'Take 30 min before food.' }
+                    ]
+                  },
+                  {
+                    id: 'ophth-drops',
+                    label: '👁️ Eye Drops Pack',
+                    color: 'bg-cyan-100 hover:bg-cyan-200 text-cyan-900 border-cyan-300',
+                    meds: [
+                      { medicineName: 'Moxifloxacin 0.5% Eye Drops', dosage: 'Moxifloxacin 0.5% w/v', frequency: '1 drop 4 times daily (RE/LE)', duration: '7 Days', instructions: 'Instill 1 drop every 4 hours.' },
+                      { medicineName: 'Carboxymethylcellulose 0.5% Drops', dosage: 'CMC 0.5% Lubricant', frequency: '1 drop 3 times daily (RE/LE)', duration: '15 Days', instructions: 'Maintain 10 min gap.' }
+                    ]
+                  }
+                ].map((pack) => (
+                  <button
+                    key={pack.id}
+                    type="button"
+                    onClick={() => {
+                      setMedications([...medications, ...pack.meds]);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: `${pack.label} Added! ⚡`,
+                          message: `Populated ${pack.meds.length} standardized clinical medications into Rx pad.`,
+                          type: 'success'
+                        }
+                      }));
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap cursor-pointer transition active:scale-95 shadow-2xs flex items-center gap-1 shrink-0 ${pack.color}`}
+                  >
+                    <span>{pack.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Top-Grade Real-Time CDSS Safety Alerts & One-Click Molecule Swaps */}
@@ -2747,16 +3026,31 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5 shrink-0 text-right">
+                            {item.price ? (
+                              <span className="text-xs font-mono font-bold text-slate-700">₹{item.price}</span>
+                            ) : null}
                             {item.inInventory ? (
-                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider font-mono ${
-                                item.stock > 10 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
-                              }`}>
-                                {item.stock} in stock
-                              </span>
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider font-mono flex items-center gap-1 ${
+                                  item.stock > 10 
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' 
+                                    : item.stock > 0
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                    : 'bg-rose-100 text-rose-800 border border-rose-300'
+                                }`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${item.stock > 0 ? 'bg-emerald-600' : 'bg-rose-600'}`} />
+                                  {item.stock > 0 ? `${item.stock} in stock` : 'Out of Stock'}
+                                </span>
+                                {item.batchNumber && (
+                                  <span className="text-[8px] text-slate-400 font-mono">
+                                    {item.batchNumber} {item.expiryDate ? `· Exp ${item.expiryDate}` : ''}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider font-mono bg-indigo-50 text-indigo-600 border border-indigo-100">
-                                Catalog
+                                Catalog Rx
                               </span>
                             )}
                           </div>
@@ -2951,6 +3245,54 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
             )}
 
+            {/* 1-Click High-Margin Pathology Lab Panels */}
+            <div className="p-3 bg-indigo-50/50 border border-indigo-200/60 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <FlaskConical className="w-3.5 h-3.5 text-indigo-600 font-bold" />
+                  1-Click Pathology Diagnostic Bundles (Queues In-House Lab)
+                </span>
+                <span className="text-[9px] font-mono text-indigo-600 font-bold bg-indigo-100 px-2 py-0.5 rounded-full">
+                  5 Practice Panels · Live Rates
+                </span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                {dynamicLabBundles.map((bundle) => (
+                  <button
+                    key={bundle.id}
+                    type="button"
+                    onClick={() => {
+                      const newTests = [...selectedTests];
+                      bundle.tests.forEach((t) => {
+                        if (!newTests.some((existing) => existing.loincCode === t.loincCode || existing.name === t.testName)) {
+                          newTests.push({
+                            loincCode: t.loincCode,
+                            name: t.testName,
+                            category: t.category,
+                            price: t.price,
+                            normalRange: 'Standard ref',
+                            unit: 'unit'
+                          });
+                        }
+                      });
+                      setSelectedTests(newTests);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: `${bundle.name} Queued! 🧪`,
+                          message: `Selected ${bundle.tests.length} diagnostic tests for clinic lab requisition.`,
+                          type: 'success'
+                        }
+                      }));
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap cursor-pointer transition active:scale-95 shadow-2xs flex items-center gap-1 shrink-0 ${bundle.color}`}
+                  >
+                    <span>{bundle.name}</span>
+                    <span className="text-[9px] opacity-75 font-mono">({bundle.badge})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Search Input with Autocomplete Dropdown */}
             <div ref={testDropdownRef} className="relative">
               <div className="relative">
@@ -3006,7 +3348,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               {/* Floating Dropdown */}
               {isTestDropdownOpen && (
                 <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 max-h-64 overflow-y-auto p-1.5 space-y-1">
-                  {testCatalog
+                  {liveTestCatalog
                     .filter((test: DiagnosticTest) => {
                       if (!testSearchQuery.trim()) return true;
                       const q = (testSearchQuery || '').toLowerCase();
@@ -3374,6 +3716,63 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           </div>
 
+          {/* 1-Tap WhatsApp Review & Chronic Refill Scheduler */}
+          <div className="p-3.5 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 border border-emerald-200 rounded-2xl space-y-2.5 text-left my-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-600 font-bold" />
+                <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                  1-Tap WhatsApp Review &amp; Follow-Up Loop (अगली समीक्षा)
+                </span>
+              </div>
+              <span className="text-[9px] font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                Auto-Dispatches 1-Tap WhatsApp Reminder
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { days: 3, label: '3 Days (SOS / Acute)' },
+                { days: 7, label: '7 Days (Post-Infection)' },
+                { days: 15, label: '15 Days (Biomarker Check)' },
+                { days: 30, label: '1 Month (Chronic Refill)' }
+              ].map((slot) => {
+                const isSelected = followUpDays === slot.days;
+                return (
+                  <button
+                    key={slot.days}
+                    type="button"
+                    onClick={() => {
+                      const newDays = isSelected ? null : slot.days;
+                      setFollowUpDays(newDays);
+                      if (newDays) {
+                        const targetDate = new Date();
+                        targetDate.setDate(targetDate.getDate() + newDays);
+                        setRevisitDate(targetDate.toISOString().split('T')[0]);
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: `Follow-Up Scheduled (${slot.days} Days) 📅`,
+                            message: `Configured interactive WhatsApp review loop for ${selectedPatient.name}.`,
+                            type: 'success'
+                          }
+                        }));
+                      } else {
+                        setRevisitDate('');
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition active:scale-95 cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm text-white-force'
+                        : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <CheckCircle2 className={`w-3.5 h-3.5 ${isSelected ? 'text-white-force' : 'text-slate-300'}`} />
+                    <span>{slot.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Action Row & Floating Sticky Submit Bar for Mobile (Guarantees 100% Visibility above Navbar) */}
           <div className="pt-5 border-t border-slate-100 pb-32 sm:pb-4">
             {/* Desktop Action Row */}
@@ -3413,7 +3812,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       )}
 
       {/* ── INTERACTIVE E-PRESCRIPTION PAD WORKSPACE MODAL ── */}
-      {isPrescriptionModalOpen && selectedPatient && (
+      {/* ─── INTERACTIVE E-PRESCRIPTION PAD MODAL (Portal Root) ─────────────── */}
+      {isPrescriptionModalOpen && selectedPatient && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 md:p-6 overflow-hidden animate-fade-in">
           <div className="glass-panel max-w-6xl w-full p-6 md:p-8 border-slate-200 shadow-2xl relative bg-white text-slate-800 rounded-3xl flex flex-col max-h-[92vh] overflow-hidden">
             
@@ -3776,13 +4176,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   className="w-full sm:w-auto bg-indigo-650 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer border-0 text-white-force shadow-md"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-white-force shrink-0" />
-                  Save & Apply Workspace
+                  Save &amp; Apply Workspace
                 </button>
               </div>
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── LIVE LAB REPORT PDF & AI ANALYSIS MODAL ───────────────────────── */}
@@ -3790,19 +4191,32 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 sm:p-6 animate-fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3 bg-slate-50/80 dark:bg-slate-900/80 rounded-t-3xl">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-md shrink-0">
                   <FlaskConical className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-extrabold text-sm sm:text-base text-slate-800 dark:text-white">
-                      Official Pathology Lab Report &amp; AI Analysis
+                      🔬 {selectedLabReportForPdf.testName || 'Diagnostic Pathology Report'}
                     </h3>
                     <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-[9px] rounded-full uppercase font-mono border border-indigo-200 dark:border-indigo-800">
                       LOINC: {selectedLabReportForPdf.testCode || selectedLabReportForPdf.loincCode || '4544-3'}
                     </span>
+                    {doctorLabInsight?.overallStatus === 'critical' ? (
+                      <span className="px-2.5 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 font-black text-[9px] rounded-full uppercase font-mono animate-pulse">
+                        Critical Lab Alerts 🔴
+                      </span>
+                    ) : doctorLabInsight?.overallStatus === 'abnormal' ? (
+                      <span className="px-2.5 py-0.5 bg-amber-100 text-amber-800 border border-amber-300 font-black text-[9px] rounded-full uppercase font-mono">
+                        Abnormal Biomarkers ⚠️
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 font-black text-[9px] rounded-full uppercase font-mono">
+                        All Parameters Normal ✅
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Patient: <strong className="text-slate-700 dark:text-slate-200">{selectedPatient.name}</strong> • Age: {selectedPatient.age || '—'} Y • Token: {selectedPatient.tokenNumber || '#TK-001'}
@@ -3811,11 +4225,46 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
 
               <div className="flex items-center gap-2">
+                {/* PDF View Mode Switcher (If original technician scan uploaded) */}
+                {selectedLabReportForPdf.reportFileUrl && (
+                  <div className="flex items-center bg-slate-200/80 dark:bg-slate-800 p-1 rounded-xl text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setActivePdfViewMode('uploaded')}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer border-0 ${
+                        activePdfViewMode === 'uploaded' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xs' : 'text-slate-500'
+                      }`}
+                    >
+                      Original Lab Scan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActivePdfViewMode('electronic')}
+                      className={`px-2.5 py-1 rounded-lg transition cursor-pointer border-0 ${
+                        activePdfViewMode === 'electronic' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-white shadow-xs' : 'text-slate-500'
+                      }`}
+                    >
+                      Electronic PDF
+                    </button>
+                  </div>
+                )}
+
+                {labPdfBlobUrl && (
+                  <a
+                    href={activePdfViewMode === 'uploaded' && selectedLabReportForPdf.reportFileUrl ? selectedLabReportForPdf.reportFileUrl : labPdfBlobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer no-underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Open Fullscreen</span>
+                  </a>
+                )}
                 {labPdfBlobUrl && (
                   <a
                     href={labPdfBlobUrl}
                     download={`LabReport-${selectedPatient.name.replace(/\s+/g, '_')}-${selectedLabReportForPdf.testCode || 'Dx'}.pdf`}
-                    className="py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer no-underline"
+                    className="py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer no-underline border border-indigo-200 dark:border-indigo-800"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Download PDF</span>
@@ -3831,181 +4280,215 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
             </div>
 
-            {/* Modal Body */}
+            {/* Modal Body: Split Live PDF Document Viewer + Doctor-Grade Critical Intelligence */}
             <div className="p-4 sm:p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
               {/* Left Column: Live PDF Document Viewer */}
               <div className="lg:col-span-7 space-y-3 flex flex-col">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-indigo-500" />
-                    Electronic PDF Document View
+                    {activePdfViewMode === 'uploaded' ? 'Official Technician Uploaded Lab Document' : 'VitalSync Electronic Clinical PDF'}
                   </span>
-                  {selectedLabReportForPdf.reportFileUrl && (
-                    <a
-                      href={selectedLabReportForPdf.reportFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1"
+                  {selectedLabReportForPdf.reportFileUrl && activePdfViewMode === 'electronic' && (
+                    <button
+                      type="button"
+                      onClick={() => setActivePdfViewMode('uploaded')}
+                      className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
                     >
-                      <span>Original Technician Upload</span>
+                      <span>Switch to Original Scan</span>
                       <ExternalLink className="w-3 h-3" />
-                    </a>
+                    </button>
                   )}
                 </div>
 
-                <div className="flex-1 min-h-[460px] bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center relative">
+                <div className="flex-1 min-h-[500px] bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center relative shadow-inner">
                   {isLabPdfLoading ? (
                     <div className="flex flex-col items-center gap-2 p-8 text-center">
                       <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-xs text-slate-500 font-medium">Generating official diagnostic PDF report...</p>
+                      <p className="text-xs text-slate-500 font-medium">Rendering clinical diagnostic PDF...</p>
                     </div>
+                  ) : activePdfViewMode === 'uploaded' && selectedLabReportForPdf.reportFileUrl ? (
+                    <iframe
+                      src={selectedLabReportForPdf.reportFileUrl}
+                      title="Uploaded Lab Scan"
+                      className="w-full h-full min-h-[500px] border-0 rounded-2xl bg-white"
+                    />
                   ) : labPdfBlobUrl ? (
                     <iframe
                       src={labPdfBlobUrl}
-                      title="Lab Report PDF Preview"
-                      className="w-full h-full min-h-[460px] border-0 rounded-2xl"
+                      title="Electronic Lab Report PDF"
+                      className="w-full h-full min-h-[500px] border-0 rounded-2xl bg-white"
                     />
                   ) : (
                     <div className="p-8 text-center text-xs text-slate-400">
-                      Unable to render embedded PDF preview. Biomarker summary available on the right.
+                      Generating PDF preview... Critical biomarker intelligence available on the right.
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Right Column: AI Analysis, Biomarkers & WhatsApp Re-send */}
-              <div className="lg:col-span-5 space-y-5">
-                {/* Hinglish AI Analysis Card */}
-                {(() => {
-                  let biomarkersObj: Record<string, any> = {};
-                  if (selectedLabReportForPdf.biomarkerJson) {
-                    biomarkersObj = selectedLabReportForPdf.biomarkerJson.biomarkers || selectedLabReportForPdf.biomarkerJson;
-                  } else if (selectedLabReportForPdf.quantitativeResult) {
-                    try {
-                      const parsed = JSON.parse(selectedLabReportForPdf.quantitativeResult);
-                      biomarkersObj = parsed.biomarkers || parsed;
-                    } catch {
-                      biomarkersObj = { resultValue: selectedLabReportForPdf.quantitativeResult };
-                    }
-                  }
-                  const testName = selectedLabReportForPdf.testName || 'Pathology Diagnostic Panel';
-                  const loincCode = selectedLabReportForPdf.testCode || selectedLabReportForPdf.loincCode || '4544-3';
-                  const interpretation = ClinicalNotificationService.generateHinglishLabInterpretation(loincCode, testName, biomarkersObj);
-                  const entries = Object.entries(biomarkersObj).filter(([k]) => !k.endsWith('_unit') && k !== 'unit' && k !== 'testCode' && k !== 'timestamp' && k !== 'patientId' && k !== 'testName');
-
-                  return (
-                    <div className="space-y-4">
-                      {/* Hinglish Guidance Banner */}
-                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-emerald-500" />
-                          <h4 className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                            Patient Hinglish AI Analysis (रोगी मार्गदर्शन)
-                          </h4>
-                        </div>
-                        <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
-                          {interpretation}
-                        </p>
-                      </div>
-
-                      {/* Biomarker Table */}
+              {/* Right Column: Doctor-Grade Critical Clinical Intelligence */}
+              <div className="lg:col-span-5 space-y-4 text-left">
+                {doctorLabInsight ? (
+                  <div className="space-y-4">
+                    {/* Organ System Risks */}
+                    {doctorLabInsight.organRisks.length > 0 && (
                       <div className="space-y-2">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">
-                          Measured Biomarker Parameters ({entries.length})
+                        <span className="text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 font-mono block">
+                          🚨 Target Organ Risk Assessment ({doctorLabInsight.organRisks.length})
                         </span>
-                        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/50">
-                          {entries.length === 0 ? (
-                            <div className="p-4 text-xs text-slate-400 text-center italic">
-                              Standard laboratory panel. Baseline readings verified.
+                        {doctorLabInsight.organRisks.map((risk, idx) => (
+                          <div
+                            key={`organ-risk-${idx}`}
+                            className={`p-3 rounded-xl border text-xs space-y-1 ${
+                              risk.level === 'critical'
+                                ? 'bg-rose-50 border-rose-300 text-rose-950 dark:bg-rose-950/40 dark:border-rose-800'
+                                : 'bg-amber-50 border-amber-300 text-amber-950 dark:bg-amber-950/40 dark:border-amber-800'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <strong className="font-extrabold text-xs">{risk.system}</strong>
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-white/80 border font-mono">
+                                {risk.level}
+                              </span>
                             </div>
-                          ) : (
-                            <div className="divide-y divide-slate-200/60 dark:divide-slate-800/60">
-                              {entries.map(([key, val], idx) => {
-                                const unit = biomarkersObj[`${key}_unit`] || biomarkersObj.unit || '';
-                                return (
-                                  <div key={`biomarker-param-${idx}-${key}`} className="p-3 flex items-center justify-between text-xs">
-                                    <div>
-                                      <span className="font-bold text-slate-800 dark:text-white block">
-                                        {key.replace(/([A-Z])/g, ' $1').trim()}
-                                      </span>
-                                      <span className="text-[9px] text-slate-400 font-mono">Standard LOINC Ref</span>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-sm">
-                                        {val} {unit}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                            {risk.findings.map((f, fi) => (
+                              <p key={`risk-f-${fi}`} className="text-[11px] leading-relaxed">
+                                • {f}
+                              </p>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Actionable Doctor Directives */}
+                    {doctorLabInsight.actionableDirectives.length > 0 && (
+                      <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl space-y-1.5 text-xs text-indigo-950">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 font-mono block">
+                          🩺 Physician Actionable Directives
+                        </span>
+                        {doctorLabInsight.actionableDirectives.map((dir, di) => (
+                          <div key={`dir-${di}`} className="text-[11px] font-medium leading-relaxed">
+                            {dir}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Historical Delta Trends */}
+                    {doctorLabInsight.deltaTrends.length > 0 && (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 font-mono block">
+                          📊 Delta Trend vs Previous Baseline
+                        </span>
+                        {doctorLabInsight.deltaTrends.map((dt, dti) => (
+                          <div key={`dt-${dti}`} className="flex items-center justify-between text-[11px] border-b border-slate-100 pb-1">
+                            <span>{dt.parameter}: <strong className="text-slate-800">{dt.baseline} → {dt.current}</strong></span>
+                            <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{dt.changeText}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Biomarker Parameters Table with Reference Limits */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono block">
+                        Measured Biomarkers ({doctorLabInsight.biomarkers.length}) &amp; LOINC Standard Intervals
+                      </span>
+                      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[220px] overflow-y-auto">
+                          {doctorLabInsight.biomarkers.map((b, idx) => (
+                            <div key={`biomarker-row-${idx}`} className="p-2.5 flex items-center justify-between text-xs">
+                              <div>
+                                <span className="font-bold text-slate-800 dark:text-white block">
+                                  {b.name}
+                                </span>
+                                <span className="text-[9px] text-slate-400 font-mono">
+                                  Ref: {b.refMin} - {b.refMax} {b.unit}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`font-black font-mono text-sm block ${
+                                  b.severity.includes('critical') ? 'text-rose-600 animate-pulse' : b.severity.includes('high') || b.severity.includes('low') ? 'text-amber-600' : 'text-emerald-600'
+                                }`}>
+                                  {b.value} {b.unit}
+                                </span>
+                                <span className="text-[8px] font-bold font-mono uppercase text-slate-500">
+                                  {b.severityLabel}
+                                </span>
+                              </div>
                             </div>
-                          )}
+                          ))}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Doctor Actions */}
-                      <div className="pt-2 space-y-2">
-                        <button
-                          type="button"
-                          onClick={() => {
+                    {/* Action Row: 1-Click Import to Notes & Push WhatsApp */}
+                    <div className="pt-2 space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (doctorLabInsight) {
                             if (notes) {
-                              setNotes(notes + `\n[Lab Findings - ${testName}]: ` + entries.map(([k, v]) => `${k}: ${v}`).join(', '));
+                              setNotes(notes + '\n\n' + doctorLabInsight.formattedClinicalNote);
                             } else {
-                              setNotes(`[Lab Findings - ${testName}]: ` + entries.map(([k, v]) => `${k}: ${v}`).join(', '));
+                              setNotes(doctorLabInsight.formattedClinicalNote);
                             }
                             handleCloseLabPdfModal();
                             window.dispatchEvent(new CustomEvent('mediflow-toast', {
                               detail: {
-                                title: 'Biomarkers Imported 📋',
-                                message: 'Imported lab findings directly into consultation notes.',
+                                title: 'Doctor Lab Insights Imported 📋',
+                                message: 'Imported critical biomarker analysis and directives into encounter notes.',
                                 type: 'success'
                               }
                             }));
-                          }}
-                          className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-0 text-white-force bg-indigo-600-force"
-                        >
-                          <FileEdit className="w-4 h-4 text-white-force" />
-                          <span>Import Findings to Consultation Notes</span>
-                        </button>
+                          }
+                        }}
+                        className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-0 text-white-force"
+                      >
+                        <FileEdit className="w-4 h-4 text-white-force" />
+                        <span>Import Critical Findings into Encounter Notes</span>
+                      </button>
 
-                        <button
-                          type="button"
-                          disabled={isResendingWhatsApp}
-                          onClick={async () => {
-                            if (!selectedPatient.phone) return;
-                            setIsResendingWhatsApp(true);
-                            try {
-                              await api.dispatchLabReportWhatsApp({
-                                patientPhone: selectedPatient.phone,
-                                patientName: selectedPatient.name,
-                                testName,
-                                loincCode,
-                                biomarkers: biomarkersObj,
-                                reportPdfUrl: selectedLabReportForPdf.reportFileUrl || undefined,
-                                clinicName: activePod?.name || clinicProfile?.clinicName
-                              });
-                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                detail: {
-                                  title: 'WhatsApp Dispatched 📲',
-                                  message: `Lab analysis & PDF report delivered to +91 ${selectedPatient.phone}.`,
-                                  type: 'success'
-                                }
-                              }));
-                            } catch (e) {
-                              console.error('[WhatsApp Resend] Error:', e);
-                            } finally {
-                              setIsResendingWhatsApp(false);
-                            }
-                          }}
-                          className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-2 cursor-pointer border-0 text-white-force bg-emerald-600-force disabled:opacity-50"
-                        >
-                          <Send className="w-4 h-4 text-white-force" />
-                          <span>{isResendingWhatsApp ? 'Dispatching...' : 'Re-send Report to Patient WhatsApp'}</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={isResendingWhatsApp}
+                        onClick={async () => {
+                          if (!selectedPatient.phone) return;
+                          setIsResendingWhatsApp(true);
+                          try {
+                            await api.dispatchLabReportWhatsApp({
+                              patientPhone: selectedPatient.phone,
+                              patientName: selectedPatient.name,
+                              reportUrl: selectedLabReportForPdf.reportFileUrl || labPdfBlobUrl || 'https://vitalsync.in',
+                              testName: selectedLabReportForPdf.testName || 'Diagnostic Report'
+                            });
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Lab Report Sent to WhatsApp 📱',
+                                message: `Official report pushed to +91 ${selectedPatient.phone}`,
+                                type: 'success'
+                              }
+                            }));
+                          } catch (e) {
+                            console.error(e);
+                          } finally {
+                            setIsResendingWhatsApp(false);
+                          }
+                        }}
+                        className="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Send className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>Push PDF to Patient WhatsApp (+91 {selectedPatient.phone || 'N/A'})</span>
+                      </button>
                     </div>
-                  );
-                })()}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-xs text-slate-400">
+                    Generating physician intelligence analysis...
+                  </div>
+                )}
               </div>
             </div>
           </div>

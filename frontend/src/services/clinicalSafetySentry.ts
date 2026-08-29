@@ -134,7 +134,115 @@ const OPHTHALMIC_STEROID_KEYWORDS = [
   'prednisolone', 'dexamethasone', 'betamethasone', 'fluorometholone', 'loteprednol', 'pred forte', 'dexona'
 ];
 
+// Teratogenic / Pregnancy Category D & X Contraindications
+const TERATOGEN_PREGNANCY_KEYWORDS = [
+  'telmisartan', 'losartan', 'olmesartan', 'valsartan', 'enalapril', 'ramipril', 'lisinopril',
+  'atorvastatin', 'rosuvastatin', 'simvastatin', 'methotrexate', 'valproate', 'valparin', 'epilim',
+  'isotretinoin', 'retinoic', 'warfarin', 'acitrom', 'tetracycline', 'doxycycline', 'phenytoin'
+];
+
+export interface PediatricDoseCalculation {
+  drugName: string;
+  weightKg: number;
+  recommendedDoseMgPerKg: number;
+  totalDoseMg: number;
+  liquidConcentrationMgPerMl: number;
+  calculatedVolumeMl: number;
+  dosingFrequency: string;
+  maxDailyMg: number;
+}
+
 export class ClinicalSafetySentry {
+
+  /**
+   * Calculates pediatric suspension dosage by weight
+   */
+  public static calculatePediatricDose(params: {
+    drug: 'paracetamol' | 'amoxicillin' | 'ibuprofen' | 'azithromycin' | 'cetirizine';
+    weightKg: number;
+    strength?: '120mg_5ml' | '250mg_5ml' | '125mg_5ml' | '100mg_5ml' | '5mg_5ml';
+  }): PediatricDoseCalculation {
+    const { drug, weightKg, strength } = params;
+    const safeWeight = Math.max(2, Math.min(60, weightKg));
+
+    switch (drug) {
+      case 'paracetamol': {
+        const doseMg = Math.round(safeWeight * 15); // 15 mg/kg/dose
+        const mgPerMl = strength === '250mg_5ml' ? 50 : 24; // 250mg/5ml = 50mg/ml, 120mg/5ml = 24mg/ml
+        const volumeMl = Math.round((doseMg / mgPerMl) * 10) / 10;
+        return {
+          drugName: `Paracetamol Syrup (${strength === '250mg_5ml' ? '250mg/5ml' : '120mg/5ml'})`,
+          weightKg: safeWeight,
+          recommendedDoseMgPerKg: 15,
+          totalDoseMg: doseMg,
+          liquidConcentrationMgPerMl: mgPerMl,
+          calculatedVolumeMl: volumeMl,
+          dosingFrequency: 'Give every 6-8 hours as needed for fever (Max 4 times/24h)',
+          maxDailyMg: Math.round(safeWeight * 60)
+        };
+      }
+      case 'amoxicillin': {
+        const doseMg = Math.round((safeWeight * 40) / 3); // 40 mg/kg/day divided TDS
+        const mgPerMl = 25; // 125mg/5ml = 25mg/ml
+        const volumeMl = Math.round((doseMg / mgPerMl) * 10) / 10;
+        return {
+          drugName: 'Amoxicillin Dry Syrup (125mg/5ml)',
+          weightKg: safeWeight,
+          recommendedDoseMgPerKg: 40,
+          totalDoseMg: doseMg,
+          liquidConcentrationMgPerMl: mgPerMl,
+          calculatedVolumeMl: volumeMl,
+          dosingFrequency: 'Give 3 times daily (TDS) for 5-7 days after food',
+          maxDailyMg: Math.round(safeWeight * 40)
+        };
+      }
+      case 'ibuprofen': {
+        const doseMg = Math.round(safeWeight * 10); // 10 mg/kg/dose
+        const mgPerMl = 20; // 100mg/5ml = 20mg/ml
+        const volumeMl = Math.round((doseMg / mgPerMl) * 10) / 10;
+        return {
+          drugName: 'Ibuprofen Suspension (100mg/5ml)',
+          weightKg: safeWeight,
+          recommendedDoseMgPerKg: 10,
+          totalDoseMg: doseMg,
+          liquidConcentrationMgPerMl: mgPerMl,
+          calculatedVolumeMl: volumeMl,
+          dosingFrequency: 'Give every 8 hours strictly after meals',
+          maxDailyMg: Math.round(safeWeight * 30)
+        };
+      }
+      case 'azithromycin': {
+        const doseMg = Math.round(safeWeight * 10); // 10 mg/kg once daily
+        const mgPerMl = 20; // 100mg/5ml = 20mg/ml
+        const volumeMl = Math.round((doseMg / mgPerMl) * 10) / 10;
+        return {
+          drugName: 'Azithromycin Suspension (100mg/5ml)',
+          weightKg: safeWeight,
+          recommendedDoseMgPerKg: 10,
+          totalDoseMg: doseMg,
+          liquidConcentrationMgPerMl: mgPerMl,
+          calculatedVolumeMl: volumeMl,
+          dosingFrequency: 'Give ONCE daily 1 hour before breakfast for 3-5 days',
+          maxDailyMg: Math.round(safeWeight * 10)
+        };
+      }
+      case 'cetirizine': {
+        const doseMg = safeWeight < 15 ? 2.5 : 5.0;
+        const mgPerMl = 1; // 5mg/5ml = 1mg/ml
+        const volumeMl = doseMg / mgPerMl;
+        return {
+          drugName: 'Cetirizine Syrup (5mg/5ml)',
+          weightKg: safeWeight,
+          recommendedDoseMgPerKg: 0.25,
+          totalDoseMg: doseMg,
+          liquidConcentrationMgPerMl: mgPerMl,
+          calculatedVolumeMl: volumeMl,
+          dosingFrequency: 'Give ONCE daily at bedtime',
+          maxDailyMg: 5.0
+        };
+      }
+    }
+  }
 
   /**
    * Main CDSS Evaluation Engine
@@ -417,6 +525,64 @@ export class ClinicalSafetySentry {
         triggerDrugs: medications.filter(m => NSAID_KEYWORDS.some(k => normalizeDrug(m.medicineName).includes(k))).map(m => m.medicineName),
         clinicalCitation: 'WHO Analgesic Ladder & Clinical Practice Guidelines'
       });
+    }
+
+    // ── 6. PREGNANCY & LACTATION TERATOGEN SENTRY ────────────────────────
+    const isFemale = (patient?.gender || '').toLowerCase() === 'female';
+    const isReproductiveAge = (patient?.age || 30) >= 15 && (patient?.age || 30) <= 49;
+    const isPregnantOrLactating = (patient?.chronicConditions || []).some(c => c.toLowerCase().includes('pregnant') || c.toLowerCase().includes('pregnancy') || c.toLowerCase().includes('lactating'));
+
+    if (isFemale && (isPregnantOrLactating || isReproductiveAge)) {
+      for (const med of medications) {
+        const medNorm = normalizeDrug(med.medicineName);
+        const hasTeratogen = TERATOGEN_PREGNANCY_KEYWORDS.some(k => medNorm.includes(k));
+        if (hasTeratogen) {
+          alerts.push({
+            id: `teratogen-${med.medicineName}`,
+            type: 'drug_interaction',
+            severity: isPregnantOrLactating ? 'critical' : 'warning',
+            title: `Pregnancy Category D/X Teratogen Alert (${med.medicineName})`,
+            message: `**${med.medicineName}** is documented FDA Category D/X with proven risk of fetal malformation, oligohydramnios, renal dysgenesis, or neural tube defects.`,
+            mechanism: 'Interferes with organogenesis and fetal hemodynamics.',
+            recommendation: isPregnantOrLactating 
+              ? 'CONTRAINDICATED: Discontinue immediately. Use pregnancy-safe alternatives (e.g. Labetalol/Methyldopa for HTN; Insulin for Diabetes).'
+              : 'Verify pregnancy status before prescribing. Advise effective contraception.',
+            triggerDrugs: [med.medicineName],
+            clinicalCitation: 'ACOG Practice Bulletin & FDA Pregnancy Safety Standards'
+          });
+        }
+      }
+    }
+
+    // ── 7. FOOD-DRUG INTERACTION ADVISORY ───────────────────────────────
+    for (const med of medications) {
+      const medNorm = normalizeDrug(med.medicineName);
+      if (medNorm.includes('thyronorm') || medNorm.includes('eltroxin') || medNorm.includes('levothyroxine')) {
+        alerts.push({
+          id: `food-thyroid-${med.medicineName}`,
+          type: 'drug_interaction',
+          severity: 'info',
+          title: 'Food Timing Advisory: Levothyroxine Absorption',
+          message: 'Must be taken on an empty stomach with a full glass of water, minimum 30-45 minutes before morning tea, coffee, milk, or breakfast.',
+          mechanism: 'Dietary calcium, iron, and soy drastically reduce intestinal bioavailability by 40-60%.',
+          recommendation: 'Instruct patient to set a morning wake-up dose strictly with plain water.',
+          triggerDrugs: [med.medicineName],
+          clinicalCitation: 'Endocrine Society Clinical Practice Guidelines'
+        });
+      }
+      if (medNorm.includes('ciprofloxacin') || medNorm.includes('levofloxacin') || medNorm.includes('doxycycline')) {
+        alerts.push({
+          id: `food-quinolone-${med.medicineName}`,
+          type: 'drug_interaction',
+          severity: 'info',
+          title: 'Food Timing Advisory: Quinolone / Tetracycline Chelation',
+          message: 'Avoid consuming milk, yogurt, antacids, or iron supplements within 2 hours of taking this medication.',
+          mechanism: 'Divalent and trivalent cations (Ca2+, Mg2+, Fe2+) form insoluble chelates, blocking drug absorption.',
+          recommendation: 'Maintain minimum 2-hour separation window from dairy and antacid products.',
+          triggerDrugs: [med.medicineName],
+          clinicalCitation: 'Infectious Diseases Society of America (IDSA)'
+        });
+      }
     }
 
     const criticalCount = alerts.filter(a => a.severity === 'critical').length;

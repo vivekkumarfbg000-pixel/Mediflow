@@ -34,16 +34,16 @@ export class BillingService {
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
         'pat-101', 'pat-102', 'pat-103'
       ]);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
         if (!pod && currentPodId) return false;
         const id = i.id || '';
-        const pName = String(i.patientName || '').toLowerCase();
+        const pName = String(i.patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
         if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
-        if (demoNames.has(pName)) return false;
+        if (testSyntheticNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
       });
@@ -213,16 +213,16 @@ export class BillingService {
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
         'pat-101', 'pat-102', 'pat-103'
       ]);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       ledgers = ledgers.filter(l => {
         const pod = (l as any).podId || (l as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
         if (!pod && currentPodId) return false;
         const id = l.id || '';
-        const pName = String(l.patientName || '').toLowerCase();
+        const pName = String(l.patientName || '').toLowerCase().trim();
         const pId = String((l as any).patientId || '');
         if (id.startsWith('tx-demo') || id.startsWith('tx-sample')) return false;
-        if (demoNames.has(pName)) return false;
+        if (testSyntheticNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
       });
@@ -345,11 +345,7 @@ export class BillingService {
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
         'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105'
       ]);
-      const demoNames = new Set([
-        'aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 
-        'patient customer', 'unknown', 'unknown patient', 'john doe', 'neha yadav', 
-        'vikram prasad', 'vikram verma'
-      ]);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
@@ -362,8 +358,8 @@ export class BillingService {
         const isExplicitDemoId = id.startsWith('appt-demo') || id.startsWith('appt-sample') || id.startsWith('appt-101') || id.startsWith('appt-102');
         if (isExplicitDemoId) return false;
         if (demoPatientIds.has(pId)) return false;
+        if (testSyntheticNames.has(pName)) return false;
         if (pName.includes('test patient') || pName.includes('auto test')) return false;
-        if (demoNames.has(pName) && (id.startsWith('appt-1') || id.startsWith('appt-2') || id.startsWith('demo-'))) return false;
         return true;
       });
     }
@@ -413,7 +409,7 @@ export class BillingService {
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
         'pat-101', 'pat-102', 'pat-103'
       ]);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown']);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId) return false;
@@ -421,10 +417,10 @@ export class BillingService {
           (i as any).podId = currentPodId;
         }
         const id = i.id || '';
-        const pName = String((i as any).patientName || '').toLowerCase();
+        const pName = String((i as any).patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
         if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
-        if (demoNames.has(pName)) return false;
+        if (testSyntheticNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
       });
@@ -1407,6 +1403,38 @@ export class BillingService {
   static getActiveSop(): ClinicSop | null {
     const sops = this.getClinicSops();
     return sops.find(s => s.isActive) || null;
+  }
+
+  static getPrescriptionTemplate(podId?: string): PrescriptionTemplateConfig {
+    const activeSop = this.getActiveSop();
+    const sopTemplate = activeSop?.extractedConfig?.prescriptionTemplate;
+    const ctx = getPodContext();
+    return {
+      doctorName: sopTemplate?.doctorName || 'Dr. Amit Arya',
+      doctorQualification: sopTemplate?.doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)',
+      doctorRegNo: sopTemplate?.doctorRegNo || 'MCI-84992-A',
+      clinicName: sopTemplate?.clinicName || ctx.clinicName || 'Apex Eye & Dental Care Clinic',
+      clinicAddress: sopTemplate?.clinicAddress || 'Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar',
+      clinicPhone: sopTemplate?.clinicPhone || '+91 99342 98453',
+      headerColor: sopTemplate?.headerColor || '#0284c7',
+      footerNote: sopTemplate?.footerNote || 'Emergency Care: Available 24x7 • Valid for Follow-up Review within 15 Days • Please bring this prescription for your review.'
+    };
+  }
+
+  static savePrescriptionTemplate(template: PrescriptionTemplateConfig) {
+    const sops = this.getClinicSops();
+    let activeSop = sops.find(s => s.isActive);
+    if (!activeSop && sops.length > 0) {
+      activeSop = sops[0];
+      activeSop.isActive = true;
+    }
+    if (activeSop) {
+      activeSop.extractedConfig = {
+        ...activeSop.extractedConfig,
+        prescriptionTemplate: template
+      };
+      this.saveClinicSops(sops);
+    }
   }
 
   static calculateCommissionPoolBalance() {

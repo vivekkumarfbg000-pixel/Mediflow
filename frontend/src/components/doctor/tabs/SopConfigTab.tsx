@@ -60,6 +60,40 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
   const sops = api.getClinicSops();
   const activeSop = api.getActiveSop();
 
+  const [templateDocName, setTemplateDocName] = React.useState(() => api.getPrescriptionTemplate().doctorName || 'Dr. Amit Arya');
+  const [templateDocQual, setTemplateDocQual] = React.useState(() => api.getPrescriptionTemplate().doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)');
+  const [templateDocReg, setTemplateDocReg] = React.useState(() => api.getPrescriptionTemplate().doctorRegNo || 'MCI-84992-A');
+  const [templateClinicName, setTemplateClinicName] = React.useState(() => api.getPrescriptionTemplate().clinicName || 'Apex Eye & Dental Care Clinic');
+  const [templateClinicAddress, setTemplateClinicAddress] = React.useState(() => api.getPrescriptionTemplate().clinicAddress || 'Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar');
+  const [templateClinicPhone, setTemplateClinicPhone] = React.useState(() => api.getPrescriptionTemplate().clinicPhone || '+91 99342 98453');
+  const [templateHeaderColor, setTemplateHeaderColor] = React.useState(() => api.getPrescriptionTemplate().headerColor || '#0284c7');
+  const [templateFooterNote, setTemplateFooterNote] = React.useState(() => api.getPrescriptionTemplate().footerNote || 'Emergency Care: Available 24x7 • Valid for Follow-up Review within 15 Days • Please bring this prescription for your review.');
+  const [isSavingTemplate, setIsSavingTemplate] = React.useState(false);
+
+  const handleSaveTemplate = () => {
+    setIsSavingTemplate(true);
+    api.savePrescriptionTemplate({
+      doctorName: templateDocName,
+      doctorQualification: templateDocQual,
+      doctorRegNo: templateDocReg,
+      clinicName: templateClinicName,
+      clinicAddress: templateClinicAddress,
+      clinicPhone: templateClinicPhone,
+      headerColor: templateHeaderColor,
+      footerNote: templateFooterNote
+    });
+    setTimeout(() => {
+      setIsSavingTemplate(false);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Prescription Template Saved! 📄',
+          message: 'All printed OPD slips and e-prescriptions will now use this exact letterhead.',
+          type: 'success'
+        }
+      }));
+    }, 300);
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -639,6 +673,177 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   </ul>
                 </div>
               )}
+
+              {/* Custom Doctor Prescription Letterhead Template & Print Styling */}
+              <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4 text-left">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center font-bold">
+                      📄
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+                        Custom OPD Prescription Letterhead Template & Print Styling
+                      </h4>
+                      <p className="text-[10px] text-slate-500">Configures the physical case sheet slip header printed by the compounder and digital e-Rx letterheads.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveTemplate}
+                    disabled={isSavingTemplate}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm transition active:scale-95 cursor-pointer border-0 flex items-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {isSavingTemplate ? 'Saving Template...' : 'Save Template'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 block">Doctor Full Name & Title</label>
+                    <input
+                      type="text"
+                      value={templateDocName}
+                      onChange={(e) => setTemplateDocName(e.target.value)}
+                      placeholder="e.g. Dr. Amit Arya"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 block">Medical Registration No.</label>
+                    <input
+                      type="text"
+                      value={templateDocReg}
+                      onChange={(e) => setTemplateDocReg(e.target.value)}
+                      placeholder="e.g. MCI-84992-A / State Reg No"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="font-bold text-slate-700 block">Doctor Degrees & Clinical Specializations</label>
+                    <input
+                      type="text"
+                      value={templateDocQual}
+                      onChange={(e) => setTemplateDocQual(e.target.value)}
+                      placeholder="e.g. MBBS, MS (Ophthalmology), FICO (London), Consultant Eye Surgeon"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 block">Clinic / Hospital Center Name</label>
+                    <input
+                      type="text"
+                      value={templateClinicName}
+                      onChange={(e) => setTemplateClinicName(e.target.value)}
+                      placeholder="e.g. Apex Eye & Dental Care Clinic"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-700 block">Clinic Contact Phone</label>
+                    <input
+                      type="text"
+                      value={templateClinicPhone}
+                      onChange={(e) => setTemplateClinicPhone(e.target.value)}
+                      placeholder="e.g. +91 99342 98453"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="font-bold text-slate-700 block">Clinic Address & Landmark</label>
+                    <input
+                      type="text"
+                      value={templateClinicAddress}
+                      onChange={(e) => setTemplateClinicAddress(e.target.value)}
+                      placeholder="e.g. Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="font-bold text-slate-700 block">Footer Disclaimer / Follow-up Note</label>
+                    <input
+                      type="text"
+                      value={templateFooterNote}
+                      onChange={(e) => setTemplateFooterNote(e.target.value)}
+                      placeholder="e.g. Emergency 24x7 • Valid for Follow-up Review within 15 Days"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:bg-white transition"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Template Header Preview */}
+                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl space-y-3 mt-2">
+                  <div className="text-[10px] font-black uppercase text-slate-400 font-mono flex items-center justify-between">
+                    <span>Live Prescription Template Preview (A4 / Physical OPD Pad)</span>
+                    <span className="text-emerald-700 font-bold">● Active SOP Letterhead</span>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2.5 text-xs">
+                    {/* 1. Clinic Header at Top */}
+                    <div className="border-b-2 border-indigo-600 pb-2 flex justify-between items-start flex-wrap gap-2">
+                      <div>
+                        <h4 className="font-black text-sm text-slate-900">🏥 {templateClinicName || 'Apex Eye & Dental Care Clinic'}</h4>
+                        <p className="text-[10px] text-slate-500">{templateClinicAddress || 'Kankarbagh Main Road, Purnea, Bihar'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-mono font-bold text-indigo-700">📞 {templateClinicPhone || '+91 99342 98453'}</p>
+                        <p className="text-[8.5px] text-slate-400">OPD: 09:00 AM - 08:00 PM</p>
+                      </div>
+                    </div>
+
+                    {/* 2. Patient Profile & Single-Row Horizontal Vitals Strip */}
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-[9px] text-slate-600">
+                      <div>PATIENT: <strong>Rahul Verma (34y/M)</strong></div>
+                      <div>TOKEN: <strong className="text-indigo-600">#TK-004</strong></div>
+                      <div>DATE: <strong>29/08/2026</strong></div>
+                    </div>
+
+                    <div className="p-1.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-[8.5px] font-mono text-emerald-950">
+                      <span className="font-bold text-emerald-800">🩺 VITALS:</span>
+                      <span>BP: <strong>120/80</strong></span>
+                      <span className="text-emerald-300">|</span>
+                      <span>Pulse: <strong>72 bpm</strong></span>
+                      <span className="text-emerald-300">|</span>
+                      <span>SpO2: <strong>99%</strong></span>
+                      <span className="text-emerald-300">|</span>
+                      <span>Temp: <strong>98.6°F</strong></span>
+                      <span className="text-emerald-300">|</span>
+                      <span>Sugar: <strong>105</strong></span>
+                      <span className="text-emerald-300">|</span>
+                      <span>Weight: <strong>65kg</strong></span>
+                    </div>
+
+                    {/* 3. Ruled ℞ Section */}
+                    <div className="py-1">
+                      <div className="text-sm font-black text-indigo-600 font-serif leading-none">℞</div>
+                      <div className="h-10 border border-slate-200 rounded-lg bg-slate-50/50 mt-1 flex items-center justify-center text-[9px] text-slate-400 italic">
+                        Ruled Worksheet for Handwritten Doctor Prescriptions &amp; Diagnostics
+                      </div>
+                    </div>
+
+                    {/* 4. Doctor Information & Signature in Bottom Footer */}
+                    <div className="pt-2 border-t border-dashed border-slate-200 flex justify-between items-end text-[9px] text-slate-600">
+                      <div>
+                        <h3 className="font-black text-xs text-slate-900">👨‍⚕️ {templateDocName || 'Dr. Amit Arya'}</h3>
+                        <p className="text-[9px] font-semibold text-indigo-700">{templateDocQual || 'MBBS, MS (Ophthalmology), FICO'}</p>
+                        <p className="text-[8px] font-mono text-slate-500">Reg No: <strong>{templateDocReg || 'MCI-84992-A'}</strong></p>
+                        <p className="text-[8px] text-slate-400 mt-1">{templateFooterNote || 'Valid for 15 Days · Emergency 24x7'}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="w-24 border-b border-slate-400 mb-1 ml-auto"></div>
+                        <div className="text-[8.5px] font-bold text-slate-700">Doctor's Signature &amp; Stamp</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               {/* History */}
               {sops.length > 1 && (

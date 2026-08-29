@@ -31,7 +31,7 @@ import { getIstDateString, getIstDateDisplay } from '../../utils/dateUtils';
    Interconnected clinical node — Doctor › Lab › Pharmacy › WhatsApp
  ───────────────────────────────────────────────────────────────────────────── */
 
-export type LabTab = 'overview' | 'worklist' | 'intake_upload' | 'financials_ledger';
+export type LabTab = 'overview' | 'worklist' | 'intake_upload' | 'financials_ledger' | 'rate_card';
 
 export const LabDashboard: React.FC = () => {
   const { isOphthalmology, testCatalog, nomenclature } = useSpecialization();
@@ -98,6 +98,32 @@ export const LabDashboard: React.FC = () => {
   const [directFile, setDirectFile] = useState<File | null>(null);
   const [directFilePreviewUrl, setDirectFilePreviewUrl] = useState('');
   const [directSearch, setDirectSearch] = useState('');
+
+  // ── Rate Card Management States ──────────────────────────────────
+  const [rateCardList, setRateCardList] = useState<DiagnosticTest[]>(() => api.getDiagnosticTests(activePod?.id));
+  const [rateCardSearch, setRateCardSearch] = useState('');
+  const [rateCardCategory, setRateCardCategory] = useState('all');
+  const [editingPrices, setEditingPrices] = useState<Record<string, number>>({});
+  const [isAddingNewTest, setIsAddingNewTest] = useState(false);
+  const [newTestForm, setNewTestForm] = useState({
+    name: '',
+    loincCode: '',
+    category: 'General Requisition',
+    price: 300,
+    normalRange: 'Standard reference',
+    unit: 'unit'
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleStateChange = (e: any) => {
+      if (e?.detail?.entity === 'lab_rate_card' || !e?.detail?.entity) {
+        setRateCardList(api.getDiagnosticTests(activePod?.id));
+      }
+    };
+    window.addEventListener('mediflow-state-change', handleStateChange);
+    return () => window.removeEventListener('mediflow-state-change', handleStateChange);
+  }, [activePod?.id]);
   const [directBusy, setDirectBusy] = useState(false);
   const [directQueueFilterTab, setDirectQueueFilterTab] = useState<'prescribed_lab' | 'today_consultations' | 'all'>('prescribed_lab');
   const [isAiScanningReport, setIsAiScanningReport] = useState(false);
@@ -968,7 +994,8 @@ export const LabDashboard: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4 shrink-0" /> },
     { id: 'worklist', label: 'Worklist Queue', icon: <FlaskConical className="w-4 h-4 shrink-0" />, badge: pendingList.length + collectedList.length },
     { id: 'intake_upload', label: 'Intake & Upload', icon: <UploadCloud className="w-4 h-4 shrink-0" />, badge: walkinList.length },
-    { id: 'financials_ledger', label: 'Financials & Ledger', icon: <Receipt className="w-4 h-4 shrink-0" /> }
+    { id: 'financials_ledger', label: 'Financials & Ledger', icon: <Receipt className="w-4 h-4 shrink-0" /> },
+    { id: 'rate_card', label: 'Rate Card & Lab Fees', icon: <Tag className="w-4 h-4 shrink-0" /> }
   ];
 
   /* ══════════════════════════════════════════════════════════════
@@ -3329,6 +3356,410 @@ export const LabDashboard: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          TAB 5: RATE CARD & LAB FEE SCHEDULE MANAGER
+      ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'rate_card' && (
+        <div className="space-y-6 text-left animate-fade-in">
+          {/* Rate Card Bento KPI Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="glass-panel p-4 sm:p-5 border-indigo-200 bg-gradient-to-br from-indigo-50/70 to-indigo-100/30 rounded-3xl shadow-xs">
+              <div className="flex items-center justify-between text-indigo-700 mb-2">
+                <span className="text-[11px] font-bold">Catalog Investigations</span>
+                <Tag className="w-4 h-4 text-indigo-600" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                {rateCardList.length}
+              </div>
+              <p className="text-[10px] text-indigo-700 mt-1 font-medium">
+                Live in Doctor EMR &amp; BillHub
+              </p>
+            </div>
+
+            <div className="glass-panel p-4 sm:p-5 border-teal-200 bg-gradient-to-br from-teal-50/70 to-teal-100/30 rounded-3xl shadow-xs">
+              <div className="flex items-center justify-between text-teal-700 mb-2">
+                <span className="text-[11px] font-bold">Average Diagnostic Fee</span>
+                <Coins className="w-4 h-4 text-teal-600" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                ₹{rateCardList.length ? Math.round(rateCardList.reduce((acc, t) => acc + (t.price || 0), 0) / rateCardList.length) : 0}
+              </div>
+              <p className="text-[10px] text-teal-700 mt-1 font-medium">
+                Standard baseline rate
+              </p>
+            </div>
+
+            <div className="glass-panel p-4 sm:p-5 border-emerald-200 bg-gradient-to-br from-emerald-50/70 to-emerald-100/30 rounded-3xl shadow-xs">
+              <div className="flex items-center justify-between text-emerald-700 mb-2">
+                <span className="text-[11px] font-bold">Realtime CDC Status</span>
+                <Zap className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="text-2xl font-black text-emerald-700 flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                Live Sync
+              </div>
+              <p className="text-[10px] text-emerald-700 mt-1 font-medium">
+                Sub-250ms debounced updates
+              </p>
+            </div>
+
+            <div className="glass-panel p-4 sm:p-5 border-amber-200 bg-gradient-to-br from-amber-50/70 to-amber-100/30 rounded-3xl shadow-xs">
+              <div className="flex items-center justify-between text-amber-700 mb-2">
+                <span className="text-[11px] font-bold">Clinic SOP Split</span>
+                <Landmark className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="text-2xl font-black text-slate-900">
+                30% Lab / 70% Clinic
+              </div>
+              <p className="text-[10px] text-amber-700 mt-1 font-medium">
+                Dynamic automated settlement
+              </p>
+            </div>
+          </div>
+
+          {/* Action Hub & Rate Card Controls */}
+          <div className="glass-panel p-5 border-slate-200 shadow-xl bg-white rounded-3xl space-y-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-indigo-600 shrink-0" />
+                  Pathology Diagnostic Rate Card &amp; Fee Schedule
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Update your laboratory fees below or upload your lab's price list. Prices immediately reflect across Doctor EMR, Compounder Desk, and BillHub in real time.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {/* Hidden File Input for CSV / Excel Rate Card Upload */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".csv,.json,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                      try {
+                        const text = String(event.target?.result || '');
+                        if (file.name.endsWith('.json')) {
+                          const parsed = JSON.parse(text);
+                          if (Array.isArray(parsed)) {
+                            api.uploadLabRateCard(parsed, activePod?.id);
+                            setRateCardList(api.getDiagnosticTests(activePod?.id));
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Rate Card Uploaded! 📋',
+                                message: `Successfully updated ${parsed.length} diagnostic test rates.`,
+                                type: 'success'
+                              }
+                            }));
+                          }
+                        } else {
+                          // CSV parsing: Name, Price, LOINC, Category
+                          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                          const parsedItems: Array<Partial<DiagnosticTest>> = [];
+                          for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i];
+                            if (i === 0 && (line.toLowerCase().includes('name') || line.toLowerCase().includes('test'))) continue; // skip header
+                            const cols = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+                            if (cols.length >= 2) {
+                              const name = cols[0];
+                              const price = Number(cols[1]) || 300;
+                              const loincCode = cols[2] || undefined;
+                              const category = cols[3] || 'General Requisition';
+                              parsedItems.push({ name, price, loincCode, category });
+                            }
+                          }
+                          if (parsedItems.length > 0) {
+                            api.uploadLabRateCard(parsedItems, activePod?.id);
+                            setRateCardList(api.getDiagnosticTests(activePod?.id));
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'CSV Rate Card Imported! 📋',
+                                message: `Successfully imported ${parsedItems.length} test prices into active rate card.`,
+                                type: 'success'
+                              }
+                            }));
+                          }
+                        }
+                      } catch (err: any) {
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: {
+                            title: 'Rate Card Import Error',
+                            message: err?.message || 'Could not parse the uploaded rate card.',
+                            type: 'error'
+                          }
+                        }));
+                      }
+                    };
+                    reader.readAsText(file);
+                    e.target.value = '';
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition active:scale-95 shadow-2xs"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-indigo-600" />
+                  Upload Rate Card (CSV)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddingNewTest(!isAddingNewTest)}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition active:scale-95 shadow-2xs text-white-force"
+                >
+                  <PlusCircle className="w-3.5 h-3.5 text-white-force" />
+                  + Add Custom Test
+                </button>
+              </div>
+            </div>
+
+            {/* Add Custom Test Drawer / Form */}
+            {isAddingNewTest && (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Add New Diagnostic Investigation</h4>
+                  <button type="button" onClick={() => setIsAddingNewTest(false)} className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent">✕</button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Test Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Total IgE Antibody"
+                      value={newTestForm.name}
+                      onChange={(e) => setNewTestForm({ ...newTestForm, name: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">LOINC / Test Code</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 19113-8 (Auto-assigned if blank)"
+                      value={newTestForm.loincCode}
+                      onChange={(e) => setNewTestForm({ ...newTestForm, loincCode: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Category</label>
+                    <select
+                      value={newTestForm.category}
+                      onChange={(e) => setNewTestForm({ ...newTestForm, category: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none cursor-pointer"
+                    >
+                      <option value="Diabetology">Diabetology</option>
+                      <option value="Hematology">Hematology</option>
+                      <option value="Renal Panel">Renal Panel</option>
+                      <option value="Liver Function">Liver Function</option>
+                      <option value="Lipid Profile">Lipid Profile</option>
+                      <option value="Thyroid Profile">Thyroid Profile</option>
+                      <option value="Infection / Fever">Infection / Fever</option>
+                      <option value="Vitamins & Minerals">Vitamins &amp; Minerals</option>
+                      <option value="Radiology Imaging">Radiology Imaging</option>
+                      <option value="General Requisition">General Requisition</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Lab Fee (₹) *</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={newTestForm.price}
+                      onChange={(e) => setNewTestForm({ ...newTestForm, price: Number(e.target.value) || 0 })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newTestForm.name.trim()) return;
+                      const testCode = newTestForm.loincCode.trim() || `CUSTOM-${Date.now()}`;
+                      const newTest: DiagnosticTest = {
+                        name: newTestForm.name.trim(),
+                        loincCode: testCode,
+                        category: newTestForm.category,
+                        price: newTestForm.price,
+                        normalRange: newTestForm.normalRange,
+                        unit: newTestForm.unit
+                      };
+                      api.addNewDiagnosticTest(newTest, activePod?.id);
+                      setRateCardList(api.getDiagnosticTests(activePod?.id));
+                      setIsAddingNewTest(false);
+                      setNewTestForm({
+                        name: '',
+                        loincCode: '',
+                        category: 'General Requisition',
+                        price: 300,
+                        normalRange: 'Standard reference',
+                        unit: 'unit'
+                      });
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Test Added to Catalog! 🧪',
+                          message: `Registered "${newTest.name}" at ₹${newTest.price}. Live across all dashboards.`,
+                          type: 'success'
+                        }
+                      }));
+                    }}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl border-0 cursor-pointer text-white-force"
+                  >
+                    Save &amp; Broadcast to Doctor &amp; Compounder
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search rate card by test name, LOINC code, or category..."
+                  value={rateCardSearch}
+                  onChange={(e) => setRateCardSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 scrollbar-thin">
+                {['all', 'Diabetology', 'Hematology', 'Renal Panel', 'Liver Function', 'Lipid Profile', 'Thyroid Profile', 'Infection / Fever'].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setRateCardCategory(cat)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition ${
+                      rateCardCategory === cat
+                        ? 'bg-indigo-600 text-white text-white-force shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {cat === 'all' ? 'All Tests' : cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Diagnostic Rate Card Table */}
+            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-mono">
+                  <tr>
+                    <th className="py-3 px-4">Test Name &amp; Description</th>
+                    <th className="py-3 px-4">LOINC Code</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Reference Range</th>
+                    <th className="py-3 px-4 text-right">Pathology Fee (₹)</th>
+                    <th className="py-3 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rateCardList
+                    .filter((t) => {
+                      if (rateCardCategory !== 'all' && t.category !== rateCardCategory) return false;
+                      if (!rateCardSearch.trim()) return true;
+                      const q = rateCardSearch.toLowerCase();
+                      return (
+                        (t.name || '').toLowerCase().includes(q) ||
+                        (t.loincCode || '').toLowerCase().includes(q) ||
+                        (t.category || '').toLowerCase().includes(q)
+                      );
+                    })
+                    .map((test) => {
+                      const currentPrice = editingPrices[test.loincCode] ?? test.price;
+                      const isEdited = editingPrices[test.loincCode] !== undefined && editingPrices[test.loincCode] !== test.price;
+
+                      return (
+                        <tr key={test.loincCode} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3 px-4 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <FlaskConical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                              <span>{test.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-[10px] text-slate-500">
+                            {test.loincCode}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono">
+                              {test.category || 'General'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-500 font-mono text-[10px]">
+                            {test.normalRange || '—'} {test.unit && `(${test.unit})`}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <span className="text-slate-400 font-mono">₹</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={currentPrice}
+                                onChange={(e) => {
+                                  setEditingPrices({
+                                    ...editingPrices,
+                                    [test.loincCode]: Number(e.target.value) || 0
+                                  });
+                                }}
+                                className={`w-20 px-2 py-1 text-right font-mono font-bold rounded-lg border outline-none text-xs transition ${
+                                  isEdited
+                                    ? 'border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-400/20'
+                                    : 'border-slate-200 bg-white text-slate-800 focus:border-indigo-400'
+                                }`}
+                              />
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {isEdited ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newPrice = editingPrices[test.loincCode];
+                                  api.updateDiagnosticTestPrice(test.loincCode, newPrice, activePod?.id);
+                                  setRateCardList(api.getDiagnosticTests(activePod?.id));
+                                  setEditingPrices(prev => {
+                                    const next = { ...prev };
+                                    delete next[test.loincCode];
+                                    return next;
+                                  });
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: {
+                                      title: 'Price Updated! 💰',
+                                      message: `Updated "${test.name}" fee to ₹${newPrice}. Synchronized across all dashboards.`,
+                                      type: 'success'
+                                    }
+                                  }));
+                                }}
+                                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg border-0 cursor-pointer shadow-2xs text-white-force animate-pulse"
+                              >
+                                Save ₹{currentPrice}
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-emerald-600 font-bold flex items-center justify-center gap-1">
+                                <Check className="w-3 h-3 text-emerald-600" /> Synced
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

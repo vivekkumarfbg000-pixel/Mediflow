@@ -420,6 +420,18 @@ export interface PathologyReport {
   timestamp: string;
 }
 
+export interface PrescriptionTemplateConfig {
+  doctorName?: string;
+  doctorQualification?: string;
+  doctorRegNo?: string;
+  clinicName?: string;
+  clinicAddress?: string;
+  clinicPhone?: string;
+  headerColor?: string;
+  footerNote?: string;
+  logoUrl?: string;
+}
+
 export interface ClinicSop {
   id: string;
   entityId: string;
@@ -437,6 +449,7 @@ export interface ClinicSop {
       pharmacy?: number;
     };
     guidelines: string[];
+    prescriptionTemplate?: PrescriptionTemplateConfig;
   };
   isActive: boolean;
   createdAt: string;

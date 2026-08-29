@@ -152,8 +152,260 @@ export const CompounderDashboard: React.FC = () => {
   const [showDilationModal, setShowDilationModal] = useState<Patient | null>(null);
   const [selectedDilationEye, setSelectedDilationEye] = useState<'both' | 're' | 'le'>('both');
   const [selectedDilationDrop, setSelectedDilationDrop] = useState<'tropicamide' | 'phenylephrine' | 'cyclopentolate'>('tropicamide');
-  const [heightVal, setHeightVal] = useState('165');
-  const [currentTime, setCurrentTime] = useState(new Date());
+  // Batch Prescription Printing States
+  const [showBatchPrescriptionPrintModal, setShowBatchPrescriptionPrintModal] = useState(false);
+  const [selectedPatientIdsForPrint, setSelectedPatientIdsForPrint] = useState<string[]>([]);
+  const [batchPrintSearchTerm, setBatchPrintSearchTerm] = useState('');
+  const [previewPatientId, setPreviewPatientId] = useState<string | null>(null);
+
+  const vitalsDonePatients = useMemo(() => {
+    return patients.filter(p => {
+      const v = p.vitals;
+      return v && (v.bloodPressure || v.pulseRate || v.temperature || v.spO2 || v.bloodSugar || v.weight);
+    });
+  }, [patients, dataRevision]);
+
+  const filteredVitalsPatients = useMemo(() => {
+    if (!batchPrintSearchTerm.trim()) return vitalsDonePatients;
+    const term = batchPrintSearchTerm.toLowerCase();
+    return vitalsDonePatients.filter(p => 
+      (p.name || '').toLowerCase().includes(term) ||
+      (p.phone || '').includes(term) ||
+      String(p.tokenNumber || (p as any).token_number || '').toLowerCase().includes(term)
+    );
+  }, [vitalsDonePatients, batchPrintSearchTerm]);
+
+  const handlePrintPrescriptionSlips = useCallback((targetPatients: Patient[]) => {
+    if (targetPatients.length === 0) return;
+    const template = api.getPrescriptionTemplate();
+    const printWindow = window.open('', '_blank', 'width=900,height=1000');
+    if (!printWindow) return;
+
+    const slipsHtml = targetPatients.map((p, idx) => {
+      const v = p.vitals || ({} as any);
+      const isLast = idx === targetPatients.length - 1;
+
+      return `
+        <div class="prescription-slip ${!isLast ? 'page-break' : ''}">
+          <!-- Clinic Letterhead Header (Top) -->
+          <div class="header" style="border-bottom: 2.5px solid ${template.headerColor || '#0284c7'};">
+            <div class="header-clinic-info">
+              <h1 style="color: ${template.headerColor || '#0284c7'}; font-size: 20px; font-weight: 800;">
+                🏥 ${template.clinicName || 'Apex Eye & Dental Care Clinic'}
+              </h1>
+              <p class="address" style="font-size: 11px; color: #475569; margin-top: 2px;">
+                ${template.clinicAddress || 'Kankarbagh Main Road, Near Metro Pillar 42, Purnea, Bihar'}
+              </p>
+            </div>
+            <div class="header-timing-contact" style="text-align: right;">
+              <p class="phone" style="font-size: 11px; font-weight: 700; color: ${template.headerColor || '#0284c7'};">
+                📞 ${template.clinicPhone || '+91 99342 98453'}
+              </p>
+              <p style="font-size: 10px; color: #64748b; margin-top: 1px;">OPD: 09:00 AM - 08:00 PM</p>
+            </div>
+          </div>
+
+          <!-- Patient Demographics Bar -->
+          <div class="patient-bar">
+            <div class="pat-col">
+              <span class="lbl">Patient Name:</span> <strong>${p.name || 'Patient'}</strong>
+            </div>
+            <div class="pat-col">
+              <span class="lbl">Age / Sex:</span> <strong>${p.age || '—'} Y / ${p.gender || '—'}</strong>
+            </div>
+            <div class="pat-col">
+              <span class="lbl">Phone:</span> <strong>${p.phone || '—'}</strong>
+            </div>
+            <div class="pat-col">
+              <span class="lbl">Token No:</span> <span class="token-badge">#${p.tokenNumber || (p as any).token_number || 'OPD'}</span>
+            </div>
+            <div class="pat-col">
+              <span class="lbl">Date:</span> <strong>${getIstDateString()}</strong>
+            </div>
+            <div class="pat-col">
+              <span class="lbl">ABHA ID:</span> <span class="mono">${p.abhaId || '—'}</span>
+            </div>
+          </div>
+
+          <!-- Single Horizontal Row Vitals Strip in Header -->
+          <div class="vitals-horizontal-row">
+            <span class="v-strip-title">🩺 PRE-CHECKED VITALS:</span>
+            <div class="v-items-inline">
+              <span>BP: <strong>${v.bloodPressure || '120/80'}</strong> mmHg</span>
+              <span class="v-sep">|</span>
+              <span>Pulse: <strong>${v.pulseRate || '72'}</strong> bpm</span>
+              <span class="v-sep">|</span>
+              <span>SpO2: <strong>${v.spO2 || '99'}</strong>%</span>
+              <span class="v-sep">|</span>
+              <span>Temp: <strong>${v.temperature || '98.6'}</strong>°F</span>
+              <span class="v-sep">|</span>
+              <span>Sugar: <strong>${v.bloodSugar || '105'}</strong> mg/dL</span>
+              <span class="v-sep">|</span>
+              <span>Weight: <strong>${v.weight || '65'}</strong> kg</span>
+            </div>
+          </div>
+
+          <!-- Clinical Ruled Worksheet Body -->
+          <div class="clinical-body">
+            <div class="section-row">
+              <div class="sec-title">Chief Complaints / Clinical Findings:</div>
+              <div class="ruled-area" style="height: 95px;"></div>
+            </div>
+
+            <div class="rx-symbol">℞</div>
+
+            <div class="section-row">
+              <div class="sec-title">Prescribed Medications (Handwritten by Doctor):</div>
+              <div class="med-table">
+                <div class="med-head">
+                  <div class="col-sno">#</div>
+                  <div class="col-drug">Medicine Name / Formulation</div>
+                  <div class="col-dose">Dosage & Frequency (1-0-1)</div>
+                  <div class="col-dur">Duration</div>
+                  <div class="col-inst">Timing / Instructions</div>
+                </div>
+                ${[1, 2, 3, 4, 5].map(i => `
+                  <div class="med-row">
+                    <div class="col-sno">${i}.</div>
+                    <div class="col-drug"></div>
+                    <div class="col-dose"></div>
+                    <div class="col-dur"></div>
+                    <div class="col-inst"></div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <div class="section-row" style="margin-top: 10px;">
+              <div class="sec-title">Advised Lab / Diagnostic Tests:</div>
+              <div class="ruled-area" style="height: 55px;"></div>
+            </div>
+          </div>
+
+          <!-- Doctor Information in Bottom Footer of Page -->
+          <div class="footer">
+            <div class="footer-left">
+              <div class="doc-info-block">
+                <h3 class="doc-name" style="color: ${template.headerColor || '#0284c7'}; font-size: 13px; font-weight: 800;">
+                  👨‍⚕️ ${template.doctorName || 'Dr. Amit Arya'}
+                </h3>
+                <p class="doc-qual" style="font-size: 10px; font-weight: 600; color: #475569;">
+                  ${template.doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)'}
+                </p>
+                <p class="doc-reg" style="font-size: 9px; font-family: monospace; color: #64748b;">
+                  Reg No: <strong>${template.doctorRegNo || 'MCI-84992-A'}</strong>
+                </p>
+              </div>
+              <p class="followup-line" style="margin-top: 6px;">Next Follow-Up Review: ____________________</p>
+              <p class="disclaimer">${template.footerNote || 'Emergency Care: Available 24x7 · Valid for 15 days.'}</p>
+            </div>
+            <div class="footer-right">
+              <div class="sig-line"></div>
+              <p class="doc-sig-text">${template.doctorName || 'Doctor'}'s Signature & Stamp</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>OPD Prescription Slips - ${template.clinicName || 'Clinic'}</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+          body { background: #f8fafc; color: #1e293b; }
+          @page { size: A4 portrait; margin: 10mm 12mm; }
+          @media print {
+            body { background: #fff; }
+            .no-print { display: none !important; }
+            .prescription-slip { 
+              border: none !important; 
+              box-shadow: none !important; 
+              margin: 0 !important; 
+              width: 100% !important; 
+              padding: 0 !important; 
+              page-break-after: always !important; 
+              break-after: page !important; 
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              max-height: 100vh;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+            }
+            .prescription-slip:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+          }
+          .prescription-slip {
+            background: #fff;
+            max-width: 800px;
+            margin: 15px auto;
+            padding: 24px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 10px; margin-bottom: 10px; }
+          .header-clinic-info h1 { font-size: 18px; font-weight: 800; }
+          .address { font-size: 10px; color: #475569; margin-top: 2px; }
+          .phone { font-size: 10px; font-weight: 700; color: #0284c7; }
+          
+          .patient-bar { display: flex; flex-wrap: wrap; gap: 10px 18px; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 8px; font-size: 11px; }
+          .pat-col .lbl { color: #64748b; font-size: 9px; text-transform: uppercase; font-weight: 700; }
+          .token-badge { background: #e0e7ff; color: #3730a3; font-weight: 800; font-family: monospace; padding: 1px 6px; border-radius: 4px; border: 1px solid #c7d2fe; }
+          .mono { font-family: monospace; }
+
+          .vitals-horizontal-row { display: flex; align-items: center; gap: 8px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 10px; margin-bottom: 10px; font-size: 10px; }
+          .v-strip-title { font-size: 9px; font-weight: 800; font-family: monospace; color: #166534; white-space: nowrap; }
+          .v-items-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: #14532d; font-family: monospace; font-size: 10px; }
+          .v-items-inline strong { color: #15803d; }
+          .v-sep { color: #86efac; font-weight: bold; }
+
+          .clinical-body { margin-top: 6px; }
+          .section-row { margin-bottom: 8px; }
+          .sec-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #334155; margin-bottom: 3px; }
+          .ruled-area { border: 1px solid #e2e8f0; border-radius: 4px; background: repeating-linear-gradient(to bottom, transparent, transparent 27px, #e2e8f0 28px); }
+
+          .rx-symbol { font-size: 24px; font-weight: 900; color: #0284c7; font-family: 'Times New Roman', serif; margin: 2px 0; }
+
+          .med-table { width: 100%; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden; font-size: 10px; }
+          .med-head { display: flex; background: #f8fafc; font-weight: 700; color: #475569; border-bottom: 1px solid #cbd5e1; padding: 5px 8px; }
+          .med-row { display: flex; border-bottom: 1px solid #e2e8f0; height: 30px; align-items: center; padding: 0 8px; }
+          .med-row:last-child { border-bottom: none; }
+          .col-sno { width: 28px; font-weight: 700; color: #94a3b8; }
+          .col-drug { flex: 2; border-right: 1px dashed #e2e8f0; height: 100%; }
+          .col-dose { flex: 1.5; border-right: 1px dashed #e2e8f0; height: 100%; }
+          .col-dur { flex: 1; border-right: 1px dashed #e2e8f0; height: 100%; }
+          .col-inst { flex: 1.5; height: 100%; }
+
+          .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 15px; padding-top: 8px; border-top: 1px dashed #cbd5e1; }
+          .doc-info-block { margin-bottom: 4px; }
+          .followup-line { font-size: 10px; font-weight: 700; color: #334155; margin-bottom: 3px; }
+          .disclaimer { font-size: 8.5px; color: #64748b; }
+          .footer-right { text-align: center; }
+          .sig-line { width: 150px; border-bottom: 1.5px solid #0f172a; margin-bottom: 3px; margin-left: auto; }
+          .doc-sig-text { font-size: 9px; font-weight: 700; color: #334155; }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="background: #0284c7; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-weight: bold; font-size: 14px;">VitalSync OPD Batch Prescription Printing (${targetPatients.length} Slips)</div>
+          <button onclick="window.print()" style="background: white; color: #0284c7; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">🖨️ Print All Slips</button>
+        </div>
+        ${slipsHtml}
+      </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  }, []);
 
   // Realtime 1-sec clock ticker for live dilation countdowns
   useEffect(() => {
@@ -354,7 +606,7 @@ export const CompounderDashboard: React.FC = () => {
 
       setDataRevision(prev => prev + 1);
       setPatients(api.getPatients());
-      fetchLiveAppointments();
+      setAppointments(api.getAppointments());
       setVitalsPatient(null);
     } catch (err) {
       console.error('[CompounderDashboard] Error approving vitals:', err);
@@ -375,6 +627,41 @@ export const CompounderDashboard: React.FC = () => {
   const [sessions, setSessions] = useState<WhatsAppSession[]>(() => api.getWhatsAppSessions());
   const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
   const [dataRevision, setDataRevision] = useState(0);
+
+  // Central Realtime CDC & Ecosystem Event Listener (Sub-250ms Live Sync)
+  useEffect(() => {
+    const syncData = () => {
+      setPatients(api.getPatients());
+      setAppointments(api.getAppointments());
+      setSessions(api.getWhatsAppSessions());
+      setDataRevision(prev => prev + 1);
+    };
+
+    syncData();
+    window.addEventListener('mediflow-state-change', syncData);
+    window.addEventListener('storage', syncData);
+
+    const unsubscribeApi = api.subscribe(syncData);
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onPatientChange: () => syncData(),
+      onAppointmentChange: () => syncData(),
+      onUnifiedInvoiceChange: () => syncData(),
+      onMedicineBillChange: () => syncData(),
+      onLabRequisitionChange: () => syncData(),
+      onPathologyReportChange: () => syncData(),
+      onFinancialLedgerChange: () => syncData(),
+      onWhatsAppSessionChange: () => syncData(),
+      onClinicSopChange: () => syncData(),
+      onPoolSettlementChange: () => syncData(),
+    });
+
+    return () => {
+      window.removeEventListener('mediflow-state-change', syncData);
+      window.removeEventListener('storage', syncData);
+      unsubscribeApi();
+      unsubscribeRealtime();
+    };
+  }, []);
 
   // Memoized Smart Prefix & Code Patient Search for Instant Intake Desk
   const instantMatchingPatients = useMemo(() => {
@@ -2388,7 +2675,7 @@ export const CompounderDashboard: React.FC = () => {
                 Quick Clinical Actions
               </h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setShowInstantAppointmentModal(true)}
@@ -2417,6 +2704,23 @@ export const CompounderDashboard: React.FC = () => {
                   <div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white">Quick Vitals Intake</div>
                     <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">WhatsApp, QR &amp; BMI Pad</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBatchPrescriptionPrintModal(true)}
+                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/80 dark:border-blue-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
+                >
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-blue-500/20">
+                    <Printer className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                      <span>Print Rx Pads</span>
+                      <span className="text-[8px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-mono font-bold">Batch</span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Pre-filled Vitals &amp; Slips</div>
                   </div>
                 </button>
 
@@ -6276,6 +6580,297 @@ export const CompounderDashboard: React.FC = () => {
         </div>,
         document.body
       )}
+
+      {/* ─── BATCH PHYSICAL OPD PRESCRIPTION PAD PRINTING MODAL ────────────────── */}
+      {showBatchPrescriptionPrintModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-6 overflow-hidden animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-100">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3 bg-slate-50/80 dark:bg-slate-900/80 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                      🖨️ Batch Print Physical OPD Prescription Pads (Pre-filled Vitals)
+                    </h3>
+                    <span className="px-2.5 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold text-[9px] rounded-full uppercase font-mono border border-blue-200 dark:border-blue-800">
+                      {vitalsDonePatients.length} Patients with Vitals Today
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Print custom letterhead prescription slips pre-filled with patient vitals for Doctor physical OPD consults.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBatchPrescriptionPrintModal(false);
+                    setBillHubInitialMode('ocr_scan');
+                    setBillingSubTab('ocr_scan');
+                    setActiveTab('billing_daycare');
+                  }}
+                  className="px-3.5 py-1.5 bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Scan Completed Rx (OCR)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBatchPrescriptionPrintModal(false)}
+                  className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 transition cursor-pointer border-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0">
+              
+              {/* Left Column: Patient List with Checkboxes */}
+              <div className="lg:col-span-6 border-r border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden p-4 space-y-3">
+                {/* Search and Select All Bar */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, phone, or token..."
+                      value={batchPrintSearchTerm}
+                      onChange={(e) => setBatchPrintSearchTerm(e.target.value)}
+                      className="w-full pl-8.5 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedPatientIdsForPrint.length === filteredVitalsPatients.length) {
+                        setSelectedPatientIdsForPrint([]);
+                      } else {
+                        setSelectedPatientIdsForPrint(filteredVitalsPatients.map(p => p.id));
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer shrink-0"
+                  >
+                    {selectedPatientIdsForPrint.length === filteredVitalsPatients.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+
+                {/* Patient Cards List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {filteredVitalsPatients.length > 0 ? (
+                    filteredVitalsPatients.map((p) => {
+                      const isSelected = selectedPatientIdsForPrint.includes(p.id);
+                      const v = p.vitals || ({} as any);
+                      const isPreviewing = previewPatientId === p.id;
+
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => setPreviewPatientId(p.id)}
+                          className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                            isPreviewing
+                              ? 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-400 dark:border-blue-700 shadow-sm'
+                              : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                if (isSelected) {
+                                  setSelectedPatientIdsForPrint(selectedPatientIdsForPrint.filter(id => id !== p.id));
+                                } else {
+                                  setSelectedPatientIdsForPrint([...selectedPatientIdsForPrint, p.id]);
+                                }
+                              }}
+                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-[10px] rounded">
+                                  #{p.tokenNumber || (p as any).token_number || 'OPD'}
+                                </span>
+                                <strong className="text-xs font-bold text-slate-900 dark:text-white">{p.name}</strong>
+                                <span className="text-[10px] text-slate-500">({p.age}y/{p.gender})</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-700 dark:text-emerald-400 mt-1">
+                                <span>BP: {v.bloodPressure || '—'}</span>
+                                <span>•</span>
+                                <span>Pulse: {v.pulseRate || '—'}</span>
+                                <span>•</span>
+                                <span>Sugar: {v.bloodSugar || '—'}</span>
+                                <span>•</span>
+                                <span>SpO2: {v.spO2 || '—'}%</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintPrescriptionSlips([p]);
+                              }}
+                              className="px-2.5 py-1 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                            >
+                              Print 🖨️
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No patients with vitals recorded found today.
+                    </div>
+                  )}
+                </div>
+
+                {/* Batch Print Actions Bar */}
+                <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    Selected: <strong className="text-blue-600 dark:text-blue-400">{selectedPatientIdsForPrint.length}</strong> / {filteredVitalsPatients.length}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={selectedPatientIdsForPrint.length === 0}
+                    onClick={() => {
+                      const targets = vitalsDonePatients.filter(p => selectedPatientIdsForPrint.includes(p.id));
+                      handlePrintPrescriptionSlips(targets);
+                    }}
+                    className={`px-5 py-2 rounded-xl text-xs font-black shadow-md transition flex items-center gap-2 cursor-pointer border-0 ${
+                      selectedPatientIdsForPrint.length > 0
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 active:scale-95'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print Selected ({selectedPatientIdsForPrint.length} Slips)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Visual Slip Preview */}
+              <div className="lg:col-span-6 bg-slate-100 dark:bg-slate-950 p-4 sm:p-5 flex flex-col overflow-y-auto">
+                <div className="text-xs font-black text-slate-500 uppercase font-mono mb-2 flex items-center justify-between">
+                  <span>Physical Prescription Pad Preview (A4 / Letter)</span>
+                  <span className="text-blue-600 font-bold">1 Page per Patient</span>
+                </div>
+
+                {(() => {
+                  const previewPatient = (previewPatientId ? patients.find(p => p.id === previewPatientId) : null) || filteredVitalsPatients[0];
+                  const template = api.getPrescriptionTemplate();
+                  const v = previewPatient?.vitals || ({} as any);
+
+                  if (!previewPatient) {
+                    return (
+                      <div className="flex-1 flex items-center justify-center p-8 bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl text-xs text-slate-400">
+                        Select a patient on the left to preview their printed prescription slip.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="bg-white text-slate-800 p-5 rounded-2xl border border-slate-300 shadow-md space-y-2.5 text-xs">
+                      {/* Top Clinic Header */}
+                      <div className="border-b-2 border-blue-600 pb-2 flex justify-between items-start">
+                        <div>
+                          <h3 className="text-sm font-extrabold text-blue-700">🏥 {template.clinicName || 'Apex Eye & Dental Care Clinic'}</h3>
+                          <p className="text-[9px] text-slate-500">{template.clinicAddress || 'Kankarbagh Main Road, Purnea, Bihar'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-mono text-blue-600 font-bold">{template.clinicPhone || '+91 99342 98453'}</p>
+                          <p className="text-[8px] text-slate-400">OPD: 09:00 AM - 08:00 PM</p>
+                        </div>
+                      </div>
+
+                      {/* Patient Details Strip */}
+                      <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-3 gap-1.5 text-[9.5px]">
+                        <div><span className="text-slate-400">NAME:</span> <strong>{previewPatient.name}</strong></div>
+                        <div><span className="text-slate-400">AGE/SEX:</span> <strong>{previewPatient.age}y / {previewPatient.gender}</strong></div>
+                        <div><span className="text-slate-400">TOKEN:</span> <strong className="text-indigo-600">#{previewPatient.tokenNumber || (previewPatient as any).token_number || 'OPD'}</strong></div>
+                        <div><span className="text-slate-400">PHONE:</span> <strong>{previewPatient.phone}</strong></div>
+                        <div><span className="text-slate-400">DATE:</span> <strong>{getIstDateString()}</strong></div>
+                        <div><span className="text-slate-400">ABHA:</span> <span className="font-mono">{previewPatient.abhaId || '—'}</span></div>
+                      </div>
+
+                      {/* Single-Row Horizontal Vitals Strip in Header */}
+                      <div className="p-2 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between flex-wrap gap-1 text-[9px] text-emerald-950 font-mono">
+                        <span className="font-extrabold text-emerald-800">🩺 VITALS:</span>
+                        <span>BP: <strong>{v.bloodPressure || '120/80'}</strong></span>
+                        <span className="text-emerald-300">|</span>
+                        <span>Pulse: <strong>{v.pulseRate || '72'}</strong></span>
+                        <span className="text-emerald-300">|</span>
+                        <span>SpO2: <strong>{v.spO2 || '99'}%</strong></span>
+                        <span className="text-emerald-300">|</span>
+                        <span>Temp: <strong>{v.temperature || '98.6'}°F</strong></span>
+                        <span className="text-emerald-300">|</span>
+                        <span>Sugar: <strong>{v.bloodSugar || '105'}</strong></span>
+                        <span className="text-emerald-300">|</span>
+                        <span>Weight: <strong>{v.weight || '65'}kg</strong></span>
+                      </div>
+
+                      {/* Ruled Body Sections */}
+                      <div className="space-y-2 pt-1">
+                        <div className="text-[9.5px] font-bold text-slate-600">Chief Complaints / Clinical Diagnosis:</div>
+                        <div className="h-12 border border-slate-200 rounded-lg bg-slate-50/50"></div>
+
+                        <div className="text-base font-black text-blue-600 font-serif leading-none">℞</div>
+                        
+                        <div className="border border-slate-200 rounded-lg overflow-hidden text-[8.5px]">
+                          <div className="grid grid-cols-12 bg-slate-100 font-bold p-1 border-b border-slate-200">
+                            <div className="col-span-1">#</div>
+                            <div className="col-span-5">Medicine Name</div>
+                            <div className="col-span-3">Dose / Frequency</div>
+                            <div className="col-span-3">Duration &amp; Instructions</div>
+                          </div>
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className="grid grid-cols-12 p-1 border-b border-slate-100 last:border-0 h-5 items-center">
+                              <div className="col-span-1 text-slate-400">{i}.</div>
+                              <div className="col-span-5 border-r border-dashed border-slate-200 h-full"></div>
+                              <div className="col-span-3 border-r border-dashed border-slate-200 h-full"></div>
+                              <div className="col-span-3 h-full"></div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="text-[9.5px] font-bold text-slate-600">Advised Lab / Diagnostics:</div>
+                        <div className="h-7 border border-slate-200 rounded-lg bg-slate-50/50"></div>
+                      </div>
+
+                      {/* Doctor Information in Bottom Footer of Page */}
+                      <div className="pt-2.5 border-t border-dashed border-slate-200 flex justify-between items-end text-[9px] text-slate-600">
+                        <div>
+                          <div className="font-extrabold text-blue-700 text-[11px]">{template.doctorName || 'Dr. Amit Arya'}</div>
+                          <div className="text-[9px] text-slate-600 font-semibold">{template.doctorQualification || 'MBBS, MS (Ophthalmology), FICO'}</div>
+                          <div className="text-[8px] font-mono text-slate-400">Reg No: {template.doctorRegNo || 'MCI-84992-A'}</div>
+                          <div className="mt-1 text-[8.5px] font-bold text-slate-500">Next Review: ____________________</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="w-24 border-b border-slate-400 mb-1 ml-auto"></div>
+                          <div className="text-[8.5px] font-bold text-slate-700">Doctor's Signature &amp; Stamp</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -6295,3 +6890,4 @@ export const CompounderDashboard: React.FC = () => {
     </div>
   );
 };
+

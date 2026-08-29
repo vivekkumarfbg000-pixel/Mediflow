@@ -140,12 +140,12 @@ export const DoctorDashboard: React.FC = () => {
   const [sopActiveSubTab, setSopActiveSubTab] = useState<'upload' | 'active'>('upload');
   
   // Real-time API States
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>([]);
-  const [whatsAppOrders, setWhatsAppOrders] = useState<WhatsAppDrugOrder[]>([]);
-  const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>([]);
-  const [financialLedgers, setFinancialLedgers] = useState<FinancialLedgerEntry[]>([]);
+  const [patients, setPatients] = useState<Patient[]>(() => api.getPatients());
+  const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
+  const [pharmacyInventory, setPharmacyInventory] = useState<PharmacyInventoryItem[]>(() => api.getPharmacyInventory());
+  const [whatsAppOrders, setWhatsAppOrders] = useState<WhatsAppDrugOrder[]>(() => api.getWhatsAppDrugOrders());
+  const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>(() => api.getPathologyReports());
+  const [financialLedgers, setFinancialLedgers] = useState<FinancialLedgerEntry[]>(() => api.getFinancialLedgers());
 
   // Dynamically resolve active doctor profile for dynamic header rendering
   const activeDoctorProfile = React.useMemo(() => {
@@ -242,11 +242,6 @@ export const DoctorDashboard: React.FC = () => {
   const [vendorEmail, setVendorEmail] = useState('');
   const [vendorPhone, setVendorPhone] = useState('');
 
-  const [telemetryLogs, setTelemetryLogs] = useState<string[]>([
-    `[${new Date().toLocaleTimeString()}] Meta Cloud API webhook gateway active 🟢`,
-    `[${new Date().toLocaleTimeString()}] Secure Definer symmetric RPC key decryption: SUCCESS`
-  ]);
-
   useEffect(() => {
     const hydrateWabaConnection = async () => {
       try {
@@ -283,27 +278,6 @@ export const DoctorDashboard: React.FC = () => {
     };
     hydrateWabaConnection();
   }, [activePod?.id]);
-
-  useEffect(() => {
-    const logPool = [
-      "POST /webhook - HTTP 200 OK | Latency: 142ms | Payload: 1.2KB",
-      "CDSS SCAN: Consent verification check triggered.",
-      "OUTBOUND: Outgoing proactive refilling notification staged.",
-      "pg_splits trigger: Calculated transaction allocations successfully.",
-      "Webhook routing: Rollover standbys operating within normal parameters.",
-      "Meta API Sync: Synchronized WABA phone details successfully."
-    ];
-
-    const interval = setInterval(() => {
-      const randomLog = logPool[Math.floor(Math.random() * logPool.length)];
-      setTelemetryLogs(prev => [
-        ...prev.slice(-4),
-        `[${new Date().toLocaleTimeString()}] ${randomLog}`
-      ]);
-    }, 7000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // SaaS Doctor States
   const [hinglishSummary, setHinglishSummary] = useState('');
