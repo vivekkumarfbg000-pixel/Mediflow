@@ -5,6 +5,7 @@ import { BillingService } from '../../services/billingService';
 import { supabase } from '../../lib/supabaseClient';
 import { getPodContext } from '../../services/podContext';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
+import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
 import { 
   Trash2, 
@@ -1237,10 +1238,31 @@ Keep the tone professional, clinical, objective, and precise.`;
       return;
     }
 
-    setMedications([
+    const prospectiveMeds = [
       ...medications,
       { medicineName: medName, dosage: medDosage, frequency: medFreq, duration: medDur }
-    ]);
+    ];
+
+    const historicalBiomarkers = selectedPatient ? api.getPatientHistoricalBiomarkers(selectedPatient.id) : [];
+    const evaluation = ClinicalSafetySentry.evaluatePrescriptionSafety({
+      medications: prospectiveMeds,
+      patient: selectedPatient,
+      historicalBiomarkers,
+      isOphthalmology
+    });
+
+    if (evaluation.criticalCount > 0) {
+      const crit = evaluation.alerts.find(a => a.severity === 'critical');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: `⚠️ CDSS Critical Alert: ${crit?.title || 'Safety Warning'}`,
+          message: crit?.message || 'High clinical risk detected for this medication combination.',
+          type: 'warning'
+        }
+      }));
+    }
+
+    setMedications(prospectiveMeds);
     setMedName('');
     setMedDosage('');
   };

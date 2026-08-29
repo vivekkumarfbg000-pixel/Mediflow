@@ -4,6 +4,7 @@ import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
+import { ClinicalSafetySentry } from '../../../services/clinicalSafetySentry';
 import { generateLabReportPdf } from '../../../utils/pdfGenerator';
 import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment } from '../../../types';
@@ -242,6 +243,21 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     const fullReports = api.getFullLabReports().filter(r => (r.patientId === selectedPatient.id || (r as any).patient_id === selectedPatient.id));
     return [...reqs, ...fullReports];
   }, [selectedPatient, appointments, dataRevision]);
+
+  // Real-Time Enterprise CDSS Clinical Safety Sentry
+  const safetyEvaluation = useMemo(() => {
+    if (!selectedPatient) {
+      return { alerts: [], criticalCount: 0, warningCount: 0, hasNephrotoxicRisk: false, hasHepatotoxicRisk: false, hasGlaucomaRisk: false, passed: true };
+    }
+    const historicalBiomarkers = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+    return ClinicalSafetySentry.evaluatePrescriptionSafety({
+      medications,
+      patient: selectedPatient,
+      historicalBiomarkers,
+      activeLabReports: patientLabReports,
+      isOphthalmology
+    });
+  }, [medications, selectedPatient, patientLabReports, isOphthalmology]);
 
   const handleOpenLabPdfModal = async (reportItem: any) => {
     if (!selectedPatient) return;
@@ -2508,87 +2524,86 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </button>
             </div>
 
-            {/* Smart Drug Swap Banner */}
-            {(() => {
-              if (!selectedPatient) return null;
-              const hasNSAID = medications.some(m => {
-                const name = (m.medicineName || '').toLowerCase();
-                return name.includes('ibuprofen') || 
-                       name.includes('diclofenac') || 
-                       name.includes('naproxen') || 
-                       name.includes('ketorolac') || 
-                       name.includes('mefenamic') || 
-                       name.includes('indomethacin') || 
-                       name.includes('meloxicam') || 
-                       name.includes('celecoxib') ||
-                       name.includes('nsaid');
-              });
-
-              if (!hasNSAID) return null;
-
-              const hist = api.getPatientHistoricalBiomarkers(selectedPatient.id);
-              const recentReport = hist.length > 0 ? hist[hist.length - 1] : null;
-              const currentCreatinine = recentReport?.creatinine ?? 0.0;
-              
-              let currentGfr = 90;
-              if (recentReport && recentReport.creatinine) {
-                const scr = recentReport.creatinine;
-                const ageVal = selectedPatient.age ?? 45;
-                const genderVal = selectedPatient.gender || 'Male';
-                const isFemale = genderVal.toLowerCase() === 'female';
-                const k = isFemale ? 0.7 : 0.9;
-                const alpha = isFemale ? -0.241 : -0.302;
-                const genderMult = isFemale ? 1.012 : 1.0;
-                currentGfr = 142 * Math.pow(Math.min(scr / k, 1), alpha) * Math.pow(Math.max(scr / k, 1), -1.200) * Math.pow(0.9938, ageVal) * genderMult;
-              }
-
-              if (currentCreatinine > 1.2 || currentGfr < 60) {
-                return (
-                  <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 animate-fade-in shadow-xs">
+            {/* Top-Grade Real-Time CDSS Safety Alerts & One-Click Molecule Swaps */}
+            {safetyEvaluation.alerts.length > 0 && (
+              <div className="space-y-2.5 animate-fade-in">
+                {safetyEvaluation.alerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className={`p-4 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shadow-xs animate-fade-in ${
+                      alert.severity === 'critical'
+                        ? 'bg-rose-50/90 border-rose-300 text-rose-950 ring-2 ring-rose-500/20'
+                        : alert.severity === 'warning'
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-950'
+                        : 'bg-indigo-50/90 border-indigo-200 text-indigo-950'
+                    }`}
+                  >
                     <div className="flex gap-2.5 items-start">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 font-bold" />
-                      <div className="space-y-1">
-                        <h5 className="font-extrabold text-[11px] text-amber-850 uppercase tracking-wide">Nephrotoxic NSAID Alert (Renal Risk)</h5>
-                        <p className="text-[10px] text-amber-700 leading-relaxed font-medium">
-                          Attending patient has elevated Serum Creatinine ({currentCreatinine || 0} mg/dL) or GFR ({Math.round((currentGfr || 90) * 10) / 10} mL/min). Clinical decision guidelines suggest avoiding nephrotoxic NSAIDs to prevent acute renal failure.
+                      {alert.severity === 'critical' ? (
+                        <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 font-bold mt-0.5 animate-pulse" />
+                      ) : (
+                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 font-bold mt-0.5" />
+                      )}
+                      <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h5 className="font-black text-xs uppercase tracking-wide">
+                            {alert.title}
+                          </h5>
+                          <span className={`text-[9px] font-black font-mono uppercase px-2 py-0.5 rounded-md border ${
+                            alert.severity === 'critical'
+                              ? 'bg-rose-600 text-white border-rose-700'
+                              : 'bg-amber-200 text-amber-900 border-amber-300'
+                          }`}>
+                            {alert.type.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed font-medium">
+                          {alert.message}
                         </p>
+                        <div className="text-[9px] text-slate-500 font-mono">
+                          Mechanism: {alert.mechanism} • Citation: {alert.clinicalCitation}
+                        </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updatedMeds = medications.map(m => {
-                          const name = (m.medicineName || '').toLowerCase();
-                          if (name.includes('ibuprofen') || name.includes('diclofenac') || name.includes('naproxen') || name.includes('ketorolac') || name.includes('mefenamic') || name.includes('indomethacin') || name.includes('meloxicam') || name.includes('celecoxib') || name.includes('nsaid')) {
-                            return {
-                              ...m,
-                              medicineName: 'Paracetamol 500mg',
-                              dosage: 'Paracetamol IP 500mg',
-                              frequency: '1 tablet twice daily after meals as needed',
-                              duration: m.duration || '5 Days'
-                            };
-                          }
-                          return m;
-                        });
-                        setMedications(updatedMeds);
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Renal-Safe Swap Applied 🔄',
-                            message: 'Substituted nephrotoxic NSAID with Paracetamol 500mg.',
-                            type: 'success'
-                          }
-                        }));
-                      }}
-                      className="bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg border-0 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap self-stretch md:self-auto text-center justify-center text-white-force"
-                    >
-                      <ArrowLeftRight className="w-3 h-3 shrink-0" />
-                      Swap with Paracetamol
-                    </button>
+
+                    {alert.suggestedSwap && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const swap = alert.suggestedSwap!;
+                          const origNorm = (swap.originalDrug || '').toLowerCase();
+                          const updatedMeds = medications.map(m => {
+                            const medNorm = (m.medicineName || '').toLowerCase();
+                            if (medNorm.includes(origNorm) || origNorm.includes(medNorm) || (origNorm === 'nsaid' && (medNorm.includes('ibuprofen') || medNorm.includes('diclofenac') || medNorm.includes('aceclofenac') || medNorm.includes('naproxen') || medNorm.includes('combiflam') || medNorm.includes('zerodol')))) {
+                              return {
+                                ...m,
+                                medicineName: swap.swapToName,
+                                dosage: swap.dosage,
+                                frequency: swap.frequency,
+                                duration: swap.duration
+                              };
+                            }
+                            return m;
+                          });
+                          setMedications(updatedMeds);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Clinical Swap Applied! 🛡️',
+                              message: `Swapped to ${swap.swapToName} (${swap.rationale})`,
+                              type: 'success'
+                            }
+                          }));
+                        }}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl cursor-pointer shadow-md transition active:scale-95 border-0 text-white-force shrink-0 flex items-center gap-1.5 self-stretch md:self-auto justify-center"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white-force" />
+                        1-Click Swap: {alert.suggestedSwap.swapToName}
+                      </button>
+                    )}
                   </div>
-                );
-              }
-              return null;
-            })()}
+                ))}
+              </div>
+            )}
 
             {/* List of current medications (Professional Clinical Cards) */}
             {medications.length > 0 ? (
@@ -3359,14 +3374,38 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             </div>
           </div>
 
-          {/* Action Row */}
-          <div className="flex justify-end pt-5 border-t border-slate-100">
-            <button
-              onClick={handleSaveEncounter}
-              className="btn-primary px-8 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-slate-800-force"
-            >
-              <CheckCircle2 className="h-5 w-5 text-slate-800-force" /> Submit Encounter & Route Mappings
-            </button>
+          {/* Action Row & Floating Sticky Submit Bar for Mobile (Guarantees 100% Visibility above Navbar) */}
+          <div className="pt-5 border-t border-slate-100 pb-32 sm:pb-4">
+            {/* Desktop Action Row */}
+            <div className="hidden sm:flex justify-end items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSaveEncounter}
+                className="btn-primary px-8 py-3 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-slate-800-force font-bold shadow-lg"
+              >
+                <CheckCircle2 className="h-5 w-5 text-slate-800-force" /> Submit Encounter & Route Mappings
+              </button>
+            </div>
+
+            {/* Mobile Fixed Sticky Bottom Action Bar (Guarantees 100% Visibility above Mobile Bottom Navigation Bar) */}
+            <div className="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md px-4 py-2.5 border-t border-slate-200 shadow-2xl flex items-center justify-between gap-3">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-mono font-bold text-slate-500">
+                  Token #{selectedPatient?.tokenNumber || 'TK-01'}
+                </span>
+                <span className="text-xs font-black text-slate-900 truncate max-w-[110px]">
+                  {selectedPatient?.name || 'Patient'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveEncounter}
+                className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all text-white-force border-0 cursor-pointer"
+              >
+                <CheckCircle2 className="w-4 h-4 text-white-force" />
+                Submit Encounter &amp; WhatsApp Rx
+              </button>
+            </div>
           </div>
           </div>
         )}

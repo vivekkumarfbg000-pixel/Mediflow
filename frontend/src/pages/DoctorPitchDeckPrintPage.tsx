@@ -52,6 +52,7 @@ import {
   Send,
   Bot
 } from 'lucide-react';
+import { BrandMark } from '../components/shared/BrandMark';
 
 export const DoctorPitchDeckPrintPage: React.FC = () => {
   const [activeSlide, setActiveSlide] = useState<number>(1);
@@ -163,7 +164,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
     "Ecosystem Architecture",
     "₹5,000 Patient Budget Split",
     "Practice Revenue Leap (3.8x)",
-    "Patient Retention Friction",
+    "Paper Trap vs Digital Rx",
     "1-Click EMR & WhatsApp Bot",
     "Chronic Care Flywheel",
     "6 VIP Member Benefits",
@@ -233,12 +234,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
       <header className="sticky top-0 z-50 no-print bg-white/95 backdrop-blur-xl border-b border-slate-200/80 px-4 md:px-8 py-2.5 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-teal-600/20">
-              <Building2 className="w-5 h-5" />
+            <div className="w-9 h-9 shrink-0 flex items-center justify-center">
+              <BrandMark size={36} title="VitalSync Logo" />
             </div>
             <div>
               <div className="text-sm font-black tracking-tight text-slate-900 flex items-center gap-2">
-                <span>VitalSync</span>
+                <span className="font-black text-slate-900 leading-none">
+                  <span className="text-[#1A7B8F]">Vital</span><span className="text-[#7AC47F]">Sync</span>
+                </span>
                 <span className="text-[10px] uppercase font-extrabold tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
                   Doctor Partnership Pitch
                 </span>
@@ -313,14 +316,35 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
         {(viewMode === 'continuous' || activeSlide === 1) && (
           <section className="print-slide bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/90 flex flex-col justify-between relative overflow-hidden">
             <div>
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
+              {/* Top Slide Header with Master Brand Badge & Slide Index */}
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 mb-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+                    <BrandMark size={40} title="VitalSync Logo" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base md:text-xl font-black tracking-tight text-slate-900 leading-none">
+                        <span className="text-[#1A7B8F]">Vital</span><span className="text-[#7AC47F]">Sync</span>
+                      </span>
+                      <span className="text-[10px] uppercase font-black tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                        The Virtual Hospital Network
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-bold text-teal-700 tracking-tight mt-0.5">
+                      Your Clinic. Now a Hospital. • Clinic Freedom. Hospital Revenue. On WhatsApp.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-black text-xs shadow-sm">01</span>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-teal-900 bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-300">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-teal-900 bg-teal-100 px-2.5 py-1 rounded-full border border-teal-300 hidden sm:inline-block">
                     Category-Defining Clinical Partnership
                   </span>
+                  <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">
+                    SLIDE 01 / 12
+                  </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 01 / 12</span>
               </div>
 
               {/* Headline & Mission */}
@@ -581,71 +605,133 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            SLIDE 04: PROBLEM 2 — PATIENT RETENTION & FOLLOW-UP BOTTLENECK
+            SLIDE 04: THE PAPER PRESCRIPTION TRAP VS. DIGITAL RX & HOSPITAL BENCHMARK
            ════════════════════════════════════════════════════════════════ */}
         {(viewMode === 'continuous' || activeSlide === 4) && (
           <section className="print-slide bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/90 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">04</span>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
-                    The Clinical Retention Challenge
+                  <span className="w-6 h-6 rounded-lg bg-rose-600 text-white flex items-center justify-center font-black text-xs shadow-sm">04</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-rose-900 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-300">
+                    The Clinical Safety &amp; Discounter Threat
                   </span>
                 </div>
                 <span className="text-xs font-mono font-bold text-slate-500">SLIDE 04 / 12</span>
               </div>
 
-              <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
-                Problem #2: Patient Records &amp; 65% Follow-Up Drop-Off
-              </h2>
-              <p className="text-xs text-slate-700 mt-0.5">
-                4 critical operational bottlenecks that leak patient loyalty and damage long-term recovery.
-              </p>
-
-              {/* 4-Box Infographic Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-3">
-                <div className="p-3 bg-amber-50/60 rounded-xl border-l-4 border-l-amber-500 border border-amber-300 space-y-1">
-                  <div className="flex items-center gap-1.5 text-amber-950 font-black text-xs">
-                    <FileText className="w-3.5 h-3.5 text-amber-700" /> 1. Lost Paper Prescriptions
-                  </div>
-                  <p className="text-[11px] text-slate-800 leading-relaxed font-medium">
-                    Patients lose paper slips. Doctors are forced to re-examine without past clinical baselines or drug reaction history.
+              {/* Core Problem Headline & Quote */}
+              <div className="space-y-1">
+                <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>The Paper Prescription Trap:</span>
+                  <span className="text-rose-700">Why Top Hospitals Banned Paper Rx</span>
+                </h2>
+                <div className="p-2 bg-slate-900 text-slate-100 rounded-xl border-l-4 border-l-amber-400 shadow-sm flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] md:text-xs leading-relaxed font-semibold italic text-slate-200">
+                    "Every time you write an Rx on paper, your patient walks out the door and is targeted by online discounters. You lose follow-up visibility, and the patient loses care continuity."
                   </p>
                 </div>
+              </div>
 
-                <div className="p-3 bg-amber-50/60 rounded-xl border-l-4 border-l-amber-500 border border-amber-300 space-y-1">
-                  <div className="flex items-center gap-1.5 text-amber-950 font-black text-xs">
-                    <Activity className="w-3.5 h-3.5 text-amber-700" /> 2. Inaccessible History in OPD
+              {/* Tier-1 Hospital Benchmark Banner */}
+              <div className="mt-2 p-2 bg-gradient-to-r from-teal-50 via-emerald-50 to-teal-50 rounded-xl border border-teal-300 flex items-center justify-between gap-2 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-black text-xs shrink-0">
+                    <Building2 className="w-3.5 h-3.5" />
                   </div>
-                  <p className="text-[11px] text-slate-800 leading-relaxed font-medium">
-                    In a fast-paced OPD with 40 patients, finding past lab test values, BP trends, or allergy notes on paper takes minutes.
-                  </p>
+                  <div className="text-[10px] sm:text-[11px] text-slate-900">
+                    <strong className="text-teal-950 font-black uppercase tracking-wider">The Tier-1 Hospital Standard: </strong>
+                    <span>Apollo, Max, Fortis &amp; Medanta <strong>100% mandate digital prescriptions</strong> to eliminate handwriting malpractice lawsuits and capture 70% in-house downstream care. VitalSync brings this exact digital power to your OPD for <strong className="text-teal-800 font-bold">₹0</strong>.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Side-by-Side Visual Comparison Diagram */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-2.5">
+                {/* Status Quo: Paper Prescription Card */}
+                <div className="p-3 bg-rose-50/50 rounded-xl border-2 border-rose-200 space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-rose-200">
+                    <span className="text-xs font-black uppercase text-rose-950 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-rose-700" /> ❌ Paper Prescriptions (Status Quo)
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-200 text-rose-900">3 Deadly Practice Risks</span>
+                  </div>
+
+                  <div className="space-y-1.5 text-[11px] text-slate-800">
+                    <div className="p-1.5 bg-white rounded-lg border border-rose-200 shadow-xs">
+                      <div className="font-bold text-rose-950 flex items-center gap-1">
+                        <span className="text-rose-600 font-black">1.</span> Online Discounter Poaching
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Patient uploads paper slip to Tata 1mg / PharmEasy for 15% discount. Doctor loses chronic refills &amp; patient loyalty forever.
+                      </p>
+                    </div>
+
+                    <div className="p-1.5 bg-white rounded-lg border border-rose-200 shadow-xs">
+                      <div className="font-bold text-rose-950 flex items-center gap-1">
+                        <span className="text-rose-600 font-black">2.</span> Pharmacist Misinterpretation
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Illegible handwriting causes chemists to dispense Look-Alike / Sound-Alike (LASA) molecules or wrong dosage frequencies.
+                      </p>
+                    </div>
+
+                    <div className="p-1.5 bg-white rounded-lg border border-rose-200 shadow-xs">
+                      <div className="font-bold text-rose-950 flex items-center gap-1">
+                        <span className="text-rose-600 font-black">3.</span> Zero Interaction Defense
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        In a 40-patient OPD rush, paper offers zero real-time warning for harmful drug-drug interactions, duplicate therapies, or allergies.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-3 bg-amber-50/60 rounded-xl border-l-4 border-l-amber-500 border border-amber-300 space-y-1">
-                  <div className="flex items-center gap-1.5 text-amber-950 font-black text-xs">
-                    <Users className="w-3.5 h-3.5 text-amber-700" /> 3. 65% Follow-Up Attrition
+                {/* Solution: VitalSync Digital Rx Card */}
+                <div className="p-3 bg-teal-50/70 rounded-xl border-2 border-teal-300 space-y-2 shadow-sm">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-teal-200">
+                    <span className="text-xs font-black uppercase text-teal-950 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-teal-700" /> 🛡️ VitalSync Digital Rx &amp; CDSS
+                    </span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">Hospital-Grade Safety</span>
                   </div>
-                  <p className="text-[11px] text-slate-800 leading-relaxed font-medium">
-                    The moment acute pain subsides, patients forget their Day-15 follow-up. Clinics have no automated channel to bring them back.
-                  </p>
-                </div>
 
-                <div className="p-3 bg-amber-50/60 rounded-xl border-l-4 border-l-amber-500 border border-amber-300 space-y-1">
-                  <div className="flex items-center gap-1.5 text-amber-950 font-black text-xs">
-                    <HeartPulse className="w-3.5 h-3.5 text-amber-700" /> 4. Chronic Patient Leakage
+                  <div className="space-y-1.5 text-[11px] text-slate-800">
+                    <div className="p-1.5 bg-white rounded-lg border border-teal-200 shadow-xs">
+                      <div className="font-bold text-teal-950 flex items-center gap-1">
+                        <span className="text-teal-700 font-black">1.</span> 1-Tap WhatsApp Retention
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Digital Rx routed instantly to patient's WhatsApp + 10% VIP local chemist fulfillment — 100% patient retention, zero discounter leakage.
+                      </p>
+                    </div>
+
+                    <div className="p-1.5 bg-white rounded-lg border border-teal-200 shadow-xs">
+                      <div className="font-bold text-teal-950 flex items-center gap-1">
+                        <span className="text-teal-700 font-black">2.</span> 100% Accurate Dispensing
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Standardized molecule names &amp; structured dosages (<code className="bg-slate-100 px-1 rounded text-teal-800 font-mono font-bold">1-0-1</code>, meal timing) eliminate pharmacist misinterpretation.
+                      </p>
+                    </div>
+
+                    <div className="p-1.5 bg-white rounded-lg border border-teal-200 shadow-xs">
+                      <div className="font-bold text-teal-950 flex items-center gap-1">
+                        <span className="text-teal-700 font-black">3.</span> Real-Time CDSS Safety Alerts
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Automated pop-up warnings flag dangerous drug-drug combinations, duplicate molecules &amp; allergy conflicts before signing.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[11px] text-slate-800 leading-relaxed font-medium">
-                    Diabetic &amp; hypertensive patients take medicines for months without checkups, skip quarterly HbA1c tests, and drift away.
-                  </p>
                 </div>
               </div>
             </div>
 
             <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
-              <span className="text-slate-800 font-bold">VitalSync automates complete patient records and follow-ups on WhatsApp.</span>
-              <span className="text-teal-800 font-black">The WhatsApp Solution →</span>
+              <span className="text-slate-800 font-bold">VitalSync protects clinical reputation and automates lifelong patient loyalty.</span>
+              <span className="text-teal-800 font-black">The 1-Click EMR Solution →</span>
             </div>
           </section>
         )}
@@ -687,6 +773,10 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     <div className="p-1.5 bg-white rounded-lg border border-slate-300 flex items-center gap-1.5">
                       <Check className="w-3 h-3 text-teal-700 shrink-0" />
                       <span><strong>AI Voice Scribe:</strong> Speak Hindi or English notes; auto-generates digital Rx.</span>
+                    </div>
+                    <div className="p-1.5 bg-white rounded-lg border border-teal-300 bg-teal-50/50 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3 h-3 text-teal-700 shrink-0" />
+                      <span><strong>CDSS Safety Sentry:</strong> Real-time alert on dangerous drug interactions &amp; allergies.</span>
                     </div>
                     <div className="p-1.5 bg-white rounded-lg border border-slate-300 flex items-center gap-1.5">
                       <Check className="w-3 h-3 text-teal-700 shrink-0" />
@@ -1272,9 +1362,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-2 bg-teal-50 border-2 border-teal-300 rounded-xl flex items-center justify-between text-xs text-slate-900 mt-2 font-medium">
-              <span className="font-black text-teal-950">VitalSync: Virtual Hospital Network — "Your Clinic. Now a Hospital."</span>
-              <span>Empowering Independent Physicians Across Tier 2 &amp; Tier 3 Healthcare Hubs</span>
+            <div className="p-2.5 bg-teal-50 border-2 border-teal-300 rounded-xl flex items-center justify-between text-xs text-slate-900 mt-2 font-medium">
+              <div className="flex items-center gap-2.5">
+                <BrandMark size={22} title="VitalSync Logo" />
+                <span className="font-black text-teal-950">
+                  <span className="text-[#1A7B8F]">Vital</span><span className="text-[#7AC47F]">Sync</span>: Virtual Hospital Network — "Your Clinic. Now a Hospital."
+                </span>
+              </div>
+              <span className="text-slate-700 text-[11px] hidden sm:inline">Empowering Independent Physicians Across Tier 2 &amp; Tier 3 Healthcare Hubs</span>
             </div>
           </section>
         )}
