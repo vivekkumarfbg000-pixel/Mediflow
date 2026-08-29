@@ -554,7 +554,7 @@ export const LabDashboard: React.FC = () => {
           title: 'Walk-in Registered'
         }
       }));
-      setActiveTab('queue');
+      setActiveTab('worklist');
     }, 700);
   };
 
@@ -649,6 +649,19 @@ export const LabDashboard: React.FC = () => {
     } finally {
       setIsAiScanningReport(false);
     }
+  };
+
+  const handleDirectFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) {
+      setDirectFile(null);
+      setDirectFilePreviewUrl('');
+      return;
+    }
+    setDirectFile(file);
+    const url = URL.createObjectURL(file);
+    setDirectFilePreviewUrl(url);
+    handleAutoExtractLabReport(file);
   };
 
   const handleDirectReportUploadSubmit = async (e: React.FormEvent) => {
@@ -1816,7 +1829,7 @@ export const LabDashboard: React.FC = () => {
               }`}
             >
               <Upload className="w-4 h-4" />
-              <span>Direct Report Upload &amp; AI Camera</span>
+              <span>Direct Report Upload & AI Camera</span>
             </button>
             <button
               type="button"
@@ -1840,7 +1853,6 @@ export const LabDashboard: React.FC = () => {
           {/* SubTab 1: Direct Report Upload & AI Camera Scanner */}
           {intakeSubTab === 'upload' && (
             <form onSubmit={handleDirectReportUploadSubmit} className="space-y-6">
-              {/* Post-Submission Success Card if recently submitted */}
               {lastDirectSubmission && (
                 <div className="glass-panel p-5 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-2">
                   <div className="flex items-center gap-3.5">
@@ -1976,8 +1988,8 @@ export const LabDashboard: React.FC = () => {
                               key={item.patient.id}
                               onClick={() => {
                                 setDirectPatientId(item.patient.id);
-                                if (item.testCode) {
-                                  setDirectTestCode(item.testCode);
+                                if (item.requisitions && item.requisitions.length > 0 && item.requisitions[0].testCode) {
+                                  setDirectTestCode(item.requisitions[0].testCode);
                                 }
                               }}
                               className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
@@ -1995,9 +2007,9 @@ export const LabDashboard: React.FC = () => {
                                 <div>
                                   <div className="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
                                     <span>{item.patient.name}</span>
-                                    {item.req && (
+                                    {item.requisitions && item.requisitions.length > 0 && (
                                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-300 font-mono font-bold">
-                                        Prescribed: {item.req.testName}
+                                        Prescribed: {item.requisitions[0].testName}
                                       </span>
                                     )}
                                   </div>
@@ -2599,7 +2611,43 @@ export const LabDashboard: React.FC = () => {
                                   <button
                                     onClick={() => handleBillWalkinTest(req.id, 'cash')}
                                     className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 active:scale-95 text-slate-800 text-[9px] font-black rounded-lg cursor-pointer border-0"
-{/* ══════════════════════════════════════════════════════════
+                                  >
+                                    Collect Cash
+                                  </button>
+                                  <button
+                                    onClick={() => handleBillWalkinTest(req.id, 'upi')}
+                                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[9px] font-black rounded-lg cursor-pointer border-0"
+                                  >
+                                    UPI QR
+                                  </button>
+                                </div>
+                              )}
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono border ${
+                                req.status === 'completed'
+                                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                  : req.status === 'collected'
+                                  ? 'text-indigo-600 bg-indigo-50 border-indigo-200'
+                                  : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                              }`}>
+                                {req.status}
+                              </span>
+                              <div className="text-[9px] text-slate-400 font-mono">
+                                {new Date(req.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
           TAB 4: FINANCIALS, LEDGER & SETTLEMENTS
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'financials_ledger' && (
@@ -3008,40 +3056,137 @@ export const LabDashboard: React.FC = () => {
                   )}
                 </div>
 
+                {/* LOINC catalog pricing reference */}
+                <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-50" />
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+                    <Microscope className="w-4 h-4 text-teal-600 shrink-0" />
+                    LOINC Test Catalog &amp; Pricing
+                  </h2>
+                  <div className="space-y-2">
+                    {testCatalog.map(test => (
+                      <div key={test.loincCode} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
+                        <div>
+                          <div className="text-xs font-bold text-slate-800 dark:text-white">{test.name}</div>
+                          <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
+                            LOINC: {test.loincCode} · {test.category} · Range: {test.normalRange} {test.unit}
+                          </div>
+                        </div>
+                        <div className="text-sm font-bold text-indigo-600 dark:text-indigo-400 font-mono ml-3 shrink-0">₹{test.price}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest font-mono">
-                👥 Node Partner Network
-              </h3>
-              <div className="space-y-2">
-                {podEntities.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No partners found in this Pod.</p>
+              {/* Chemical deduction audit log */}
+              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white dark:bg-slate-900">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-amber-500 opacity-40" />
+                <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-amber-500 shrink-0" />
+                  Chemical Reagent Deduction Audit Log
+                </h2>
+                {completedList.flatMap(r => r.reagentDeductions || []).length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 text-sm">No reagent deductions logged yet.</div>
                 ) : (
-                  podEntities.map(pe => (
-                    <div key={pe.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${pe.entityType === 'clinic' ? 'bg-indigo-400' : pe.entityType === 'lab' ? 'bg-teal-400' : 'bg-amber-400'}`} />
-                        <div>
-                          <p className="font-bold text-slate-800">{pe.name}</p>
-                          <p className="text-[9px] text-slate-500 uppercase tracking-wider">{pe.entityType}</p>
-                        </div>
-                      </div>
-                      <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded border ${
-                        pe.status === 'approved' 
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                          : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                      }`}>
-                        {pe.status}
-                      </span>
-                    </div>
-                  ))
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase tracking-wider text-[10px]">
+                        <tr>
+                          <th className="p-3">Test</th>
+                          <th className="p-3">Patient</th>
+                          <th className="p-3">Reagent</th>
+                          <th className="p-3 text-right">Deducted</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200/40 dark:divide-slate-700/40">
+                        {completedList.flatMap(req =>
+                          (req.reagentDeductions || []).map((ded, i) => (
+                            <tr key={`${req.id}-${i}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                              <td className="p-3 font-semibold text-slate-800 dark:text-white">{req.testName}</td>
+                              <td className="p-3 text-slate-600 dark:text-slate-300">{req.patientName}</td>
+                              <td className="p-3 text-slate-500 dark:text-slate-400 font-mono">{ded.reagentName}</td>
+                              <td className="p-3 text-right text-rose-500 font-bold font-mono">−{ded.volumeDeducted}{ded.unit}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* SubTab 4: Pod Network HUB */}
+          {financialsSubTab === 'pod_network' && (
+            <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-6 bg-white dark:bg-slate-900">
+              <div className="flex justify-between items-center border-b border-slate-200/60 dark:border-slate-800 pb-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Network className="w-4 h-4 text-indigo-400 shrink-0" />
+                    Pod Network HUB
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Connected clinical clinic node and ecosystem partner network details.
+                  </p>
+                </div>
+                <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded-full uppercase tracking-wider border ${
+                  activeEntity?.status === 'approved' 
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                }`}>
+                  {activeEntity?.status || 'Pending Connection'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest font-mono">
+                    🏥 Primary Clinic Connection
+                  </h3>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+                    <p className="text-xs font-bold text-slate-800 dark:text-white">{activePod?.name || 'Primary Clinical Network'}</p>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 space-y-1">
+                      <div>Clinic Code: <span className="font-mono font-bold text-slate-800 dark:text-white bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">{activePod?.clinicCode || 'N/A'}</span></div>
+                      <div>Location: {activePod?.location || 'Clinic Hub'}</div>
+                      <div>Established: {activePod?.createdAt ? new Date(activePod.createdAt).toLocaleDateString() : 'N/A'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest font-mono">
+                    👥 Node Partner Network
+                  </h3>
+                  <div className="space-y-2">
+                    {podEntities.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No partners found in this Pod.</p>
+                    ) : (
+                      podEntities.map(pe => (
+                        <div key={pe.id} className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${pe.entityType === 'clinic' ? 'bg-indigo-400' : pe.entityType === 'lab' ? 'bg-teal-400' : 'bg-amber-400'}`} />
+                            <div>
+                              <p className="font-bold text-slate-800 dark:text-white">{pe.name}</p>
+                              <p className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{pe.entityType}</p>
+                            </div>
+                          </div>
+                          <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded border ${
+                            pe.status === 'approved' 
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                              : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                          }`}>
+                            {pe.status}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
