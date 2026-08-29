@@ -306,7 +306,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </p>
                 
                 <p className="text-xs text-slate-700 leading-relaxed font-normal">
-                  Unite your OPD room with your local pharmacy and lab into an automated outpatient network. Deliver continuous care, retain 100% patient loyalty, and unlock <strong className="text-slate-950 font-bold">+₹1,00,000 to +₹2,50,000+ monthly recurring income</strong> with <strong className="text-teal-800 font-bold">zero setup costs, zero SaaS fees, and zero workflow changes</strong>.
+                  Unite your OPD room with your local pharmacy and lab into an automated outpatient network. Deliver continuous care, retain 100% patient loyalty, and <strong className="text-slate-950 font-bold">recover the 90% diagnostic &amp; medication value currently lost outside your clinic</strong> — expanding practice revenue by <strong className="text-teal-800 font-bold">2.5x to 3.8x per patient</strong> with <strong className="text-slate-950 font-bold">zero setup costs, zero SaaS fees, and zero workflow changes</strong>.
                 </p>
               </div>
 
