@@ -353,6 +353,7 @@ export interface CounterTransaction {
 
 // ─── MEDICINE BILL (Compounder generates, sent to WhatsApp) ─────────────────
 export interface MedicineBillItem {
+  id?: string;
   inventoryItemId: string;
   name: string;
   genericName: string;
@@ -578,6 +579,7 @@ export interface WabaConnection {
 
 // ── LAB TEST BILLING (Pathology generates, sent to WhatsApp) ─────────────────
 export interface LabTestBillItem {
+  id?: string;
   requisitionId: string;
   loincCode: string;
   testName: string;

@@ -255,6 +255,7 @@ Return ONLY a valid JSON object matching:
       // ── TIER 1: Direct Google Gemini 2.5 Flash Audio Transcription ──────────
       if (import.meta.env.VITE_GEMINI_API_KEY && base64Data) {
         try {
+          const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
           const candidateModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'];
           const parts: any[] = [
             { text: promptText },
