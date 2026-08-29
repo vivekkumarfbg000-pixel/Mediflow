@@ -46,12 +46,12 @@ export interface PatientSafetyContext {
   chronicConditions?: string[];
   vitals?: {
     bloodPressure?: string;
-    pulseRate?: number;
+    pulseRate?: string | number;
     temperature?: string;
     sugar?: string;
-    creatinine?: number;
-    iopOD?: number;
-    iopOS?: number;
+    creatinine?: string | number;
+    iopOD?: string | number;
+    iopOS?: string | number;
     dilationStatus?: string;
     [key: string]: any;
   };
@@ -167,10 +167,15 @@ export class ClinicalSafetySentry {
       ? historicalBiomarkers[historicalBiomarkers.length - 1]
       : null;
 
-    const currentCreatinine = Number(recentReport?.creatinine ?? patient?.vitals?.creatinine ?? 0.0);
-    const currentBilirubin = Number(recentReport?.bilirubin ?? (recentReport as any)?.totalBilirubin ?? 0.0);
-    const currentIopOD = Number(patient?.vitals?.iopOD ?? patient?.vitals?.pulseRate ?? 16);
-    const currentIopOS = Number(patient?.vitals?.iopOS ?? 16);
+    const parseNum = (val: any): number => {
+      const n = Number(val);
+      return isNaN(n) ? 0 : n;
+    };
+
+    const currentCreatinine = parseNum(recentReport?.creatinine ?? patient?.vitals?.creatinine);
+    const currentBilirubin = parseNum(recentReport?.bilirubin ?? (recentReport as any)?.totalBilirubin);
+    const currentIopOD = parseNum(patient?.vitals?.iopOD) || 16;
+    const currentIopOS = parseNum(patient?.vitals?.iopOS) || 16;
     const maxIop = Math.max(currentIopOD, currentIopOS);
 
     // Compute estimated GFR (CKD-EPI Formula)
