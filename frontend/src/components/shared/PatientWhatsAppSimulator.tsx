@@ -75,7 +75,7 @@ const VoiceNotePlayer: React.FC<{
 export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> = ({ isOpen, onClose }) => {
   const { activePod, activeProfile } = useClinic();
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default to Aarav Sharma
+  const [selectedPhone, setSelectedPhone] = useState<string>('');
   const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [typedMessage, setTypedMessage] = useState<string>('');
@@ -109,12 +109,13 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
 
   const handleToggleVoicePlay = (idx: number) => {
     if (playingVoiceId === idx) {
-      setPlayingVoiceId(null);
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      setPlayingVoiceId(null);
+      setVoiceProgress(0);
     } else {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       setPlayingVoiceId(idx);
       setVoiceProgress(0);
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       
       const intervalMs = 150 / playSpeed;
       progressTimerRef.current = setInterval(() => {
@@ -154,14 +155,20 @@ export const PatientWhatsAppSimulator: React.FC<PatientWhatsAppSimulatorProps> =
       const allInvoices = api.getUnifiedInvoices();
       setInvoices(allInvoices);
       
+      let currentPhone = selectedPhone;
+      if (!currentPhone && allPatients.length > 0) {
+        currentPhone = allPatients[0].phone || '';
+        setSelectedPhone(currentPhone);
+      }
+      
       // Auto-initialize session if none exists for the selected phone number
-      const cleanSelected = (selectedPhone || '').replace(/\D/g, '').slice(-10);
+      const cleanSelected = (currentPhone || '').replace(/\D/g, '').slice(-10);
       const activeSession = waSessions.find(s => {
         const sDigits = (s.patientPhone || s.patient_phone || '').replace(/\D/g, '').slice(-10);
         return sDigits && cleanSelected && sDigits === cleanSelected;
       });
-      if (!activeSession && allPatients.some(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelected)) {
-        api.initiateWhatsAppSession(selectedPhone);
+      if (cleanSelected && !activeSession && allPatients.some(p => (p.phone || '').replace(/\D/g, '').slice(-10) === cleanSelected)) {
+        api.initiateWhatsAppSession(currentPhone);
       }
     };
 

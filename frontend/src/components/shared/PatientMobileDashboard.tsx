@@ -45,7 +45,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
   const [activeTab, setActiveTab] = useState<'home' | 'records' | 'wallet' | 'refills' | 'vitals' | 'book_appointment'>('home');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPhone, setSelectedPhone] = useState<string>('9876543210'); // Default Aarav Sharma
+  const [selectedPhone, setSelectedPhone] = useState<string>('');
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
   const [reports, setReports] = useState<PathologyReport[]>([]);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
@@ -80,16 +80,20 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
 
   useEffect(() => {
     const syncData = () => {
-      setPatients(api.getPatients());
+      const allPatients = api.getPatients();
+      setPatients(allPatients);
       setInvoices(api.getUnifiedInvoices());
       setReports(api.getPathologyReports());
       setEncounters(api.getEncounters());
+      if (!selectedPhone && allPatients.length > 0) {
+        setSelectedPhone(allPatients[0].phone || '');
+      }
     };
 
     syncData();
     const unsubscribe = api.subscribe(syncData);
     return () => unsubscribe();
-  }, []);
+  }, [selectedPhone]);
 
   const cleanSelectedPhone = (selectedPhone || '').replace(/\D/g, '').slice(-10);
   const activePatient = patients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedPhone) || patients[0];

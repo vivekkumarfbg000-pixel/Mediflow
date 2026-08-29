@@ -1133,56 +1133,14 @@ Thank you for choosing VitalSync! 🟢`;
   }
 
   static getWhatsAppDrugOrders(): WhatsAppDrugOrder[] {
-    let isDemoAccount = false;
-    if (typeof window !== 'undefined') {
-      try {
-        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
-        if (parsed) {
-          const email = String(parsed.email || '').toLowerCase();
-          const id = String(parsed.id || '').toLowerCase();
-          isDemoAccount = Boolean(
-            parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
-          );
-        }
-      } catch (_e) { /* ignore */ }
-    }
-
-    const defaultOrders: WhatsAppDrugOrder[] = isDemoAccount ? [
-      {
-        id: 'ord-101',
-        patientName: 'Aarav Sharma',
-        patientPhone: '9876543210',
-        drugNames: ['Metformin 500mg x10', 'Atorvastatin 10mg x5'],
-        amount: 300,
-        location: 'Sector-B, Kankarbagh, Patna',
-        deliveryStatus: 'delivered',
-        timestamp: '2026-05-24T18:30:00Z'
-      },
-      {
-        id: 'ord-102',
-        patientName: 'Priyanka Verma',
-        patientPhone: '8765432109',
-        drugNames: ['Amoxicillin 250mg x15'],
-        amount: 375,
-        location: 'Boring Road Crossing, Patna',
-        deliveryStatus: 'enroute',
-        timestamp: new Date().toISOString()
-      }
-    ] : [];
-
-    let orders = load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', defaultOrders);
-    if (!isDemoAccount) {
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'neha yadav', 'rahul kumar test', 'rls test patient']);
-      orders = orders.filter(o => {
-        const pName = String(o.patientName || '').toLowerCase().trim();
-        if (o.id === 'ord-101' || o.id === 'ord-102') return false;
-        if (demoNames.has(pName)) return false;
-        return true;
-      });
-    }
+    let orders = load<WhatsAppDrugOrder[]>('whatsapp_drug_orders', []);
+    const demoNames = new Set(['aarav sharma', 'priyanka verma', 'neha yadav', 'rahul kumar test', 'rls test patient']);
+    orders = orders.filter(o => {
+      const pName = String(o.patientName || '').toLowerCase().trim();
+      if (o.id === 'ord-101' || o.id === 'ord-102') return false;
+      if (demoNames.has(pName)) return false;
+      return true;
+    });
     return orders;
   }
 
@@ -1194,7 +1152,8 @@ Thank you for choosing VitalSync! 🟢`;
   static simulateIncomingWhatsAppOrder() {
     const orders = this.getWhatsAppDrugOrders();
     const patients = PatientService.getPatients();
-    const activePatient = patients[Math.floor(Math.random() * patients.length)] || { name: 'Aarav Sharma', phone: '9876543210' };
+    const activePatient = patients[Math.floor(Math.random() * patients.length)];
+    if (!activePatient) return;
     
     const possibleDrugs = [
       { name: 'Metformin 500mg', price: 15 },

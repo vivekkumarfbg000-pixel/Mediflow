@@ -401,61 +401,18 @@ export class LabService {
   }
 
   static getPathologyReports(): PathologyReport[] {
-    let isDemoAccount = false;
-    if (typeof window !== 'undefined') {
-      try {
-        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
-        if (parsed) {
-          const email = String(parsed.email || '').toLowerCase();
-          const id = String(parsed.id || '').toLowerCase();
-          isDemoAccount = Boolean(
-            parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
-          );
-        }
-      } catch (_e) { /* ignore */ }
-    }
-
-    const defaultReports: PathologyReport[] = isDemoAccount ? [
-      {
-        id: 'rep-201',
-        patientId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401',
-        patientName: 'Aarav Sharma',
-        loincCode: '4544-3',
-        testName: 'HbA1c (Glycated Hemoglobin)',
-        status: 'approved',
-        compounderScanned: true,
-        results: 'HbA1c level is 7.2% (Abnormal > 6.5% - Diabetic Glycemic range). Recommended: Metformin 500mg twice daily.',
-        timestamp: '2026-05-24T14:20:00Z'
-      },
-      {
-        id: 'rep-202',
-        patientId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
-        patientName: 'Priyanka Verma',
-        loincCode: '2160-0',
-        testName: 'Serum Creatinine',
-        status: 'pending',
-        compounderScanned: true,
-        timestamp: '2026-05-25T08:30:00Z'
-      }
-    ] : [];
-
-    let reports = load<PathologyReport[]>('pathology_reports', defaultReports);
-    if (!isDemoAccount) {
-      const currentPodId = getPodContext().podId;
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'neha yadav', 'vikram prasad']);
-      reports = reports.filter(r => {
-        const pod = (r as any).podId || (r as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
-        const pName = String(r.patientName || '').toLowerCase().trim();
-        if (r.id === 'rep-201' || r.id === 'rep-202') return false;
-        if (demoNames.has(pName)) return false;
-        return true;
-      });
-    }
+    let reports = load<PathologyReport[]>('pathology_reports', []);
+    const currentPodId = getPodContext().podId;
+    const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'neha yadav', 'vikram prasad']);
+    reports = reports.filter(r => {
+      const pod = (r as any).podId || (r as any).pod_id;
+      if (pod && currentPodId && pod !== currentPodId) return false;
+      if (!pod && currentPodId) return false;
+      const pName = String(r.patientName || '').toLowerCase().trim();
+      if (r.id === 'rep-201' || r.id === 'rep-202') return false;
+      if (demoNames.has(pName)) return false;
+      return true;
+    });
     return reports;
   }
 

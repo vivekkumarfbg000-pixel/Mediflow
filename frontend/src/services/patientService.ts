@@ -18,30 +18,7 @@ export interface PhysicalConsent {
   details?: string;
 }
 
-export const INITIAL_PATIENTS: Patient[] = [
-  {
-    id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401',
-    name: 'Aarav Sharma',
-    phone: '9876543210',
-    age: 45,
-    gender: 'Male',
-    allergies: ['Penicillin'],
-    chronicConditions: ['Type-2 Diabetes', 'Hypertension'],
-    abhaId: '12-3456-7890-1234',
-    createdAt: '2026-05-22T09:05:53.662Z'
-  },
-  {
-    id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
-    name: 'Priyanka Verma',
-    phone: '8765432109',
-    age: 38,
-    gender: 'Female',
-    allergies: [],
-    chronicConditions: ['Asthma'],
-    abhaId: '98-7654-3210-9876',
-    createdAt: '2026-05-22T09:05:53.662Z'
-  }
-];
+export const INITIAL_PATIENTS: Patient[] = [];
 
 export class PatientService {
   static isSyncingQueue = false;
@@ -73,47 +50,28 @@ export class PatientService {
     this.savePatients(patients);
   }
   static getPatients(): Patient[] {
-    let isDemoAccount = false;
-    if (typeof window !== 'undefined') {
-      try {
-        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
-        if (parsed) {
-          const email = String(parsed.email || '').toLowerCase();
-          const id = String(parsed.id || '').toLowerCase();
-          const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
-          isDemoAccount = Boolean(
-            parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
-          );
-        }
-      } catch (_e) { /* ignore */ }
-    }
-    const defaultPatients = isDemoAccount ? INITIAL_PATIENTS : [];
-    let rawPatients = load<Patient[]>('patients', defaultPatients);
+    let rawPatients = load<Patient[]>('patients', []);
     if (rawPatients.length === 0) {
-      rawPatients = load<Patient[]>('patient_registry', defaultPatients);
+      rawPatients = load<Patient[]>('patient_registry', []);
     }
     
-    // For non-demo accounts, purge pre-seeded initial demo patient IDs and mock names from local storage cache
-    if (!isDemoAccount) {
-      const currentPodId = getPodContext().podId;
-      const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
-      const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown', 'unknown patient', 'john doe', 'neha yadav', 'vikram prasad', 'vikram verma']);
-      rawPatients = rawPatients.filter(p => {
-        const pod = (p as any).podId || (p as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) {
-          (p as any).podId = currentPodId;
-        }
-        const cleanName = String(p.name || '').toLowerCase().trim();
-        if (demoIds.has(p.id)) return false;
-        if (demoNames.has(cleanName)) return false;
-        if (cleanName.includes('test patient') || cleanName.includes('auto test patient')) return false;
-        return true;
-      });
-    }
+    // Purge pre-seeded initial demo patient IDs and mock names from local storage cache
+    const currentPodId = getPodContext().podId;
+    const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
+    const demoNames = new Set(['aarav sharma', 'priyanka verma', 'rahul kumar test', 'rls test patient', 'patient customer', 'unknown', 'unknown patient', 'john doe', 'vikram prasad', 'vikram verma']);
+    
+    rawPatients = rawPatients.filter(p => {
+      const pod = (p as any).podId || (p as any).pod_id;
+      if (pod && currentPodId && pod !== currentPodId) return false;
+      if (!pod && currentPodId) {
+        (p as any).podId = currentPodId;
+      }
+      const cleanName = String(p.name || '').toLowerCase().trim();
+      if (demoIds.has(p.id)) return false;
+      if (demoNames.has(cleanName)) return false;
+      if (cleanName.includes('test patient') || cleanName.includes('auto test patient')) return false;
+      return true;
+    });
 
     // Auto-backfill Smart Patient ID (V1, V2, V56 format) for legacy records missing patientCode
     // Pre-seed letterCounters from EXISTING patient codes to prevent duplicate code assignment
