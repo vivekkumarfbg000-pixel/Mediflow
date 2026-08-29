@@ -156,7 +156,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100/90 text-slate-800 font-sans antialiased selection:bg-teal-600 selection:text-white pb-16 print:bg-white print:text-slate-900 print:pb-0">
+    <div className="min-h-screen bg-slate-100 text-slate-800 font-sans antialiased selection:bg-teal-600 selection:text-white pb-16 print:bg-white print:text-slate-900 print:pb-0">
       
       {/* ── High-Definition Magazine & Presentation Print Engine ── */}
       <style dangerouslySetInnerHTML={{ __html: `
