@@ -134,7 +134,7 @@ export const CompounderDashboard: React.FC = () => {
   const { podEntities, activePod, activeProfile } = useClinic();
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
   const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
-  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'scheduled' | 'directory' | 'history'>('today_queue');
+  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
   const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
   const [billingSubTab, setBillingSubTab] = useState<'billing' | 'ocr_scan' | 'ot_daycare'>('billing');
@@ -2708,20 +2708,20 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'opd_patients' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* 4-Column Mobile-Native Horizontal OPD Sub-Tab Switcher */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
+            {/* 3-Column Mobile-Native Horizontal OPD Sub-Tab Switcher */}
+            <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
               <button
                 type="button"
                 onClick={() => setOpdSubTab('today_queue')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
                   opdSubTab === 'today_queue'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
                     : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <Layers className="w-3.5 h-3.5 shrink-0" />
+                <Layers className="w-4 h-4 shrink-0" />
                 <span className="truncate">Today's OPD</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
                   opdSubTab === 'today_queue' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
                   {(() => {
@@ -2736,54 +2736,34 @@ export const CompounderDashboard: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setOpdSubTab('scheduled')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
-                  opdSubTab === 'scheduled'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                onClick={() => setOpdSubTab('directory')}
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
+                  opdSubTab === 'directory'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
                     : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <Calendar className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Scheduled</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
-                  opdSubTab === 'scheduled' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                <Users className="w-4 h-4 shrink-0" />
+                <span className="truncate">Patient Registry</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
+                  opdSubTab === 'directory' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
-                  {(() => {
-                    const todayStr = getIstDateString();
-                    return appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = getEffectiveAppointmentDate(a);
-                      return Boolean(apptDate && apptDate > todayStr);
-                    }).length;
-                  })()}
+                  {patients.length}
                 </span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setOpdSubTab('directory')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
-                  opdSubTab === 'directory'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
-                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">Patient Registry</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setOpdSubTab('history')}
-                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
+                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
                   opdSubTab === 'history'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
                     : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <Clock className="w-4 h-4 shrink-0" />
                 <span className="truncate">Past History</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
                   opdSubTab === 'history' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
                   {(() => {
@@ -3273,258 +3253,7 @@ export const CompounderDashboard: React.FC = () => {
       </div>
     )}
 
-            {/* Sub-View 2: Scheduled Future Date & Virtual Appointments */}
-            {opdSubTab === 'scheduled' && (
-              <div className="space-y-8 animate-fade-in">
-                {/* Section 1: Virtual Video Consultations Roster */}
-                <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500 opacity-80" />
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Video className="w-5 h-5 text-cyan-500 shrink-0" />
-                        Virtual Video Consultations Roster
-                      </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Live schedule of remote video appointments booked via WhatsApp Bot & online portals.
-                      </p>
-                    </div>
-                    <span className="text-xs font-mono font-bold px-3 py-1 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full">
-                      {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).length} Active Video Consults
-                    </span>
-                  </div>
-
-                  {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).length === 0 ? (
-                    <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
-                      <Video className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
-                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">No virtual video appointments scheduled for today.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled' && (a.is_virtual || a.isVirtual)).map(appt => {
-                        const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
-                        const meetUrl = appt.virtual_meeting_url || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
-                        const isFreeLoyalty = appt.amount === 0 || appt.fee_status === 'waived_loyalty' || String(appt.source || '').toLowerCase().includes('loyalty');
-                        return (
-                          <div key={appt.id} className="p-4 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-3 relative overflow-hidden">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2 py-0.5 rounded-md">
-                                Token #{appt.token_number || appt.tokenNumber || 1}
-                              </span>
-                              {isFreeLoyalty ? (
-                                <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                                  💎 Free Member (₹0.00)
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full">
-                                  {appt.status === 'ready_for_consult' ? 'Ready for Consult' : appt.status}
-                                </span>
-                              )}
-                            </div>
-
-                            <div>
-                              <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                {pat?.name || 'Virtual Patient'}
-                                <span className="text-xs font-normal text-slate-500">({pat?.phone || 'N/A'})</span>
-                              </h4>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                Slot: {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'} · Date: {appt.virtual_date || (appt as any).virtualDate || (appt as any).appointment_date || (appt as any).appointmentDate || (appt.createdAt || (appt as any).createdAt || '').split('T')[0] || 'N/A'}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
-                              <a
-                                href={meetUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-sm"
-                              >
-                                Join Video Room
-                              </a>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* Section 2: Future Date & WhatsApp Advance Bookings */}
-                <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-80" />
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <RefreshCw className="w-5 h-5 text-indigo-500" />
-                        Future Date & WhatsApp Advance Bookings
-                      </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                        Patient bookings registered for upcoming dates via WhatsApp Bot & paperless check-in.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase font-mono font-bold text-[10px]">
-                        <tr>
-                          <th className="p-3">Token #</th>
-                          <th className="p-3">Patient Name</th>
-                          <th className="p-3">Phone</th>
-                          <th className="p-3">Booking Date</th>
-                          <th className="p-3">Time Slot</th>
-                          <th className="p-3">Consult Type</th>
-                          <th className="p-3">Payment Status</th>
-                          <th className="p-3 text-right">Intake &amp; Vitals</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                        {(() => {
-                          const todayStr = getIstDateString();
-                          const futureAppts = appointments
-                            .filter(appt => {
-                              if (appt.status === 'pending_payment' || appt.status === 'cancelled') return false;
-                              const apptDate = getEffectiveAppointmentDate(appt);
-                              return Boolean(apptDate && apptDate > todayStr);
-                            })
-                            .sort((a, b) => {
-                              const dateA = getEffectiveAppointmentDate(a);
-                              const dateB = getEffectiveAppointmentDate(b);
-                              return dateA.localeCompare(dateB);
-                            });
-
-                          if (futureAppts.length === 0) {
-                            return (
-                              <tr>
-                                <td colSpan={8} className="p-6 text-center text-slate-400">
-                                  No upcoming advance bookings found for future dates. (All active registrations are for today).
-                                </td>
-                              </tr>
-                            );
-                          }
-
-                          return futureAppts.map((appt, idx) => {
-                            const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
-                            const apptDate = getEffectiveAppointmentDate(appt);
-                            const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
-                            const tokenDisplay = String(rawToken || `T-${String(idx + 1).padStart(2, '0')}`);
-                            const patName = pat?.name || (appt as any).patientName || 'Patient';
-                            const patPhone = pat?.phone || (appt as any).patientPhone || '';
-
-                            return (
-                              <tr key={appt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
-                                <td className="p-3">
-                                  <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-mono font-black text-[11px] border border-indigo-200 dark:border-indigo-700/50 shadow-sm">
-                                    #{tokenDisplay.startsWith('T-') || tokenDisplay.startsWith('TK-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`}
-                                  </span>
-                                </td>
-                                <td className="p-3 font-bold text-slate-900 dark:text-white">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setVitalsPatient(pat || ({
-                                          id: appt.patientId || (appt as any).patient_id || 'pat-wa',
-                                          name: patName,
-                                          phone: patPhone,
-                                          age: (appt as any).patientAge || 28,
-                                          gender: (appt as any).patientGender || 'Male',
-                                          tokenNumber: tokenDisplay
-                                        } as any));
-                                      }}
-                                      className="text-left font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer bg-transparent border-0 p-0 text-xs flex items-center gap-1.5 group"
-                                    >
-                                      <span className="group-hover:underline">{patName}</span>
-                                    </button>
-                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60 flex items-center gap-1">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                      🟢 [W] WhatsApp
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="p-3 font-mono text-slate-600 dark:text-slate-300">{patPhone}</td>
-                                <td className="p-3 font-semibold text-indigo-600 dark:text-indigo-400 font-mono">
-                                  {apptDate}
-                                </td>
-                                <td className="p-3 text-slate-600 dark:text-slate-300 font-mono font-medium">
-                                  {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'}
-                                </td>
-                                <td className="p-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${appt.is_virtual ? 'bg-cyan-100 text-cyan-800' : 'bg-indigo-100 text-indigo-800'}`}>
-                                    {appt.is_virtual ? 'Virtual 💻' : 'Physical 🏥'}
-                                  </span>
-                                </td>
-                                <td className="p-3 font-mono text-emerald-600 font-bold">Cleared ✅</td>
-                                <td className="p-3 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setVitalsPatient(pat || ({
-                                        id: appt.patientId || (appt as any).patient_id || 'pat-wa',
-                                        name: patName,
-                                        phone: patPhone,
-                                        age: (appt as any).patientAge || 28,
-                                        gender: (appt as any).patientGender || 'Male',
-                                        tokenNumber: tokenDisplay
-                                      } as any));
-                                    }}
-                                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl font-bold text-[10px] inline-flex items-center gap-1.5 cursor-pointer transition shadow-sm border-0"
-                                  >
-                                    <Activity className="w-3 h-3" />
-                                    Record Vitals 🩺
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          });
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Section 3: Doctor Availability & Roster Matrix */}
-                <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-purple-600 opacity-80" />
-                  <h2 className="text-base font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-purple-500 shrink-0" />
-                    Doctor Weekly Roster & Slot Capacity Matrix
-                  </h2>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white">Morning Slot</span>
-                        <span className="text-[10px] font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold">10:00 AM - 12:00 PM</span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Capacity: 12 Patients / Day</p>
-                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctor_name || 'Doctor'}</p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white">Afternoon Slot</span>
-                        <span className="text-[10px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md font-bold">02:00 PM - 04:00 PM</span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Capacity: 10 Patients / Day</p>
-                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctor_name || 'Doctor'}</p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-slate-900/60">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold text-slate-800 dark:text-white">Evening Review Slot</span>
-                        <span className="text-[10px] font-mono bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md font-bold">04:00 PM - 06:00 PM</span>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Lab Report Review & OPD</p>
-                      <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-2">Active Doctor: {activePod?.doctor_name || 'Doctor'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sub-View 3: Past Consultation History & Clinic Records with 1-Click CSV Export */}
+            {/* Sub-View 2: Past Consultation History & Clinic Records with 1-Click CSV Export */}
             {opdSubTab === 'history' && (
               <div className="space-y-6 animate-fade-in text-left">
                 <div className="glass-panel p-4 sm:p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
@@ -3725,69 +3454,43 @@ export const CompounderDashboard: React.FC = () => {
                     let confirmedAppts = appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       const apptDate = getEffectiveAppointmentDate(a);
-                      if (!apptDate) return (opdSubTab as string) === 'today_queue';
-
-                      if ((opdSubTab as string) === 'today_queue') {
-                        return apptDate === todayStr;
-                      } else if ((opdSubTab as string) === 'upcoming_advance') {
-                        return apptDate > todayStr;
-                      } else {
-                        // past_history
-                        return apptDate < todayStr;
-                      }
+                      return !apptDate || apptDate === todayStr;
                     });
 
-                    // Sort appointments chronologically
-                    if ((opdSubTab as string) === 'today_queue') {
-                      // 1. Emergency SOS takes Priority #1 at top of queue
-                      // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
-                      // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
-                      const parseTokenNum = (token?: string | number) => {
-                        if (!token) return 999999;
-                        if (typeof token === 'number') return token;
-                        const match = String(token).match(/\d+/);
-                        return match ? parseInt(match[0], 10) : 999999;
-                      };
+                    // 1. Emergency SOS takes Priority #1 at top of queue
+                    // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
+                    // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
+                    const parseTokenNum = (token?: string | number) => {
+                      if (!token) return 999999;
+                      if (typeof token === 'number') return token;
+                      const match = String(token).match(/\d+/);
+                      return match ? parseInt(match[0], 10) : 999999;
+                    };
 
-                      confirmedAppts.sort((a, b) => {
-                        // Priority #1: Emergency SOS
-                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').toUpperCase().includes(' E') || String(a.tokenNumber || '').toUpperCase().includes('E-') || String(a.tokenNumber || '').startsWith('#EM-'));
-                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').toUpperCase().includes(' E') || String(b.tokenNumber || '').toUpperCase().includes('E-') || String(b.tokenNumber || '').startsWith('#EM-'));
-                        if (isSOSA && !isSOSB) return -1;
-                        if (!isSOSA && isSOSB) return 1;
+                    confirmedAppts.sort((a, b) => {
+                      // Priority #1: Emergency SOS
+                      const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').toUpperCase().includes(' E') || String(a.tokenNumber || '').toUpperCase().includes('E-') || String(a.tokenNumber || '').startsWith('#EM-'));
+                      const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').toUpperCase().includes(' E') || String(b.tokenNumber || '').toUpperCase().includes('E-') || String(b.tokenNumber || '').startsWith('#EM-'));
+                      if (isSOSA && !isSOSB) return -1;
+                      if (!isSOSA && isSOSB) return 1;
 
-                        // Priority #2: Demote completed/seen patients from top
-                        const patientA = patients.find(p => p.id === (a.patientId || (a as any).patient_id));
-                        const patientB = patients.find(p => p.id === (b.patientId || (b as any).patient_id));
+                      // Priority #2: Demote completed/seen patients from top
+                      const patientA = patients.find(p => p.id === (a.patientId || (a as any).patient_id));
+                      const patientB = patients.find(p => p.id === (b.patientId || (b as any).patient_id));
 
-                        const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
-                        const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
-                        if (!isDoneA && isDoneB) return -1;
-                        if (isDoneA && !isDoneB) return 1;
+                      const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
+                      const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
+                      if (!isDoneA && isDoneB) return -1;
+                      if (isDoneA && !isDoneB) return 1;
 
-                        // Priority #3: Sequential Numeric Token Number (Token 1 before Token 2)
-                        const tokenA = parseTokenNum(a.tokenNumber || (a as any).token_number || patientA?.tokenNumber);
-                        const tokenB = parseTokenNum(b.tokenNumber || (b as any).token_number || patientB?.tokenNumber);
-                        if (tokenA !== tokenB) return tokenA - tokenB;
+                      // Priority #3: Sequential Numeric Token Number (Token 1 before Token 2)
+                      const tokenA = parseTokenNum(a.tokenNumber || (a as any).token_number || patientA?.tokenNumber);
+                      const tokenB = parseTokenNum(b.tokenNumber || (b as any).token_number || patientB?.tokenNumber);
+                      if (tokenA !== tokenB) return tokenA - tokenB;
 
-                        // Tie break by creation time
-                        return (a.createdAt || '').localeCompare(b.createdAt || '');
-                      });
-                    } else if ((opdSubTab as string) === 'upcoming_advance') {
-                      // Closest upcoming appointment first
-                      confirmedAppts.sort((a, b) => {
-                        const dateA = getEffectiveAppointmentDate(a);
-                        const dateB = getEffectiveAppointmentDate(b);
-                        return dateA.localeCompare(dateB);
-                      });
-                    } else if ((opdSubTab as string) === 'past_history') {
-                      // Most recent past appointment first
-                      confirmedAppts.sort((a, b) => {
-                        const dateA = getEffectiveAppointmentDate(a);
-                        const dateB = getEffectiveAppointmentDate(b);
-                        return dateB.localeCompare(dateA);
-                      });
-                    }
+                      // Tie break by creation time
+                      return (a.createdAt || '').localeCompare(b.createdAt || '');
+                    });
 
                     if (confirmedAppts.length === 0) {
                       return (
