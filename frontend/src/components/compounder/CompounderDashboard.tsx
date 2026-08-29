@@ -238,6 +238,27 @@ export const CompounderDashboard: React.FC = () => {
   const [instantWeight, setInstantWeight] = useState('65');
   const [isSubmittingInstant, setIsSubmittingInstant] = useState(false);
 
+  // Memoized Smart Prefix & Code Patient Search for Instant Intake Desk
+  const instantMatchingPatients = useMemo(() => {
+    const cleanQ = (instantSearchQuery || '').trim().toLowerCase();
+    if (!cleanQ || instantSelectedPatient) return [];
+    const digits = cleanQ.replace(/\D/g, '');
+    
+    return patients.filter(p => {
+      const nameLower = (p.name || '').toLowerCase();
+      // Prefix matching on first name or any word in patient name (e.g. 'N' -> 'Neha', 'Nitin', NOT 'Priyanka')
+      const nameMatches = nameLower.startsWith(cleanQ) || nameLower.split(/\s+/).some(w => w.startsWith(cleanQ));
+      // Patient ID or Smart Code matching (e.g. 'N2', 'PID-01', 'P101')
+      const code = (p.patientCode || (p as any).patient_code || p.id || '').toLowerCase();
+      const codeMatches = code === cleanQ || code.startsWith(cleanQ);
+      // Mobile matching (if at least 3 digits typed)
+      const phoneMatches = digits.length >= 3 && (p.phone || '').includes(digits);
+      const abhaMatches = cleanQ.length >= 3 && (p.abhaId || '').toLowerCase().includes(cleanQ);
+
+      return nameMatches || codeMatches || phoneMatches || abhaMatches;
+    }).slice(0, 5);
+  }, [instantSearchQuery, patients, instantSelectedPatient]);
+
   useEffect(() => {
     if (vitalsPatient) {
       setBpVal(vitalsPatient.vitals?.bloodPressure || '120/80');
@@ -6178,49 +6199,116 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                   <div className="sm:col-span-12 relative">
                     <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
-                      Search Existing Patient (Name / Phone / ABHA / Token)
+                      Search Existing Patient (Prefix e.g. "N", "Ramesh" / Patient ID e.g. "N2" / Mobile)
                     </label>
                     <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                       <input 
                         type="text"
                         value={instantSearchQuery}
                         onChange={(e) => {
                           const val = e.target.value;
                           setInstantSearchQuery(val);
-                          const q = val.toLowerCase().trim();
-                          if (q) {
-                            const match = patients.find(p => 
-                              (p.name || '').toLowerCase().includes(q) ||
-                              (p.phone || '').includes(q) ||
-                              (p.patientCode || '').toLowerCase().includes(q) ||
-                              (p.abhaId || '').toLowerCase().includes(q)
-                            );
-                            if (match) {
-                              setInstantSelectedPatient(match);
-                              setInstantName(match.name);
-                              setInstantPhone(match.phone);
-                              setInstantAge(String(match.age || '35'));
-                              setInstantGender(match.gender || 'Male');
-                            } else {
-                              setInstantSelectedPatient(null);
-                              setInstantName(val);
-                            }
-                          } else {
+                          const q = val.trim().toLowerCase();
+                          if (!q) {
                             setInstantSelectedPatient(null);
+                          } else {
+                            // Check exact single code match (e.g. typing "N2" where patientCode === "N2")
+                            const exactMatch = patients.find(p => {
+                              const code = (p.patientCode || (p as any).patient_code || p.id || '').toLowerCase();
+                              return code === q;
+                            });
+                            if (exactMatch) {
+                              setInstantSelectedPatient(exactMatch);
+                              setInstantName(exactMatch.name);
+                              setInstantPhone(exactMatch.phone);
+                              setInstantAge(String(exactMatch.age || '35'));
+                              setInstantGender(exactMatch.gender || 'Male');
+                            }
+                          }
+                        }}
+                        placeholder="Search by name prefix (N...), Patient ID / Smart Code (N2...), or mobile number..."
+                        className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-2xl pl-10 pr-9 py-2.5 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 transition"
+                      />
+                      {instantSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInstantSearchQuery('');
+                            setInstantSelectedPatient(null);
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold cursor-pointer border-0 bg-transparent"
+                        >
+                          ✕
+                        </button>
+                      )}
+
+                      {/* Dropdown Suggestions List (Prefix & Smart Code Matches) */}
+                      {instantMatchingPatients.length > 0 && !instantSelectedPatient && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 animate-slide-up">
+                          <div className="px-3.5 py-1.5 bg-slate-50 dark:bg-slate-800/90 text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center justify-between">
+                            <span>Matching Registered Patients</span>
+                            <span>Tap to Select</span>
+                          </div>
+                          {instantMatchingPatients.map((p) => {
+                            const pCode = p.patientCode || (p as any).patient_code || ('PID-' + p.id.slice(0, 6).toUpperCase());
+                            return (
+                              <div
+                                key={p.id}
+                                onClick={() => {
+                                  setInstantSelectedPatient(p);
+                                  setInstantName(p.name);
+                                  setInstantPhone(p.phone);
+                                  setInstantAge(String(p.age || '35'));
+                                  setInstantGender(p.gender || 'Male');
+                                  setInstantSearchQuery('');
+                                }}
+                                className="p-2.5 px-3.5 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 cursor-pointer transition flex items-center justify-between gap-3 text-left"
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                    <span>{p.name}</span>
+                                    <span className="text-[10px] font-mono px-1.5 py-0.2 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-md border border-indigo-200/60 dark:border-indigo-800 font-bold">
+                                      ID: {pCode}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                                    +91 {p.phone} · {p.age}y / {p.gender}
+                                  </div>
+                                </div>
+                                <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                                  Select ➔
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selected Patient Confirmation Banner (Shows Patient ID, NEVER past token number) */}
+                    {instantSelectedPatient && (
+                      <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 flex items-center justify-between gap-2 animate-fade-in shadow-2xs">
+                        <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 text-xs font-bold min-w-0">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span className="truncate">
+                            Registered Record: <span className="font-black">{instantSelectedPatient.name}</span> · ID: <span className="font-mono font-black">{instantSelectedPatient.patientCode || (instantSelectedPatient as any).patient_code || ('PID-' + instantSelectedPatient.id.slice(0, 6).toUpperCase())}</span> (+91 {instantSelectedPatient.phone.slice(-4)})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInstantSelectedPatient(null);
+                            setInstantSearchQuery('');
                             setInstantName('');
                             setInstantPhone('');
                             setInstantAge('');
-                          }
-                        }}
-                        placeholder="Type name e.g. Ramesh, 9876543210, or P-101..."
-                        className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-2xl pl-10 pr-3 py-2.5 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 transition"
-                      />
-                    </div>
-                    {instantSelectedPatient && (
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold mt-1.5 flex items-center gap-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Registered Record: #{instantSelectedPatient.tokenNumber || 'TK'} · {instantSelectedPatient.name} (+91 {instantSelectedPatient.phone.slice(-4)})
-                      </span>
+                          }}
+                          className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 underline cursor-pointer border-0 bg-transparent shrink-0"
+                        >
+                          ✕ Clear / Change
+                        </button>
+                      </div>
                     )}
                   </div>
 
