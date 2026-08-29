@@ -2113,83 +2113,31 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
           <div className="space-y-4 sm:space-y-6 animate-fade-in text-left">
-            {/* 1. HERO CHAMBER SENTINEL & NEXT TOKEN CALLER (Mobile Prime Widget) */}
-            <div className="glass-panel p-4 sm:p-6 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white via-indigo-50/20 to-teal-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30 shadow-md relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-teal-500 to-emerald-500" />
-              
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Doctor Chamber Live Pulse */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-mono">
-                      Doctor Chamber Live (डॉक्टर केबिन)
-                    </span>
-                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full font-mono font-bold">
-                      {activePod?.doctor_name || 'Dr. Attending Physician'}
-                    </span>
-                  </div>
-
-                  {inChamberAppointment ? (
-                    <div className="flex items-center gap-3 mt-2">
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-sm font-black shrink-0 font-mono shadow-md">
-                        {String(inChamberAppointment.tokenNumber || '#TK').slice(-3)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate flex items-center gap-2">
-                          <span>{inChamberAppointment.patientName}</span>
-                          <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full font-bold">
-                            In Consultation 🩺
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                          Mode: {inChamberAppointment.isVirtual ? 'Virtual Video 💻' : 'Physical Chamber 🏥'} · Token #{inChamberAppointment.tokenNumber}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-2">
-                      <div className="text-sm sm:text-base font-black text-slate-800 dark:text-white flex items-center gap-2">
-                        <span>Chamber Available</span>
-                        <span className="text-[9px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full font-bold font-mono">
-                          Ready for Next
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Doctor is ready to consult the next patient in queue.
-                      </div>
-                    </div>
-                  )}
+            {/* 1. WALK-IN REGISTRATION & FAST OPD INTAKE ACTION BAR */}
+            <div className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white shadow-md flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/15 flex items-center justify-center shrink-0 shadow-inner">
+                  <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-
-                {/* Next Up Token Caller & Dispatch Action */}
-                {nextQueuedPatient && (
-                  <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-200/60 dark:border-slate-800 shrink-0">
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                      <div className="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 p-2.5 rounded-2xl flex-1 md:flex-initial">
-                        <div className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase font-mono">
-                          Next in Queue
-                        </div>
-                        <div className="text-xs font-black text-slate-900 dark:text-white truncate">
-                          #{nextQueuedPatient.tokenNumber} · {nextQueuedPatient.patientName}
-                        </div>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => handleCallPatientChamber(nextQueuedPatient.patientName || 'Next Patient', nextQueuedPatient.tokenNumber || 'Next')}
-                        className="py-2.5 px-3.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md cursor-pointer transition active:scale-95 border-0 flex items-center gap-1.5 shrink-0"
-                      >
-                        <Volume2 className="w-4 h-4" />
-                        <span>📢 Call Token</span>
-                      </button>
-                    </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm font-black truncate flex items-center gap-1.5">
+                    <span>Walk-In Patient Registration</span>
+                    <span className="text-[8.5px] bg-white/20 px-1.5 py-0.2 rounded-full font-mono uppercase font-bold">Fast OPD</span>
                   </div>
-                )}
+                  <div className="text-[10px] text-indigo-100/90 truncate font-medium mt-0.5">
+                    1-Click Instant OPD Token, Vitals Intake &amp; Doctor Routing
+                  </div>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowInstantAppointmentModal(true)}
+                className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white hover:bg-indigo-50 active:scale-95 text-indigo-700 font-black text-[11px] sm:text-xs rounded-xl shadow-md cursor-pointer transition border-0 flex items-center gap-1.5 shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>+ Walk-In Patient</span>
+              </button>
             </div>
 
             {/* 2. ACCURATE REAL-TIME 4-SEGMENT METRICS BAR */}
@@ -2746,20 +2694,22 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'opd_patients' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* Consolidated OPD Sub-Tab Header */}
-            <div className="flex flex-wrap items-center gap-3 border-b border-slate-200/80 dark:border-white/10 pb-3">
+            {/* 3-Column Mobile-Native Horizontal OPD Sub-Tab Switcher */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
               <button
                 type="button"
                 onClick={() => setOpdSubTab('today_queue')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
                   opdSubTab === 'today_queue'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <Layers className="w-4 h-4 shrink-0" />
-                Today's Active OPD Queue 🏥
-                <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                <Layers className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Today's OPD</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
+                  opdSubTab === 'today_queue' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}>
                   {(() => {
                     const todayStr = getIstDateString();
                     return appointments.filter(a => {
@@ -2769,30 +2719,34 @@ export const CompounderDashboard: React.FC = () => {
                   })()}
                 </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setOpdSubTab('directory')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
                   opdSubTab === 'directory'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <Users className="w-4 h-4 shrink-0" />
-                EHR Registry &amp; Registration 👥
+                <Users className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Patient Registry</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setOpdSubTab('history')}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                className={`flex items-center justify-center gap-1.5 py-2 px-1.5 text-[10.5px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
                   opdSubTab === 'history'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 border border-slate-200/60 dark:border-white/10'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                 }`}
               >
-                <Clock className="w-4 h-4 shrink-0" />
-                Upcoming Advance &amp; Past History 🕒
-                <span className="ml-1 bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                <Clock className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">History</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] sm:text-[9px] font-mono font-bold shrink-0 ${
+                  opdSubTab === 'history' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                }`}>
                   {(() => {
                     const todayStr = getIstDateString();
                     return appointments.filter(a => {
