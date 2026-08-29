@@ -2161,79 +2161,141 @@ export const CompounderDashboard: React.FC = () => {
               </button>
             </div>
 
-            {/* 2. ACCURATE REAL-TIME 4-SEGMENT METRICS BAR */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
-              <div 
-                onClick={() => { setActiveTab('opd_patients'); setOpdSubTab('today_queue'); }}
-                className="glass-panel p-3.5 sm:p-4 rounded-2xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition cursor-pointer group"
-              >
-                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Active OPD</span>
-                  <Calendar className="w-4 h-4 text-indigo-500 group-hover:scale-110 transition" />
+            {/* 2. MODERN AESTHETIC TODAY'S DOCTOR APPOINTMENTS & OPD QUEUE WIDGET */}
+            <div className="glass-panel p-4 sm:p-6 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white via-indigo-50/15 to-purple-50/10 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20 shadow-md">
+              {/* Header with Title, Doctor Badge, Live OPD Counter & View All link */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pb-3.5 mb-3.5 border-b border-slate-200/80 dark:border-white/10">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
+                    <Calendar className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase font-mono tracking-wider truncate">
+                        Today's Doctor Appointments (आज की नियुक्तियां)
+                      </h3>
+                      <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800 text-[10px] font-mono font-bold rounded-full shrink-0">
+                        {activeOpdAppointments.length} in Queue
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                      Attending: <span className="font-bold text-slate-700 dark:text-slate-300">{activePod?.doctor_name || 'Dr. Attending Physician'}</span> · Realtime OPD Token Stream
+                    </p>
+                  </div>
                 </div>
-                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono">
-                  {activeOpdAppointments.length}
-                </div>
-                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">Today's Visits</div>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('opd_patients'); setOpdSubTab('today_queue'); }}
+                  className="text-xs font-black text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 cursor-pointer border-0 bg-transparent py-1 transition group shrink-0"
+                >
+                  <span>View Full Queue ({activeOpdAppointments.length})</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
               </div>
 
-              <div 
-                onClick={() => setShowVitalsBottomSheet(true)}
-                className="glass-panel p-3.5 sm:p-4 rounded-2xl border-amber-200 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-950/20 shadow-xs hover:shadow-md transition cursor-pointer group"
-              >
-                <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Pending Vitals</span>
-                  <Activity className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
+              {/* Patient Queue Cards Stream */}
+              {activeOpdAppointments.length === 0 ? (
+                <div className="p-6 sm:p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
+                  <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto mb-2 opacity-90 animate-pulse" />
+                  <div className="text-sm font-black text-slate-800 dark:text-white">OPD Appointments Queue is Clear</div>
+                  <p className="text-xs text-slate-400 mt-1">No patients currently waiting in today's doctor consultation queue.</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowInstantAppointmentModal(true)}
+                    className="mt-3.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-black rounded-xl shadow-md cursor-pointer inline-flex items-center gap-1.5 active:scale-95 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> + Register Walk-In Patient
+                  </button>
                 </div>
-                <div className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
-                  {pendingVitalsList.length}
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">Awaiting Intake</div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {activeOpdAppointments.slice(0, 6).map((a) => {
+                    const p = patients.find(pt => pt.id === a.patientId || pt.id === (a as any).patient_id);
+                    const hasVitals = !!p?.vitals;
+                    const src = String(a.source || (p as any)?.source || '').toLowerCase();
+                    const isSOS = a.id === sosEmergencyAppointment?.id;
+                    const isInConsult = a.status === 'in_consult';
+                    const pid = p?.patientCode || (p as any)?.patient_code || ('PID-' + (p?.id || a.id).slice(0, 6).toUpperCase());
 
-              <div 
-                onClick={() => { setActiveTab('clinical_hub'); setClinicalSubTab('labs'); }}
-                className="glass-panel p-3.5 sm:p-4 rounded-2xl border-purple-200 dark:border-purple-900/40 bg-purple-50/30 dark:bg-purple-950/20 shadow-xs hover:shadow-md transition cursor-pointer group"
-              >
-                <div className="flex items-center justify-between text-purple-700 dark:text-purple-400 mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Arrived Labs</span>
-                  <FlaskConical className="w-4 h-4 text-purple-500 group-hover:scale-110 transition" />
-                </div>
-                <div className="text-xl sm:text-2xl font-black text-purple-600 dark:text-purple-400 font-mono">
-                  {arrivedLabReports.length}
-                </div>
-                <div className="text-[10px] text-purple-600 dark:text-purple-400 font-bold mt-0.5">Ready for Review</div>
-              </div>
+                    return (
+                      <div
+                        key={a.id}
+                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 shadow-2xs ${
+                          isSOS
+                            ? 'border-rose-300 dark:border-rose-800 bg-rose-50/70 dark:bg-rose-950/30'
+                            : isInConsult
+                            ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500/20'
+                            : 'border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800/80 hover:border-indigo-300 dark:hover:border-indigo-700'
+                        }`}
+                      >
+                        {/* Token Badge & Patient Info */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-white shrink-0 font-mono shadow-xs ${
+                            isSOS
+                              ? 'bg-rose-600 animate-pulse'
+                              : isInConsult
+                              ? 'bg-emerald-600'
+                              : hasVitals
+                              ? 'bg-indigo-600'
+                              : 'bg-amber-500'
+                          }`}>
+                            <span className="text-[8px] font-bold uppercase opacity-80">TOKEN</span>
+                            <span className="text-xs font-black -mt-0.5">#{String(a.tokenNumber || 'TK').replace(/\D/g, '').slice(-2) || '01'}</span>
+                          </div>
 
-              <div 
-                onClick={() => {
-                  if (isOphthalmology) {
-                    const firstP = patients[0];
-                    if (firstP) setShowDilationModal(firstP);
-                  } else {
-                    setActiveTab('billing_daycare');
-                    setBillingSubTab('ot_daycare');
-                  }
-                }}
-                className={`glass-panel p-3.5 sm:p-4 rounded-2xl ${isOphthalmology ? 'border-cyan-200 dark:border-cyan-900/40 bg-cyan-50/30 dark:bg-cyan-950/20' : 'border-teal-200 dark:border-teal-900/40 bg-teal-50/30 dark:bg-teal-950/20'} shadow-xs hover:shadow-md transition cursor-pointer group`}
-              >
-                <div className="flex items-center justify-between text-cyan-700 dark:text-cyan-400 mb-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider font-mono">
-                    {isOphthalmology ? 'Eye Dilation' : 'OT / Daycare'}
-                  </span>
-                  {isOphthalmology ? (
-                    <Eye className="w-4 h-4 text-cyan-500 group-hover:scale-110 transition" />
-                  ) : (
-                    <Scissors className="w-4 h-4 text-teal-500 group-hover:scale-110 transition" />
-                  )}
+                          <div className="min-w-0">
+                            <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                              <span className="truncate">{a.patientName}</span>
+                              {src.includes('whatsapp') && <span className="text-[8px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1 py-0.2 rounded font-bold">🟢 WA</span>}
+                              {src.includes('qr') && <span className="text-[8px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-bold">📲 QR</span>}
+                              {isSOS && <span className="text-[8px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1 py-0.2 rounded font-bold">🚨 SOS</span>}
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5 flex items-center gap-1.5">
+                              <span>ID: {pid}</span>
+                              <span>·</span>
+                              <span>{p ? `${p.age}y / ${p.gender}` : '+91 ' + a.patientPhone}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Status Button */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!hasVitals ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (p) {
+                                  setVitalsPatient(p);
+                                  setShowVitalsBottomSheet(true);
+                                }
+                              }}
+                              className="py-1.5 px-2.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-[10px] font-black rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
+                            >
+                              <Activity className="w-3 h-3" />
+                              <span>+ Vitals</span>
+                            </button>
+                          ) : isInConsult ? (
+                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-xl font-bold font-mono flex items-center gap-1 border border-emerald-300 dark:border-emerald-800">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                              In Chamber 🩺
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
+                              className="py-1.5 px-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[10px] font-black rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
+                            >
+                              <Volume2 className="w-3 h-3" />
+                              <span>Call Token</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="text-xl sm:text-2xl font-black text-cyan-600 dark:text-cyan-400 font-mono">
-                  {isOphthalmology ? activeDilationPatients.length : daycarePatients.length}
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-0.5">
-                  {isOphthalmology ? '15m Timers Active' : 'Pre-Op Pipeline'}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* 3. THUMB-FRIENDLY QUICK ACTION HUB */}
@@ -2365,120 +2427,9 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* 5. TWO-COLUMN OPERATIONS DESK: LIVE OPD ACTION FEED (Left) & LAB REPORTS ARRIVED (Right) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-              {/* Left 6 Cols: Live OPD Patient Action Feed */}
-              <div className="lg:col-span-6 space-y-4">
-                <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
-                        <Users className="w-4 h-4 text-indigo-600" />
-                        Today's OPD Queue Action Feed (आज के मरीज़)
-                      </h3>
-                      <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-                        {activeOpdAppointments.length} Active
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                      {activeOpdAppointments.length === 0 ? (
-                        <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
-                          <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80" />
-                          <div className="text-xs font-bold text-slate-700 dark:text-slate-300">OPD Queue is Clear</div>
-                          <p className="text-[10px] text-slate-400 mt-1">No pending patients in today's OPD list.</p>
-                          <button
-                            type="button"
-                            onClick={() => setShowQuickAddSheet(true)}
-                            className="mt-2.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded-lg cursor-pointer inline-flex items-center gap-1"
-                          >
-                            <Plus className="w-3 h-3" /> + Add Walk-In Patient
-                          </button>
-                        </div>
-                      ) : (
-                        activeOpdAppointments.slice(0, 8).map((a) => {
-                          const p = patients.find(pt => pt.id === a.patientId || pt.id === (a as any).patient_id);
-                          const hasVitals = !!p?.vitals;
-                          const src = String(a.source || (p as any)?.source || '').toLowerCase();
-                          const isSOS = a.id === sosEmergencyAppointment?.id;
-                          const isDilationActive = p?.eyeDilationStatus === 'in_progress';
-
-                          return (
-                            <div
-                              key={a.id}
-                              className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
-                                isSOS
-                                  ? 'border-rose-300 bg-rose-50/60 dark:bg-rose-950/30'
-                                  : a.status === 'in_consult'
-                                  ? 'border-emerald-300 bg-emerald-50/40 dark:bg-emerald-950/20'
-                                  : 'border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:border-indigo-300'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 font-mono shadow-xs ${
-                                  isSOS
-                                    ? 'bg-rose-600 text-white'
-                                    : hasVitals
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300'
-                                }`}>
-                                  {String(a.tokenNumber || '#TK').slice(-3)}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-xs font-black text-slate-800 dark:text-white truncate flex items-center gap-1.5">
-                                    <span className="truncate">{a.patientName}</span>
-                                    {src.includes('whatsapp') && <span className="text-[8px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1 py-0.2 rounded font-bold">🟢 WA</span>}
-                                    {src.includes('qr') && <span className="text-[8px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-bold">📲 QR</span>}
-                                    {isSOS && <span className="text-[8px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1 py-0.2 rounded font-bold">🚨 SOS</span>}
-                                  </div>
-                                  <div className="text-[10px] text-slate-500 font-mono truncate">
-                                    {p ? `${p.age}y ${p.gender} · +91 ${p.phone}` : `Token #${a.tokenNumber}`}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {!hasVitals ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (p) {
-                                        setVitalsPatient(p);
-                                        setShowVitalsBottomSheet(true);
-                                      }
-                                    }}
-                                    className="py-1.5 px-2.5 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black rounded-lg transition active:scale-95 cursor-pointer border-0 flex items-center gap-1 shadow-xs"
-                                  >
-                                    <Activity className="w-3 h-3" />
-                                    <span>Record Vitals</span>
-                                  </button>
-                                ) : a.status === 'in_consult' ? (
-                                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-lg font-bold font-mono">
-                                    In Chamber 🩺
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
-                                    className="py-1.5 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black rounded-lg transition active:scale-95 cursor-pointer border-0 flex items-center gap-1 shadow-xs"
-                                  >
-                                    <Volume2 className="w-3 h-3" />
-                                    <span>Call Token</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right 6 Cols: Patient Lab Reports Arrived & Evening Review Widget */}
-              <div className="lg:col-span-6 space-y-4">
-                <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
+            {/* 4. LAB REPORTS ARRIVED & EVENING REVIEW WIDGET */}
+            <div className="w-full">
+              <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xs font-black uppercase font-mono tracking-wider text-slate-800 dark:text-white flex items-center gap-2">
