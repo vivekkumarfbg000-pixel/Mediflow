@@ -238,27 +238,6 @@ export const CompounderDashboard: React.FC = () => {
   const [instantWeight, setInstantWeight] = useState('65');
   const [isSubmittingInstant, setIsSubmittingInstant] = useState(false);
 
-  // Memoized Smart Prefix & Code Patient Search for Instant Intake Desk
-  const instantMatchingPatients = useMemo(() => {
-    const cleanQ = (instantSearchQuery || '').trim().toLowerCase();
-    if (!cleanQ || instantSelectedPatient) return [];
-    const digits = cleanQ.replace(/\D/g, '');
-    
-    return patients.filter(p => {
-      const nameLower = (p.name || '').toLowerCase();
-      // Prefix matching on first name or any word in patient name (e.g. 'N' -> 'Neha', 'Nitin', NOT 'Priyanka')
-      const nameMatches = nameLower.startsWith(cleanQ) || nameLower.split(/\s+/).some(w => w.startsWith(cleanQ));
-      // Patient ID or Smart Code matching (e.g. 'N2', 'PID-01', 'P101')
-      const code = (p.patientCode || (p as any).patient_code || p.id || '').toLowerCase();
-      const codeMatches = code === cleanQ || code.startsWith(cleanQ);
-      // Mobile matching (if at least 3 digits typed)
-      const phoneMatches = digits.length >= 3 && (p.phone || '').includes(digits);
-      const abhaMatches = cleanQ.length >= 3 && (p.abhaId || '').toLowerCase().includes(cleanQ);
-
-      return nameMatches || codeMatches || phoneMatches || abhaMatches;
-    }).slice(0, 5);
-  }, [instantSearchQuery, patients, instantSelectedPatient]);
-
   useEffect(() => {
     if (vitalsPatient) {
       setBpVal(vitalsPatient.vitals?.bloodPressure || '120/80');
@@ -393,6 +372,27 @@ export const CompounderDashboard: React.FC = () => {
   const [sessions, setSessions] = useState<WhatsAppSession[]>(() => api.getWhatsAppSessions());
   const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
   const [dataRevision, setDataRevision] = useState(0);
+
+  // Memoized Smart Prefix & Code Patient Search for Instant Intake Desk
+  const instantMatchingPatients = useMemo(() => {
+    const cleanQ = (instantSearchQuery || '').trim().toLowerCase();
+    if (!cleanQ || instantSelectedPatient) return [];
+    const digits = cleanQ.replace(/\D/g, '');
+    
+    return patients.filter(p => {
+      const nameLower = (p.name || '').toLowerCase();
+      // Prefix matching on first name or any word in patient name (e.g. 'N' -> 'Neha', 'Nitin', NOT 'Priyanka')
+      const nameMatches = nameLower.startsWith(cleanQ) || nameLower.split(/\s+/).some(w => w.startsWith(cleanQ));
+      // Patient ID or Smart Code matching (e.g. 'N2', 'PID-01', 'P101')
+      const code = (p.patientCode || (p as any).patient_code || p.id || '').toLowerCase();
+      const codeMatches = code === cleanQ || code.startsWith(cleanQ);
+      // Mobile matching (if at least 3 digits typed)
+      const phoneMatches = digits.length >= 3 && (p.phone || '').includes(digits);
+      const abhaMatches = cleanQ.length >= 3 && (p.abhaId || '').toLowerCase().includes(cleanQ);
+
+      return nameMatches || codeMatches || phoneMatches || abhaMatches;
+    }).slice(0, 5);
+  }, [instantSearchQuery, patients, instantSelectedPatient]);
 
 
 
@@ -2486,7 +2486,6 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
 
             {/* 5. Specialization Station: Eye Dilation (Ophthalmology) vs Clinical Procedures & Triage (GP) */}
             <div className="w-full">
