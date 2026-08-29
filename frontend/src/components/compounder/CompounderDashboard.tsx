@@ -93,6 +93,7 @@ import {
   Camera,
   CreditCard,
   Download,
+  Zap,
   ExternalLink,
   FileSpreadsheet,
   User,
@@ -135,6 +136,7 @@ export const CompounderDashboard: React.FC = () => {
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
   const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
+  const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming'>('today');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
   const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
   const [billingSubTab, setBillingSubTab] = useState<'billing' | 'ocr_scan' | 'ot_daycare'>('billing');
@@ -3427,25 +3429,71 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="lg:col-span-8 space-y-6">
                   <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
-                      <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                        Today's Appointments Queue
-                      </h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 px-3 py-1.5 rounded-xl">
-                      {(() => {
-                        const todayStr = getIstDateString();
-                        const count = appointments.filter(a => {
-                          if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                          const apptDate = getEffectiveAppointmentDate(a);
-                          return apptDate === todayStr;
-                        }).length;
-                        return `${count} Active Tokens Today`;
-                      })()}
-                    </span>
-                  </div>
-                </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
+                      <div>
+                        <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                          <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
+                          {opdQueueFilter === 'today' ? "Today's Appointments Queue" : "Upcoming WhatsApp Advance Bookings"}
+                        </h2>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {opdQueueFilter === 'today' 
+                            ? "Active OPD patient token stream, clinical vitals intake, and chamber triage." 
+                            : "Patient bookings registered for upcoming dates via WhatsApp Bot & online portals."}
+                        </p>
+                      </div>
+
+                      {/* 1-Tap Switcher: Today's Live Queue vs Upcoming Advance Bookings */}
+                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setOpdQueueFilter('today')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                            opdQueueFilter === 'today'
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <Zap className="w-3.5 h-3.5 shrink-0" />
+                          <span>Today's Queue</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                            opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}>
+                            {(() => {
+                              const todayStr = getIstDateString();
+                              return appointments.filter(a => {
+                                if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                                return getEffectiveAppointmentDate(a) === todayStr;
+                              }).length;
+                            })()}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setOpdQueueFilter('upcoming')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                            opdQueueFilter === 'upcoming'
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span>Upcoming Bookings</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                            opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}>
+                            {(() => {
+                              const todayStr = getIstDateString();
+                              return appointments.filter(a => {
+                                if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                                const apptDate = getEffectiveAppointmentDate(a);
+                                return Boolean(apptDate && apptDate > todayStr);
+                              }).length;
+                            })()}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
 
                 <div className="space-y-4">
                   {(() => {
@@ -3454,50 +3502,74 @@ export const CompounderDashboard: React.FC = () => {
                     let confirmedAppts = appointments.filter(a => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       const apptDate = getEffectiveAppointmentDate(a);
-                      return !apptDate || apptDate === todayStr;
+                      if (opdQueueFilter === 'today') {
+                        return !apptDate || apptDate === todayStr;
+                      } else {
+                        return Boolean(apptDate && apptDate > todayStr);
+                      }
                     });
 
-                    // 1. Emergency SOS takes Priority #1 at top of queue
-                    // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
-                    // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
-                    const parseTokenNum = (token?: string | number) => {
-                      if (!token) return 999999;
-                      if (typeof token === 'number') return token;
-                      const match = String(token).match(/\d+/);
-                      return match ? parseInt(match[0], 10) : 999999;
-                    };
+                    if (opdQueueFilter === 'today') {
+                      // 1. Emergency SOS takes Priority #1 at top of queue
+                      // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
+                      // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
+                      const parseTokenNum = (token?: string | number) => {
+                        if (!token) return 999999;
+                        if (typeof token === 'number') return token;
+                        const match = String(token).match(/\d+/);
+                        return match ? parseInt(match[0], 10) : 999999;
+                      };
 
-                    confirmedAppts.sort((a, b) => {
-                      // Priority #1: Emergency SOS
-                      const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').toUpperCase().includes(' E') || String(a.tokenNumber || '').toUpperCase().includes('E-') || String(a.tokenNumber || '').startsWith('#EM-'));
-                      const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').toUpperCase().includes(' E') || String(b.tokenNumber || '').toUpperCase().includes('E-') || String(b.tokenNumber || '').startsWith('#EM-'));
-                      if (isSOSA && !isSOSB) return -1;
-                      if (!isSOSA && isSOSB) return 1;
+                      confirmedAppts.sort((a, b) => {
+                        // Priority #1: Emergency SOS
+                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').toUpperCase().includes(' E') || String(a.tokenNumber || '').toUpperCase().includes('E-') || String(a.tokenNumber || '').startsWith('#EM-'));
+                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').toUpperCase().includes(' E') || String(b.tokenNumber || '').toUpperCase().includes('E-') || String(b.tokenNumber || '').startsWith('#EM-'));
+                        if (isSOSA && !isSOSB) return -1;
+                        if (!isSOSA && isSOSB) return 1;
 
-                      // Priority #2: Demote completed/seen patients from top
-                      const patientA = patients.find(p => p.id === (a.patientId || (a as any).patient_id));
-                      const patientB = patients.find(p => p.id === (b.patientId || (b as any).patient_id));
+                        // Priority #2: Demote completed/seen patients from top
+                        const patientA = patients.find(p => p.id === (a.patientId || (a as any).patient_id));
+                        const patientB = patients.find(p => p.id === (b.patientId || (b as any).patient_id));
 
-                      const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
-                      const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
-                      if (!isDoneA && isDoneB) return -1;
-                      if (isDoneA && !isDoneB) return 1;
+                        const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
+                        const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
+                        if (!isDoneA && isDoneB) return -1;
+                        if (isDoneA && !isDoneB) return 1;
 
-                      // Priority #3: Sequential Numeric Token Number (Token 1 before Token 2)
-                      const tokenA = parseTokenNum(a.tokenNumber || (a as any).token_number || patientA?.tokenNumber);
-                      const tokenB = parseTokenNum(b.tokenNumber || (b as any).token_number || patientB?.tokenNumber);
-                      if (tokenA !== tokenB) return tokenA - tokenB;
+                        // Priority #3: Sequential Numeric Token Number (Token 1 before Token 2)
+                        const tokenA = parseTokenNum(a.tokenNumber || (a as any).token_number || patientA?.tokenNumber);
+                        const tokenB = parseTokenNum(b.tokenNumber || (b as any).token_number || patientB?.tokenNumber);
+                        if (tokenA !== tokenB) return tokenA - tokenB;
 
-                      // Tie break by creation time
-                      return (a.createdAt || '').localeCompare(b.createdAt || '');
-                    });
+                        // Tie break by creation time
+                        return (a.createdAt || '').localeCompare(b.createdAt || '');
+                      });
+                    } else {
+                      // Upcoming appointments: closest date first
+                      confirmedAppts.sort((a, b) => {
+                        const dateA = getEffectiveAppointmentDate(a);
+                        const dateB = getEffectiveAppointmentDate(b);
+                        return dateA.localeCompare(dateB);
+                      });
+                    }
 
                     if (confirmedAppts.length === 0) {
                       return (
-                        <ZeroQueueState 
-                          queueType="appointments" 
-                          className="mx-0"
-                        />
+                        <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
+                          {opdQueueFilter === 'today' ? (
+                            <>
+                              <Activity className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No active tokens in today's OPD queue.</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Walk-in registrations and WhatsApp bookings for today will appear here.</p>
+                            </>
+                          ) : (
+                            <>
+                              <Calendar className="w-8 h-8 text-indigo-400 mx-auto mb-2 opacity-60 shrink-0" />
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No upcoming advance bookings found.</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Patients booking future dates on WhatsApp will automatically queue here.</p>
+                            </>
+                          )}
+                        </div>
                       );
                     }
                     return confirmedAppts.map((appt, idx) => {
@@ -3581,18 +3653,18 @@ export const CompounderDashboard: React.FC = () => {
                                 {appt.status === 'ready_for_consult' ? 'Paid & Active' : appt.status}
                               </span>
 
-                              {opdSubTab !== 'today_queue' && (() => {
+                              {opdQueueFilter === 'upcoming' && (() => {
                                 const aDate = getEffectiveAppointmentDate(appt);
                                 const isTomorrow = aDate === getIstOffsetDateString(1);
 
                                 return (
-                                  <span className={`flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                  <span className={`flex items-center gap-1 text-[9px] font-mono font-bold px-2 py-0.5 rounded-lg border ${
                                     isTomorrow 
-                                      ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800' 
-                                      : 'bg-indigo-50 text-indigo-600 border-indigo-100 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800'
+                                      ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-200 dark:border-amber-700 shadow-xs' 
+                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-200 dark:border-indigo-700 shadow-xs'
                                   }`}>
-                                    <Calendar className="h-2.5 w-2.5" />
-                                    {isTomorrow ? 'Tomorrow' : aDate || 'Scheduled'}
+                                    <Calendar className="h-3 w-3" />
+                                    {isTomorrow ? '📅 Tomorrow' : `📅 ${aDate || 'Scheduled'}`} {appt.virtual_time || (appt as any).virtualTime ? `· ${appt.virtual_time || (appt as any).virtualTime}` : ''}
                                   </span>
                                 );
                               })()}
