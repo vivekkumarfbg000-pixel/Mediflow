@@ -116,13 +116,6 @@ interface ConsultationTabProps {
   setComparativeTrend: (s: any) => void;
   isGeneratingTrend: boolean;
   setIsGeneratingTrend: (b: boolean) => void;
-  isRecording: boolean;
-  recordingSeconds: number;
-  audioUrl: string | null;
-  isTranscribing: boolean;
-  startAudioRecording: () => void;
-  stopAudioRecording: () => void;
-  executeAudioScribeTranscription: () => void;
   handleAddMedication: () => void;
   handleRemoveMedication: (idx: number) => void;
   handleToggleTest: (test: DiagnosticTest) => void;
@@ -177,13 +170,6 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   setComparativeTrend,
   isGeneratingTrend,
   setIsGeneratingTrend,
-  isRecording,
-  recordingSeconds,
-  audioUrl,
-  isTranscribing,
-  startAudioRecording,
-  stopAudioRecording,
-  executeAudioScribeTranscription,
   handleAddMedication,
   handleRemoveMedication,
   handleToggleTest,
@@ -2545,63 +2531,6 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 rows={4}
                 className="w-full input-field bg-white text-xs leading-relaxed"
               />
-            </div>
-
-            {/* Local Audio Scribe Recorder Widget */}
-            <div className="p-4.5 bg-white border border-slate-200 rounded-2xl space-y-4 animate-fade-in text-slate-800">
-              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                  <Mic className="w-3.5 h-3.5 shrink-0" />
-                  Audio Suggestion Scribe (Local Recording first)
-                </span>
-                <span className="text-[9px] font-bold font-mono px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md">
-                  Zero API Cost Idle
-                </span>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  {isRecording ? (
-                    <button
-                      type="button"
-                      onClick={stopAudioRecording}
-                      className="w-full sm:w-auto px-5 py-2.5 bg-rose-650 hover:bg-rose-600 active:scale-95 text-slate-800 text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md animate-pulse cursor-pointer border-0 text-slate-800-force"
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0" />
-                      Stop Recording ({recordingSeconds}s)
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startAudioRecording}
-                      className="w-full sm:w-auto px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 uppercase transition-all shadow-md cursor-pointer border-0 text-white-force"
-                    >
-                      <Mic className="w-3.5 h-3.5 font-bold shrink-0" />
-                      Record Clinical Advice
-                    </button>
-                  )}
-                </div>
-
-                {audioUrl && (
-                  <div className="w-full sm:flex-1 bg-slate-900 border border-slate-200 p-2 rounded-xl flex items-center justify-between gap-3">
-                    <audio src={audioUrl} controls className="w-full h-8 shrink" />
-                    
-                    <button
-                      type="button"
-                      onClick={executeAudioScribeTranscription}
-                      disabled={isTranscribing}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 active:scale-95 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 uppercase transition-all shadow-xs cursor-pointer shrink-0 border-0 text-white-force"
-                    >
-                      <Brain className="w-3.5 h-3.5 font-bold text-white-force shrink-0" />
-                      {isTranscribing ? 'Scribing...' : 'Transcribe with AI'}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <p className="text-[9px] text-slate-600 leading-normal text-left">
-                🎙️ **Privacy & Cost Guard**: Your voice is recorded locally in-browser. Transcribe with AI only when you are satisfied with your audio note.
-              </p>
             </div>
 
             <div className="flex flex-wrap gap-3">

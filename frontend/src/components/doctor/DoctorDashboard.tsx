@@ -296,125 +296,6 @@ export const DoctorDashboard: React.FC = () => {
     consultationTab:     'consultation',
   });
 
-  // In-Browser HTML5 Local Audio Recording States
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<any>(null);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-
-  // Recording seconds timer effect
-  useEffect(() => {
-    let interval: any = null;
-    if (isRecording) {
-      interval = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      setRecordingSeconds(0);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRecording]);
-
-  // Rule 10: Revoke audio blob URL when replaced by a new recording OR on unmount
-  const audioUrlRef = React.useRef<string | null>(null);
-  useEffect(() => {
-    // Revoke the previous URL before storing the new one
-    if (audioUrlRef.current && audioUrlRef.current !== audioUrl) {
-      URL.revokeObjectURL(audioUrlRef.current);
-    }
-    audioUrlRef.current = audioUrl;
-    return () => {
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = null;
-      }
-    };
-  }, [audioUrl]);
-
-
-  const startAudioRecording = async () => {
-    try {
-      if (!navigator?.mediaDevices?.getUserMedia) {
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: 'Microphone Not Supported',
-            message: 'Audio recording requires a secure (HTTPS) connection and a supported browser.',
-            type: 'error'
-          }
-        }));
-        return;
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const chunks: Blob[] = [];
-      const recorder = new window.MediaRecorder(stream);
-      
-      recorder.ondataavailable = (e: any) => {
-        if (e.data && e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const compiledBlob = new Blob(chunks, { type: 'audio/webm' });
-        const generatedUrl = URL.createObjectURL(compiledBlob);
-        setAudioBlob(compiledBlob);
-        setAudioUrl(generatedUrl);
-        
-        // Stop all audio tracks in stream
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-      setAudioUrl(null);
-      setAudioBlob(null);
-    } catch (err) {
-      console.error('[Mediflow] Failed to capture microphone:', err);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Microphone Access Required',
-          message: 'Please allow microphone access in your browser settings to record clinical audio instructions.',
-          type: 'error'
-        }
-      }));
-    }
-  };
-
-  const stopAudioRecording = () => {
-    if (mediaRecorder && isRecording) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const executeAudioScribeTranscription = async () => {
-    if (!audioBlob) return;
-    setIsTranscribing(true);
-    try {
-      const data = await api.voiceScribe(audioBlob, 'doctor_instructions.webm');
-      if (data && data.summary) {
-        setNotes(data.summary);
-        setHinglishSummary(data.summary);
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: 'Scribe Complete ✅',
-            message: 'Clinical text successfully populated into directions box.',
-            type: 'success'
-          }
-        }));
-      }
-    } catch (err) {
-      console.error('[Mediflow] Scribe failed:', err);
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
   const handleLaunchVideoConsult = async () => {
     if (!selectedPatient) return;
     try {
@@ -1341,8 +1222,6 @@ Keep the tone professional, clinical, objective, and precise.`;
     // Reset Form
     setNotes('');
     setHinglishSummary('');
-    setAudioUrl(null);
-    setAudioBlob(null);
     setMedications([]);
     setSelectedTests([]);
     setRefractionRx(EMPTY_REFRACTION_RX);
@@ -1424,8 +1303,6 @@ Keep the tone professional, clinical, objective, and precise.`;
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
                     setHinglishSummary('');
-                    setAudioUrl(null);
-                    setAudioBlob(null);
                     setMedications([]);
                     setSelectedTests([]);
                     setRefractionRx(EMPTY_REFRACTION_RX);
@@ -1542,8 +1419,6 @@ Keep the tone professional, clinical, objective, and precise.`;
                                     onClick={() => {
                                       setNotes('');
                                       setHinglishSummary('');
-                                      setAudioUrl(null);
-                                      setAudioBlob(null);
                                       setMedications([]);
                                       setSelectedTests([]);
                                       setRefractionRx(EMPTY_REFRACTION_RX);
@@ -1620,13 +1495,6 @@ Keep the tone professional, clinical, objective, and precise.`;
                   setComparativeTrend={setComparativeTrend}
                   isGeneratingTrend={isGeneratingTrend}
                   setIsGeneratingTrend={setIsGeneratingTrend}
-                  isRecording={isRecording}
-                  recordingSeconds={recordingSeconds}
-                  audioUrl={audioUrl}
-                  isTranscribing={isTranscribing}
-                  startAudioRecording={startAudioRecording}
-                  stopAudioRecording={stopAudioRecording}
-                  executeAudioScribeTranscription={executeAudioScribeTranscription}
                   handleAddMedication={handleAddMedication}
                   handleRemoveMedication={handleRemoveMedication}
                   handleToggleTest={handleToggleTest}
@@ -1734,8 +1602,6 @@ Keep the tone professional, clinical, objective, and precise.`;
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
                     setHinglishSummary('');
-                    setAudioUrl(null);
-                    setAudioBlob(null);
                     setMedications([]);
                     setSelectedTests([]);
                     setRefractionRx(EMPTY_REFRACTION_RX);
