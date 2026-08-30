@@ -101,6 +101,9 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     sync();
 
     const unsubscribeApi = api.subscribe(sync);
+    window.addEventListener('mediflow-state-change', sync);
+    window.addEventListener('storage', sync);
+
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: () => sync(),
       onMedicineBillChange: () => sync(),
@@ -121,6 +124,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     return () => {
       unsubscribeApi();
       unsubscribeRealtime();
+      window.removeEventListener('mediflow-state-change', sync);
+      window.removeEventListener('storage', sync);
     };
   }, []);
 

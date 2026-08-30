@@ -81,10 +81,21 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [isClearing, setIsClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch initial list of patients
+  // Fetch initial list of patients & live state listener
   useEffect(() => {
-    setPatients(PatientService.getPatients());
-  }, [refreshKey]);
+    const handleStateChange = () => {
+      setRefreshKey(prev => prev + 1);
+      setPatients(PatientService.getPatients());
+    };
+    window.addEventListener('mediflow-state-change', handleStateChange);
+    window.addEventListener('storage', handleStateChange);
+    const unsub = api.subscribe(handleStateChange);
+    return () => {
+      window.removeEventListener('mediflow-state-change', handleStateChange);
+      window.removeEventListener('storage', handleStateChange);
+      unsub();
+    };
+  }, []);
 
   // Sync state if selected patient changes
   useEffect(() => {
@@ -550,7 +561,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       isRefillPurchase,
       isQualifyingFirstPurchase
     };
-  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, selectedMedicines, selectedTests, discountInput, inventory, isOphthalmology]);
+  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, selectedMedicines, selectedTests, discountInput, inventory, isOphthalmology, refreshKey]);
 
   // Handle OCR file upload & image preview
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

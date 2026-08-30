@@ -65,6 +65,20 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   const { activePod } = useClinic();
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleStateChange = () => {
+      setRefreshKey(k => k + 1);
+    };
+    window.addEventListener('mediflow-state-change', handleStateChange);
+    window.addEventListener('storage', handleStateChange);
+    const unsub = api.subscribe(handleStateChange);
+    return () => {
+      window.removeEventListener('mediflow-state-change', handleStateChange);
+      window.removeEventListener('storage', handleStateChange);
+      unsub();
+    };
+  }, []);
   const filteredPatients = React.useMemo(() => {
     const query = patientSearchQuery.trim().toLowerCase();
     let list = patients;
