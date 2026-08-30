@@ -867,7 +867,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-0.5 text-[10px] text-slate-700 font-medium">
-                    <p>• <strong>Tatkal VIP Booking:</strong> VIPs pay ₹618 to skip queues without awkward staff favoritism.</p>
+                    <p>• <strong>Tatkal VIP Booking:</strong> VIPs pay Consultation Fee + 20% Extra to skip queues without awkward staff favoritism.</p>
                     <p>• <strong>1-Tap Interactive Buttons:</strong> Book visits, download test PDFs &amp; confirm refills in 1 tap.</p>
                   </div>
                 </div>
@@ -1058,7 +1058,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                         <span className="font-bold text-rose-950 flex items-center gap-1">
                           🚨 Emergency SOS / Tatkal VIP Fast-Track
                         </span>
-                        <span className="font-mono font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded text-[10px]">₹618 (100% to Doctor)</span>
+                        <span className="font-mono font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded text-[10px]">Fee + 20% Extra (100% to Doctor)</span>
                       </div>
                       <p className="text-[9.5px] text-slate-600 leading-snug">
                         Busy/VIP patients pay premium to skip the 2-hr queue. Digital tokens are called on screen without lobby friction or staff favoritism.
