@@ -246,6 +246,7 @@ export class LabService {
     let reqs = load<LabRequisition[]>('lab_requisitions', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -254,7 +255,7 @@ export class LabService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       reqs = reqs.filter(r => {
         const pod = (r as any).podId || (r as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
         if (!pod && currentPodId) {
           (r as any).podId = currentPodId;
         }
@@ -530,11 +531,14 @@ export class LabService {
   static getPathologyReports(): PathologyReport[] {
     let reports = load<PathologyReport[]>('pathology_reports', []);
     const currentPodId = getPodContext().podId;
+    const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
     reports = reports.filter(r => {
       const pod = (r as any).podId || (r as any).pod_id;
-      if (pod && currentPodId && pod !== currentPodId) return false;
-      if (!pod && currentPodId) return false;
+      if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+      if (!pod && currentPodId) {
+        (r as any).podId = currentPodId;
+      }
       const pName = String(r.patientName || '').toLowerCase().trim();
       if (r.id === 'rep-201' || r.id === 'rep-202') return false;
       if (testSyntheticNames.has(pName)) return false;

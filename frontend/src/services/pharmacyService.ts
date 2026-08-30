@@ -584,10 +584,13 @@ export class PharmacyService {
     let holds = load<InventoryHold[]>('inventory_holds', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       holds = holds.filter(h => {
         const pod = (h as any).podId || (h as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (!pod && currentPodId) {
+          (h as any).podId = currentPodId;
+        }
         return true;
       });
     }
@@ -649,10 +652,13 @@ export class PharmacyService {
     let bills = load<MedicineBill[]>('medicine_bills', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       bills = bills.filter(b => {
         const pod = (b as any).podId || (b as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (!pod && currentPodId) {
+          (b as any).podId = currentPodId;
+        }
         return true;
       });
     }

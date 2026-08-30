@@ -29,6 +29,7 @@ export class BillingService {
     let invoices = load<UnifiedInvoice[]>('unified_invoices', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -37,8 +38,10 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (!pod && currentPodId) {
+          (i as any).podId = currentPodId;
+        }
         const id = i.id || '';
         const pName = String(i.patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
@@ -208,6 +211,7 @@ export class BillingService {
     let ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -216,8 +220,10 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       ledgers = ledgers.filter(l => {
         const pod = (l as any).podId || (l as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (!pod && currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (!pod && currentPodId) {
+          (l as any).podId = currentPodId;
+        }
         const id = l.id || '';
         const pName = String(l.patientName || '').toLowerCase().trim();
         const pId = String((l as any).patientId || '');
@@ -405,6 +411,7 @@ export class BillingService {
     let invoices = load<Invoice[]>('saas_invoices', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -413,7 +420,7 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
         if (!pod && currentPodId) {
           (i as any).podId = currentPodId;
         }
