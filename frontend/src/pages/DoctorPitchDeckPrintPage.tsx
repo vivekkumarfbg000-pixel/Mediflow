@@ -65,7 +65,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
   const [pharmacySplit, setPharmacySplit] = useState<number>(25);
   const [labSplit, setLabSplit] = useState<number>(35);
 
-  const totalSlides = 12;
+  const totalSlides = 13;
 
   const handlePrint = () => {
     window.print();
@@ -170,6 +170,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
     "6 VIP Member Benefits",
     "Dynamic SOP Splits & Shield",
     "2-Touchpoint Care Timeline",
+    "8-Step Clinical Care Loop",
     "Practice Revenue Simulator",
     "Legal & Practical FAQs",
     "3-Step Practice Go-Live"
@@ -1219,19 +1220,19 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            SLIDE 11: DOCTOR OBJECTION HANDLING & LEGAL COMPLIANCE
+            SLIDE 12: DOCTOR OBJECTION HANDLING & LEGAL COMPLIANCE
            ════════════════════════════════════════════════════════════════ */}
-        {(viewMode === 'continuous' || activeSlide === 11) && (
+        {(viewMode === 'continuous' || activeSlide === 12) && (
           <section className="print-slide bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/90 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">11</span>
+                  <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">12</span>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-900 bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-300">
                     Legal &amp; Practical FAQs
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 11 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 12 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -1292,19 +1293,19 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            SLIDE 12: 3-STEP GO-LIVE ROADMAP & EXECUTIVE CONTACT
+            SLIDE 13: 3-STEP GO-LIVE ROADMAP & EXECUTIVE CONTACT
            ════════════════════════════════════════════════════════════════ */}
-        {(viewMode === 'continuous' || activeSlide === 12) && (
+        {(viewMode === 'continuous' || activeSlide === 13) && (
           <section className="print-slide bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/90 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-black text-xs shadow-sm">12</span>
+                  <span className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-black text-xs shadow-sm">13</span>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-teal-900 bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-300">
                     Rapid Deployment
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 12 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 13 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
