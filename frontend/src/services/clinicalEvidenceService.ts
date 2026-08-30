@@ -42,6 +42,7 @@ export interface ClinicalProtocol {
     name: string;
     category: string;
     rationale: string;
+    price?: number;
   }>;
 }
 
@@ -106,8 +107,11 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '58410-2', name: 'Complete Blood Count (CBC with Automated Differential)', category: 'Hematology', rationale: 'Assess leukocytosis, band cells, and thrombocytopenia' },
-        { loincCode: '30341-2', name: 'Erythrocyte Sedimentation Rate (ESR Automated)', category: 'Hematology', rationale: 'Quantify systemic acute phase inflammatory response' }
+        { loincCode: '58410-2', name: 'Complete Blood Count (CBC with Automated Differential & Platelets)', category: 'Hematology', rationale: 'Assess leukocytosis, band cells, and thrombocytopenia', price: 350 },
+        { loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM/IgG Duo Rapid Screen', category: 'Serology', rationale: 'Endemic dengue virus early exclusion', price: 650 },
+        { loincCode: '20563-3', name: 'Widal Slide & Tube Agglutination (Typhoid Screen)', category: 'Serology', rationale: 'Detect Salmonella typhi TO & TH agglutinins', price: 250 },
+        { loincCode: '34557-9', name: 'Malarial Parasite Rapid Card (Pv/Pf)', category: 'Serology', rationale: 'Rule out Plasmodium vivax / falciparum malaria', price: 350 },
+        { loincCode: '24362-6', name: 'Urine Routine & Microscopic Examination', category: 'Clinical Pathology', rationale: 'Exclude occult febrile urinary tract infection', price: 200 }
       ]
     },
     {
@@ -154,8 +158,10 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM/IgG Antibody Duo', category: 'Serology', rationale: 'Confirm active dengue viral non-structural antigen and seroconversion' },
-        { loincCode: '777-3', name: 'Platelet Count & Complete Blood Count (CBC)', category: 'Hematology', rationale: 'Daily serial monitoring for thrombocytopenia (<100,000/mcL) and hematocrit rise' }
+        { loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM/IgG Antibody Duo', category: 'Serology', rationale: 'Confirm active dengue viral non-structural antigen and seroconversion', price: 650 },
+        { loincCode: '777-3', name: 'Platelet Count & Serial CBC Tracking', category: 'Hematology', rationale: 'Daily serial monitoring for thrombocytopenia (<100,000/mcL) and hematocrit rise', price: 350 },
+        { loincCode: '1742-6', name: 'Liver Function Test (LFT - SGOT, SGPT)', category: 'Biochemistry', rationale: 'Monitor reactive dengue hepatic inflammation', price: 750 },
+        { loincCode: '24362-6', name: 'Serum Electrolytes (Na+, K+, Cl-)', category: 'Biochemistry', rationale: 'Detect capillary leakage and electrolyte disturbance', price: 500 }
       ]
     },
     {
@@ -202,8 +208,10 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '20563-3', name: 'Widal Slide & Tube Agglutination Test (TO & TH Titres)', category: 'Serology', rationale: 'Detect Salmonella enteric O and H agglutinin titers (>1:160)' },
-        { loincCode: '1742-6', name: 'Liver Function Test (LFT - Bilirubin, SGOT, SGPT, Alk Phos)', category: 'Biochemistry', rationale: 'Assess reactive typhoid hepatitis and hepatic enzyme elevation' }
+        { loincCode: '20563-3', name: 'Widal Slide & Tube Agglutination Test (TO & TH Titres)', category: 'Serology', rationale: 'Detect Salmonella enteric O and H agglutinin titers (>1:160)', price: 250 },
+        { loincCode: '58410-2', name: 'Complete Blood Count & ESR', category: 'Hematology', rationale: 'Check leukopenia / relative lymphocytosis characteristic of enteric fever', price: 350 },
+        { loincCode: '1742-6', name: 'Liver Function Test (LFT - Bilirubin, SGOT, SGPT)', category: 'Biochemistry', rationale: 'Assess reactive typhoid hepatitis and hepatic enzyme elevation', price: 750 },
+        { loincCode: '10701-1', name: 'Stool Routine & Culture', category: 'Microbiology', rationale: 'Isolate Salmonella serovars and test antibiotic sensitivity', price: 450 }
       ]
     },
     {
@@ -250,8 +258,9 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '10701-1', name: 'Stool Routine & Microscopic Examination (Pus cells, Ova, Cyst, Occult Blood)', category: 'Clinical Pathology', rationale: 'Differentiate invasive bacterial dysentery from non-invasive secretory diarrhea' },
-        { loincCode: '24362-6', name: 'Serum Electrolytes (Sodium, Potassium, Chloride, Bicarbonate)', category: 'Biochemistry', rationale: 'Screen for hypokalemia and metabolic acidosis due to fluid loss' }
+        { loincCode: '10701-1', name: 'Stool Routine & Microscopic Examination (Ova / Cysts / Pus Cells)', category: 'Clinical Pathology', rationale: 'Differentiate invasive bacterial dysentery from protozoal amoebiasis', price: 200 },
+        { loincCode: '24362-6', name: 'Serum Electrolytes (Na+, K+, Cl-)', category: 'Biochemistry', rationale: 'Screen for severe hypokalemia and metabolic acidosis', price: 500 },
+        { loincCode: '2160-0', name: 'Serum Creatinine & Blood Urea Nitrogen (BUN)', category: 'Biochemistry', rationale: 'Evaluate prerenal acute kidney injury from fluid depletion', price: 300 }
       ]
     },
     {
@@ -378,8 +387,10 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '4544-3', name: 'HbA1c (Glycated Hemoglobin HPLC)', category: 'Biochemistry', rationale: 'Evaluate 90-day mean glycemic control target (<7.0%)' },
-        { loincCode: '2160-0', name: 'Serum Creatinine & eGFR (CKD-EPI)', category: 'Biochemistry', rationale: 'Safety baseline prior to long-term metformin maintenance' }
+        { loincCode: '4544-3', name: 'HbA1c (Glycated Hemoglobin HPLC)', category: 'Biochemistry', rationale: 'Evaluate 90-day mean glycemic control target (<7.0%)', price: 500 },
+        { loincCode: '2160-0', name: 'Serum Creatinine & eGFR (CKD-EPI)', category: 'Biochemistry', rationale: 'Safety baseline prior to long-term metformin maintenance', price: 250 },
+        { loincCode: '24331-1', name: 'Lipid Profile (Cholesterol, Triglycerides, HDL, LDL)', category: 'Biochemistry', rationale: 'Comprehensive ASCVD cardiovascular risk screening', price: 650 },
+        { loincCode: '14927-8', name: 'Urine Microalbumin / Creatinine Ratio (ACR)', category: 'Biochemistry', rationale: 'Screen for early diabetic nephropathy & microvascular leakage', price: 450 }
       ]
     },
     {
@@ -410,8 +421,9 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '24362-6', name: 'Kidney Function Test (KFT - Urea, Creatinine, Electrolytes)', category: 'Biochemistry', rationale: 'Monitor serum Potassium and renal perfusion on ARB therapy' },
-        { loincCode: '24331-1', name: 'Lipid Profile (Cholesterol, Triglycerides, HDL, LDL)', category: 'Biochemistry', rationale: 'Comprehensive ASCVD cardiovascular panel' }
+        { loincCode: '24362-6', name: 'Kidney Function Test (KFT - Urea, Creatinine, Electrolytes)', category: 'Biochemistry', rationale: 'Monitor serum Potassium and renal perfusion on ARB therapy', price: 750 },
+        { loincCode: '24331-1', name: 'Lipid Profile (Cholesterol, Triglycerides, HDL, LDL)', category: 'Biochemistry', rationale: 'Comprehensive ASCVD cardiovascular panel', price: 650 },
+        { loincCode: '8867-4', name: '12-Lead Electrocardiogram (ECG)', category: 'Cardiology', rationale: 'Screen for Left Ventricular Hypertrophy (LVH) & conduction defects', price: 300 }
       ]
     },
     {
@@ -442,7 +454,8 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '24356-8', name: 'Urine Routine & Microscopic Examination', category: 'Clinical Pathology', rationale: 'Rule out concurrent subclinical urinary tract irritation' }
+        { loincCode: '24356-8', name: 'Urine Routine & Microscopic Examination', category: 'Clinical Pathology', rationale: 'Rule out concurrent subclinical urinary tract irritation', price: 200 },
+        { loincCode: '1742-6', name: 'Liver Function Test & Serum Amylase', category: 'Biochemistry', rationale: 'Exclude gall bladder pathology or early biliary colic', price: 750 }
       ]
     },
     {
@@ -481,8 +494,9 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '19926-5', name: 'Absolute Eosinophil Count (AEC)', category: 'Hematology', rationale: 'Quantify systemic allergic eosinophilia' },
-        { loincCode: '19113-0', name: 'Total Serum Immunoglobulin E (IgE)', category: 'Serology', rationale: 'Evaluate atopic diathesis and hyper-IgE allergic phenotype' }
+        { loincCode: '19926-5', name: 'Absolute Eosinophil Count (AEC)', category: 'Hematology', rationale: 'Quantify systemic allergic eosinophilia', price: 250 },
+        { loincCode: '19113-0', name: 'Total Serum Immunoglobulin E (IgE)', category: 'Serology', rationale: 'Evaluate atopic diathesis and hyper-IgE allergic phenotype', price: 650 },
+        { loincCode: '58410-2', name: 'Complete Blood Count (CBC)', category: 'Hematology', rationale: 'General leukocyte and systemic immune profile', price: 350 }
       ]
     },
     {
@@ -513,7 +527,8 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '58410-2', name: 'Complete Blood Count (CBC)', category: 'Hematology', rationale: 'Exclude secondary inflammatory causes' }
+        { loincCode: '58410-2', name: 'Complete Blood Count (CBC)', category: 'Hematology', rationale: 'Exclude secondary inflammatory causes', price: 350 },
+        { loincCode: '24362-6', name: 'Serum Electrolytes (Na+, K+)', category: 'Biochemistry', rationale: 'Rule out electrolyte-mediated vascular headaches', price: 500 }
       ]
     },
     {
@@ -552,9 +567,10 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '3086-6', name: 'Serum Uric Acid', category: 'Biochemistry', rationale: 'Differentiate osteoarthritis from acute hyperuricemic gout' },
-        { loincCode: '1989-3', name: 'Vitamin D3 (25-Hydroxycholecalciferol)', category: 'Biochemistry', rationale: 'Assess osteomalacia and hypovitaminosis D' },
-        { loincCode: '11572-5', name: 'Rheumatoid Factor (RA Quantitative Turbidimetry)', category: 'Serology', rationale: 'Rule out inflammatory rheumatoid arthritis' }
+        { loincCode: '3086-6', name: 'Serum Uric Acid', category: 'Biochemistry', rationale: 'Differentiate osteoarthritis from acute hyperuricemic gout', price: 250 },
+        { loincCode: '1989-3', name: 'Vitamin D3 (25-Hydroxycholecalciferol)', category: 'Biochemistry', rationale: 'Assess osteomalacia and hypovitaminosis D', price: 800 },
+        { loincCode: '11572-5', name: 'Rheumatoid Factor (RA Quantitative Turbidimetry)', category: 'Serology', rationale: 'Rule out inflammatory rheumatoid arthritis', price: 450 },
+        { loincCode: '17861-6', name: 'Serum Calcium Total', category: 'Biochemistry', rationale: 'Check baseline mineral homeostasis', price: 200 }
       ]
     },
     {
@@ -585,7 +601,8 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '19926-5', name: 'Absolute Eosinophil Count (AEC) & IgE Screen', category: 'Hematology', rationale: 'Quantify allergic airway inflammatory phenotype' }
+        { loincCode: '19926-5', name: 'Absolute Eosinophil Count (AEC) & IgE Screen', category: 'Hematology', rationale: 'Quantify allergic airway inflammatory phenotype', price: 650 },
+        { loincCode: '30746-2', name: 'Chest X-Ray PA View', category: 'Radiology', rationale: 'Evaluate hyperinflation and rule out lung parenchymal infection', price: 400 }
       ]
     },
     {
@@ -616,8 +633,9 @@ export class ClinicalEvidenceService {
         }
       ],
       suggestedLabTests: [
-        { loincCode: '24356-8', name: 'Urine Routine & Microscopic Examination', category: 'Clinical Pathology', rationale: 'Confirm presence of pyuria, bacteriuria, and nitrites' },
-        { loincCode: '630-4', name: 'Urine Culture & Automated Antimicrobial Sensitivity', category: 'Microbiology', rationale: 'Identify pathogen and resistance profile' }
+        { loincCode: '24356-8', name: 'Urine Routine & Microscopic Examination', category: 'Clinical Pathology', rationale: 'Confirm presence of pyuria, bacteriuria, and nitrites', price: 200 },
+        { loincCode: '630-4', name: 'Urine Culture & Automated Antimicrobial Sensitivity', category: 'Microbiology', rationale: 'Identify pathogen and resistance profile', price: 600 },
+        { loincCode: '2160-0', name: 'Serum Creatinine & Blood Urea Nitrogen', category: 'Biochemistry', rationale: 'Monitor upper urinary tract involvement / ascending pyelonephritis', price: 300 }
       ]
     },
 
