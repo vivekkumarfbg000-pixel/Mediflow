@@ -1171,6 +1171,27 @@ Keep the tone professional, clinical, objective, and precise.`;
       diagnosticTests: selectedTests
     });
 
+    // Mark completed patient status in patient registry & queue
+    api.updatePatientQueueStatus(selectedPatient.id, 'completed');
+
+    // Mark corresponding appointments as completed
+    const currentAppts = api.getAppointments();
+    let hasApptUpdate = false;
+    currentAppts.forEach(a => {
+      if ((a.patientId === selectedPatient.id || (a as any).patient_id === selectedPatient.id) && a.status !== 'cancelled') {
+        a.status = 'completed';
+        hasApptUpdate = true;
+      }
+    });
+    if (hasApptUpdate) {
+      api.saveAppointments(currentAppts);
+    }
+
+    // Dispatch global state change event for instant reactive update across all tabs and consoles
+    window.dispatchEvent(new CustomEvent('mediflow-state-change', {
+      detail: { entity: 'appointments', action: 'completed', patientId: selectedPatient.id }
+    }));
+
     // Dynamic WhatsApp auto-dispatch matching core business USP (Non-blocking background delivery)
     (async () => {
       try {

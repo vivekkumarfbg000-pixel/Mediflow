@@ -324,6 +324,19 @@ export class PatientService {
     queueStatusMap[patientId] = status;
     save('queue_status_map', queueStatusMap);
 
+    const rawPatients = load<Patient[]>('patients', []);
+    const idx = rawPatients.findIndex(p => p.id === patientId);
+    if (idx >= 0) {
+      rawPatients[idx].queueStatus = status;
+      save('patients', rawPatients);
+    }
+    const rawRegistry = load<Patient[]>('patient_registry', []);
+    const regIdx = rawRegistry.findIndex(p => p.id === patientId);
+    if (regIdx >= 0) {
+      rawRegistry[regIdx].queueStatus = status;
+      save('patient_registry', rawRegistry);
+    }
+
     // Optimistic UI state update
     syncStatusMap[patientId] = 'pending';
     save('sync_status_map', syncStatusMap);
