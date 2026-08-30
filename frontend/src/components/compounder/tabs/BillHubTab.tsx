@@ -104,7 +104,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setVoiceTranscript('');
 
       // Check if there is an active digital prescription / encounter
-      const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id);
+      const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id || (e as any).patient_id === selectedPatient.id);
       const latestEncounter = encounters[encounters.length - 1];
 
       if (latestEncounter) {
@@ -398,7 +398,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     let testsList: DiagnosticTest[] = [];
 
     if (billingMode === 'digital') {
-      const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id);
+      const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id || (e as any).patient_id === selectedPatient.id);
       const latest = encounters[encounters.length - 1];
       if (latest) {
         (latest.medications || []).forEach(med => {

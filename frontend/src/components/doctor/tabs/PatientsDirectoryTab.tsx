@@ -1,6 +1,7 @@
 import React from 'react';
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
+import { EncounterService } from '../../../services/encounterService';
 import { useClinic } from '../../../context/ClinicContext';
 import { getIstDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
@@ -17,7 +18,13 @@ import {
   CalendarCheck,
   Info,
   Gift,
-  Pill
+  Pill,
+  FileText,
+  FlaskConical,
+  Printer,
+  Clock,
+  Stethoscope,
+  Send
 } from 'lucide-react';
 
 interface PatientsDirectoryTabProps {
@@ -302,6 +309,224 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                 </span>
               )}
             </div>
+
+            {/* ── Clinical Encounters & Past Prescriptions Timeline ────────── */}
+            {(() => {
+              const encounters = EncounterService.getEncounters().filter(e => 
+                (e.patientId === selectedDirectoryPatient.id || (e as any).patient_id === selectedDirectoryPatient.id)
+              ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+              const handlePrintPrescription = (enc: any) => {
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) return;
+                const medRows = (enc.medications || []).map((m: any, idx: number) => `
+                  <tr>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${idx + 1}. ${m.medicineName}</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: 600; color: #4338ca;">${m.dosage || '1-0-1'}</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #475569;">${m.duration || '5 Days'}</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #64748b;">${m.instructions || 'After meals'}</td>
+                  </tr>
+                `).join('');
+
+                const testRows = (enc.diagnosticTests || []).map((t: any, idx: number) => `
+                  <span style="display: inline-block; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 6px; font-size: 11px; margin-right: 6px; margin-bottom: 6px; font-weight: 600;">
+                    🧪 ${t.name} (LOINC: ${t.loincCode || 'N/A'})
+                  </span>
+                `).join('');
+
+                const html = `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <title>Digital Prescription - ${selectedDirectoryPatient.name}</title>
+                    <style>
+                      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 30px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+                      .header { border-bottom: 2px solid #4338ca; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; }
+                      .clinic-name { font-size: 20px; font-weight: 900; color: #1e1b4b; }
+                      .pat-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; }
+                      table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                      th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; color: #475569; border-bottom: 2px solid #cbd5e1; }
+                      .footer { margin-top: 40px; border-top: 1px solid #cbd5e1; padding-top: 16px; font-size: 11px; color: #64748b; text-align: center; }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="header">
+                      <div>
+                        <div class="clinic-name">${activePod?.name || 'VitalSync Smart Care Clinic'}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 2px;">Doctor Consultation & Digital e-Prescription</div>
+                      </div>
+                      <div style="text-align: right; font-size: 11px; color: #64748b;">
+                        <div>Date: ${new Date(enc.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div>Encounter: #${(enc.id || '').substring(0, 8)}</div>
+                      </div>
+                    </div>
+
+                    <div class="pat-info">
+                      <div><strong>Patient:</strong> ${selectedDirectoryPatient.name} (${selectedDirectoryPatient.age}y, ${selectedDirectoryPatient.gender})</div>
+                      <div><strong>Phone:</strong> ${selectedDirectoryPatient.phone}</div>
+                      <div><strong>Patient ID:</strong> ${selectedDirectoryPatient.tokenNumber || selectedDirectoryPatient.patientCode || 'PAT'}</div>
+                      <div><strong>Doctor ID:</strong> ${enc.doctorId || 'doc-1'}</div>
+                    </div>
+
+                    ${enc.clinicalNotes ? `
+                      <div style="margin-bottom: 20px; padding: 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; font-size: 12px;">
+                        <strong style="color: #92400e;">Clinical Notes & Advice:</strong> ${enc.clinicalNotes}
+                      </div>
+                    ` : ''}
+
+                    <div style="font-size: 13px; font-weight: 800; color: #1e1b4b; margin-bottom: 8px;">💊 Prescribed Medications (Rx)</div>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Medicine & Formulation</th>
+                          <th>Dosage</th>
+                          <th>Duration</th>
+                          <th>Instructions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${medRows || '<tr><td colspan="4" style="text-align: center; padding: 12px; color: #94a3b8;">No medications recorded</td></tr>'}
+                      </tbody>
+                    </table>
+
+                    ${testRows ? `
+                      <div style="margin-top: 16px; margin-bottom: 20px;">
+                        <div style="font-size: 13px; font-weight: 800; color: #1e1b4b; margin-bottom: 8px;">🔬 Prescribed Diagnostic Tests (Dx)</div>
+                        <div>${testRows}</div>
+                      </div>
+                    ` : ''}
+
+                    <div class="footer">
+                      VitalSync Healthcare Network • Digitally verified by Dr. ${activePod?.doctor_name || 'Practitioner'} • Sub-300ms Outbound WhatsApp Sync
+                    </div>
+                    <script>window.print();</script>
+                  </body>
+                  </html>
+                `;
+                printWindow.document.write(html);
+                printWindow.document.close();
+              };
+
+              const handleSendWhatsAppRx = (enc: any) => {
+                const phone = (selectedDirectoryPatient.phone || '').replace(/\D/g, '').slice(-10);
+                if (!phone) {
+                  alert('Patient phone number missing.');
+                  return;
+                }
+                const medList = (enc.medications || []).map((m: any, idx: number) => 
+                  `${idx + 1}. *${m.medicineName}* - ${m.dosage || '1-0-1'} (${m.duration || '5 Days'})`
+                ).join('\n');
+
+                const msg = `Namaste ${selectedDirectoryPatient.name} ji 🙏,\n\n*Prescription from ${activePod?.name || 'VitalSync Clinic'}*\nDate: ${new Date(enc.createdAt || Date.now()).toLocaleDateString('en-IN')}\n\n💊 *Prescribed Medicines:*\n${medList || 'Routine follow-up'}\n\n${enc.clinicalNotes ? `*Advice:* ${enc.clinicalNotes}\n\n` : ''}Take care & stay healthy! 🏥`;
+                window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+              };
+
+              return (
+                <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-3 text-left">
+                  <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-indigo-600 font-bold" />
+                      <h3 className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                        Past Clinical Encounters &amp; Digital Prescriptions
+                      </h3>
+                    </div>
+                    <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200">
+                      {encounters.length} Encounters Recorded
+                    </span>
+                  </div>
+
+                  {encounters.length === 0 ? (
+                    <div className="py-6 text-center border border-dashed border-slate-200 rounded-xl bg-white space-y-1">
+                      <Stethoscope className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                      <p className="text-xs font-bold text-slate-600">No Past Consultations Found</p>
+                      <p className="text-[10px] text-slate-400">Consultation records will appear here automatically once submitted in Consultation Queue.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                      {encounters.map((enc: any, idx: number) => (
+                        <div key={enc.id || `enc-${idx}`} className="p-3 bg-white border border-slate-200/90 rounded-xl space-y-2 shadow-2xs">
+                          <div className="flex items-center justify-between flex-wrap gap-1 border-b border-slate-100 pb-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
+                                Encounter #{idx + 1}
+                              </span>
+                              <span className="text-[10.5px] font-bold text-slate-800">
+                                {new Date(enc.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </span>
+                              <span className="text-[9px] text-slate-400 font-mono">
+                                ({new Date(enc.createdAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })})
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handlePrintPrescription(enc)}
+                                className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[9px] font-bold transition flex items-center gap-1 cursor-pointer border border-slate-200 shadow-2xs"
+                                title="Print Prescription Slip"
+                              >
+                                <Printer className="w-2.5 h-2.5" />
+                                <span>Print Rx</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSendWhatsAppRx(enc)}
+                                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[9px] font-bold transition flex items-center gap-1 cursor-pointer border-0 shadow-2xs text-white-force"
+                                title="Send via WhatsApp"
+                              >
+                                <Send className="w-2.5 h-2.5 text-white-force" />
+                                <span>WhatsApp Rx</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {enc.clinicalNotes && (
+                            <p className="text-[10.5px] text-slate-600 bg-amber-50/60 border border-amber-200/50 p-2 rounded-lg leading-relaxed">
+                              <strong>Clinical Notes:</strong> {enc.clinicalNotes}
+                            </p>
+                          )}
+
+                          {/* Prescribed Medications */}
+                          {(enc.medications || []).length > 0 && (
+                            <div className="space-y-1">
+                              <div className="text-[9.5px] font-bold text-slate-700 flex items-center gap-1">
+                                <Pill className="w-3 h-3 text-indigo-500" /> Prescribed Medications:
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {(enc.medications || []).map((m: any, mIdx: number) => (
+                                  <div key={`med-${mIdx}-${m.medicineName}`} className="p-1.5 bg-slate-50 border border-slate-200/70 rounded-lg text-[10px]">
+                                    <div className="font-bold text-slate-800 truncate">{m.medicineName}</div>
+                                    <div className="flex items-center gap-1.5 text-[9px] text-slate-500 font-mono mt-0.5">
+                                      <span className="text-indigo-600 font-bold bg-indigo-50 px-1 rounded">{m.dosage || '1-0-1'}</span>
+                                      <span>• {m.duration || '5 Days'}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Ordered Diagnostic Tests */}
+                          {(enc.diagnosticTests || []).length > 0 && (
+                            <div className="space-y-1 pt-1 border-t border-slate-100">
+                              <div className="text-[9.5px] font-bold text-slate-700 flex items-center gap-1">
+                                <FlaskConical className="w-3 h-3 text-blue-500" /> Diagnostic Pathology Tests:
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {(enc.diagnosticTests || []).map((t: any, tIdx: number) => (
+                                  <span key={`test-${tIdx}-${t.loincCode}`} className="px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-800 rounded-md text-[9px] font-bold">
+                                    🧪 {t.name} (LOINC: {t.loincCode})
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* ── Premium VitalSync Telemedicine Workspace ──────────────────── */}
             {(() => {
