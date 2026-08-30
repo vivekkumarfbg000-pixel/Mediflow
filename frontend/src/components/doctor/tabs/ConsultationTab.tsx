@@ -253,6 +253,10 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const testDropdownRef = useRef<HTMLDivElement>(null);
   const [activeSubTab, setActiveSubTab] = useState<'workup' | 'prescription'>('prescription');
 
+  // Protocol Search & Category Filter States
+  const [protocolSearchQuery, setProtocolSearchQuery] = useState('');
+  const [protocolCategoryFilter, setProtocolCategoryFilter] = useState<'all' | 'fevers' | 'gastro' | 'respiratory' | 'chronic' | 'pain'>('all');
+
   // Live PDF Lab Report Modal & Overlay States
   const [selectedLabReportForPdf, setSelectedLabReportForPdf] = useState<any | null>(null);
   const [doctorLabInsight, setDoctorLabInsight] = useState<DoctorLabInsightReport | null>(null);
@@ -2871,49 +2875,209 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
             )}
 
-            {/* 1-Click Quick-Rx Clinical Favorites Packs (Filtered by Specialization) */}
-            <div className="p-3.5 bg-gradient-to-r from-indigo-50/70 via-purple-50/50 to-blue-50/70 border border-indigo-200/80 rounded-2xl space-y-2.5">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-black text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600 font-bold" />
-                    1-Click Quick-Rx Clinical Favorites (Top Practice Protocols)
-                  </span>
-                  <span className="text-[9px] font-mono text-slate-500 font-bold hidden md:inline">
-                    📚 NLM / PubMed Evidence Standards
-                  </span>
-                </div>
-                <span className="text-[9px] font-mono text-indigo-600 font-bold bg-indigo-100/80 px-2 py-0.5 rounded-full">
-                  ⚡ 1-Tap Auto-Populate
-                </span>
-              </div>
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                {ClinicalEvidenceService.getProtocols(isOphthalmology).map((pack) => (
-                  <button
-                    key={pack.id}
-                    type="button"
-                    onClick={() => {
-                      const existingNames = new Set(medications.map(m => (m.medicineName || '').toLowerCase()));
-                      const toAdd = pack.medications.filter(m => !existingNames.has(m.medicineName.toLowerCase()));
-                      setMedications([...medications, ...toAdd]);
+            {/* 1-Click Quick-Rx Clinical Favorites & Disease Protocol Engine */}
+            {(() => {
+              const allProtocols = ClinicalEvidenceService.getProtocols(isOphthalmology);
+              const filteredProtocols = allProtocols.filter(pack => {
+                if (protocolCategoryFilter === 'fevers') {
+                  const match = pack.id.includes('fever') || pack.id.includes('dengue') || pack.id.includes('typhoid') || pack.id.includes('malaria');
+                  if (!match) return false;
+                } else if (protocolCategoryFilter === 'gastro') {
+                  const match = pack.id.includes('gastro') || pack.id.includes('gerd') || pack.id.includes('dyspepsia');
+                  if (!match) return false;
+                } else if (protocolCategoryFilter === 'respiratory') {
+                  const match = pack.id.includes('cough') || pack.id.includes('bronchitis') || pack.id.includes('asthma') || pack.id.includes('uri');
+                  if (!match) return false;
+                } else if (protocolCategoryFilter === 'chronic') {
+                  const match = pack.id.includes('t2dm') || pack.id.includes('htn') || pack.id.includes('cardio');
+                  if (!match) return false;
+                } else if (protocolCategoryFilter === 'pain') {
+                  const match = pack.id.includes('pain') || pack.id.includes('joint') || pack.id.includes('osteo') || pack.id.includes('headache') || pack.id.includes('migraine');
+                  if (!match) return false;
+                }
+                
+                if (protocolSearchQuery.trim()) {
+                  const q = protocolSearchQuery.toLowerCase();
+                  const nameMatch = (pack.name || '').toLowerCase().includes(q);
+                  const summaryMatch = (pack.summary || '').toLowerCase().includes(q);
+                  const medMatch = (pack.medications || []).some(m => (m.medicineName || '').toLowerCase().includes(q) || (m.saltComposition || '').toLowerCase().includes(q));
+                  const testMatch = (pack.suggestedLabTests || []).some(t => (t.name || '').toLowerCase().includes(q));
+                  return nameMatch || summaryMatch || medMatch || testMatch;
+                }
+                return true;
+              });
 
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: `${pack.name} Added! ⚡`,
-                          message: `Evidence standard: ${pack.evidenceSource} (${pack.pmidCitation})`,
-                          type: 'success'
-                        }
-                      }));
-                    }}
-                    title={`${pack.summary}\nEvidence: ${pack.evidenceSource} (${pack.pmidCitation})`}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-bold whitespace-nowrap cursor-pointer transition active:scale-95 shadow-2xs flex items-center gap-1.5 shrink-0 ${pack.color}`}
-                  >
-                    <span>{pack.name}</span>
-                    <span className="text-[9px] opacity-75 font-mono">({pack.medications.length} meds)</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+              return (
+                <div className="p-4 bg-gradient-to-r from-indigo-50/80 via-purple-50/60 to-blue-50/80 border border-indigo-200/90 rounded-2xl space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide flex items-center gap-1.5 font-sans">
+                        <Sparkles className="w-4 h-4 text-indigo-600 font-bold" />
+                        1-Click Quick-Rx &amp; Disease Protocols ({allProtocols.length})
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-500 font-bold hidden sm:inline">
+                        📚 NLM / PubMed / ICMR Guideline Standards
+                      </span>
+                    </div>
+                    <span className="text-[9.5px] font-mono text-indigo-700 font-bold bg-indigo-100/90 border border-indigo-200/60 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      ⚡ 1-Tap Auto-Populate Rx + Labs
+                    </span>
+                  </div>
+
+                  {/* Search & Fast Category Filter Toolbar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search disease protocols (e.g. fever, dengue, typhoid, malaria, loose motion, cough, bp, diabetes, migraine, knee pain)..."
+                        value={protocolSearchQuery}
+                        onChange={(e) => setProtocolSearchQuery(e.target.value)}
+                        className="w-full pl-8.5 pr-8 py-1.5 bg-white border border-slate-300/90 rounded-xl text-xs placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 shadow-2xs font-sans"
+                      />
+                      {protocolSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setProtocolSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 hover:text-slate-700 bg-transparent border-0 cursor-pointer font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+                      {[
+                        { id: 'all', label: `All (${allProtocols.length})` },
+                        { id: 'fevers', label: '🌡️ Fevers (Dengue/Typhoid)' },
+                        { id: 'gastro', label: '🤢 Gastro & GERD' },
+                        { id: 'respiratory', label: '🫁 Cold, Cough & Chest' },
+                        { id: 'chronic', label: '🩸 Diabetes & BP' },
+                        { id: 'pain', label: '🦴 Pain & Joints' },
+                      ].map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setProtocolCategoryFilter(cat.id as any)}
+                          className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold whitespace-nowrap transition cursor-pointer border ${
+                            protocolCategoryFilter === cat.id
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                              : 'bg-white/90 text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Protocol Grid Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                    {filteredProtocols.map((pack) => {
+                      const hasLabs = pack.suggestedLabTests && pack.suggestedLabTests.length > 0;
+                      return (
+                        <div
+                          key={pack.id}
+                          className={`p-3 rounded-xl border flex flex-col justify-between gap-2 shadow-2xs transition hover:shadow-sm ${pack.color} bg-opacity-95 text-left`}
+                        >
+                          <div>
+                            <div className="flex items-start justify-between gap-1.5">
+                              <h4 className="font-extrabold text-xs text-slate-900 leading-tight">
+                                {pack.name}
+                              </h4>
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-white/80 border border-black/10 rounded-md shrink-0">
+                                {pack.medications.length} meds
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                              {pack.summary}
+                            </p>
+                            <div className="mt-1.5 text-[8.5px] font-mono text-slate-500 font-semibold truncate" title={pack.pmidCitation}>
+                              📖 {pack.evidenceSource} • {pack.pmidCitation}
+                            </div>
+                          </div>
+
+                          <div className="pt-1.5 border-t border-black/5 flex items-center justify-between gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const existingNames = new Set(medications.map(m => (m.medicineName || '').toLowerCase()));
+                                const toAdd = pack.medications.filter(m => !existingNames.has(m.medicineName.toLowerCase()));
+                                setMedications([...medications, ...toAdd]);
+
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    title: `${pack.name} Prescribed! ⚡`,
+                                    message: `Added ${toAdd.length} guideline medications with instant FEFO stock check.`,
+                                    type: 'success'
+                                  }
+                                }));
+                              }}
+                              className="flex-1 py-1 px-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10.5px] rounded-lg shadow-2xs flex items-center justify-center gap-1 cursor-pointer transition active:scale-95 border-0 text-white-force"
+                            >
+                              <Plus className="w-3 h-3 text-white-force" />
+                              + Add Rx ({pack.medications.length})
+                            </button>
+
+                            {hasLabs && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const currentLoincs = new Set(selectedTests.map(t => t.loincCode));
+                                  const newTests = (pack.suggestedLabTests || [])
+                                    .filter(st => !currentLoincs.has(st.loincCode))
+                                    .map(st => ({
+                                      loincCode: st.loincCode,
+                                      name: st.name,
+                                      category: st.category,
+                                      normalRange: 'Standard',
+                                      unit: '',
+                                      price: (st as any).price || 350
+                                    }));
+                                  if (newTests.length > 0) {
+                                    if (setSelectedTests) {
+                                      setSelectedTests([...selectedTests, ...newTests]);
+                                    } else {
+                                      newTests.forEach(nt => handleToggleTest(nt));
+                                    }
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        title: `Diagnostic Panel Queued! 🧪`,
+                                        message: `Added ${newTests.length} tests: ${newTests.map(t => t.name).join(', ')}`,
+                                        type: 'success'
+                                      }
+                                    }));
+                                  } else {
+                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                      detail: {
+                                        title: `Lab Tests Already Added 🧪`,
+                                        message: `All suggested tests for this protocol are already in active worklist.`,
+                                        type: 'info'
+                                      }
+                                    }));
+                                  }
+                                }}
+                                title={pack.suggestedLabTests?.map(t => `• ${t.name}`).join('\n')}
+                                className="py-1 px-2 bg-white hover:bg-slate-100 text-indigo-900 border border-indigo-200 font-bold text-[10.5px] rounded-lg shadow-2xs flex items-center justify-center gap-1 cursor-pointer transition active:scale-95 shrink-0"
+                              >
+                                <FlaskConical className="w-3 h-3 text-indigo-600" />
+                                + {pack.suggestedLabTests?.length} Labs
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredProtocols.length === 0 && (
+                      <div className="col-span-full py-6 text-center text-xs text-slate-500 bg-white/70 rounded-xl border border-dashed border-slate-200">
+                        No clinical protocols match "{protocolSearchQuery}". Try typing "fever", "typhoid", "dengue", "cough", "diarrhea", "pain", or "bp".
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Evidence-Based Clinical Recommender (NLM / PubMed / GDMT Knowledge Sync) */}
             {smartClinicalRecommendations.clinicalInsights.length > 0 && (

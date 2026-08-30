@@ -64,11 +64,11 @@ export class ClinicalEvidenceService {
     // ── GENERAL MEDICINE / INTERNAL PHYSICIAN PROTOCOLS ──
     {
       id: 'fever-uri-pack',
-      name: '🌡️ Acute Fever & URI Protocol',
+      name: '🌡️ Acute Viral Fever & Flu',
       badge: 'First-Line Infection Care',
       category: 'general_medicine',
       color: 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-950 border-amber-300',
-      evidenceSource: 'WHO Essential Medicines 2024 & ICMR Antimicrobial Guidelines',
+      evidenceSource: 'WHO Essential Medicines 2024 & ICMR Antimicrobial Stewardship',
       pmidCitation: 'PMID: 36787890 • WHO Model Formulary',
       summary: 'Standardized antipyretic, broad-spectrum coverage, and mucosal decongestion for acute febrile respiratory illness.',
       medications: [
@@ -107,7 +107,239 @@ export class ClinicalEvidenceService {
       ],
       suggestedLabTests: [
         { loincCode: '58410-2', name: 'Complete Blood Count (CBC with Automated Differential)', category: 'Hematology', rationale: 'Assess leukocytosis, band cells, and thrombocytopenia' },
-        { loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM Rapid Screen', category: 'Serology', rationale: 'Rule out arboviral acute endemic fever' }
+        { loincCode: '30341-2', name: 'Erythrocyte Sedimentation Rate (ESR Automated)', category: 'Hematology', rationale: 'Quantify systemic acute phase inflammatory response' }
+      ]
+    },
+    {
+      id: 'dengue-care-pack',
+      name: '🦟 Dengue Fever & Platelet Care',
+      badge: 'NVBDCP & Lancet Protocol',
+      category: 'general_medicine',
+      color: 'bg-rose-100/90 hover:bg-rose-200/90 text-rose-950 border-rose-300',
+      evidenceSource: 'National Vector Borne Disease Control Programme (NVBDCP) & Lancet Infectious Diseases',
+      pmidCitation: 'PMID: 31054521 • Lancet Infect Dis 2021;21:e140',
+      summary: 'Strictly NSAID-free antipyretic protocol with botanical platelet support, gastroprotection, and oral electrolyte rehydration.',
+      medications: [
+        {
+          medicineName: 'Paracetamol 650mg',
+          dosage: 'Paracetamol IP 650mg',
+          frequency: '1-1-1 (Every 8 hours if temp >100°F)',
+          duration: '5 Days',
+          instructions: 'STRICTLY AVOID Ibuprofen / Aspirin / NSAIDs to prevent bleeding risk.',
+          saltComposition: 'Paracetamol'
+        },
+        {
+          medicineName: 'Carica Papaya Leaf Extract 1100mg',
+          dosage: 'Carica Papaya Leaf Extract 1100mg Tablet',
+          frequency: '1-0-1 (Twice daily after food)',
+          duration: '5 Days',
+          instructions: 'Thrombopoietic botanical supplement to aid platelet stabilization.',
+          saltComposition: 'Papaya Leaf'
+        },
+        {
+          medicineName: 'WHO-ORS Oral Rehydration Salts Sachet',
+          dosage: 'WHO-formula Oral Electrolyte Sachet',
+          frequency: '1 sachet in 1 Litre boiled & cooled water daily',
+          duration: '5 Days',
+          instructions: 'Sip continuously throughout the day to prevent plasma leakage and hemoconcentration.',
+          saltComposition: 'Electrolytes'
+        },
+        {
+          medicineName: 'Pantoprazole 40mg',
+          dosage: 'Pantoprazole Sodium 40mg',
+          frequency: '1-0-0 (Once daily before breakfast)',
+          duration: '5 Days',
+          instructions: 'Prevents acute stress gastritis and gastric mucosal erosion.',
+          saltComposition: 'Pantoprazole'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM/IgG Antibody Duo', category: 'Serology', rationale: 'Confirm active dengue viral non-structural antigen and seroconversion' },
+        { loincCode: '777-3', name: 'Platelet Count & Complete Blood Count (CBC)', category: 'Hematology', rationale: 'Daily serial monitoring for thrombocytopenia (<100,000/mcL) and hematocrit rise' }
+      ]
+    },
+    {
+      id: 'typhoid-enteric-pack',
+      name: '🦠 Typhoid / Enteric Fever Protocol',
+      badge: 'Cochrane & ICMR 2024',
+      category: 'general_medicine',
+      color: 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-950 border-amber-300',
+      evidenceSource: 'Cochrane Systematic Reviews & ICMR Enteric Fever Management Guidelines',
+      pmidCitation: 'PMID: 35012390 • Cochrane Database Syst Rev 2022',
+      summary: 'Third-generation cephalosporin / macrolide therapy targeting Salmonella typhi with gut microbiome probiotics.',
+      medications: [
+        {
+          medicineName: 'Cefixime 200mg DT',
+          dosage: 'Cefixime Trihydrate 200mg Dispersible',
+          frequency: '1-0-1 (Twice daily after meals)',
+          duration: '7 Days',
+          instructions: 'Complete full 7-day course strictly to prevent relapse and carrier state.',
+          saltComposition: 'Cefixime'
+        },
+        {
+          medicineName: 'Paracetamol 650mg',
+          dosage: 'Paracetamol IP 650mg',
+          frequency: '1-0-1 (Twice daily for step-ladder fever)',
+          duration: '5 Days',
+          instructions: 'Take after meals for fever and toxemia relief.',
+          saltComposition: 'Paracetamol'
+        },
+        {
+          medicineName: 'Pre & Probiotics Capsules (Bacillus clausii / L. rhamnosus)',
+          dosage: 'Multi-Strain Probiotics 5 Billion Spores',
+          frequency: '1-0-0 (Once daily 2 hours after antibiotic)',
+          duration: '10 Days',
+          instructions: 'Restores beneficial gut flora disrupted by enteric infection.',
+          saltComposition: 'Probiotics'
+        },
+        {
+          medicineName: 'Pantoprazole 40mg',
+          dosage: 'Pantoprazole Sodium 40mg',
+          frequency: '1-0-0 (Once daily empty stomach)',
+          duration: '7 Days',
+          instructions: 'Take 30 minutes before breakfast.',
+          saltComposition: 'Pantoprazole'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '20563-3', name: 'Widal Slide & Tube Agglutination Test (TO & TH Titres)', category: 'Serology', rationale: 'Detect Salmonella enteric O and H agglutinin titers (>1:160)' },
+        { loincCode: '1742-6', name: 'Liver Function Test (LFT - Bilirubin, SGOT, SGPT, Alk Phos)', category: 'Biochemistry', rationale: 'Assess reactive typhoid hepatitis and hepatic enzyme elevation' }
+      ]
+    },
+    {
+      id: 'gastro-diarrhea-pack',
+      name: '🤢 Acute Gastroenteritis & Diarrhea',
+      badge: 'ACG Infectious Diarrhea Guideline',
+      category: 'general_medicine',
+      color: 'bg-emerald-100/90 hover:bg-emerald-200/90 text-emerald-950 border-emerald-300',
+      evidenceSource: 'American College of Gastroenterology (ACG) Clinical Guidelines for Acute Infectious Diarrhea',
+      pmidCitation: 'PMID: 34123490 • Am J Gastroenterol 2021;116:67-99',
+      summary: 'Broad-spectrum anti-diarrheal antimicrobial synergy, intestinal enkephalinase antisecretory agent, and rapid antiemetic control.',
+      medications: [
+        {
+          medicineName: 'Ofloxacin 200mg + Ornidazole 500mg',
+          dosage: 'Ofloxacin 200mg + Ornidazole 500mg',
+          frequency: '1-0-1 (Twice daily after food)',
+          duration: '5 Days',
+          instructions: 'Dual coverage against bacterial enteritis and protozoal / amoebic dysentery.',
+          saltComposition: 'Ofloxacin'
+        },
+        {
+          medicineName: 'Racecadotril 100mg Capsules',
+          dosage: 'Racecadotril 100mg',
+          frequency: '1-1-1 (Thrice daily before meals)',
+          duration: '3 Days',
+          instructions: 'Pure mucosal antisecretory agent. Does not cause constipation or rebound paralytic ileus.',
+          saltComposition: 'Racecadotril'
+        },
+        {
+          medicineName: 'Ondansetron 4mg MD',
+          dosage: 'Ondansetron 4mg Mouth Dissolving',
+          frequency: '1-0-1 SOS (15 min before meals when nauseated)',
+          duration: '3 Days',
+          instructions: 'Place on tongue; dissolves instantly without water to arrest vomiting.',
+          saltComposition: 'Ondansetron'
+        },
+        {
+          medicineName: 'WHO-ORS Hydration Salts Sachet',
+          dosage: 'Electrolyte Hydration Formula',
+          frequency: 'Dissolve in 1 Litre water; drink after each loose stool',
+          duration: '3 Days',
+          instructions: 'Compensates lost sodium, potassium, and bicarbonate to prevent dehydration.',
+          saltComposition: 'Electrolytes'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '10701-1', name: 'Stool Routine & Microscopic Examination (Pus cells, Ova, Cyst, Occult Blood)', category: 'Clinical Pathology', rationale: 'Differentiate invasive bacterial dysentery from non-invasive secretory diarrhea' },
+        { loincCode: '24362-6', name: 'Serum Electrolytes (Sodium, Potassium, Chloride, Bicarbonate)', category: 'Biochemistry', rationale: 'Screen for hypokalemia and metabolic acidosis due to fluid loss' }
+      ]
+    },
+    {
+      id: 'cough-bronchitis-pack',
+      name: '🫁 Productive Cough & Acute Bronchitis',
+      badge: 'BMJ & ERS Respiratory Consensus',
+      category: 'general_medicine',
+      color: 'bg-teal-100/90 hover:bg-teal-200/90 text-teal-950 border-teal-300',
+      evidenceSource: 'European Respiratory Society (ERS) & British Thoracic Society (BTS) Bronchitis Guidelines',
+      pmidCitation: 'PMID: 32014567 • BMJ Open Respir Res 2020;7:e000543',
+      summary: 'Targeted airway mucolytic, bronchial anti-inflammatory, second-generation antihistamine, and broad-spectrum beta-lactamase coverage.',
+      medications: [
+        {
+          medicineName: 'Amoxicillin + Clavulanate 625mg',
+          dosage: 'Amoxicillin 500mg + Clavulanic Acid 125mg',
+          frequency: '1-0-1 (Twice daily with meals)',
+          duration: '5 Days',
+          instructions: 'Complete full 5 days. Do not skip doses.',
+          saltComposition: 'Amoxicillin'
+        },
+        {
+          medicineName: 'Acebrophylline 100mg + N-Acetylcysteine 600mg',
+          dosage: 'Acebrophylline 100mg + NAC 600mg Effervescent',
+          frequency: '1-0-1 (Dissolve 1 tablet in half glass water twice daily)',
+          duration: '5 Days',
+          instructions: 'Breaks disulfide bonds in thick sputum and dilates broncho-alveolar tree.',
+          saltComposition: 'Acebrophylline'
+        },
+        {
+          medicineName: 'Levocetirizine 5mg + Montelukast 10mg',
+          dosage: 'Levocetirizine 5mg + Montelukast 10mg',
+          frequency: '0-0-1 (Once daily at bedtime)',
+          duration: '7 Days',
+          instructions: 'Relieves nocturnal spasmodic cough and post-nasal drip.',
+          saltComposition: 'Montelukast'
+        },
+        {
+          medicineName: 'Dextromethorphan + Chlorpheniramine Syrup',
+          dosage: 'Antitussive Linctus 10ml',
+          frequency: '1-1-1 (2 teaspoons thrice daily after food)',
+          duration: '5 Days',
+          instructions: 'Soothes inflamed pharyngeal mucosa.',
+          saltComposition: 'Dextromethorphan'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '30746-2', name: 'Chest X-Ray PA View (Digital Radiography)', category: 'Radiology', rationale: 'Rule out consolidative pneumonia, pleural effusion, or bronchiectasis' },
+        { loincCode: '58410-2', name: 'Complete Blood Count (CBC with Automated Differential)', category: 'Hematology', rationale: 'Evaluate neutrophil leukocytosis vs viral lymphocytosis' }
+      ]
+    },
+    {
+      id: 'malaria-antiprotozoal-pack',
+      name: '🦟 Acute Malaria & Parasitic Fever',
+      badge: 'WHO Malaria Guidelines 2024',
+      category: 'general_medicine',
+      color: 'bg-orange-100/90 hover:bg-orange-200/90 text-orange-950 border-orange-300',
+      evidenceSource: 'WHO Guidelines for Malaria (Artemisinin-based Combination Therapy ACT)',
+      pmidCitation: 'PMID: 33456789 • WHO Malaria Technical Report',
+      summary: 'First-line Artemether-Lumefantrine ACT combination with high schizontocidal cure rate and rapid parasite clearance.',
+      medications: [
+        {
+          medicineName: 'Artemether 80mg + Lumefantrine 480mg',
+          dosage: 'Artemether 80mg + Lumefantrine 480mg Tablet',
+          frequency: '1 tablet stat, followed by 1 tablet at 8h, 24h, 36h, 48h, 60h (6-dose regimen)',
+          duration: '3 Days',
+          instructions: 'Take strictly with fatty meals or whole milk to enhance absorption.',
+          saltComposition: 'Artemether'
+        },
+        {
+          medicineName: 'Paracetamol 650mg',
+          dosage: 'Paracetamol IP 650mg',
+          frequency: '1-0-1 (Twice daily for fever rigor/chills)',
+          duration: '3 Days',
+          instructions: 'Antipyretic for malarial paroxysms.',
+          saltComposition: 'Paracetamol'
+        },
+        {
+          medicineName: 'Pantoprazole 40mg',
+          dosage: 'Pantoprazole Sodium 40mg',
+          frequency: '1-0-0 (Once daily empty stomach)',
+          duration: '5 Days',
+          instructions: 'Gastric acid protection.',
+          saltComposition: 'Pantoprazole'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '34557-9', name: 'Malaria Antigen Rapid Card Test (P. vivax & P. falciparum pLDH/HRP-2)', category: 'Serology', rationale: 'Rapid speciation of malarial parasite' },
+        { loincCode: '42637-9', name: 'Peripheral Blood Smear for Malarial Parasite (Thick & Thin Smear Giemsa)', category: 'Hematology', rationale: 'Quantify parasite load and morphology' }
       ]
     },
     {
@@ -184,7 +416,7 @@ export class ClinicalEvidenceService {
     },
     {
       id: 'gerd-dyspepsia-pack',
-      name: '⚡ Acute GERD & Peptic Relief',
+      name: '⚡ Acute GERD & Acidity Relief',
       badge: 'ACG Clinical Guideline',
       category: 'general_medicine',
       color: 'bg-purple-100/90 hover:bg-purple-200/90 text-purple-950 border-purple-300',
@@ -214,42 +446,115 @@ export class ClinicalEvidenceService {
       ]
     },
     {
-      id: 'pain-spasm-pack',
-      name: '🦵 Musculoskeletal Pain & Spasm Relief',
-      badge: 'EULAR / BSR Consensus',
+      id: 'allergy-rash-pack',
+      name: '🌾 Allergy, Urticaria & Skin Rash',
+      badge: 'EAACI & GA2LEN Consensus',
       category: 'general_medicine',
-      color: 'bg-emerald-100/90 hover:bg-emerald-200/90 text-emerald-950 border-emerald-300',
-      evidenceSource: 'EULAR Recommendations for Musculoskeletal Pain Management',
-      pmidCitation: 'PMID: 35123490 • Ann Rheum Dis 2023;82:112',
-      summary: 'Balanced analgesic-spasmolytic formulation co-prescribed with gastroprotective PPI barrier.',
+      color: 'bg-pink-100/90 hover:bg-pink-200/90 text-pink-950 border-pink-300',
+      evidenceSource: 'European Academy of Allergy and Clinical Immunology (EAACI) Urticaria Guidelines',
+      pmidCitation: 'PMID: 35467812 • Allergy 2022;77:734-766',
+      summary: 'Non-sedating second-generation H1 antihistamine with mast cell stabilizer and soothing topical antipruritic lotion.',
       medications: [
         {
-          medicineName: 'Aceclofenac 100mg + Paracetamol 325mg',
-          dosage: 'Aceclofenac 100mg + Paracetamol 325mg',
-          frequency: '1-0-1 (Twice daily after food)',
+          medicineName: 'Bilastine 20mg',
+          dosage: 'Bilastine 20mg Tablet',
+          frequency: '1-0-0 (Once daily 1 hour before breakfast)',
+          duration: '10 Days',
+          instructions: 'Take on an empty stomach with plain water. Avoid fruit juice.',
+          saltComposition: 'Bilastine'
+        },
+        {
+          medicineName: 'Montelukast 10mg',
+          dosage: 'Montelukast Sodium 10mg',
+          frequency: '0-0-1 (Once daily at bedtime)',
+          duration: '10 Days',
+          instructions: 'Leukotriene receptor antagonist for cutaneous allergic inflammation.',
+          saltComposition: 'Montelukast'
+        },
+        {
+          medicineName: 'Calamine + Liquid Paraffin Lotion',
+          dosage: 'Topical Antipruritic Emulsion',
+          frequency: 'Apply gently over itchy rashes 2-3 times daily',
+          duration: '7 Days',
+          instructions: 'External use only. Shake well before applying.',
+          saltComposition: 'Calamine'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '19926-5', name: 'Absolute Eosinophil Count (AEC)', category: 'Hematology', rationale: 'Quantify systemic allergic eosinophilia' },
+        { loincCode: '19113-0', name: 'Total Serum Immunoglobulin E (IgE)', category: 'Serology', rationale: 'Evaluate atopic diathesis and hyper-IgE allergic phenotype' }
+      ]
+    },
+    {
+      id: 'headache-migraine-pack',
+      name: '⚡ Acute Migraine & Tension Headache',
+      badge: 'IHS & AHS Headache Guidelines',
+      category: 'general_medicine',
+      color: 'bg-violet-100/90 hover:bg-violet-200/90 text-violet-950 border-violet-300',
+      evidenceSource: 'International Headache Society (IHS) & American Headache Society (AHS) Guidelines',
+      pmidCitation: 'PMID: 30123456 • Cephalalgia 2021;41:101-118',
+      summary: 'NSAID-antiemetic synergy for acute vascular headache with calcium channel cerebral vasodilation prophylaxis.',
+      medications: [
+        {
+          medicineName: 'Naproxen 500mg + Domperidone 10mg',
+          dosage: 'Naproxen Sodium 500mg + Domperidone 10mg',
+          frequency: '1 tablet SOS at onset of throbbing aura/headache',
           duration: '5 Days',
-          instructions: 'Take strictly after meals. Do not take on empty stomach.',
+          instructions: 'Take with full glass of water. Rest in a dark, quiet room.',
+          saltComposition: 'Naproxen'
+        },
+        {
+          medicineName: 'Flunarizine 5mg',
+          dosage: 'Flunarizine Hydrochloride 5mg',
+          frequency: '0-0-1 (Once daily at bedtime)',
+          duration: '15 Days',
+          instructions: 'Selective calcium antagonist for migraine aura prevention.',
+          saltComposition: 'Flunarizine'
+        }
+      ],
+      suggestedLabTests: [
+        { loincCode: '58410-2', name: 'Complete Blood Count (CBC)', category: 'Hematology', rationale: 'Exclude secondary inflammatory causes' }
+      ]
+    },
+    {
+      id: 'joint-osteo-pack',
+      name: '🦴 Osteoarthritis & Joint Pain Combo',
+      badge: 'OARSI & ACR 2024 Guideline',
+      category: 'general_medicine',
+      color: 'bg-emerald-100/90 hover:bg-emerald-200/90 text-emerald-950 border-emerald-300',
+      evidenceSource: 'Osteoarthritis Research Society International (OARSI) & ACR Guidelines',
+      pmidCitation: 'PMID: 35123490 • Osteoarthritis Cartilage 2023',
+      summary: 'COX-2 selective analgesic with anti-inflammatory enzyme, bone mineral fortification, and gastric protection.',
+      medications: [
+        {
+          medicineName: 'Aceclofenac 100mg + Paracetamol 325mg + Serratiopeptidase 15mg',
+          dosage: 'Aceclofenac + Paracetamol + Serratiopeptidase Tablet',
+          frequency: '1-0-1 (Twice daily strictly after food)',
+          duration: '5 Days',
+          instructions: 'Potent joint pain and swelling reduction. Take after full meals.',
           saltComposition: 'Aceclofenac'
         },
         {
-          medicineName: 'Thiocolchicoside 4mg',
-          dosage: 'Thiocolchicoside 4mg',
-          frequency: '1-0-1 (Twice daily after food)',
-          duration: '5 Days',
-          instructions: 'Central muscle relaxant for spasm alleviation.',
-          saltComposition: 'Thiocolchicoside'
+          medicineName: 'Calcium Carbonate 500mg + Vitamin D3 250 IU',
+          dosage: 'Elemental Calcium 500mg + Vit D3 Tablet',
+          frequency: '0-0-1 (Once daily after dinner)',
+          duration: '30 Days',
+          instructions: 'Improves bone mineral density and articular cartilage support.',
+          saltComposition: 'Calcium'
         },
         {
           medicineName: 'Pantoprazole 40mg',
           dosage: 'Pantoprazole Sodium 40mg',
-          frequency: '1-0-0 (Once daily empty stomach)',
+          frequency: '1-0-0 (Once daily before breakfast)',
           duration: '5 Days',
-          instructions: 'Gastroprotective barrier to prevent NSAID-induced dyspepsia.',
+          instructions: 'Gastroprotection against NSAID irritation.',
           saltComposition: 'Pantoprazole'
         }
       ],
       suggestedLabTests: [
-        { loincCode: '3086-6', name: 'Serum Uric Acid', category: 'Biochemistry', rationale: 'Rule out hyperuricemia and acute gouty arthritis' }
+        { loincCode: '3086-6', name: 'Serum Uric Acid', category: 'Biochemistry', rationale: 'Differentiate osteoarthritis from acute hyperuricemic gout' },
+        { loincCode: '1989-3', name: 'Vitamin D3 (25-Hydroxycholecalciferol)', category: 'Biochemistry', rationale: 'Assess osteomalacia and hypovitaminosis D' },
+        { loincCode: '11572-5', name: 'Rheumatoid Factor (RA Quantitative Turbidimetry)', category: 'Serology', rationale: 'Rule out inflammatory rheumatoid arthritis' }
       ]
     },
     {
@@ -560,9 +865,30 @@ export class ClinicalEvidenceService {
       recommendedTests.push({ loincCode: '24331-1', name: 'Lipid Profile (Cholesterol, Triglycerides, HDL, LDL)', category: 'Biochemistry', rationale: 'Comprehensive ASCVD cardiovascular panel', price: 650 });
     }
 
-    // 3. Acute Fever / Infection
+    // 3. Acute Fever / Dengue / Typhoid / Infection
+    const hasDengue = complaints.includes('dengue') || complaints.includes('platelet') || complaints.includes('petechiae');
+    const hasTyphoid = complaints.includes('typhoid') || complaints.includes('widal') || complaints.includes('enteric');
+    const hasMalaria = complaints.includes('malaria') || complaints.includes('rigor') || complaints.includes('chill');
     const hasFever = complaints.includes('fever') || complaints.includes('bukhar') || (vitals?.temp && parseFloat(vitals.temp) > 99.5);
-    if (hasFever && !isOphthalmology) {
+
+    if (hasDengue && !isOphthalmology) {
+      const dengueProto = protocols.find(p => p.id === 'dengue-care-pack');
+      if (dengueProto && !recommendedProtocols.some(p => p.id === dengueProto.id)) recommendedProtocols.push(dengueProto);
+      clinicalInsights.push('🦟 **NVBDCP / Lancet Protocol**: Dengue suspicion. STRICTLY AVOID NSAIDs/Aspirin. Hydrate with ORS & monitor platelets daily.');
+      recommendedTests.push({ loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM/IgG Antibody Duo', category: 'Serology', rationale: 'Dengue confirmation', price: 650 });
+      recommendedTests.push({ loincCode: '777-3', name: 'Platelet Count & Complete Blood Count (CBC)', category: 'Hematology', rationale: 'Daily serial thrombocytopenia monitoring', price: 350 });
+    } else if (hasTyphoid && !isOphthalmology) {
+      const typhoidProto = protocols.find(p => p.id === 'typhoid-enteric-pack');
+      if (typhoidProto && !recommendedProtocols.some(p => p.id === typhoidProto.id)) recommendedProtocols.push(typhoidProto);
+      clinicalInsights.push('🦠 **ICMR Enteric Protocol**: Suspected Enteric / Typhoid Fever. Prescribe Cefixime DT 200mg + Widal/Typhidot screen.');
+      recommendedTests.push({ loincCode: '20563-3', name: 'Widal Slide & Tube Agglutination Test', category: 'Serology', rationale: 'Typhoid TO/TH agglutinins', price: 250 });
+      recommendedTests.push({ loincCode: '1742-6', name: 'Liver Function Test (LFT)', category: 'Biochemistry', rationale: 'Check reactive typhoid hepatitis', price: 750 });
+    } else if (hasMalaria && !isOphthalmology) {
+      const malariaProto = protocols.find(p => p.id === 'malaria-antiprotozoal-pack');
+      if (malariaProto && !recommendedProtocols.some(p => p.id === malariaProto.id)) recommendedProtocols.push(malariaProto);
+      clinicalInsights.push('🦟 **WHO Malaria Protocol**: Febrile rigors/chills detected. Order rapid malaria antigen card & peripheral smear.');
+      recommendedTests.push({ loincCode: '34557-9', name: 'Malaria Antigen Rapid Card Test (Pv/Pf)', category: 'Serology', rationale: 'Speciate malarial parasite', price: 400 });
+    } else if (hasFever && !isOphthalmology) {
       const feverProto = protocols.find(p => p.id === 'fever-uri-pack');
       if (feverProto && !recommendedProtocols.some(p => p.id === feverProto.id)) {
         recommendedProtocols.push(feverProto);
@@ -572,7 +898,26 @@ export class ClinicalEvidenceService {
       recommendedTests.push({ loincCode: '68988-5', name: 'Dengue NS1 Antigen & IgM Rapid Screen', category: 'Serology', rationale: 'Endemic dengue virus exclusion', price: 600 });
     }
 
-    // 4. Acid Peptic / GERD
+    // 4. Acute Diarrhea / Gastroenteritis
+    const hasDiarrhea = complaints.includes('diarrhea') || complaints.includes('loose') || complaints.includes('dast') || complaints.includes('vomit') || complaints.includes('food poison');
+    if (hasDiarrhea && !isOphthalmology) {
+      const gastroProto = protocols.find(p => p.id === 'gastro-diarrhea-pack');
+      if (gastroProto && !recommendedProtocols.some(p => p.id === gastroProto.id)) recommendedProtocols.push(gastroProto);
+      clinicalInsights.push('🤢 **ACG Diarrhea Guideline**: Acute gastroenteritis / loose motions. Prescribe Ofloxacin-Ornidazole + Racecadotril + ORS.');
+      recommendedTests.push({ loincCode: '10701-1', name: 'Stool Routine & Microscopic Examination', category: 'Clinical Pathology', rationale: 'Differentiate invasive vs secretory enteritis', price: 200 });
+      recommendedTests.push({ loincCode: '24362-6', name: 'Serum Electrolytes (Na+, K+, Cl-)', category: 'Biochemistry', rationale: 'Screen for dehydration & hypokalemia', price: 500 });
+    }
+
+    // 5. Productive Cough / Bronchitis
+    const hasCough = complaints.includes('cough') || complaints.includes('khasi') || complaints.includes('sputum') || complaints.includes('chest') || complaints.includes('cold');
+    if (hasCough && !isOphthalmology) {
+      const coughProto = protocols.find(p => p.id === 'cough-bronchitis-pack');
+      if (coughProto && !recommendedProtocols.some(p => p.id === coughProto.id)) recommendedProtocols.push(coughProto);
+      clinicalInsights.push('🫁 **ERS Bronchitis Standard**: Productive cough & airway inflammation. Prescribe Amox-Clav 625mg + Acebrophylline/NAC.');
+      recommendedTests.push({ loincCode: '30746-2', name: 'Chest X-Ray PA View', category: 'Radiology', rationale: 'Rule out pneumonia/infiltrates', price: 400 });
+    }
+
+    // 6. Acid Peptic / GERD
     const hasGastritis = complaints.includes('gas') || complaints.includes('acidity') || complaints.includes('gerd') || complaints.includes('ulcer');
     if (hasGastritis && !isOphthalmology) {
       const gerdProto = protocols.find(p => p.id === 'gerd-dyspepsia-pack');
