@@ -54,7 +54,9 @@ import {
   Droplets,
   Wind,
   Square,
-  Volume2
+  Volume2,
+  Bot,
+  DoorOpen
 } from 'lucide-react';
 import { useClinic } from '../../../context/ClinicContext';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
@@ -2103,42 +2105,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             )}
           </div>
 
-          {/* Sub-Tabs Switcher */}
-          <div className="flex gap-2 border-b border-slate-200 pb-px mb-4">
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('workup')}
-              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                activeSubTab === 'workup'
-                  ? 'border-indigo-600 text-indigo-650 font-black'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              🏥 Clinical Workup & Insights
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('prescription')}
-              className={`px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                activeSubTab === 'prescription'
-                  ? 'border-indigo-600 text-indigo-650 font-black'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              💊 e-Prescription Pad (Rx / Dx)
-            </button>
+          {/* Handwritten prescription workflow notice */}
+          <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-1">
+            <FileEdit className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+            <div className="text-[10px] text-indigo-950 leading-relaxed">
+              <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
+              Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
+            </div>
           </div>
-
-          {activeSubTab === 'workup' && (
-            <div className="space-y-5 animate-fade-in">
-              {/* Handwritten prescription workflow notice */}
-              <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-3">
-                <FileEdit className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                <div className="text-[10px] text-indigo-950 leading-relaxed">
-                  <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
-                  Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
-                </div>
-              </div>
 
 
 
@@ -2549,367 +2523,18 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             );
           })()}
 
-          {/* Electronic Consultation Record Gating, Suggestions, and AI Summaries */}
-          <div className="p-6 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-6 shadow-sm text-left">
-
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <FileEdit className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
-                Final 10-15 Min Suggestions & Directions
+          {/* ══════════════════════════════════════════════════════════════════
+              UNIFIED CLINICAL NOTES & DIAGNOSIS WORKSPACE
+          ══════════════════════════════════════════════════════════════════ */}
+          <div className="p-5 bg-white border border-slate-200/90 rounded-2xl space-y-4 shadow-sm text-left">
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-100">
+              <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2 font-sans">
+                <FileEdit className="w-4 h-4 text-indigo-600 font-bold shrink-0" />
+                <span>Consultation & Clinical Notes</span>
               </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Record patient suggestions here (e.g., meetha kam khana hai, daily walk karna hai, start insulin)..."
-                rows={4}
-                className="w-full input-field bg-white text-xs leading-relaxed"
-              />
-            </div>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={async () => {
-                  if (!notes.trim()) {
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Notes Required',
-                        message: 'Please write consultation suggestions or clinical notes first.',
-                        type: 'warning'
-                      }
-                    }));
-                    return;
-                  }
-                  setIsGeneratingSummary(true);
-                  try {
-                    const doctorTitle = activePod?.doctorName || clinicProfile?.display_name || 'Doctor';
-                    const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes, doctorTitle);
-                    setHinglishSummary(summary);
-                    
-                    const taskId = `task-hinglish-${selectedPatient.id}-${Date.now()}`;
-                    await api.saveAIResult({
-                      id: crypto.randomUUID(),
-                      user_id: 'doctor-uuid-placeholder',
-                      task_id: taskId,
-                      patient_id: selectedPatient.id,
-                      input_data: notes,
-                      output_data: summary,
-                      output_type: 'HINGLISH_SUMMARY',
-                      status: 'SUCCESS',
-                      created_at: new Date().toISOString(),
-                      model_used: 'gemini-2.5-flash',
-                      duration_ms: 1000
-                    });
-
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Hinglish AI Summary Generated! ✨',
-                        message: 'Clinical summary generated successfully in friendly Hinglish.',
-                        type: 'success'
-                      }
-                    }));
-                  } catch (e: any) {
-                    console.error('[Hinglish Summary Notice]', e);
-                    const fallbackSummary = `Namaste ${selectedPatient?.name || 'Patient'} ji 🙏. Clinic se aapki health update:\n1. 💊 Dawa nirdharit samay par lein: ${notes.slice(0, 120)}...\n2. 🥗 Paani khoob piyein aur aaram karein.\n3. 🏥 Samasya hone par clinic sampark karein.`;
-                    setHinglishSummary(fallbackSummary);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Summary Prepared 📝',
-                        message: 'Clinical summary prepared with standard home-care directions.',
-                        type: 'info'
-                      }
-                    }));
-                  } finally {
-                    setIsGeneratingSummary(false);
-                  }
-                }}
-                disabled={isGeneratingSummary}
-                className="w-full bg-primary hover:bg-primary-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 text-white-force cursor-pointer border-0"
-              >
-                {isGeneratingSummary ? 'Generating...' : '🤖 Generate AI Hinglish Summary'}
-              </button>
-            </div>
-
-            {hinglishSummary && (
-              <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-3 animate-fade-in text-left">
-                <h4 className="font-bold text-[10px] text-indigo-700 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-                  Hinglish Clinical Summary
-                </h4>
-                <div className="text-xs text-slate-700 leading-relaxed scroll-list max-h-[200px] pr-1">
-                  <MarkdownText content={hinglishSummary} className="italic" />
-                </div>
-                <button
-                  onClick={() => {
-                    api.pushWhatsAppMessageFromBot(selectedPatient.phone, hinglishSummary);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'WhatsApp Summary Dispatched! 📱',
-                        message: `Friendly Hinglish instructions sent to +91 ${selectedPatient.phone}.`,
-                        type: 'success'
-                      }
-                    }));
-                  }}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
-                >
-                  <Send className="w-3.5 h-3.5 text-white-force" />
-                  Send to Patient WhatsApp
-                </button>
-              </div>
-            )}
-
-            {/* REVISIT LAB TREND COMPARISON */}
-            {activeHistory && activeHistory.length > 0 && (
-              <div className="border-t border-slate-200/80 pt-4 space-y-4 text-left">
-                <h3 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <BarChart3 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                  Revisit Mode: Comparative Lab Trend Analysis
-                </h3>
-                <p className="text-[10px] text-slate-600 leading-relaxed font-sans">
-                  Compare current biomarkers with historical reports to analyze improvement metrics.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans my-2">
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Baseline Report Date</label>
-                    <select
-                      value={baselineDate || ''}
-                      onChange={(e) => setBaselineDate(e.target.value || null)}
-                      className="w-full px-3.5 py-2 border border-slate-200 focus:border-indigo-500/50 rounded-xl outline-none bg-white text-slate-800"
-                    >
-                      <option value="">(Select Baseline Date)</option>
-                      {activeHistory.map((h: any) => {
-                        return <option key={h.date} value={h.date}>{h.date}</option>;
-                      })}
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Comparison Report Date</label>
-                    <select
-                      value={comparisonDate || ''}
-                      onChange={(e) => setComparisonDate(e.target.value || null)}
-                      className="w-full px-3.5 py-2 border border-slate-200 focus:border-indigo-500/50 rounded-xl outline-none bg-white text-slate-800"
-                    >
-                      <option value="">(Select Comparison Date)</option>
-                      {activeHistory.map((h: any) => {
-                        return <option key={h.date} value={h.date}>{h.date}</option>;
-                      })}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={handleGenerateLabTrend}
-                    disabled={isGeneratingTrend}
-                    className="w-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer text-white-force border-0"
-                  >
-                    {isGeneratingTrend ? 'Analyzing...' : '📊 Generate Comparative AI Summary'}
-                  </button>
-                </div>
-
-                {comparativeTrend && (
-                  <div className="p-5 bg-gradient-to-br from-rose-50/70 to-indigo-50/50 border border-slate-200/80 rounded-2xl space-y-5 animate-fade-in text-left shadow-sm">
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-[10px] text-rose-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                        <BarChart3 className="w-3.5 h-3.5 shrink-0" />
-                        Evidence-Based Comparative CDSS Report
-                      </h4>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handlePrintClinicalReferral}
-                          className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Printer className="w-3 h-3 shrink-0" />
-                          Print Referral Note
-                        </button>
-                        <span className="text-[9px] bg-indigo-500/10 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Active</span>
-                      </div>
-                    </div>
-
-                    {/* Summary Text */}
-                    <div className="bg-white/80 border border-white/40 p-4 rounded-xl space-y-2">
-                      <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium">
-                        {comparativeTrend.summaryText}
-                      </p>
-                    </div>
-
-                    {/* Suggested Compositions Grid */}
-                    {comparativeTrend.suggestedCompositions && comparativeTrend.suggestedCompositions.length > 0 && (
-                      <div className="space-y-2.5">
-                        <h5 className="font-extrabold text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                          <Pill className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                          Suggested Medicine Compositions & Dosages
-                        </h5>
-                        <div className="grid grid-cols-1 gap-3">
-                          {comparativeTrend.suggestedCompositions.map((comp: any, idx: number) => (
-                            <div key={`sugg-comp-${idx}-${comp.medicine_name || idx}`} className="p-3.5 bg-white/95 border border-slate-200/80 rounded-xl flex flex-col md:flex-row justify-between gap-3 shadow-xs hover:shadow-md transition-shadow">
-                              <div className="space-y-1.5 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <strong className="text-xs font-bold text-slate-800">{comp.medicine_name}</strong>
-                                  <span className="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded border border-slate-200/40 font-mono">{comp.composition}</span>
-                                </div>
-                                <p className="text-[11px] text-indigo-700 font-semibold flex items-center gap-1">
-                                  <Clock className="w-3 h-3 shrink-0" />
-                                  Dosage: {comp.suggested_dosage}
-                                </p>
-                                <p className="text-[10px] text-slate-500 leading-normal">
-                                  <span className="font-bold text-slate-600">Justification: </span>{comp.justification}
-                                </p>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const alreadyAdded = medications.some(m => (m.medicineName || '').toLowerCase() === (comp.medicine_name || '').toLowerCase());
-                                  if (alreadyAdded) {
-                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: {
-                                        title: 'Already Added',
-                                        message: `${comp.medicine_name} is already in the prescription list.`,
-                                        type: 'warning'
-                                      }
-                                    }));
-                                    return;
-                                  }
-                                  setMedications([
-                                    ...medications,
-                                    {
-                                      medicineName: comp.medicine_name,
-                                      dosage: comp.composition,
-                                      frequency: comp.suggested_dosage,
-                                      duration: '30 Days'
-                                    }
-                                  ]);
-                                  
-                                  setTimeout(() => {
-                                    const container = document.getElementById('doctor-tab-container') || document.querySelector('.doctor-dashboard-main-content');
-                                    const panel = document.getElementById('prescription-panel');
-                                    if (container && panel) {
-                                      const offsetTop = panel.offsetTop;
-                                      container.scrollTop = offsetTop - 120;
-                                    }
-                                    setFlashPrescriptionPanel(true);
-                                    setTimeout(() => setFlashPrescriptionPanel(false), 1500);
-                                  }, 100);
-                                }}
-                                className="self-start md:self-center bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-bold px-3 py-1.5 rounded-lg border border-indigo-200/50 flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap"
-                              >
-                                <Plus className="w-3 h-3 shrink-0" />
-                                Add to Rx
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* NCBI PubMed Reference Library */}
-                    {comparativeTrend.citations && comparativeTrend.citations.length > 0 && (
-                      <div className="space-y-2.5">
-                        <h5 className="font-extrabold text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                          <BookOpen className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                          NCBI PubMed Reference Library
-                        </h5>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {comparativeTrend.citations.map((c: any, idx: number) => (
-                            <div
-                              key={`citation-${idx}-${(c.title || '').slice(0, 15)}`}
-                              className="p-3.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-all flex flex-col justify-between text-left shadow-xs"
-                            >
-                              <div className="space-y-1">
-                                <h6 className="text-[11px] font-bold text-slate-800 leading-snug">
-                                  {c.title}
-                                </h6>
-                                <p className="text-[9px] text-slate-500 font-mono">
-                                  {c.journal} ({c.year})
-                                </p>
-                              </div>
-                              
-                              {c.abstract && (
-                                <div className="mt-2.5 pt-2 border-t border-slate-100">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      setExpandedCitationPmid(expandedCitationPmid === c.pmid ? null : c.pmid);
-                                    }}
-                                    className="text-[9px] font-bold text-indigo-600 hover:text-indigo-850 flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
-                                  >
-                                    {expandedCitationPmid === c.pmid ? (
-                                      <ChevronUp className="w-3 h-3 text-indigo-600 shrink-0" />
-                                    ) : (
-                                      <ChevronDown className="w-3 h-3 text-indigo-600 shrink-0" />
-                                    )}
-                                    {expandedCitationPmid === c.pmid ? 'Hide Abstract' : 'Quick Summary (Abstract)'}
-                                  </button>
-                                  {expandedCitationPmid === c.pmid && (
-                                    <p className="text-[10px] text-slate-600 mt-2 bg-slate-55 p-2.5 rounded-lg border border-slate-100 leading-relaxed transition-all animate-fade-in font-medium">
-                                      {c.abstract}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-slate-100">
-                                <span className="text-[9px] text-slate-500 font-bold font-mono">
-                                  PMID: {c.pmid}
-                                </span>
-                                <a
-                                  href={c.link}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[9px] text-indigo-600 hover:text-indigo-850 font-bold flex items-center gap-0.5 no-underline"
-                                >
-                                  Full Paper <ExternalLink className="w-2.5 h-2.5 shrink-0 inline-block" />
-                                </a>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* CDSS Medical Disclaimer */}
-                    <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-2.5">
-                      <Scale className="w-3.5 h-3.5 text-rose-600 shrink-0 font-bold" />
-                      <p className="text-[9px] text-rose-800/90 leading-relaxed">
-                        <strong>CDSS Legal Disclaimer:</strong> The suggested drug compositions, active compounds, target dosages, and medical literature citations are provided strictly for clinical decision support. They do not constitute formal prescription directives. The attending licensed practitioner retains full clinical responsibility and absolute prescribing authority.
-                      </p>
-                    </div>
-
-                    {/* WhatsApp Action Buttons */}
-                    <button
-                      onClick={() => {
-                        api.pushWhatsAppMessageFromBot(selectedPatient.phone, comparativeTrend.summaryText);
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Trend Sent! 📱',
-                            message: `Comparative lab trend pushed to +91 ${selectedPatient.phone} via WhatsApp.`,
-                            type: 'success'
-                          }
-                        }));
-                      }}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0"
-                    >
-                      <Send className="w-3.5 h-3.5 text-white-force" />
-                      Push Trend report to Patient WhatsApp
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* AI Generation History List Removed for Clean Professional UI */}
-          </div>
-
-        {/* Clinical Notes (placed at the bottom of the workup tab) */}
-            <div className="space-y-2 text-left mt-4 pt-4 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                  <FileEdit className="w-3.5 h-3.5 text-indigo-500 font-bold shrink-0" />
-                  Consultation & Clinical Notes
-                </label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Auto-format SOAP */}
                 <button
                   type="button"
                   onClick={() => {
@@ -2937,34 +2562,169 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95"
                 >
                   <Sparkles className="w-3 h-3 text-indigo-600 font-bold" />
-                  Auto-Format to SOAP Note
+                  Auto-Format SOAP
+                </button>
+
+                {/* 1-Tap Hinglish Patient Summary Quick Pill */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!notes.trim()) {
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Notes Required',
+                          message: 'Please write consultation suggestions or clinical notes first.',
+                          type: 'warning'
+                        }
+                      }));
+                      return;
+                    }
+                    setIsGeneratingSummary(true);
+                    try {
+                      const doctorTitle = activePod?.doctorName || clinicProfile?.display_name || 'Doctor';
+                      const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes, doctorTitle);
+                      setHinglishSummary(summary);
+                      
+                      const taskId = `task-hinglish-${selectedPatient.id}-${Date.now()}`;
+                      await api.saveAIResult({
+                        id: crypto.randomUUID(),
+                        user_id: 'doctor-uuid-placeholder',
+                        task_id: taskId,
+                        patient_id: selectedPatient.id,
+                        input_data: notes,
+                        output_data: summary,
+                        output_type: 'HINGLISH_SUMMARY',
+                        status: 'SUCCESS',
+                        created_at: new Date().toISOString(),
+                        model_used: 'gemini-2.5-flash',
+                        duration_ms: 1000
+                      });
+
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Hinglish AI Summary Generated! ✨',
+                          message: 'Clinical summary generated successfully in friendly Hinglish.',
+                          type: 'success'
+                        }
+                      }));
+                    } catch (e: any) {
+                      console.error('[Hinglish Summary Notice]', e);
+                      const fallbackSummary = `Namaste ${selectedPatient?.name || 'Patient'} ji 🙏. Clinic se aapki health update:\n1. 💊 Dawa nirdharit samay par lein: ${notes.slice(0, 120)}...\n2. 🥗 Paani khoob piyein aur aaram karein.\n3. 🏥 Samasya hone par clinic sampark karein.`;
+                      setHinglishSummary(fallbackSummary);
+                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                        detail: {
+                          title: 'Summary Prepared 📝',
+                          message: 'Clinical summary prepared with standard home-care directions.',
+                          type: 'info'
+                        }
+                      }));
+                    } finally {
+                      setIsGeneratingSummary(false);
+                    }
+                  }}
+                  disabled={isGeneratingSummary}
+                  className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95 disabled:opacity-50"
+                >
+                  <Bot className="w-3 h-3 text-purple-600" />
+                  {isGeneratingSummary ? 'Generating...' : '🤖 1-Tap Hinglish AI'}
+                </button>
+
+                {/* Comparative Lab Trends Trigger */}
+                {activeHistory && activeHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateLabTrend}
+                    disabled={isGeneratingTrend}
+                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95 disabled:opacity-50"
+                  >
+                    <BarChart3 className="w-3 h-3 text-rose-600" />
+                    {isGeneratingTrend ? 'Analyzing...' : `📊 Compare Trends (${activeHistory.length} Reports)`}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Main Clinical Notes Editor */}
+            <textarea
+              id="consultation-notes-textarea"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Presenting complaints, systemic examination notes, and diagnosis (Press Ctrl+N to focus)..."
+              rows={4}
+              className="w-full input-field resize-y text-xs leading-relaxed bg-slate-50/60 focus:bg-white border border-slate-200 rounded-xl"
+            />
+
+            {/* Generated Hinglish Patient Summary Drawer (if active) */}
+            {hinglishSummary && (
+              <div className="p-3.5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl space-y-2.5 animate-fade-in text-left">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-[10px] text-purple-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    Hinglish WhatsApp Patient Care Summary
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setHinglishSummary('')}
+                    className="text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <div className="text-xs text-slate-700 leading-relaxed scroll-list max-h-[140px] overflow-y-auto pr-1 bg-white/70 p-2.5 rounded-lg border border-purple-100">
+                  <MarkdownText content={hinglishSummary} className="italic" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    api.pushWhatsAppMessageFromBot(selectedPatient.phone, hinglishSummary);
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'WhatsApp Summary Dispatched! 📱',
+                        message: `Friendly Hinglish instructions sent to +91 ${selectedPatient.phone}.`,
+                        type: 'success'
+                      }
+                    }));
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0 text-white-force"
+                >
+                  <Send className="w-3.5 h-3.5 text-white-force" />
+                  Send to Patient WhatsApp (+91 {selectedPatient.phone || 'N/A'})
                 </button>
               </div>
-              <textarea
-                id="consultation-notes-textarea"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Presenting complaints, systemic examination notes, and diagnosis (Press Ctrl+N to focus)..."
-                rows={3}
-                className="w-full input-field resize-none text-xs leading-relaxed bg-white border border-slate-200"
-              />
-            </div>
+            )}
 
-            {/* Tab Transition Button */}
-            <div className="flex justify-end pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setActiveSubTab('prescription')}
-                className="bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-xs px-6 py-2.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-1 cursor-pointer border-0 text-white-force"
-              >
-                Proceed to Prescription
-                <ArrowRight className="w-3.5 h-3.5 font-bold text-white-force" />
-              </button>
-            </div>
+            {/* Generated Comparative Lab Trend Drawer (if active) */}
+            {comparativeTrend && (
+              <div className="p-4 bg-gradient-to-br from-rose-50/70 to-indigo-50/50 border border-rose-200 rounded-xl space-y-3 animate-fade-in text-left shadow-xs">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-[10px] text-rose-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <BarChart3 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    Evidence-Based Comparative CDSS Report
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePrintClinicalReferral}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Printer className="w-3 h-3 shrink-0" />
+                      Print
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setComparativeTrend(null)}
+                      className="text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-white/90 border border-rose-100 p-3 rounded-lg text-xs text-slate-700 leading-relaxed max-h-[120px] overflow-y-auto">
+                  {comparativeTrend.summaryText}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        {activeSubTab === 'prescription' && (
           <div className="space-y-5 animate-fade-in">
             {cdssAnomalies && cdssAnomalies.length > 0 && (
               <div className="bg-rose-500/10 border border-rose-500/20 text-rose-850 dark:text-rose-400 p-4.5 rounded-2xl space-y-2.5 animate-fade-in text-left">
@@ -4420,8 +4180,111 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </button>
             </div>
           </div>
+        </div>
+        </div>
+      )}
+
+      {/* ── ZERO STATE: OPD CHAMBER READINESS COCKPIT (WHEN NO PATIENT SELECTED) ── */}
+      {!selectedPatient && (
+        <div className="lg:col-span-8 glass-panel p-8 border-slate-200/80 shadow-sm space-y-6 relative overflow-hidden bg-white text-left flex flex-col justify-between min-h-[550px]">
+          <div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5 text-indigo-600 shrink-0" />
+                  OPD Chamber Readiness Cockpit
+                </h2>
+                <p className="text-xs text-slate-500 mt-1 font-medium">
+                  Select a patient from the queue or admit the next waiting patient to start clinical evaluation.
+                </p>
+              </div>
+              <span className="text-[11px] font-bold font-mono px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Chamber Online
+              </span>
+            </div>
+
+            {/* Quick Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
+              <div className="p-4 bg-slate-50 border border-slate-200/70 rounded-2xl">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  Awaiting Consultation
+                </div>
+                <div className="text-2xl font-black text-indigo-600 mt-1">
+                  {patients.filter(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus).length}
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">Tokens in active OPD queue</span>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200/70 rounded-2xl">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  Completed Today
+                </div>
+                <div className="text-2xl font-black text-emerald-600 mt-1">
+                  {patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'settled').length}
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">Prescriptions issued</span>
+              </div>
+
+              <div className="p-4 bg-slate-50 border border-slate-200/70 rounded-2xl">
+                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  Active Virtual Care
+                </div>
+                <div className="text-2xl font-black text-purple-600 mt-1">
+                  {appointments.filter(a => Boolean(a.isVirtual || (a as any).is_virtual)).length}
+                </div>
+                <span className="text-[10px] text-slate-500 mt-1 block">WhatsApp Telemedicine loop</span>
+              </div>
+            </div>
+
+            {/* Call Next Patient Banner */}
+            {(() => {
+              const awaitingPatient = patients.find(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus);
+              if (awaitingPatient) {
+                return (
+                  <div className="p-5 bg-gradient-to-r from-indigo-50/90 via-primary/5 to-purple-50/90 border border-indigo-200 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1 text-left">
+                      <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest font-mono">
+                        Next in OPD Queue
+                      </span>
+                      <h4 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                        {awaitingPatient.name}
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded-lg">
+                          {awaitingPatient.tokenNumber || '#TK-001'}
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-600 font-sans">
+                        {awaitingPatient.age}y {awaitingPatient.gender} • Phone: +91 {awaitingPatient.phone}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPatient(awaitingPatient)}
+                      className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95 border-0 text-white-force"
+                    >
+                      <DoorOpen className="w-4 h-4 text-white-force" />
+                      Admit Patient to Chamber
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <div className="p-6 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-2">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+                  <h4 className="text-sm font-bold text-slate-700">All Registered Patients Evaluated</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    No patients currently waiting in OPD queue. New walk-ins registered by the compounder will appear live.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
-        )}
+
+          {/* Quick Doctor Chamber Shortcuts */}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span>⚡ Keyboard Shortcut: <kbd className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-700 font-bold">Ctrl+Enter</kbd> to save Rx</span>
+            <span>🔒 HIPAA & ABDM Compliant EMR Session</span>
+          </div>
         </div>
       )}
 
