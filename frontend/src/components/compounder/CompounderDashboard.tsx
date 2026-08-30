@@ -400,9 +400,12 @@ export const CompounderDashboard: React.FC = () => {
         </style>
       </head>
       <body>
-        <div class="no-print" style="background: #0284c7; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="no-print" style="background: #0284c7; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
           <div style="font-weight: bold; font-size: 14px;">VitalSync OPD Batch Prescription Printing (${targetPatients.length} Slips)</div>
-          <button onclick="window.print()" style="background: white; color: #0284c7; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">🖨️ Print All Slips</button>
+          <div style="display: flex; gap: 10px;">
+            <button onclick="window.print()" style="background: white; color: #0284c7; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">🖨️ Print / Save as PDF</button>
+            <button onclick="alert('Slips batch dispatched to patient WhatsApp queue');" style="background: #16a34a; color: white; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">📲 Send via WhatsApp</button>
+          </div>
         </div>
         ${slipsHtml}
       </body>

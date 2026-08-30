@@ -904,9 +904,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     table { width: 100%; border-collapse: collapse; margin: 16px 0; }
     .summary-table { width:300px; margin-left:auto; margin-top:20px; }
     .footer { margin-top: 40px; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align:center; }
+    @media print { .no-print { display: none !important; } }
   </style>
 </head>
 <body>
+  <div class="no-print" style="margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+    <button onclick="window.print()" style="background: #106675; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;">🖨️ Print / Save as PDF</button>
+    <button onclick="const phone = '${selectedPatient.phone || ''}'.replace(/\\D/g, '').slice(-10); if (phone) { window.open('https://wa.me/91' + phone + '?text=' + encodeURIComponent('Namaste ${selectedPatient.name} ji 🙏,\\nYour payment receipt of ₹${(billingLedger.finalTotal || 0).toFixed(2)} from ${clinicTitle} is confirmed.\\nThank you!'), '_blank'); } else { alert('Patient phone number not found.'); }" style="background: #16a34a; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;">📲 Send to WhatsApp</button>
+  </div>
   <div class="header-box">
     <div>
       <h1>🏥 ${clinicTitle}</h1>

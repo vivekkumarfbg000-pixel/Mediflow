@@ -1599,10 +1599,29 @@ export const PharmacyDashboard: React.FC = () => {
                                           }
                                         }));
                                       }}
-                                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1"
+                                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1 border-0"
                                     >
                                       <Printer className="w-3 h-3 animate-pulse shrink-0" />
                                       Print Dispense Slip
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const phone = patient?.phone || '';
+                                        if (!phone) {
+                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                            detail: { title: 'Phone Missing', message: 'Patient phone number is not available.', type: 'warning' }
+                                          }));
+                                          return;
+                                        }
+                                        const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+                                        const text = encodeURIComponent(`Namaste ${patient?.name || 'Patient'} ji 🙏,\nYour medicine dispense slip from ${activePod?.name || 'Clinic Pharmacy'} (Total Paid: ₹${invoice.pharmacyFee}) is generated.\nThank you!`);
+                                        window.open(`https://wa.me/91${cleanPhone}?text=${text}`, '_blank');
+                                      }}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] cursor-pointer flex items-center gap-1 border-0"
+                                    >
+                                      <Send className="w-3 h-3 shrink-0" />
+                                      Send on WhatsApp
                                     </button>
                                   </div>
                                 </div>

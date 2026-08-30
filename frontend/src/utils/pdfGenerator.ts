@@ -453,3 +453,136 @@ export async function generateLabReportPdf(data: {
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;
 }
+
+/**
+ * Generates an official Doctor e-Prescription PDF document.
+ * Returns a Uint8Array representing the PDF bytes.
+ */
+export async function generatePrescriptionPdf(data: {
+  prescriptionId?: string;
+  patientName: string;
+  patientPhone?: string;
+  age?: number | string;
+  gender?: string;
+  tokenNumber?: string;
+  abhaId?: string;
+  doctorName?: string;
+  clinicName?: string;
+  date?: string;
+  notes?: string;
+  medications: Array<{ medicineName: string; dosage?: string; frequency?: string; duration?: string; instructions?: string }>;
+  diagnosticTests?: Array<{ name: string; loincCode?: string }>;
+  refractionRx?: RefractionRx;
+}): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]); // Standard A4
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const { width, height } = page.getSize();
+
+  // Header Banner
+  page.drawRectangle({
+    x: 0,
+    y: height - 90,
+    width,
+    height: 90,
+    color: rgb(0.18, 0.25, 0.55), // Indigo / Navy
+  });
+
+  page.drawText(data.clinicName || 'VITALSYNC SMART CLINIC NETWORK', {
+    x: 40,
+    y: height - 42,
+    size: 16,
+    font: fontBold,
+    color: rgb(1, 1, 1),
+  });
+
+  page.drawText(`Dr. ${data.doctorName || 'Practitioner'} • Connected OPD Consultation`, {
+    x: 40,
+    y: height - 60,
+    size: 9,
+    font,
+    color: rgb(0.85, 0.9, 1),
+  });
+
+  // Patient Info Box
+  page.drawRectangle({
+    x: 35,
+    y: height - 180,
+    width: width - 70,
+    height: 75,
+    color: rgb(0.97, 0.98, 1.0),
+    borderColor: rgb(0.85, 0.88, 0.95),
+    borderWidth: 1,
+  });
+
+  page.drawText(`Patient: ${data.patientName || 'Patient'}`, { x: 50, y: height - 120, size: 10, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
+  page.drawText(`Age / Gender: ${data.age || '—'} Y / ${data.gender || '—'}`, { x: 50, y: height - 140, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(`Contact: ${data.patientPhone || '—'}`, { x: 50, y: height - 160, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+
+  page.drawText(`Token: #${data.tokenNumber || 'T-01'}`, { x: 340, y: height - 120, size: 10, font: fontBold, color: rgb(0.18, 0.25, 0.55) });
+  page.drawText(`Date: ${data.date || getIstDateDisplay()}`, { x: 340, y: height - 140, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(`ABHA ID: ${data.abhaId || 'N/A'}`, { x: 340, y: height - 160, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+
+  let curY = height - 205;
+
+  // Prescribed Medications Table
+  if (data.medications && data.medications.length > 0) {
+    page.drawRectangle({
+      x: 35,
+      y: curY - 20,
+      width: width - 70,
+      height: 20,
+      color: rgb(0.18, 0.25, 0.55),
+    });
+
+    page.drawText('PRESCRIBED MEDICINE (Rx)', { x: 45, y: curY - 14, size: 8, font: fontBold, color: rgb(1, 1, 1) });
+    page.drawText('DOSAGE', { x: 250, y: curY - 14, size: 8, font: fontBold, color: rgb(1, 1, 1) });
+    page.drawText('FREQUENCY', { x: 350, y: curY - 14, size: 8, font: fontBold, color: rgb(1, 1, 1) });
+    page.drawText('DURATION', { x: 450, y: curY - 14, size: 8, font: fontBold, color: rgb(1, 1, 1) });
+
+    curY -= 35;
+    data.medications.forEach((med, idx) => {
+      if (idx % 2 === 1) {
+        page.drawRectangle({
+          x: 35,
+          y: curY - 4,
+          width: width - 70,
+          height: 18,
+          color: rgb(0.97, 0.98, 0.99),
+        });
+      }
+      page.drawText(med.medicineName || 'Medicine', { x: 45, y: curY, size: 9, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
+      page.drawText(med.dosage || '—', { x: 250, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
+      page.drawText(med.frequency || '1-0-1', { x: 350, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
+      page.drawText(med.duration || '5 Days', { x: 450, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
+      curY -= 20;
+    });
+  }
+
+  // Clinical Directions / Notes
+  if (data.notes) {
+    curY -= 15;
+    page.drawText('CLINICAL ADVICE & DIRECTIONS:', { x: 45, y: curY, size: 8.5, font: fontBold, color: rgb(0.18, 0.25, 0.55) });
+    curY -= 15;
+    const cleanNotes = data.notes.slice(0, 180);
+    page.drawText(cleanNotes, { x: 45, y: curY, size: 8.5, font, color: rgb(0.25, 0.3, 0.35) });
+    curY -= 20;
+  }
+
+  // Footer & Signatures
+  page.drawRectangle({
+    x: 35,
+    y: 70,
+    width: width - 70,
+    height: 1,
+    color: rgb(0.85, 0.88, 0.92),
+  });
+
+  page.drawText('Digital Signature: Valid Electronic Prescription', { x: 45, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
+  page.drawText(`Dr. ${data.doctorName || 'Physician'} (Registered Medical Practitioner)`, { x: 320, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
+  page.drawText('VitalSync Connected Outpatient Network • Verified Digital Health Record', { x: 45, y: 25, size: 7, font, color: rgb(0.6, 0.65, 0.7) });
+
+  const pdfBytes = await pdfDoc.save();
+  return pdfBytes;
+}

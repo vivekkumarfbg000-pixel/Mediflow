@@ -2798,6 +2798,26 @@ export const LabDashboard: React.FC = () => {
                                     <Printer className="w-3 h-3" />
                                     Receipt
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const pat = (patients || []).find((p: any) => p.id === req.patientId);
+                                      const phone = pat?.phone || '';
+                                      if (!phone) {
+                                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                          detail: { title: 'Phone Missing', message: 'Patient phone number is not available.', type: 'warning' }
+                                        }));
+                                        return;
+                                      }
+                                      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+                                      const text = encodeURIComponent(`Namaste ${req.patientName} ji 🙏,\nYour diagnostics receipt for ${req.testName} (LOINC: ${req.testCode || 'Dx'}, Total Paid: ₹${inv.totalAmount}) at ${activePod?.name || 'Pathology Lab'} is confirmed.\nYour results will be shared directly via WhatsApp upon review.`);
+                                      window.open(`https://wa.me/91${cleanPhone}?text=${text}`, '_blank');
+                                    }}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black rounded-lg cursor-pointer flex items-center gap-1 border-0"
+                                  >
+                                    <Send className="w-3 h-3" />
+                                    WhatsApp
+                                  </button>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5">

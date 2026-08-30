@@ -992,9 +992,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
             th { background-color: #f8fafc; font-weight: bold; color: #475569; }
             .footer { margin-top: 60px; font-size: 10px; text-align: center; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
-            .btn-container { text-align: right; margin-bottom: 20px; }
+            .btn-container { text-align: right; margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px; }
             .print-btn { background: #4f46e5; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; transition: all 0.2s; }
             .print-btn:hover { background: #4338ca; }
+            .wa-btn { background: #16a34a; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+            .wa-btn:hover { background: #15803d; }
             @media print {
               body { padding: 0; }
               .btn-container { display: none; }
@@ -1003,7 +1005,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         </head>
         <body>
           <div class="btn-container">
-            <button class="print-btn" onclick="window.print()">Print Prescription</button>
+            <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+            <button class="wa-btn" onclick="const phone = '${selectedPatient.phone || ''}'.replace(/\\D/g, '').slice(-10); if (phone) { window.open('https://wa.me/91' + phone + '?text=' + encodeURIComponent('Namaste ${selectedPatient.name} ji 🙏,\\nYour consultation prescription from ${activePod?.name || 'Clinic'} is ready. Please follow the prescribed doses.\\nGet well soon!'), '_blank'); } else { alert('Patient phone number not found.'); }">📲 Send to Patient WhatsApp</button>
           </div>
           
           <div class="header">
@@ -1155,8 +1158,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           </style>
         </head>
         <body>
-          <div style="text-align: right; margin-bottom: 20px;">
-            <button onclick="window.print()" style="background: #e11d48; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">Print Document</button>
+          <div style="text-align: right; margin-bottom: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="window.print()" style="background: #e11d48; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;">🖨️ Print / Save as PDF</button>
+            <button onclick="const phone = '${selectedPatient?.phone || ''}'.replace(/\\D/g, '').slice(-10); if (phone) { window.open('https://wa.me/91' + phone + '?text=' + encodeURIComponent('Namaste ${selectedPatient?.name || 'Patient'} ji 🙏,\\nYour clinical referral and biomarker trend summary from ${activePod?.name || 'Clinic'} is ready.'), '_blank'); } else { alert('Patient phone number not found.'); }" style="background: #16a34a; color: white; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 12px;">📲 Send to Patient WhatsApp</button>
           </div>
           <div class="header">
             <h1>VITALSYNC CLINICAL DECISION SUPPORT SYSTEM (CDSS)</h1>
