@@ -126,7 +126,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       .map(p => ({
         id: `patient_${p.id}`,
         category: 'Patient Match',
-        label: `${p.name} (${p.age}y · ${p.gender})`,
+        label: `${p.name} ${p.age || p.gender ? `(${p.age ? p.age + 'y' : ''}${p.age && p.gender ? ' · ' : ''}${p.gender || ''})` : ''}`,
         shortcut: p.phone,
         type: 'patient' as const,
         payload: p

@@ -1877,7 +1877,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   {selectedPatient.name}
                 </span>
                 <span className="text-[10px] text-slate-500 font-normal shrink-0">
-                  ({selectedPatient.age}y, {selectedPatient.gender})
+                  {selectedPatient.age || selectedPatient.gender ? `(${selectedPatient.age ? selectedPatient.age + 'y' : ''}${selectedPatient.age && selectedPatient.gender ? ', ' : ''}${selectedPatient.gender || ''})` : ''}
                 </span>
               </div>
 

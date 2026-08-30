@@ -4011,7 +4011,11 @@ export const CompounderDashboard: React.FC = () => {
                               >
                                 <span className="group-hover:underline">{patient.name}</span>
                               </button>
-                              <span className="text-slate-500 text-[10px] font-medium">({patient.age}y · {patient.gender})</span>
+                              {patient && (patient.age || patient.gender) && (
+                                <span className="text-slate-500 text-[10px] font-medium">
+                                  ({patient.age ? patient.age + 'y' : ''}{patient.age && patient.gender ? ' · ' : ''}{patient.gender || ''})
+                                </span>
+                              )}
                             </div>
 
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
