@@ -1171,56 +1171,58 @@ Keep the tone professional, clinical, objective, and precise.`;
       diagnosticTests: selectedTests
     });
 
-    // Dynamic WhatsApp auto-dispatch matching core business USP
-    try {
-      let eveningSlotObj: { startTime: string; endTime: string } | null = null;
+    // Dynamic WhatsApp auto-dispatch matching core business USP (Non-blocking background delivery)
+    (async () => {
       try {
-        const existingSlot = api.getAppointmentByPatient(selectedPatient.id);
-        const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, 'doc-1');
-        if (slot) {
-          eveningSlotObj = { startTime: slot.startTime, endTime: slot.endTime };
-          await api.scheduleAppointment(slot);
+        let eveningSlotObj: { startTime: string; endTime: string } | null = null;
+        try {
+          const existingSlot = api.getAppointmentByPatient(selectedPatient.id);
+          const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, 'doc-1');
+          if (slot) {
+            eveningSlotObj = { startTime: slot.startTime, endTime: slot.endTime };
+            await api.scheduleAppointment(slot);
+          }
+        } catch (slotErr) {
+          console.warn('[EveningSlot] Slot scheduling failed:', slotErr);
         }
-      } catch (slotErr) {
-        console.warn('[EveningSlot] Slot scheduling failed:', slotErr);
-      }
 
-      const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
-      const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
-      const clinicTitle = activePod?.name || activeDoctorProfile?.clinicName || 'Clinic';
+        const rawDocName = activePod?.doctor_name || activeDoctorProfile?.display_name || activeDoctorProfile?.name || 'Doctor';
+        const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
+        const clinicTitle = activePod?.name || activeDoctorProfile?.clinicName || 'Clinic';
 
-      const prescriptionMeds = medications.map((m: any) => ({
-        medicineName: m.medicineName,
-        dosage: m.dosage,
-        frequency: m.frequency,
-        duration: m.duration,
-        instructions: m.instructions
-      }));
+        const prescriptionMeds = medications.map((m: any) => ({
+          medicineName: m.medicineName,
+          dosage: m.dosage,
+          frequency: m.frequency,
+          duration: m.duration,
+          instructions: m.instructions
+        }));
 
-      // If ophthalmology spectacle refraction is present, add as an item
-      if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
-        prescriptionMeds.push({
-          medicineName: `Spectacles (${refractionRx.lensType})`,
-          dosage: `OD: SPH ${refractionRx.od.sph || 'Plano'} CYL ${refractionRx.od.cyl || '—'} Axis ${refractionRx.od.axis ? refractionRx.od.axis + '°' : '—'} | OS: SPH ${refractionRx.os.sph || 'Plano'} CYL ${refractionRx.os.cyl || '—'} Axis ${refractionRx.os.axis ? refractionRx.os.axis + '°' : '—'}`,
-          frequency: 'Wear constantly',
-          duration: '1 Year',
-          instructions: 'Optician Refraction Complete'
+        // If ophthalmology spectacle refraction is present, add as an item
+        if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
+          prescriptionMeds.push({
+            medicineName: `Spectacles (${refractionRx.lensType})`,
+            dosage: `OD: SPH ${refractionRx.od.sph || 'Plano'} CYL ${refractionRx.od.cyl || '—'} Axis ${refractionRx.od.axis ? refractionRx.od.axis + '°' : '—'} | OS: SPH ${refractionRx.os.sph || 'Plano'} CYL ${refractionRx.os.cyl || '—'} Axis ${refractionRx.os.axis ? refractionRx.os.axis + '°' : '—'}`,
+            frequency: 'Wear constantly',
+            duration: '1 Year',
+            instructions: 'Optician Refraction Complete'
+          });
+        }
+
+        await api.dispatchPrescriptionDosageWhatsApp({
+          patientPhone: selectedPatient.phone,
+          patientName: selectedPatient.name,
+          doctorName: docTitle,
+          clinicName: clinicTitle,
+          medications: prescriptionMeds,
+          clinicalNotes: notes,
+          hinglishAdvice: hinglishSummary,
+          eveningSlot: eveningSlotObj
         });
+      } catch (e) {
+        console.error('[WhatsApp Auto-dispatch notice]:', e);
       }
-
-      await api.dispatchPrescriptionDosageWhatsApp({
-        patientPhone: selectedPatient.phone,
-        patientName: selectedPatient.name,
-        doctorName: docTitle,
-        clinicName: clinicTitle,
-        medications: prescriptionMeds,
-        clinicalNotes: notes,
-        hinglishAdvice: hinglishSummary,
-        eveningSlot: eveningSlotObj
-      });
-    } catch (e) {
-      console.error('[WhatsApp Auto-dispatch failed]:', e);
-    }
+    })();
 
     // Reset Form
     setNotes('');

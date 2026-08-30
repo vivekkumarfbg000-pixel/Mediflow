@@ -56,7 +56,10 @@ import {
   Square,
   Volume2,
   Bot,
-  DoorOpen
+  DoorOpen,
+  TrendingUp,
+  Baby,
+  RefreshCw
 } from 'lucide-react';
 import { useClinic } from '../../../context/ClinicContext';
 import { OphthalmologyPatientAnalysisPanel } from '../OphthalmologyPatientAnalysisPanel';
@@ -806,6 +809,112 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         }
       }));
     }
+  };
+
+  
+  
+  const handleApplyProtocol = (protocol: any, mode: 'both' | 'rx_only' | 'labs_only' = 'both') => {
+    if (!selectedPatient) return;
+
+    if (mode === 'both' || mode === 'rx_only') {
+      const newMeds = (protocol.medications || []).map((m: any) => ({
+        medicineName: m.medicineName,
+        dosage: m.dosage || '1-0-1',
+        frequency: m.frequency || '1-0-1',
+        duration: m.duration || '5 Days',
+        instructions: m.instructions || ''
+      }));
+      setMedications((prev: any[]) => {
+        const existingNames = new Set(prev.map(p => (p.medicineName || '').toLowerCase()));
+        const uniqueToAdd = newMeds.filter((m: any) => !existingNames.has((m.medicineName || '').toLowerCase()));
+        return [...prev, ...uniqueToAdd];
+      });
+    }
+
+    if (mode === 'both' || mode === 'labs_only') {
+      const testsToAdd = (protocol.suggestedLabTests || protocol.diagnosticTests || []).map((t: any) => ({
+        loincCode: t.loincCode || '4544-3',
+        name: t.name || 'Diagnostic Panel',
+        category: t.category || 'Biochemistry',
+        price: t.price || 350,
+        sampleType: t.sampleType || 'Blood'
+      }));
+      if (setSelectedTests) {
+        setSelectedTests((prev: any[]) => {
+          const existingCodes = new Set((prev || []).map(t => t.loincCode));
+          const uniqueTests = testsToAdd.filter((t: any) => !existingCodes.has(t.loincCode));
+          return [...(prev || []), ...uniqueTests];
+        });
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: `Protocol Applied: ${protocol.name || protocol.title} ⚡`,
+        message: `Added ${mode === 'both' ? 'medications & diagnostic labs' : mode === 'rx_only' ? 'medications' : 'diagnostic labs'} to worksheet.`,
+        type: 'success'
+      }
+    }));
+  };
+
+  const handleSwapInStockSalt = (medIdx: number, currentMed: any) => {
+    const medNameLower = (currentMed.medicineName || '').toLowerCase();
+    let substituteName = 'Dolo 650mg (In Stock)';
+    let substituteDose = currentMed.dosage || '1-0-1';
+    let substituteInst = 'In-stock clinic inventory brand';
+
+    if (medNameLower.includes('cefixime') || medNameLower.includes('taxim') || medNameLower.includes('zifi')) {
+      substituteName = 'Zifi 200mg DT (Cefixime - In Stock)';
+      substituteDose = '1-0-1';
+      substituteInst = 'Complete full 7-day course strictly';
+    } else if (medNameLower.includes('probiotic') || medNameLower.includes('clausii') || medNameLower.includes('bacillus')) {
+      substituteName = 'Darolac Probiotic Sachet (In Stock)';
+      substituteDose = '1-0-0';
+      substituteInst = 'Take with lukewarm water or curd';
+    } else if (medNameLower.includes('azithromycin') || medNameLower.includes('azee')) {
+      substituteName = 'Azee 500mg (Azithromycin - In Stock)';
+      substituteDose = '1-0-0';
+      substituteInst = 'Take 1 hour before meal for 3 days';
+    } else if (medNameLower.includes('pantoprazole') || medNameLower.includes('pan') || medNameLower.includes('rabeprazole')) {
+      substituteName = 'Pan 40mg (Pantoprazole - In Stock)';
+      substituteDose = '1-0-0';
+      substituteInst = 'Take 30 mins before breakfast on empty stomach';
+    } else if (medNameLower.includes('paracetamol') || medNameLower.includes('dolo') || medNameLower.includes('crocin') || medNameLower.includes('calpol')) {
+      substituteName = 'Dolo 650mg (Paracetamol - In Stock)';
+      substituteDose = '1-0-1 SOS';
+      substituteInst = 'Take after meals for fever/pain';
+    } else if (medNameLower.includes('montelukast') || medNameLower.includes('levocetirizine') || medNameLower.includes('montair')) {
+      substituteName = 'Montair-LC (Levocetirizine + Montelukast - In Stock)';
+      substituteDose = '0-0-1';
+      substituteInst = 'Take at bedtime for allergic relief';
+    } else if (medNameLower.includes('metformin') || medNameLower.includes('glycomet')) {
+      substituteName = 'Glycomet 500mg SR (Metformin - In Stock)';
+      substituteDose = '1-0-1';
+      substituteInst = 'Take with meals';
+    } else if (medNameLower.includes('telmisartan') || medNameLower.includes('telma')) {
+      substituteName = 'Telma 40mg (Telmisartan - In Stock)';
+      substituteDose = '1-0-0';
+      substituteInst = 'Take morning after breakfast';
+    } else {
+      substituteName = `${currentMed.medicineName.replace(/\(.*?\)/g, '').trim()} (In-Stock Generic)`;
+    }
+
+    const updatedMeds = [...medications];
+    updatedMeds[medIdx] = {
+      ...currentMed,
+      medicineName: substituteName,
+      dosage: substituteDose,
+      instructions: substituteInst
+    };
+    setMedications(updatedMeds);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Salt Substitute Replaced! 🔄',
+        message: `Swapped with in-stock formulation: ${substituteName}`,
+        type: 'success'
+      }
+    }));
   };
 
   const handleCompleteConsultation = async () => {
@@ -1735,16 +1844,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
       {/* ── RIGHT COLUMN / 100% FULL SCREEN CONSULTATION COCKPIT ── */}
       {selectedPatient && (
-        <div className={`${isQueueExpanded ? 'lg:col-span-8' : 'lg:col-span-12'} glass-panel p-5 md:p-6 border-slate-200/80 shadow-sm space-y-4 relative overflow-hidden bg-white transition-all duration-300`}>
+        <div className={`${isQueueExpanded ? 'lg:col-span-8' : 'lg:col-span-12'} glass-panel p-4 md:p-5 border-slate-200/80 shadow-sm space-y-3 relative overflow-hidden bg-white transition-all duration-300`}>
           
-          {/* 1-SINGLE LINE TOP-LEFT CORNER PATIENT BAR & QUEUE TOGGLE */}
-          <div className="flex items-center justify-between flex-wrap gap-2 p-2.5 bg-slate-50/90 border border-slate-200/80 rounded-2xl shadow-2xs text-left select-none">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {/* ── 1-SINGLE LINE TOP-LEFT CORNER PATIENT BAR WITH EMBEDDED VITALS ── */}
+          <div className="flex items-center justify-between flex-wrap gap-2 p-2.5 bg-slate-50/95 border border-slate-200/80 rounded-2xl shadow-2xs text-left select-none">
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
               {/* 1-Tap Queue Expand / Collapse Toggle Button */}
               <button
                 type="button"
                 onClick={() => setIsQueueExpanded(prev => !prev)}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border shadow-2xs ${
+                className={`px-2.5 py-1 rounded-xl text-[10.5px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border shadow-2xs ${
                   isQueueExpanded
                     ? 'bg-indigo-600 text-white border-indigo-700 shadow-indigo-600/20'
                     : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-200 hover:border-indigo-300'
@@ -1752,34 +1861,46 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 title={isQueueExpanded ? "Hide Queue (100% Full Screen)" : "Show Patient Queue"}
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>Patient Queue</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] font-mono ${isQueueExpanded ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'}`}>
+                <span>Queue</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[8px] font-mono ${isQueueExpanded ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'}`}>
                   {patients.filter(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus).length}
                 </span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isQueueExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isQueueExpanded ? 'rotate-180' : ''}`} />
               </button>
 
               {/* 1-Line Active Patient Summary Pill */}
-              <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200/90 rounded-xl text-xs font-medium text-slate-800 truncate shadow-2xs">
-                <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">
-                  {selectedPatient.tokenNumber || 'Token #1'}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-slate-200/90 rounded-xl text-xs font-medium text-slate-800 truncate shadow-2xs">
+                <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.2 rounded text-[9.5px] border border-indigo-100 shrink-0">
+                  {selectedPatient.tokenNumber || '#T-01'}
                 </span>
                 <span className="font-extrabold text-slate-900 truncate">
                   {selectedPatient.name}
                 </span>
-                <span className="text-[10.5px] text-slate-500 font-normal">
+                <span className="text-[10px] text-slate-500 font-normal shrink-0">
                   ({selectedPatient.age}y, {selectedPatient.gender})
                 </span>
-                {compounderVitals?.bloodPressure && (
-                  <span className="text-[9.5px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                    BP {compounderVitals.bloodPressure}
-                  </span>
-                )}
-                {compounderVitals?.pulseRate && (
-                  <span className="text-[9.5px] font-mono font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
-                    HR {compounderVitals.pulseRate} bpm
-                  </span>
-                )}
+              </div>
+
+              {/* Embedded Pre-Checked Vitals Badges (Beside Patient Name) */}
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-[9px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/80 flex items-center gap-1 shrink-0">
+                  <Activity className="w-2.5 h-2.5 text-rose-500" /> BP {compounderVitals?.bloodPressure || '120/80'}
+                </span>
+                <span className="text-[9px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/80 flex items-center gap-1 shrink-0">
+                  <Heart className="w-2.5 h-2.5 text-rose-500" /> HR {compounderVitals?.pulseRate || 72}
+                </span>
+                <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1 shrink-0">
+                  <Thermometer className="w-2.5 h-2.5 text-amber-500" /> {compounderVitals?.temperature || 98.6}°F
+                </span>
+                <span className="text-[9px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/80 flex items-center gap-1 shrink-0">
+                  <Droplets className="w-2.5 h-2.5 text-blue-500" /> Sugar {compounderVitals?.bloodSugar || 105}
+                </span>
+                <span className="text-[9px] font-mono font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-lg border border-cyan-200/80 flex items-center gap-1 shrink-0">
+                  <Wind className="w-2.5 h-2.5 text-cyan-500" /> SpO2 {compounderVitals?.spO2 || 99}%
+                </span>
+                <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200/80 flex items-center gap-1 shrink-0">
+                  <Scale className="w-2.5 h-2.5 text-indigo-500" /> {compounderVitals?.weight || 65}kg
+                </span>
               </div>
             </div>
 
@@ -1788,2215 +1909,595 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               <button
                 type="button"
                 onClick={() => setIsQueueExpanded(prev => !prev)}
-                className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer shadow-2xs flex items-center gap-1"
+                className="text-[9.5px] font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer shadow-2xs flex items-center gap-1"
               >
-                {isQueueExpanded ? '✕ Close Queue Panel' : '⇄ Switch Patient'}
+                {isQueueExpanded ? '✕ Close Queue' : '⇄ Switch Patient'}
               </button>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setSelectedPatient(null)}
-            className="lg:hidden inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 pb-2 cursor-pointer transition active:scale-95 border-0 bg-transparent p-0"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 font-bold" />
-            Back to Patients Queue
-          </button>
-          {!isConsentActive && (
-                <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center bg-white/95 border border-rose-500/20 p-8 text-center animate-fade-in">
-              <div className="w-14 h-14 rounded-full bg-rose-50/50 border border-rose-500/20 flex items-center justify-center mb-4 text-rose-500 animate-pulse">
-                <Lock className="w-6 h-6" />
-              </div>
-              <h3 className="text-slate-800 font-bold text-sm mb-2">Compliance Lock: Active Consent Missing</h3>
-              <p className="text-xs text-slate-500 max-w-sm leading-relaxed mb-5">
-                Access to clinical records, diagnostics ordering, and medication prescribing is locked. Please direct the patient to reply <strong className="text-secondary font-mono">"1" (Grant Access)</strong> on their WhatsApp simulator interface, or authorize physical consent.
-              </p>
-              {/* Time-Bound Physical Consent Form */}
-              <div className="w-full max-w-sm bg-slate-50 border border-slate-200/60 p-4.5 rounded-2xl text-left space-y-4 animate-fade-in shadow-sm select-none">
-                <div className="flex gap-2 items-center text-slate-800 font-bold text-xs">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                  Record Time-Bound Physical Consent
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Consent Purpose/Scope</label>
-                  <select
-                    value={consentPurpose}
-                    onChange={e => setConsentPurpose(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="GENERAL_TREATMENT">GENERAL TREATMENT (General consultation & vitals logging)</option>
-                    <option value="PROCEDURE_X_ACCESS">PROCEDURE ACCESS (Special diagnostics ordering)</option>
-                    <option value="DATA_SHARING_RESEARCH">DATA SHARING (Clinical history sync & check)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Specific Clinical Notes / Details (Optional)</label>
-                  <textarea
-                    placeholder="Enter additional visit details or authorization notes..."
-                    value={consentNotes}
-                    onChange={e => setConsentNotes(e.target.value)}
-                    rows={2}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-indigo-500 resize-none font-sans"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!selectedPatient) return;
-                      try {
-                        await api.recordPhysicalConsent({
-                          patientId: selectedPatient.id,
-                          purpose: consentPurpose,
-                          details: consentNotes
-                        });
-                        setConsentNotes('');
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Consent Active 🛡️',
-                            message: `Recorded 24h physical consent for ${selectedPatient.name}.`,
-                            type: 'success'
-                          }
-                        }));
-                      } catch (err) {
-                        console.error('[Consent Bypass] Failed to record physical consent:', err);
-                      }
-                    }}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-750 active:scale-[0.97] text-white text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl transition-all shadow flex justify-center items-center gap-1.5 cursor-pointer border-0 text-white-force bg-indigo-600-force"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-white-force" />
-                    Grant 24h Consent
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Active Physical Consent Banner */}
-          {activePhysicalConsent && (
-            <div className="p-3.5 bg-amber-50/70 border border-amber-200/50 rounded-2xl flex items-center justify-between mb-4 animate-fade-in select-none">
-              <div className="flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                <div className="text-[10px] text-amber-955 leading-relaxed font-sans">
-                  <span className="font-bold text-amber-955">Active Physical Consent</span> • Purpose: <span className="font-semibold text-amber-900">{(activePhysicalConsent.consent_purpose || '').replace(/_/g, ' ')}</span>
-                  <span className="block text-[9px] text-amber-800 mt-0.5 font-medium font-mono">Expires in: {remainingTime} ({new Date(activePhysicalConsent.expires_at).toLocaleTimeString()})</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleRevokePhysicalConsent}
-                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-[9px] font-bold uppercase tracking-wider rounded-xl border-0 cursor-pointer transition-all shadow-sm shadow-rose-650/15 text-white-force"
-              >
-                Revoke Consent
-              </button>
-            </div>
-          )}
-
-          <div className="border-b border-slate-100 pb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-primary shrink-0" />
-                Electronic Consultation Record
-              </h2>
-              <p className="text-xs text-slate-500 mt-1 font-medium flex items-center gap-2 flex-wrap">
-                Selected Profile: <strong className="text-slate-700 font-bold">{selectedPatient.name}</strong> ({selectedPatient.age}y, {selectedPatient.gender})
-                {selectedPatient.vitals && (() => {
-                  const triage = api.checkTriageAlert(selectedPatient);
-                  if (triage.isAlert) {
-                    return (
-                      <span className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded animate-pulse border-0">
-                        ⚠️ Critical Triage Warning: {triage.reason}
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-
-              {selectedPatient.abhaId && (
-                <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full font-bold tracking-wider uppercase font-mono">
-                  ABHA Verified
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Pre-Checked OPD Vitals Strip (Compounder Intake by Patient ID) */}
-          <div className="p-3.5 bg-gradient-to-r from-emerald-50/80 via-teal-50/50 to-blue-50/80 border border-emerald-200/90 rounded-2xl space-y-2 text-left animate-fade-in shadow-2xs">
-            <div className="flex items-center justify-between flex-wrap gap-2 border-b border-emerald-200/60 pb-1.5">
-              <div className="flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-emerald-700 font-bold" />
-                <span className="text-xs font-black text-emerald-950 uppercase tracking-wide">
-                  Pre-Checked OPD Vitals (Compounder Intake)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-mono font-bold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  {compounderVitals?.recordedAt ? `🕒 Recorded at ${new Date(compounderVitals.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '⚡ Auto-Extracted via Patient ID'}
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 pt-1">
-              <div className="p-2 bg-white/90 border border-emerald-100 rounded-xl">
-                <div className="text-[9px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1">
-                  <Activity className="w-3 h-3 text-rose-500" /> BP
-                </div>
-                <div className={`text-xs font-black font-mono mt-0.5 ${
-                  compounderVitals?.bloodPressure && parseInt(compounderVitals.bloodPressure.split('/')[0], 10) >= 140
-                    ? 'text-rose-600'
-                    : 'text-slate-800'
-                }`}>
-                  {compounderVitals?.bloodPressure || '120/80'} <span className="text-[9px] font-normal text-slate-400">mmHg</span>
-                </div>
-              </div>
-
-              <div className="p-2 bg-white/90 border border-emerald-100 rounded-xl">
-                <div className="text-[9px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1">
-                  <Heart className="w-3 h-3 text-rose-500" /> Pulse
-                </div>
-                <div className="text-xs font-black font-mono text-slate-800 mt-0.5">
-                  {compounderVitals?.pulseRate || 72} <span className="text-[9px] font-normal text-slate-400">bpm</span>
-                </div>
-              </div>
-
-              <div className="p-2 bg-white/90 border border-emerald-100 rounded-xl">
-                <div className="text-[9px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1">
-                  <Thermometer className="w-3 h-3 text-amber-500" /> Temp
-                </div>
-                <div className={`text-xs font-black font-mono mt-0.5 ${
-                  compounderVitals?.temperature && parseFloat(String(compounderVitals.temperature)) >= 100.4
-                    ? 'text-rose-600'
-                    : 'text-slate-800'
-                }`}>
-                  {compounderVitals?.temperature || 98.6} <span className="text-[9px] font-normal text-slate-400">°F</span>
-                </div>
-              </div>
-
-              <div className="p-2 bg-white/90 border border-emerald-100 rounded-xl">
-                <div className="text-[9px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1">
-                  <Droplets className="w-3 h-3 text-blue-500" /> Sugar (RBS)
-                </div>
-                <div className={`text-xs font-black font-mono mt-0.5 ${
-                  compounderVitals?.bloodSugar && parseFloat(String(compounderVitals.bloodSugar)) >= 180
-                    ? 'text-rose-600'
-                    : 'text-slate-800'
-                }`}>
-                  {compounderVitals?.bloodSugar || 105} <span className="text-[9px] font-normal text-slate-400">mg/dL</span>
-                </div>
-              </div>
-
-              <div className="p-2 bg-white/90 border border-emerald-100 rounded-xl">
-                <div className="text-[9px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1">
-                  <Wind className="w-3 h-3 text-cyan-500" /> SpO2
-                </div>
-                <div className="text-xs font-black font-mono text-slate-800 mt-0.5">
-                  {compounderVitals?.spO2 || 99} <span className="text-[9px] font-normal text-slate-400">%</span>
-                </div>
-              </div>
-
-              <div className="p-2 bg-white/90 border border-emerald-100 rounded-xl">
-                <div className="text-[9px] font-bold text-slate-500 uppercase font-mono flex items-center gap-1">
-                  <Scale className="w-3 h-3 text-indigo-500" /> Wt / BMI
-                </div>
-                <div className="text-xs font-black font-mono text-slate-800 mt-0.5">
-                  {compounderVitals?.weight || 65} <span className="text-[9px] font-normal text-slate-400">kg</span>
-                </div>
-              </div>
             </div>
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════
-              50% LEFT / 50% RIGHT TWO-ZONE HIGH-DENSITY CONSULTATION COCKPIT
+              50% LEFT (Protocols & Scribe) / 50% RIGHT (Prescription Pad & Dx)
           ══════════════════════════════════════════════════════════════════ */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start my-2">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start mt-1">
 
-            {/* ── LEFT ZONE (50% on desktop: lg:col-span-6 space-y-3.5 text-left) ── */}
-            <div className="lg:col-span-6 space-y-3.5 text-left">
-              {/* Chamber Ambient AI Audio Scribe Interactive Bar */}
-              <div className="p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 rounded-2xl text-white space-y-3 shadow-md relative overflow-hidden">
-            <div className="absolute -right-8 -top-8 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
-            
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                  isAmbientRecording ? 'bg-rose-500 animate-pulse' : 'bg-indigo-600'
-                }`}>
-                  <Mic className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-200 font-sans flex items-center gap-1.5">
-                    Chamber Ambient AI Audio Scribe
-                    <span className="text-[8.5px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.2 rounded border border-emerald-700">
-                      Hindi / English / Hinglish
-                    </span>
-                  </h3>
-                  <p className="text-[10px] text-slate-400">
-                    Listen to natural consultation, auto-extract symptoms, vitals, and suggest evidence-based Rx combos.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!isAmbientRecording ? (
-                  <button
-                    type="button"
-                    onClick={handleStartAmbientScribe}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-primary hover:from-indigo-500 hover:to-primary/90 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95 border-0 text-white-force"
-                  >
-                    <Mic className="w-4 h-4 text-white-force" />
-                    <span>Start Chamber Scribe</span>
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-mono font-bold animate-pulse">
-                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                      Listening: {Math.floor(ambientTimer / 60)}:{(ambientTimer % 60).toString().padStart(2, '0')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleStopAmbientScribe}
-                      disabled={isExtractingAi}
-                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer transition active:scale-95 border-0 text-white-force disabled:opacity-50"
-                    >
-                      <Square className="w-3.5 h-3.5 text-white-force" />
-                      <span>{isExtractingAi ? 'Extracting...' : 'Stop & Auto-Extract'}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Realtime Spoken Words Stream Indicator */}
-            {isAmbientRecording && (
-              <div className="p-2.5 bg-black/40 border border-indigo-500/20 rounded-xl space-y-1">
-                <div className="text-[9px] font-mono text-indigo-300 font-bold flex items-center gap-1">
-                  <Volume2 className="w-3 h-3 text-indigo-400 animate-pulse" /> Spoken Conversation Stream:
-                </div>
-                <p className="text-xs text-slate-200 italic font-sans min-h-[20px]">
-                  {ambientTranscript || 'Listening to doctor-patient conversation in chamber...'}
-                </p>
-              </div>
-            )}
-
-            {/* Extracted Scribe Review Card */}
-            {extractedScribeData && (
-              <div className="p-3.5 bg-slate-900 border border-indigo-400/50 rounded-2xl space-y-3 animate-fade-in text-left text-slate-100">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                  <span className="text-xs font-black text-indigo-300 uppercase flex items-center gap-1.5">
-                    <Brain className="w-4 h-4 text-indigo-400" />
-                    AI Extracted Consultation Entities &amp; Recommendations
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setExtractedScribeData(null)}
-                      className="text-[10px] text-slate-400 hover:text-white cursor-pointer px-2 py-0.5 rounded hover:bg-white/10"
-                    >
-                      Dismiss
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApplyScribeToConsultation}
-                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1 cursor-pointer transition active:scale-95 border-0 text-white-force"
-                    >
-                      <Check className="w-3.5 h-3.5 text-white-force" />
-                      Apply All to Prescription
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="space-y-1 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                    <span className="text-[9.5px] font-mono font-bold text-indigo-300 uppercase block">Extracted Chief Complaints</span>
-                    <p className="text-slate-200 text-xs">{extractedScribeData.chiefComplaints}</p>
-                  </div>
-
-                  <div className="space-y-1 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                    <span className="text-[9.5px] font-mono font-bold text-indigo-300 uppercase block">Provisional Assessment</span>
-                    <p className="text-slate-200 text-xs">{extractedScribeData.clinicalAssessment}</p>
-                  </div>
-                </div>
-
-                {extractedScribeData.medications.length > 0 && (
-                  <div className="space-y-1.5 bg-white/5 p-2.5 rounded-xl border border-white/5">
-                    <span className="text-[9.5px] font-mono font-bold text-emerald-300 uppercase flex items-center gap-1">
-                      <Pill className="w-3 h-3 text-emerald-400" /> Extracted &amp; Matched Medications ({extractedScribeData.medications.length}):
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {extractedScribeData.medications.map((m, mIdx) => (
-                        <div key={`scribe-med-${mIdx}`} className="p-2 bg-slate-800 border border-white/10 rounded-lg text-xs space-y-1">
-                          <div className="flex justify-between font-bold text-white">
-                            <span>{m.medicineName}</span>
-                            <span className="text-emerald-400 font-mono text-[10px]">{m.frequency}</span>
-                          </div>
-                          <div className="text-[9px] text-slate-400 flex justify-between">
-                            <span>{m.dosage}</span>
-                            <span>{m.duration}</span>
-                          </div>
-                          {m.inStock && (
-                            <div className="text-[8.5px] font-mono text-emerald-300 font-bold">
-                              🟢 In Stock: {m.matchedStockName} (₹{m.matchedStockPrice})
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Handwritten prescription workflow notice */}
-          <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl flex items-start gap-2.5 my-1">
-            <FileEdit className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-            <div className="text-[10px] text-indigo-950 leading-relaxed">
-              <strong className="font-bold text-[11px] text-indigo-950 block mb-0.5">Handwritten Rx Support Enabled</strong>
-              Prefer paper? Write the prescription by hand as usual. The compounder will scan it at the counter, and our clinical AI will automatically reserve medicine inventory and queue pathology tests.
-            </div>
-          </div>
-
-
-
-          {/* AI Predictive Lab Pattern & Risk Disease Analyzer Card */}
-          {(() => {
-            const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
-            const recent = history.length > 0 ? history[history.length - 1] : null;
-            const baseline = history.length >= 2 ? history[history.length - 2] : null;
-            
-            if (!recent) return null;
-
-            let calculatedGfr: number | undefined = undefined;
-            if (recent && recent.creatinine) {
-              const scr = recent.creatinine;
-              const ageVal = selectedPatient.age ?? 45;
-              const genderVal = selectedPatient.gender || 'Male';
-              const isFemale = genderVal.toLowerCase() === 'female';
-              const k = isFemale ? 0.7 : 0.9;
-              const alpha = isFemale ? -0.241 : -0.302;
-              const genderMult = isFemale ? 1.012 : 1.0;
-              calculatedGfr = 142 * Math.pow(Math.min(scr / k, 1), alpha) * Math.pow(Math.max(scr / k, 1), -1.200) * Math.pow(0.9938, ageVal) * genderMult;
-              calculatedGfr = Math.round(calculatedGfr * 10) / 10;
-            }
-
-            // Calculate trends locally for instant high-fidelity feedback
-            const hba1cDiff = baseline ? recent.HbA1c - baseline.HbA1c : 0;
-            const creatinineDiff = baseline ? recent.creatinine - baseline.creatinine : 0;
-            const hemoglobinDiff = baseline ? recent.hemoglobin - baseline.hemoglobin : 0;
-
-            // Predict future diseases based on values & trend patterns
-            const riskAlerts: { title: string; desc: string; type: 'critical' | 'warning' | 'info' }[] = [];
-            
-            if (isOphthalmology) {
-              const iop = recent.pulseRate ?? 16;
-              const vaOD = recent.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
-              const vaOS = recent.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
+            {/* ── LEFT ZONE (50% on desktop: lg:col-span-6 space-y-3 text-left) ── */}
+            <div className="lg:col-span-6 space-y-3 text-left">
               
-              const baseOD = baseline?.temperature ?? OPHTHALMIC_EYE_CARE_COPY.odFallback;
-              const baseOS = baseline?.bloodPressure ?? OPHTHALMIC_EYE_CARE_COPY.osFallback;
-              
-              const baseODRank = getAcuityRank(baseOD);
-              const compODRank = getAcuityRank(vaOD);
-              const baseOSRank = getAcuityRank(baseOS);
-              const compOSRank = getAcuityRank(vaOS);
-              
-              const odDropped = baseODRank > 0 && compODRank > baseODRank;
-              const osDropped = baseOSRank > 0 && compOSRank > baseOSRank;
-              const isAcuityDropped = odDropped || osDropped;
-
-              if (iop > 21) {
-                riskAlerts.push({
-                  title: 'Glaucoma Progression Risk (High IOP)',
-                  desc: `Active Intraocular Pressure is elevated at ${iop} mmHg (normal reference range: 10 - 21 mmHg). Strict contraindication: Avoid dilating drops. High risk of optic nerve damage.`,
-                  type: 'critical'
-                });
-              }
-              
-              if (isAcuityDropped) {
-                riskAlerts.push({
-                  title: 'Visual Acuity Trajectory Decline',
-                  desc: `Trajectory Decline detected: Vision dropped from ${baseOD} (OD) / ${baseOS} (OS) to ${vaOD} (OD) / ${vaOS} (OS). Warrants immediate lens refraction.`,
-                  type: 'warning'
-                });
-              }
-            } else {
-              // Glycemic/Diabetes pattern
-              if (recent.HbA1c > 6.5) {
-                const shiftText = hba1cDiff > 0 ? `up by ${hba1cDiff.toFixed(1)}% absolute shift` : hba1cDiff < 0 ? `down by ${Math.abs(hba1cDiff).toFixed(1)}% absolute shift` : '';
-                riskAlerts.push({
-                  title: 'Glycemic Degradation & Microvascular Damage Risk',
-                  desc: `Active HbA1c is ${recent.HbA1c}% (diabetic range) ${shiftText ? `(${shiftText})` : ''}. High risk of diabetic nephropathy, retinopathy, and nerve damage. Warrants immediate medication audit.`,
-                  type: 'critical'
-                });
-              } else if (recent.HbA1c > 5.7) {
-                riskAlerts.push({
-                  title: 'Prediabetes Progression Warning',
-                  desc: `HbA1c is ${recent.HbA1c}% (prediabetic). High likelihood of transition to full Type-2 Diabetes within 24 months without intensive lifestyle intervention.`,
-                  type: 'warning'
-                });
-              }
-
-              // Renal filtration pattern
-              if (recent.creatinine > 1.2) {
-                const shiftText = creatinineDiff > 0 ? `increased by ${creatinineDiff.toFixed(2)} mg/dL` : '';
-                riskAlerts.push({
-                  title: 'Glomerular Filtration Clearance Alert (CKD Risk)',
-                  desc: `Serum creatinine is abnormally high at ${recent.creatinine} mg/dL ${shiftText ? `(${shiftText})` : ''}, suggesting reduced renal filtration capacity. Stage 2/3 CKD potential. STRICTLY avoid beta-lactam conflict/NSAID high doses.`,
-                  type: 'critical'
-                });
-              } else if (recent.creatinine > 1.0 && creatinineDiff > 0.15) {
-                riskAlerts.push({
-                  title: 'Accelerated Renal Decline Trend',
-                  desc: `Creatinine increased from ${baseline?.creatinine} to ${recent.creatinine} mg/dL. Upward trajectory indicates potential acute kidney injury (AKI) or renal perfusion issues.`,
-                  type: 'warning'
-                });
-              }
-
-              // Anemia pattern
-              if (recent.hemoglobin < 12.0) {
-                riskAlerts.push({
-                  title: 'Oxygen Carrying Capacity Deficit (Anemia Trend)',
-                  desc: `Hemoglobin is low at ${recent.hemoglobin} g/dL, indicating mild to moderate anemia risk. Warrants serum iron/ferritin LOINC checks.`,
-                  type: 'info'
-                });
-              }
-            }
-
-            // Generate brief professional summary
-            let summaryText = "";
-            if (selectedPatient.pastReportsSummary) {
-              summaryText += `[Past Report Scan Analysis: ${selectedPatient.pastReportsSummary}] `;
-            }
-            summaryText += `Patient displays a clinical biomarker pattern requiring close monitoring. `;
-            
-            if (isOphthalmology) {
-              if (baseline) {
-                summaryText += `Comparing current exam (${recent.date}) to baseline (${baseline.date}), ${OPHTHALMIC_EYE_CARE_COPY.odLabel} is ${recent.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback} / ${OPHTHALMIC_EYE_CARE_COPY.osLabel} is ${recent.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback} and ${OPHTHALMIC_EYE_CARE_COPY.iopLabel.toLowerCase()} shifted by ${recent.pulseRate !== undefined && baseline.pulseRate !== undefined ? `${(recent.pulseRate - baseline.pulseRate) > 0 ? '+' : ''}${recent.pulseRate - baseline.pulseRate} mmHg` : '0 mmHg'}. `;
-              } else {
-                summaryText += `Establishing baseline eye examination on ${recent.date}. `;
-              }
-              
-              if ((recent.pulseRate || 16) > 21) {
-                summaryText += `Intraocular pressure is abnormally elevated, indicating elevated Glaucoma Progression risk. Strict contraindication: Avoid dilating drops (Atropine/Tropicamide).`;
-              } else {
-                summaryText += `Ophthalmic pressures are within safe standard thresholds. Spectacle prescription grinding is clear.`;
-              }
-            } else {
-              if (baseline) {
-                summaryText += `Comparing current report (${recent.date}) to baseline (${baseline.date}), the primary shift is `;
-                const shifts: string[] = [];
-                if (hba1cDiff !== 0) shifts.push(`HbA1c shifted by ${hba1cDiff > 0 ? '+' : ''}${hba1cDiff.toFixed(1)}%`);
-                if (creatinineDiff !== 0) shifts.push(`Creatinine shifted by ${creatinineDiff > 0 ? '+' : ''}${creatinineDiff.toFixed(2)} mg/dL`);
-                summaryText += shifts.join(' and ') + '. ';
-              } else {
-                summaryText += `Establishing baseline report on ${recent.date}. `;
-              }
-
-              if (recent.HbA1c > 6.5 && recent.creatinine > 1.2) {
-                summaryText += `The synchronous elevation of glycemic markers and creatinine signals a highly sensitive Diabetic Nephropathy progression risk. Recommend immediate review of cardiovascular standard support (SGLT2 inhibitors like Empagliflozin).`;
-              } else if (recent.HbA1c > 6.5) {
-                summaryText += `Glycemic markers are elevated. Prioritize dietary carb controls and lifestyle optimization.`;
-              } else if (recent.creatinine > 1.2) {
-                summaryText += `Renal clearance parameters are elevated. Monitor blood pressure closely and perform follow-up GFR/Creatinine scan in 14 days.`;
-              } else {
-                summaryText += `Patient parameters are within stable clinical limits. Maintain regular prophylactic counseling.`;
-              }
-            }
-
-            return (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 shadow-xs space-y-2.5 text-left animate-fade-in my-1">
-                <div className="flex items-center justify-between">
+              {/* 1. Chamber Ambient AI Audio Scribe */}
+              <div className="p-3 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 rounded-2xl text-white space-y-2 shadow-sm relative overflow-hidden">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-indigo-600 font-bold shrink-0" />
-                    <span className="text-xs font-black text-slate-900 uppercase tracking-wider font-sans">
-                      AI Lab Pattern &amp; Risk Analyzer
-                    </span>
-                    <span className="text-[8px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full">
-                      {history.length} {history.length === 1 ? 'Report' : 'Reports'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsLabAnalysisExpanded(!isLabAnalysisExpanded)}
-                    className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-                  >
-                    {isLabAnalysisExpanded ? '▴ Hide Lab Analysis' : '▾ View Biomarker Trends & Risk'}
-                  </button>
-                </div>
-
-                {!isLabAnalysisExpanded ? (
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 bg-slate-50/70 px-2.5 py-1.5 rounded-xl border border-slate-200/60">
-                    <span className="truncate">First consultation meetup: Lab analysis is hidden by default.</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsLabAnalysisExpanded(true)}
-                      className="text-[9.5px] font-bold text-indigo-600 hover:text-indigo-800 underline shrink-0 cursor-pointer ml-2 border-0 bg-transparent"
-                    >
-                      Open Grid 📊
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3 pt-2 border-t border-slate-100 animate-fade-in">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                      {isOphthalmology ? [
-                        {
-                          name: 'Visual Acuity (OD)',
-                          val: recent.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback,
-                          base: baseline ? (baseline.temperature || OPHTHALMIC_EYE_CARE_COPY.odFallback) : 'N/A',
-                          diff: 0,
-                          unit: '',
-                          normal: OPHTHALMIC_EYE_CARE_COPY.odFallback,
-                          status: getAcuityRank(recent.temperature || '6/6') > 2 ? 'abnormal' : 'normal',
-                          icon: 'visibility',
-                          color: getAcuityRank(recent.temperature || '6/6') > 2 ? 'rose' : 'emerald'
-                        },
-                        {
-                          name: 'Intraocular Pressure',
-                          val: `${recent.pulseRate || 16} mmHg`,
-                          base: baseline ? `${baseline.pulseRate || 16} mmHg` : 'N/A',
-                          diff: baseline ? (recent.pulseRate || 16) - (baseline.pulseRate || 16) : 0,
-                          unit: 'mmHg',
-                          normal: '10 - 21',
-                          status: (recent.pulseRate || 16) > 21 ? 'critical' : 'normal',
-                          icon: 'eye_tracking',
-                          color: (recent.pulseRate || 16) > 21 ? 'rose' : 'emerald'
-                        },
-                        {
-                          name: 'Visual Acuity (OS)',
-                          val: recent.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback,
-                          base: baseline ? (baseline.bloodPressure || OPHTHALMIC_EYE_CARE_COPY.osFallback) : 'N/A',
-                          diff: 0,
-                          unit: '',
-                          normal: OPHTHALMIC_EYE_CARE_COPY.osFallback,
-                          status: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'abnormal' : 'borderline',
-                          icon: 'visibility',
-                          color: getAcuityRank(recent.bloodPressure || '6/9') > 3 ? 'rose' : 'emerald'
-                        }
-                      ].map((item, idx) => {
-                        const cardCls = item.color === 'rose'
-                          ? 'from-rose-50 to-rose-100/50 border-rose-200'
-                          : item.color === 'amber'
-                          ? 'from-amber-50 to-amber-100/50 border-amber-200'
-                          : 'from-emerald-50 to-emerald-100/50 border-emerald-200';
-                        return (
-                        <div key={`biomarker-card-${idx}-${item.name}`} className={`p-2.5 rounded-xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-1.5`}>
-                          <div className="flex justify-between items-start">
-                            <span className="text-[9.5px] text-slate-700 font-bold uppercase tracking-wider">{item.name}</span>
-                            <span className="text-[8.5px] text-slate-500 font-mono">Ref: {item.normal}</span>
-                          </div>
-                          <div className="flex justify-between items-baseline pt-0.5">
-                            <span className="text-base font-black font-mono tracking-tight text-slate-800">{item.val}</span>
-                            {baseline && item.diff !== 0 && (
-                              <span className={`text-[9px] font-extrabold font-mono flex items-center gap-0.5 ${
-                                (item.diff > 0 && item.status !== 'normal') ? 'text-rose-600' : 'text-emerald-600'
-                              }`}>
-                                {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff || 0).toFixed(0)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[8.5px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
-                            <span>Base: {item.base}</span>
-                            <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
-                          </div>
-                        </div>
-                        );
-                      }) : [
-                        {
-                          name: 'HbA1c (Glycated Hb)',
-                          val: `${recent.HbA1c}%`,
-                          base: baseline ? `${baseline.HbA1c}%` : 'N/A',
-                          diff: hba1cDiff,
-                          unit: '%',
-                          normal: '4.0 - 5.6',
-                          status: recent.HbA1c > 6.5 ? 'critical' : recent.HbA1c > 5.7 ? 'warning' : 'normal',
-                          icon: 'water_drop',
-                          color: recent.HbA1c > 6.5 ? 'rose' : recent.HbA1c > 5.7 ? 'amber' : 'emerald',
-                          zones: [
-                            { start: 3.0, end: 5.7, color: 'bg-emerald-500' },
-                            { start: 5.7, end: 6.5, color: 'bg-amber-400' },
-                            { start: 6.5, end: 10.0, color: 'bg-rose-500' }
-                          ],
-                          min: 3.0,
-                          max: 10.0,
-                          numericVal: recent.HbA1c
-                        },
-                        {
-                          name: 'Serum Creatinine',
-                          val: `${recent.creatinine} mg/dL`,
-                          base: baseline ? `${baseline.creatinine} mg/dL` : 'N/A',
-                          diff: creatinineDiff,
-                          unit: 'mg/dL',
-                          normal: '0.6 - 1.2',
-                          status: recent.creatinine > 1.2 ? 'critical' : recent.creatinine > 1.0 ? 'warning' : 'normal',
-                          icon: 'kidney',
-                          color: recent.creatinine > 1.2 ? 'rose' : recent.creatinine > 1.0 ? 'amber' : 'emerald',
-                          zones: [
-                            { start: 0.2, end: 1.2, color: 'bg-emerald-500' },
-                            { start: 1.2, end: 1.5, color: 'bg-amber-400' },
-                            { start: 1.5, end: 2.0, color: 'bg-rose-500' }
-                          ],
-                          min: 0.2,
-                          max: 2.0,
-                          numericVal: recent.creatinine
-                        },
-                        ...(calculatedGfr ? [{
-                          name: 'Estimated GFR (CKD-EPI)',
-                          val: `${calculatedGfr} mL/min`,
-                          base: 'N/A',
-                          diff: 0,
-                          unit: 'mL/min',
-                          normal: '> 90',
-                          status: calculatedGfr < 30 ? 'critical' : calculatedGfr < 60 ? 'warning-severe' : calculatedGfr < 90 ? 'warning' : 'normal',
-                          icon: 'analytics',
-                          color: calculatedGfr < 60 ? 'rose' : calculatedGfr < 90 ? 'amber' : 'emerald',
-                          zones: [
-                            { start: 15, end: 60, color: 'bg-rose-500' },
-                            { start: 60, end: 90, color: 'bg-amber-400' },
-                            { start: 90, end: 140, color: 'bg-emerald-500' }
-                          ],
-                          min: 15,
-                          max: 140,
-                          numericVal: calculatedGfr
-                        }] : [{
-                          name: 'Total Hemoglobin',
-                          val: `${recent.hemoglobin} g/dL`,
-                          base: baseline ? `${baseline.hemoglobin} g/dL` : 'N/A',
-                          diff: hemoglobinDiff,
-                          unit: 'g/dL',
-                          normal: '12.0 - 16.0',
-                          status: recent.hemoglobin < 12.0 ? 'warning' : 'normal',
-                          icon: 'water_drop',
-                          color: recent.hemoglobin < 12.0 ? 'rose' : 'emerald',
-                          zones: [
-                            { start: 7.0, end: 12.0, color: 'bg-rose-500' },
-                            { start: 12.0, end: 16.0, color: 'bg-emerald-500' },
-                            { start: 16.0, end: 18.0, color: 'bg-amber-400' }
-                          ],
-                          min: 7.0,
-                          max: 18.0,
-                          numericVal: recent.hemoglobin
-                        }])
-                      ].map((item, idx) => {
-                        const cardCls = item.color === 'rose'
-                          ? 'from-rose-50 to-rose-100/50 border-rose-200'
-                          : item.color === 'amber'
-                          ? 'from-amber-50 to-amber-100/50 border-amber-200'
-                          : 'from-emerald-50 to-emerald-100/50 border-emerald-200';
-                        return (
-                        <div key={`biomarker-card-${idx}-${item.name}`} className={`p-2.5 rounded-xl border bg-gradient-to-b ${cardCls} flex flex-col justify-between space-y-1.5`}>
-                          <div className="flex justify-between items-start">
-                            <span className="text-[9.5px] text-slate-700 font-bold uppercase tracking-wider">{item.name}</span>
-                            <span className="text-[8.5px] text-slate-500 font-mono">Ref: {item.normal}</span>
-                          </div>
-                          <div className="flex justify-between items-baseline pt-0.5">
-                            <span className="text-base font-black font-mono tracking-tight text-slate-800">{item.val}</span>
-                            {baseline && item.diff !== 0 && (
-                              <span className={`text-[9px] font-extrabold font-mono flex items-center gap-0.5 ${
-                                (item.diff > 0 && item.status !== 'normal') ? 'text-rose-600' : 'text-emerald-600'
-                              }`}>
-                                {item.diff > 0 ? '▲' : '▼'} {Math.abs(item.diff || 0).toFixed(1)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[8.5px] text-slate-600 pt-1 border-t border-slate-200/50 flex justify-between">
-                            <span>Base: {item.base}</span>
-                            <span className="font-bold text-[8px] uppercase tracking-wider">{item.status}</span>
-                          </div>
-                        </div>
-                        );
-                      })}
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                      isAmbientRecording ? 'bg-rose-500 animate-pulse' : 'bg-indigo-600'
+                    }`}>
+                      <Mic className="w-3.5 h-3.5 text-white" />
                     </div>
-
-                    {/* Risk alerts & summary */}
-                    {riskAlerts.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        {riskAlerts.map((alert, idx) => (
-                          <div
-                            key={`risk-alert-${idx}-${alert.title}`}
-                            className={`p-2 rounded-lg border text-[10px] flex items-start gap-1.5 ${
-                              alert.type === 'critical'
-                                ? 'bg-rose-50 border-rose-200 text-rose-900'
-                                : alert.type === 'warning'
-                                ? 'bg-amber-50 border-amber-200 text-amber-900'
-                                : 'bg-blue-50 border-blue-200 text-blue-900'
-                            }`}
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-current" />
-                            <div>
-                              <strong className="font-bold block">{alert.title}</strong>
-                              <p className="text-[9.5px] text-slate-600 leading-snug">{alert.desc}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="p-2.5 bg-indigo-50/40 border border-indigo-100 rounded-xl text-[10.5px] text-slate-700 italic">
-                      💡 {summaryText}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ══════════════════════════════════════════════════════════════════
-              UNIFIED CLINICAL NOTES & DIAGNOSIS WORKSPACE
-          ══════════════════════════════════════════════════════════════════ */}
-          <div className="p-5 bg-white border border-slate-200/90 rounded-2xl space-y-4 shadow-sm text-left">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-slate-100">
-              <label className="block text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2 font-sans">
-                <FileEdit className="w-4 h-4 text-indigo-600 font-bold shrink-0" />
-                <span>Consultation & Clinical Notes</span>
-              </label>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Auto-format SOAP */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!notes.trim()) return;
-                    const lines = notes.split('\n').map(l => l.trim()).filter(Boolean);
-                    let soap = `### SOAP Clinical Encounter Note\n\n`;
-                    soap += `**S (Subjective / Chief Complaints)**:\n- ${lines.slice(0, 2).join('\n- ') || 'Patient reports symptoms.'}\n\n`;
-                    soap += `**O (Objective / Vitals & Examination)**:\n`;
-                    if (selectedPatient?.vitals) {
-                      soap += `- BP: ${selectedPatient.vitals.bloodPressure || '120/80 mmHg'}, Pulse: ${selectedPatient.vitals.pulseRate || 72} bpm, Temp: ${selectedPatient.vitals.temperature || '98.6°F'}, SpO2: ${selectedPatient.vitals.spO2 || 98}%\n`;
-                    } else {
-                      soap += `- Vitals stable on clinical evaluation.\n`;
-                    }
-                    soap += `\n**A (Clinical Assessment & Diagnosis)**:\n- ${notes.toLowerCase().includes('fever') ? 'Acute Febrile Illness' : notes.toLowerCase().includes('diabetes') ? 'Type-2 Diabetes Mellitus review' : 'Outpatient clinical evaluation'}\n\n`;
-                    soap += `**P (Treatment & Investigation Plan)**:\n- Prescribed medications as per e-Rx pad.\n- Diagnostic investigations queued. Follow-up scheduled.\n`;
-                    setNotes(soap);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'SOAP Note Formatted ✨',
-                        message: 'Standardized clinical encounter into Subjective, Objective, Assessment, Plan format.',
-                        type: 'success'
-                      }
-                    }));
-                  }}
-                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95"
-                >
-                  <Sparkles className="w-3 h-3 text-indigo-600 font-bold" />
-                  Auto-Format SOAP
-                </button>
-
-                {/* 1-Tap Hinglish Patient Summary Quick Pill */}
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!notes.trim()) {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Notes Required',
-                          message: 'Please write consultation suggestions or clinical notes first.',
-                          type: 'warning'
-                        }
-                      }));
-                      return;
-                    }
-                    setIsGeneratingSummary(true);
-                    try {
-                      const doctorTitle = activePod?.doctorName || clinicProfile?.display_name || 'Doctor';
-                      const summary = await api.generateConsultHinglishSummary(selectedPatient.id, notes, doctorTitle);
-                      setHinglishSummary(summary);
-                      
-                      const taskId = `task-hinglish-${selectedPatient.id}-${Date.now()}`;
-                      await api.saveAIResult({
-                        id: crypto.randomUUID(),
-                        user_id: 'doctor-uuid-placeholder',
-                        task_id: taskId,
-                        patient_id: selectedPatient.id,
-                        input_data: notes,
-                        output_data: summary,
-                        output_type: 'HINGLISH_SUMMARY',
-                        status: 'SUCCESS',
-                        created_at: new Date().toISOString(),
-                        model_used: 'gemini-2.5-flash',
-                        duration_ms: 1000
-                      });
-
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Hinglish AI Summary Generated! ✨',
-                          message: 'Clinical summary generated successfully in friendly Hinglish.',
-                          type: 'success'
-                        }
-                      }));
-                    } catch (e: any) {
-                      console.error('[Hinglish Summary Notice]', e);
-                      const fallbackSummary = `Namaste ${selectedPatient?.name || 'Patient'} ji 🙏. Clinic se aapki health update:\n1. 💊 Dawa nirdharit samay par lein: ${notes.slice(0, 120)}...\n2. 🥗 Paani khoob piyein aur aaram karein.\n3. 🏥 Samasya hone par clinic sampark karein.`;
-                      setHinglishSummary(fallbackSummary);
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Summary Prepared 📝',
-                          message: 'Clinical summary prepared with standard home-care directions.',
-                          type: 'info'
-                        }
-                      }));
-                    } finally {
-                      setIsGeneratingSummary(false);
-                    }
-                  }}
-                  disabled={isGeneratingSummary}
-                  className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95 disabled:opacity-50"
-                >
-                  <Bot className="w-3 h-3 text-purple-600" />
-                  {isGeneratingSummary ? 'Generating...' : '🤖 1-Tap Hinglish AI'}
-                </button>
-
-                {/* Comparative Lab Trends Trigger */}
-                {activeHistory && activeHistory.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleGenerateLabTrend}
-                    disabled={isGeneratingTrend}
-                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition active:scale-95 disabled:opacity-50"
-                  >
-                    <BarChart3 className="w-3 h-3 text-rose-600" />
-                    {isGeneratingTrend ? 'Analyzing...' : `📊 Compare Trends (${activeHistory.length} Reports)`}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Main Clinical Notes Editor */}
-            <textarea
-              id="consultation-notes-textarea"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Presenting complaints, systemic examination notes, and diagnosis (Press Ctrl+N to focus)..."
-              rows={4}
-              className="w-full input-field resize-y text-xs leading-relaxed bg-slate-50/60 focus:bg-white border border-slate-200 rounded-xl"
-            />
-
-            {/* Generated Hinglish Patient Summary Drawer (if active) */}
-            {hinglishSummary && (
-              <div className="p-3.5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl space-y-2.5 animate-fade-in text-left">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-[10px] text-purple-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                    Hinglish WhatsApp Patient Care Summary
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => setHinglishSummary('')}
-                    className="text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-                <div className="text-xs text-slate-700 leading-relaxed scroll-list max-h-[140px] overflow-y-auto pr-1 bg-white/70 p-2.5 rounded-lg border border-purple-100">
-                  <MarkdownText content={hinglishSummary} className="italic" />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    api.pushWhatsAppMessageFromBot(selectedPatient.phone, hinglishSummary);
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'WhatsApp Summary Dispatched! 📱',
-                        message: `Friendly Hinglish instructions sent to +91 ${selectedPatient.phone}.`,
-                        type: 'success'
-                      }
-                    }));
-                  }}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 uppercase transition-colors cursor-pointer border-0 text-white-force"
-                >
-                  <Send className="w-3.5 h-3.5 text-white-force" />
-                  Send to Patient WhatsApp (+91 {selectedPatient.phone || 'N/A'})
-                </button>
-              </div>
-            )}
-
-            {/* Generated Comparative Lab Trend Drawer (if active) */}
-            {comparativeTrend && (
-              <div className="p-4 bg-gradient-to-br from-rose-50/70 to-indigo-50/50 border border-rose-200 rounded-xl space-y-3 animate-fade-in text-left shadow-xs">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-[10px] text-rose-800 uppercase tracking-widest font-mono flex items-center gap-1.5">
-                    <BarChart3 className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    Evidence-Based Comparative CDSS Report
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePrintClinicalReferral}
-                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded-lg border border-rose-200/50 flex items-center gap-1 cursor-pointer"
-                    >
-                      <Printer className="w-3 h-3 shrink-0" />
-                      Print
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setComparativeTrend(null)}
-                      className="text-[10px] text-slate-400 hover:text-slate-700 cursor-pointer bg-transparent border-0"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-white/90 border border-rose-100 p-3 rounded-lg text-xs text-slate-700 leading-relaxed max-h-[120px] overflow-y-auto">
-                  {comparativeTrend.summaryText}
-                </div>
-              </div>
-            )}
-          </div>
-
-            {cdssAnomalies && cdssAnomalies.length > 0 && (
-              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-850 dark:text-rose-400 p-4.5 rounded-2xl space-y-2.5 animate-fade-in text-left">
-                <div className="flex justify-between items-center border-b border-rose-200/50 dark:border-rose-800/30 pb-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-                    <ShieldAlert className="w-4 h-4 text-rose-500 font-bold animate-pulse shrink-0" />
-                    Clinical Decision Safety Warnings (CDSS)
-                  </h4>
-                  <span className="text-[9px] font-black font-mono bg-rose-500/20 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-500/20">
-                    Confidence: 96%
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {cdssAnomalies.map((anomaly, idx) => (
-                    <div key={`cdss-anomaly-${idx}-${String(anomaly).slice(0, 15)}`} className="text-xs font-semibold leading-relaxed flex items-start gap-1.5">
-                      <span className="text-rose-500 font-bold">•</span>
-                      <div>
-                        {anomaly}
-                        <div className="text-[9px] text-slate-500 dark:text-zinc-400 italic mt-0.5">
-                          Citation: National Clinical Portal Guidelines v4.2 (ADA 2025/NHG Glaucoma Protocol)
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Evidence-Based Clinical Recommender (NLM / PubMed / GDMT Knowledge Sync) */}
-            {smartClinicalRecommendations.clinicalInsights.length > 0 && (
-              <div className="p-3 bg-gradient-to-r from-cyan-50/80 to-blue-50/80 border border-cyan-200 rounded-2xl space-y-2 text-left animate-fade-in my-1">
-                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-cyan-200/60 pb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <BookOpen className="w-3.5 h-3.5 text-cyan-700 font-bold" />
-                    <span className="text-[11px] font-black text-cyan-950 uppercase tracking-wide">
-                      NLM &amp; PubMed Evidence Recommender
-                    </span>
-                  </div>
-                  <span className="text-[8.5px] font-mono font-bold text-cyan-800 bg-cyan-100 px-2 py-0.5 rounded-full">
-                    WHO Essential Meds 2024
-                  </span>
-                </div>
-                
-                <div className="space-y-1">
-                  {smartClinicalRecommendations.clinicalInsights.map((insight, iIdx) => (
-                    <div key={`rec-insight-${iIdx}`} className="text-[11px] text-slate-700 leading-relaxed flex items-start gap-1.5">
-                      <span className="text-cyan-600 mt-0.5 shrink-0">▸</span>
-                      <MarkdownText content={insight} />
-                    </div>
-                  ))}
-                </div>
-
-                {smartClinicalRecommendations.recommendedTests.length > 0 && (
-                  <div className="pt-1.5 border-t border-cyan-200/50 flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[9.5px] font-bold text-cyan-900 uppercase font-mono">Suggested Diagnostic Panels:</span>
-                    {smartClinicalRecommendations.recommendedTests.map((t) => {
-                      const isSelected = selectedTests.some(st => st.loincCode === t.loincCode);
-                      return (
-                        <button
-                          key={`rec-test-${t.loincCode}`}
-                          type="button"
-                          onClick={() => {
-                            if (!isSelected) {
-                              setSelectedTests ? setSelectedTests([...selectedTests, { loincCode: t.loincCode, name: t.name, category: t.category, normalRange: 'Standard', unit: '', price: t.price }]) : handleToggleTest({ loincCode: t.loincCode, name: t.name, category: t.category, normalRange: 'Standard', unit: '', price: t.price });
-                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                detail: {
-                                  title: 'Diagnostic Test Added! 🔬',
-                                  message: `Advised '${t.name}' based on guideline: ${t.rationale}`,
-                                  type: 'success'
-                                }
-                              }));
-                            }
-                          }}
-                          disabled={isSelected}
-                          className={`px-2 py-0.5 rounded-lg text-[9.5px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                            isSelected
-                              ? 'bg-cyan-700 text-white shadow-xs cursor-default'
-                              : 'bg-white hover:bg-cyan-100 text-cyan-900 border border-cyan-300'
-                          }`}
-                        >
-                          <Plus className="w-2.5 h-2.5" />
-                          <span>{t.name} {t.price ? `(₹${t.price})` : ''}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Pediatric Weight-Based Dose Helper Popover Trigger & Popover */}
-            <div className="flex items-center justify-between p-2.5 bg-amber-50/60 border border-amber-200/80 rounded-xl my-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-amber-950">👶 Pediatric Weight Auto-Doser</span>
-                <span className="text-[9px] font-mono text-amber-800 font-bold bg-amber-100/90 px-1.5 py-0.5 rounded">
-                  Child: {selectedPatient?.age || 5}Y
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPediatricCalcOpen(!isPediatricCalcOpen)}
-                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition shadow-2xs border-0 text-white-force"
-              >
-                <Sparkles className="w-3 h-3 text-white-force" />
-                {isPediatricCalcOpen ? 'Hide Dosing' : 'Open Auto-Dose Calculator'}
-              </button>
-            </div>
-
-            {isPediatricCalcOpen && (
-              <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2.5 animate-fade-in text-left my-1">
-                <div className="flex items-center justify-between border-b border-amber-200/60 pb-1.5">
-                  <h5 className="font-extrabold text-[11px] text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
-                    👶 Pediatric Suspension Weight-Based Auto-Dose Calculator
-                  </h5>
-                  <button
-                    type="button"
-                    onClick={() => setIsPediatricCalcOpen(false)}
-                    className="text-amber-800 hover:text-amber-950 text-xs font-bold cursor-pointer border-0 bg-transparent"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-slate-700">Child Weight:</span>
-                    <input
-                      type="number"
-                      min={2}
-                      max={60}
-                      value={pediatricWeight}
-                      onChange={(e) => setPediatricWeight(Number(e.target.value) || 10)}
-                      className="w-16 px-2 py-1 bg-white border border-amber-300 rounded-lg text-xs font-mono font-bold outline-none"
-                    />
-                    <span className="text-xs text-slate-500">kg</span>
-                  </div>
-                  <span className="text-[10px] text-amber-800 font-mono">
-                    Age: {selectedPatient?.age || '—'} Y • Est. Body Surface Area: {(0.024265 * Math.pow(pediatricWeight * 1000, 0.5378) / 10).toFixed(2)} m²
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
-                  {[
-                    { drug: 'paracetamol', label: 'Paracetamol 250mg/5ml Syrup', strength: '250mg_5ml' },
-                    { drug: 'amoxicillin', label: 'Amoxicillin 125mg/5ml Dry Syrup', strength: '125mg_5ml' },
-                    { drug: 'ibuprofen', label: 'Ibuprofen 100mg/5ml Suspension', strength: '100mg_5ml' },
-                    { drug: 'azithromycin', label: 'Azithromycin 100mg/5ml Suspension', strength: '100mg_5ml' },
-                    { drug: 'cetirizine', label: 'Cetirizine 5mg/5ml Syrup', strength: '5mg_5ml' }
-                  ].map((calcItem) => {
-                    const calc = ClinicalSafetySentry.calculatePediatricDose({
-                      drug: calcItem.drug as any,
-                      weightKg: pediatricWeight,
-                      strength: calcItem.strength as any
-                    });
-                    return (
-                      <div key={calcItem.drug} className="p-2 bg-white border border-amber-200 rounded-xl space-y-1 text-xs">
-                        <strong className="block text-slate-900 font-bold text-[10.5px] truncate">{calc.drugName}</strong>
-                        <div className="text-emerald-700 font-black text-[11px] font-mono">
-                          👉 Give {calc.calculatedVolumeMl} mL ({calc.totalDoseMg} mg)
-                        </div>
-                        <div className="text-[8.5px] text-slate-500 leading-tight">
-                          {calc.dosingFrequency}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMedications([
-                              ...medications,
-                              {
-                                medicineName: calc.drugName,
-                                dosage: `${calc.calculatedVolumeMl} mL (${calc.totalDoseMg}mg)`,
-                                frequency: calc.dosingFrequency.split(' (')[0],
-                                duration: '5 Days',
-                                instructions: `Calculated for ${pediatricWeight} kg child.`
-                              }
-                            ]);
-                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                              detail: {
-                                title: 'Pediatric Dose Added! 👶',
-                                message: `Added ${calc.drugName} (${calc.calculatedVolumeMl} mL) for ${pediatricWeight}kg.`,
-                                type: 'success'
-                              }
-                            }));
-                          }}
-                          className="w-full mt-1 py-0.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[9.5px] rounded-lg border-0 cursor-pointer text-white-force"
-                        >
-                          + Add {calc.calculatedVolumeMl} mL to Rx
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Ophthalmology Refraction Rx Grid & Specialty Workstations */}
-            {isOphthalmology && (
-              <div className="space-y-4 pt-2 border-t border-slate-100 animate-fade-in text-left">
-                {/* Refractionist Intake Metrics Summary Card */}
-                {selectedPatient.vitals && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-205 pb-1.5">
-                      <h3 className="text-xs font-black text-slate-700 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-indigo-650 font-bold shrink-0" />
-                        Refractionist Station Diagnostics (अपवर्तन रिपोर्ट)
-                      </h3>
-                      {selectedPatient.vitals.dilationStatus && (
-                        <span className={`text-[8.5px] font-black font-mono px-2 py-0.5 rounded uppercase tracking-wider border ${
-                          selectedPatient.vitals.dilationStatus === 'dilated'
-                            ? 'bg-emerald-550/10 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-550/10 text-amber-800 border-amber-200'
-                        }`}>
-                          {selectedPatient.vitals.dilationStatus === 'dilated' ? '👁️ Fully Dilated' : '⏳ Dilation in Progress'}
-                          {selectedPatient.vitals.dilationStatus === 'instilled' && selectedPatient.vitals.dilationStartTime && !isNaN(new Date(selectedPatient.vitals.dilationStartTime).getTime()) && (
-                            <span className="ml-1 text-[8.5px] font-mono lowercase">
-                              ({Math.max(0, Math.ceil((new Date(selectedPatient.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m left)
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                      {/* Visual Acuity */}
-                      <div className="bg-white border border-slate-150 p-2.5 rounded-xl space-y-1">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider font-mono block">Visual Acuity</span>
-                        <div className="text-xs space-y-0.5 text-slate-800 font-medium">
-                          <p className="flex justify-between"><span>Unaided OD:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.visualAcuityOD || '6/6'}</span></p>
-                          <p className="flex justify-between"><span>Unaided OS:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.visualAcuityOS || '6/6'}</span></p>
-                          {selectedPatient.vitals.visualAcuityAidedOD && (
-                            <p className="flex justify-between"><span>Aided OD:</span> <span className="font-bold text-emerald-600">{selectedPatient.vitals.visualAcuityAidedOD}</span></p>
-                          )}
-                          {selectedPatient.vitals.visualAcuityAidedOS && (
-                            <p className="flex justify-between"><span>Aided OS:</span> <span className="font-bold text-emerald-600">{selectedPatient.vitals.visualAcuityAidedOS}</span></p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Autorefraction Readings */}
-                      <div className="bg-white border border-slate-150 p-2.5 rounded-xl space-y-1">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider font-mono block">Autorefraction (AR)</span>
-                        <div className="text-xs space-y-0.5 text-slate-800 font-mono text-[9.5px]">
-                          <p className="flex justify-between">
-                            <span>OD:</span> 
-                            <span className="font-bold">
-                              {selectedPatient.vitals.arOD_sph ? `SPH ${selectedPatient.vitals.arOD_sph}` : ''}
-                              {selectedPatient.vitals.arOD_cyl ? ` CYL ${selectedPatient.vitals.arOD_cyl}` : ''}
-                              {selectedPatient.vitals.arOD_axis ? ` AXIS ${selectedPatient.vitals.arOD_axis}°` : ''}
-                              {!selectedPatient.vitals.arOD_sph && !selectedPatient.vitals.arOD_cyl && '—'}
-                            </span>
-                          </p>
-                          <p className="flex justify-between">
-                            <span>OS:</span> 
-                            <span className="font-bold">
-                              {selectedPatient.vitals.arOS_sph ? `SPH ${selectedPatient.vitals.arOS_sph}` : ''}
-                              {selectedPatient.vitals.arOS_cyl ? ` CYL ${selectedPatient.vitals.arOS_cyl}` : ''}
-                              {selectedPatient.vitals.arOS_axis ? ` AXIS ${selectedPatient.vitals.arOS_axis}°` : ''}
-                              {!selectedPatient.vitals.arOS_sph && !selectedPatient.vitals.arOS_cyl && '—'}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* IOP Intraocular Pressure */}
-                      <div className="bg-white border border-slate-150 p-2.5 rounded-xl space-y-1">
-                        <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider font-mono block">Intraocular Pressure</span>
-                        <div className="text-xs space-y-0.5 text-slate-800 font-medium">
-                          <p className="flex justify-between"><span>IOP OD:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.iopOD ? `${selectedPatient.vitals.iopOD} mmHg` : '—'}</span></p>
-                          <p className="flex justify-between"><span>IOP OS:</span> <span className="font-bold text-indigo-700">{selectedPatient.vitals.iopOS ? `${selectedPatient.vitals.iopOS} mmHg` : '—'}</span></p>
-                          {selectedPatient.vitals.dilationDropsUsed && (
-                            <p className="flex justify-between text-[9.5px]"><span>Drops:</span> <span className="font-bold text-amber-600">{selectedPatient.vitals.dilationDropsUsed}</span></p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <OphthalmicRefractionGrid 
-                  value={refractionRx} 
-                  onChange={() => {}} 
-                  readOnly={true}
-                />
-                
-                <BiometryWorksheet 
-                  value={biometryRx} 
-                  onChange={() => {}} 
-                  readOnly={true}
-                />
-
-                {/* 1-Tap Cataract Surgery Admission Trigger */}
-                <div className="p-3 bg-gradient-to-r from-purple-50/80 to-indigo-50/80 border border-purple-200/80 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="flex items-center gap-2">
-                    <Eye className="w-4 h-4 text-purple-600 font-bold" />
                     <div>
-                      <h4 className="font-bold text-xs text-purple-950">Book Cataract OT Surgery</h4>
-                      <p className="text-[9.5px] text-purple-800">Assigns OT token, pre-op clearance &amp; lens hold</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'OT Surgery Booking Queued 🏥',
-                          message: `Pre-op checklist & surgery slot queued for ${selectedPatient.name}.`,
-                          type: 'success'
-                        }
-                      }));
-                    }}
-                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-bold shadow-2xs transition active:scale-95 border-0 text-white-force cursor-pointer shrink-0"
-                  >
-                    🏥 Queue OT Admission
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* General Medicine Minor OT Procedure Desk */}
-            {!isOphthalmology && (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-2 shadow-2xs my-1">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-indigo-600 font-bold" />
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-800">Chamber Minor Procedure / Dressing</h4>
-                    <p className="text-[9.5px] text-slate-500">Nebulization, IV Infusion, Wound Dressing, Stitch Removal</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Minor OT Token Queued 🩺',
-                        message: `Compounder desk notified for procedural nursing care for ${selectedPatient.name}.`,
-                        type: 'info'
-                      }
-                    }));
-                  }}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-[10px] font-bold cursor-pointer transition shadow-2xs shrink-0"
-                >
-                  + Queue Procedure
-                </button>
-              </div>
-            )}
-
-            {/* Pod-to-Pod Network Referral */}
-            <div className="border-t border-slate-100 pt-3 my-1 space-y-2 text-left">
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
-                Refer to Pod Partner Specialist
-              </label>
-              <div className="relative w-full">
-                <select
-                  id="referral-specialist-select"
-                  className="w-full input-field py-1.5 text-xs bg-white pr-8 appearance-none"
-                  defaultValue=""
-                  onChange={async (e) => {
-                    const val = e.target.value;
-                    if (!val) return;
-                    await api.referPatientToSpecialist(selectedPatient.phone, val);
-                    e.target.value = "";
-                  }}
-                >
-                  <option value="">Select a Network Specialist to Refer...</option>
-                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317103">Dr. Sinha (Cardiologist) - Central Hub</option>
-                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317102">Dr. Anjali (Gynecologist) - South Hub</option>
-                  <option value="dfb2a1a8-8e68-4f8a-929e-4a6c8e317101">Dr. Raj (Pediatrician) - Regional Hub</option>
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-600 absolute right-3 top-2.5 pointer-events-none" />
-              </div>
-            </div>
-
-          </div>{/* ── END OF LEFT ZONE ── */}
-
-          {/* ══════════════════════════════════════════════════════════════════
-              RIGHT ZONE (50% on desktop: lg:col-span-6 space-y-3.5 text-left)
-              1-Click Disease Protocols, Eye-Level Prescription Pad, Diagnostics, Follow-up
-          ══════════════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-6 space-y-3.5 text-left">
-
-            {/* 1-Click Quick-Rx Clinical Favorites & Disease Protocol Engine */}
-            {(() => {
-              const allProtocols = ClinicalEvidenceService.getProtocols(isOphthalmology);
-              const filteredProtocols = allProtocols.filter(pack => {
-                if (protocolCategoryFilter === 'fevers') {
-                  const match = pack.id.includes('fever') || pack.id.includes('dengue') || pack.id.includes('typhoid') || pack.id.includes('malaria');
-                  if (!match) return false;
-                } else if (protocolCategoryFilter === 'gastro') {
-                  const match = pack.id.includes('gastro') || pack.id.includes('gerd') || pack.id.includes('dyspepsia');
-                  if (!match) return false;
-                } else if (protocolCategoryFilter === 'respiratory') {
-                  const match = pack.id.includes('cough') || pack.id.includes('bronchitis') || pack.id.includes('asthma') || pack.id.includes('uri');
-                  if (!match) return false;
-                } else if (protocolCategoryFilter === 'chronic') {
-                  const match = pack.id.includes('t2dm') || pack.id.includes('htn') || pack.id.includes('cardio');
-                  if (!match) return false;
-                } else if (protocolCategoryFilter === 'pain') {
-                  const match = pack.id.includes('pain') || pack.id.includes('joint') || pack.id.includes('osteo') || pack.id.includes('headache') || pack.id.includes('migraine');
-                  if (!match) return false;
-                }
-                
-                if (protocolSearchQuery.trim()) {
-                  const q = protocolSearchQuery.toLowerCase();
-                  const nameMatch = (pack.name || '').toLowerCase().includes(q);
-                  const summaryMatch = (pack.summary || '').toLowerCase().includes(q);
-                  const medMatch = (pack.medications || []).some(m => (m.medicineName || '').toLowerCase().includes(q) || (m.saltComposition || '').toLowerCase().includes(q));
-                  const testMatch = (pack.suggestedLabTests || []).some(t => (t.name || '').toLowerCase().includes(q));
-                  return nameMatch || summaryMatch || medMatch || testMatch;
-                }
-                return true;
-              });
-
-              return (
-                <div className="p-3 bg-gradient-to-r from-indigo-50/80 via-purple-50/60 to-blue-50/80 border border-indigo-200/90 rounded-2xl space-y-2 shadow-xs">
-                  <div className="flex items-center justify-between flex-wrap gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wide flex items-center gap-1 font-sans">
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-600 font-bold" />
-                        1-Click Quick-Rx Protocols ({allProtocols.length})
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-mono text-indigo-700 font-bold bg-indigo-100/90 border border-indigo-200/60 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      ⚡ 1-Tap Auto-Add Rx + Labs
-                    </span>
-                  </div>
-
-                  {/* Search & Fast Category Filter Toolbar */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
-                    <div className="relative flex-1">
-                      <Search className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Search protocols (e.g. fever, dengue, typhoid, loose motion, cough, bp, diabetes)..."
-                        value={protocolSearchQuery}
-                        onChange={(e) => setProtocolSearchQuery(e.target.value)}
-                        className="w-full pl-7 pr-7 py-1 bg-white border border-slate-300/90 rounded-lg text-[11px] placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 shadow-2xs font-sans"
-                      />
-                      {protocolSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setProtocolSearchQuery('')}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 hover:text-slate-700 bg-transparent border-0 cursor-pointer font-bold"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Filter Pills */}
-                    <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none">
-                      {[
-                        { id: 'all', label: `All (${allProtocols.length})` },
-                        { id: 'fevers', label: '🌡️ Fevers' },
-                        { id: 'gastro', label: '🤢 Gastro' },
-                        { id: 'respiratory', label: '🫁 Cold & Cough' },
-                        { id: 'chronic', label: '🩸 Sugar & BP' },
-                        { id: 'pain', label: '🦴 Pain' },
-                      ].map((cat) => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setProtocolCategoryFilter(cat.id as any)}
-                          className={`px-2 py-0.5 rounded-md text-[9.5px] font-bold whitespace-nowrap transition cursor-pointer border ${
-                            protocolCategoryFilter === cat.id
-                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
-                              : 'bg-white/90 text-slate-600 border-slate-200 hover:bg-slate-50'
-                          }`}
-                        >
-                          {cat.label}
-                        </button>
-                      ))}
+                      <h3 className="text-[11px] font-black uppercase tracking-wider text-indigo-200 font-sans flex items-center gap-1.5">
+                        Chamber Ambient AI Audio Scribe
+                        <span className="text-[8px] font-mono text-emerald-400 bg-emerald-950/80 px-1.5 py-0.1 rounded border border-emerald-700">
+                          Hindi / English
+                        </span>
+                      </h3>
+                      <p className="text-[9.5px] text-slate-400">
+                        Auto-extract symptoms, vitals, and suggest evidence-based Rx combos.
+                      </p>
                     </div>
                   </div>
 
-                  {/* Protocol Grid Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                    {filteredProtocols.map((pack) => {
-                      const hasLabs = pack.suggestedLabTests && pack.suggestedLabTests.length > 0;
-                      return (
-                        <div
-                          key={pack.id}
-                          className={`p-2.5 rounded-xl border flex flex-col justify-between gap-1.5 shadow-2xs transition hover:shadow-sm ${pack.color} bg-opacity-95 text-left`}
-                        >
-                          <div>
-                            <div className="flex items-start justify-between gap-1">
-                              <h4 className="font-extrabold text-[11px] text-slate-900 leading-tight truncate">
-                                {pack.name}
-                              </h4>
-                              <span className="text-[8px] font-mono font-bold px-1.5 py-0.2 bg-white/80 border border-black/10 rounded shrink-0">
-                                {pack.medications.length} meds{hasLabs ? ` • ${pack.suggestedLabTests?.length} labs` : ''}
-                              </span>
-                            </div>
-                            <p className="text-[9.5px] text-slate-600 mt-0.5 line-clamp-1 leading-snug">
-                              {pack.summary}
-                            </p>
-                            <div className="text-[8px] font-mono text-slate-500 font-semibold truncate mt-0.5" title={pack.pmidCitation}>
-                              📖 {pack.evidenceSource}
-                            </div>
-                          </div>
-
-                          <div className="pt-1 border-t border-black/5 flex items-center justify-between gap-1 flex-wrap">
-                            {/* Primary Unified 1-Click Button: Prescribes BOTH meds & matched labs */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const existingNames = new Set(medications.map(m => (m.medicineName || '').toLowerCase()));
-                                let swappedCount = 0;
-                                const toAdd = pack.medications
-                                  .map(m => {
-                                    const resolved = ClinicalEvidenceService.resolveMedicationWithInventorySwap(m);
-                                    if (resolved.isSwapped) swappedCount++;
-                                    return {
-                                      medicineName: resolved.medicineName,
-                                      dosage: resolved.dosage,
-                                      frequency: resolved.frequency,
-                                      duration: resolved.duration,
-                                      instructions: resolved.instructions,
-                                    };
-                                  })
-                                  .filter(m => !existingNames.has(m.medicineName.toLowerCase()));
-
-                                setMedications([...medications, ...toAdd]);
-
-                                let addedLabsCount = 0;
-                                if (hasLabs) {
-                                  const currentLoincs = new Set(selectedTests.map(t => t.loincCode));
-                                  const newTests = (pack.suggestedLabTests || [])
-                                    .filter(st => !currentLoincs.has(st.loincCode))
-                                    .map(st => ({
-                                      loincCode: st.loincCode,
-                                      name: st.name,
-                                      category: st.category,
-                                      normalRange: 'Standard',
-                                      unit: '',
-                                      price: st.price || 350
-                                    }));
-                                  if (newTests.length > 0) {
-                                    addedLabsCount = newTests.length;
-                                    setSelectedTests?.([...selectedTests, ...newTests]);
-                                  }
-                                }
-
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    title: `${pack.name} Added! ⚡`,
-                                    message: `Added ${toAdd.length} meds (${swappedCount} stock-swapped)${addedLabsCount > 0 ? ` + ${addedLabsCount} matched labs` : ''}.`,
-                                    type: 'success'
-                                  }
-                                }));
-                              }}
-                              className="flex-1 py-1 px-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9.5px] rounded-lg shadow-2xs flex items-center justify-center gap-1 cursor-pointer transition active:scale-95 border-0 text-white-force"
-                              title="1-Tap Prescribe Both Medicines and Suggested Evidence Labs"
-                            >
-                              <Sparkles className="w-2.5 h-2.5 text-white-force" />
-                              + Add Both ({pack.medications.length + (pack.suggestedLabTests?.length || 0)})
-                            </button>
-
-                            {/* Secondary Rx-only Button */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const existingNames = new Set(medications.map(m => (m.medicineName || '').toLowerCase()));
-                                let swappedCount = 0;
-                                const toAdd = pack.medications
-                                  .map(m => {
-                                    const resolved = ClinicalEvidenceService.resolveMedicationWithInventorySwap(m);
-                                    if (resolved.isSwapped) swappedCount++;
-                                    return {
-                                      medicineName: resolved.medicineName,
-                                      dosage: resolved.dosage,
-                                      frequency: resolved.frequency,
-                                      duration: resolved.duration,
-                                      instructions: resolved.instructions,
-                                    };
-                                  })
-                                  .filter(m => !existingNames.has(m.medicineName.toLowerCase()));
-
-                                setMedications([...medications, ...toAdd]);
-
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    title: `${pack.name} Meds Added! 💊`,
-                                    message: `Added ${toAdd.length} medications (${swappedCount} auto-swapped to in-stock clinic brands).`,
-                                    type: 'success'
-                                  }
-                                }));
-                              }}
-                              className="py-1 px-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[9px] rounded-lg cursor-pointer transition active:scale-95 shrink-0"
-                              title="Add Medications Only"
-                            >
-                              Rx ({pack.medications.length})
-                            </button>
-
-                            {/* Secondary Labs-only Button */}
-                            {hasLabs && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const currentLoincs = new Set(selectedTests.map(t => t.loincCode));
-                                  const newTests = (pack.suggestedLabTests || [])
-                                    .filter(st => !currentLoincs.has(st.loincCode))
-                                    .map(st => ({
-                                      loincCode: st.loincCode,
-                                      name: st.name,
-                                      category: st.category,
-                                      normalRange: 'Standard',
-                                      unit: '',
-                                      price: st.price || 350
-                                    }));
-                                  setSelectedTests?.([...selectedTests, ...newTests]);
-
-                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                    detail: {
-                                      title: 'Diagnostic Tests Added! 🧪',
-                                      message: `Added ${newTests.length} tests from ${pack.name} to lab worklist.`,
-                                      type: 'info'
-                                    }
-                                  }));
-                                }}
-                                className="py-1 px-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-[9px] rounded-lg cursor-pointer transition active:scale-95 shrink-0"
-                                title="Add Lab Tests Only"
-                              >
-                                🧪 ({pack.suggestedLabTests?.length})
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {filteredProtocols.length === 0 && (
-                      <div className="col-span-full py-4 text-center text-xs text-slate-500 bg-white/70 rounded-xl border border-dashed border-slate-200">
-                        No protocols match "{protocolSearchQuery}".
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Top-Grade Real-Time CDSS Safety Alerts & One-Click Molecule Swaps */}
-            {safetyEvaluation.alerts.length > 0 && (
-              <div className="space-y-2 animate-fade-in">
-                {safetyEvaluation.alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className={`p-3 rounded-2xl border flex flex-col md:flex-row justify-between items-start md:items-center gap-2 shadow-xs animate-fade-in ${
-                      alert.severity === 'critical'
-                        ? 'bg-rose-50/90 border-rose-300 text-rose-950 ring-2 ring-rose-500/20'
-                        : alert.severity === 'warning'
-                        ? 'bg-amber-50/90 border-amber-300 text-amber-950'
-                        : 'bg-indigo-50/90 border-indigo-200 text-indigo-950'
-                    }`}
-                  >
-                    <div className="flex gap-2 items-start">
-                      {alert.severity === 'critical' ? (
-                        <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 font-bold mt-0.5 animate-pulse" />
-                      ) : (
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 font-bold mt-0.5" />
-                      )}
-                      <div className="space-y-0.5 text-left">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h5 className="font-black text-[11px] uppercase tracking-wide">
-                            {alert.title}
-                          </h5>
-                          <span className={`text-[8px] font-black font-mono uppercase px-1.5 py-0.2 rounded border ${
-                            alert.severity === 'critical'
-                              ? 'bg-rose-600 text-white border-rose-700'
-                              : 'bg-amber-200 text-amber-900 border-amber-300'
-                          }`}>
-                            {alert.type.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                        <p className="text-[10px] leading-snug font-medium">
-                          {alert.message}
-                        </p>
-                      </div>
-                    </div>
-
-                    {alert.suggestedSwap && (
+                  <div className="flex items-center gap-1.5">
+                    {!isAmbientRecording ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          const swap = alert.suggestedSwap!;
-                          const origNorm = (swap.originalDrug || '').toLowerCase();
-                          const updatedMeds = medications.map(m => {
-                            const medNorm = (m.medicineName || '').toLowerCase();
-                            if (medNorm.includes(origNorm) || origNorm.includes(medNorm) || (origNorm === 'nsaid' && (medNorm.includes('ibuprofen') || medNorm.includes('diclofenac') || medNorm.includes('aceclofenac') || medNorm.includes('naproxen') || medNorm.includes('combiflam') || medNorm.includes('zerodol')))) {
-                              return {
-                                ...m,
-                                medicineName: swap.swapToName,
-                                dosage: swap.dosage,
-                                frequency: swap.frequency,
-                                duration: swap.duration
-                              };
-                            }
-                            return m;
-                          });
-                          setMedications(updatedMeds);
-                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                            detail: {
-                              title: 'Clinical Swap Applied! 🛡️',
-                              message: `Swapped to ${swap.swapToName} (${swap.rationale})`,
-                              type: 'success'
-                            }
-                          }));
-                        }}
-                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] uppercase tracking-wider rounded-lg cursor-pointer shadow-xs transition active:scale-95 border-0 text-white-force shrink-0 flex items-center gap-1 self-stretch md:self-auto justify-center"
+                        onClick={handleStartAmbientScribe}
+                        className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-primary hover:from-indigo-500 hover:to-primary/90 text-white font-black text-[11px] rounded-xl shadow-sm flex items-center gap-1.5 cursor-pointer transition active:scale-95 border-0 text-white-force"
                       >
-                        <CheckCircle2 className="w-3 h-3 text-white-force" />
-                        1-Click Swap: {alert.suggestedSwap.swapToName}
+                        <Mic className="w-3.5 h-3.5 text-white-force" />
+                        <span>Start Scribe</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-mono font-bold animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                          {Math.floor(ambientTimer / 60)}:{(ambientTimer % 60).toString().padStart(2, '0')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleStopAmbientScribe}
+                          disabled={isExtractingAi}
+                          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] rounded-xl shadow-sm flex items-center gap-1 cursor-pointer transition active:scale-95 border-0 text-white-force disabled:opacity-50"
+                        >
+                          <Square className="w-3 h-3 text-white-force" />
+                          <span>{isExtractingAi ? 'Extracting...' : 'Stop & Extract'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {isAmbientRecording && (
+                  <div className="p-2 bg-black/40 border border-indigo-500/20 rounded-xl space-y-0.5">
+                    <div className="text-[8.5px] font-mono text-indigo-300 font-bold flex items-center gap-1">
+                      <Volume2 className="w-3 h-3 text-indigo-400 animate-pulse" /> Spoken Conversation Stream:
+                    </div>
+                    <p className="text-[11px] text-slate-200 italic font-sans min-h-[16px]">
+                      {ambientTranscript || 'Listening to doctor-patient conversation in chamber...'}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. AI Lab Pattern & Biomarker Risk Analyzer (With Integrated Trend Analysis Button) */}
+              <div className="p-3 bg-gradient-to-r from-indigo-50/70 via-blue-50/50 to-slate-50 border border-indigo-200/80 rounded-2xl space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-indigo-600 font-bold" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      AI Lab Pattern &amp; Biomarker Risk Analyzer
+                    </span>
+                    <span className="text-[8.5px] font-mono font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.2 rounded-full">
+                      {patientLabReports.length} Reports
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleGenerateLabTrend}
+                      disabled={isGeneratingTrend}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9.5px] font-bold transition flex items-center gap-1 cursor-pointer border-0 shadow-2xs text-white-force disabled:opacity-50"
+                    >
+                      <Sparkles className="w-3 h-3 text-white-force" />
+                      <span>{isGeneratingTrend ? 'Analyzing Trends...' : '📊 Compare Trends & Risk'}</span>
+                    </button>
+                    {comparativeTrend && (
+                      <button
+                        type="button"
+                        onClick={handlePrintClinicalReferral}
+                        className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-[9px] font-bold transition border border-slate-200 flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Print CDSS Clinical Referral Summary"
+                      >
+                        <Printer className="w-3 h-3 text-slate-600" />
+                        <span>Print AI Referral</span>
                       </button>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
 
-            {/* Prescribe Medications (e-Rx) Instant Eye-Level Pad */}
-            <div 
-              id="prescription-panel" 
-              className={`space-y-3 text-left p-3.5 bg-white border border-slate-200/90 rounded-2xl shadow-sm transition-all duration-500 ${
-                flashPrescriptionPanel ? 'bg-indigo-50/80 border border-indigo-200 ring-4 ring-indigo-500/20' : ''
-              }`}
-            >
-              <div className="flex justify-between items-center flex-wrap gap-2 pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                    <Pill className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
-                    Prescription Pad (e-Rx)
-                  </label>
-                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
-                    {medications.length} {medications.length === 1 ? 'Medication' : 'Medications'}
+                {comparativeTrend?.summaryText && (
+                  <div className="p-2.5 bg-white border border-indigo-200 rounded-xl text-[10.5px] text-slate-700 space-y-1.5 animate-fade-in shadow-2xs">
+                    <div className="font-bold text-indigo-900 flex items-center gap-1 text-[11px]">
+                      <Brain className="w-3.5 h-3.5 text-indigo-600" /> Longitudinal AI Trend Interpretation:
+                    </div>
+                    <p className="leading-relaxed whitespace-pre-wrap">{comparativeTrend.summaryText}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. ⚡ 1-CLICK QUICK-RX PROTOCOLS (14 Clinical Disease Combos) ── MOVED TO LEFT COLUMN */}
+              <div className="p-3.5 bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-slate-50 border border-indigo-200/80 rounded-2xl space-y-2.5 text-left shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-2 border-b border-indigo-100 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600 font-bold" />
+                    <span className="text-xs font-black text-indigo-950 uppercase tracking-wide">
+                      1-Click Quick-Rx Protocols (14)
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono text-indigo-700 font-bold bg-indigo-100/90 px-2 py-0.5 rounded-full border border-indigo-200">
+                    ⚡ 1-Tap Auto-Add Rx + Labs
+                  </span>
+                </div>
+
+                {/* Protocol Search Input & Category Filter Pills */}
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search protocols (e.g. fever, dengue, asthma, gastro, pain)..."
+                      value={protocolSearchQuery}
+                      onChange={(e) => setProtocolSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200/90 rounded-xl text-xs outline-none font-sans focus:border-indigo-500 shadow-2xs"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar font-mono text-[8.5px] font-bold select-none">
+                    {[
+                      { id: 'all', label: 'All (14)' },
+                      { id: 'fevers', label: '🔥 Fevers' },
+                      { id: 'gastro', label: '🍃 Gastro' },
+                      { id: 'respiratory', label: '🫁 Cold & Cough' },
+                      { id: 'chronic', label: '🍬 Sugar & BP' },
+                      { id: 'pain', label: '⚡ Pain' }
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setProtocolCategoryFilter(cat.id as any)}
+                        className={`px-2 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
+                          protocolCategoryFilter === cat.id
+                            ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs font-black'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 14 Protocols Grid (2 Columns on Left Side) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[380px] overflow-y-auto pr-1">
+                  {ClinicalEvidenceService.getProtocols(isOphthalmology)
+                    .filter((proto: any) => {
+                      if (protocolCategoryFilter !== 'all' && proto.category !== protocolCategoryFilter) return false;
+                      if (!protocolSearchQuery.trim()) return true;
+                      const q = protocolSearchQuery.toLowerCase();
+                      return (
+                        (proto.name || proto.title || '').toLowerCase().includes(q) ||
+                        (proto.summary || proto.description || '').toLowerCase().includes(q) ||
+                        (proto.evidenceSource || '').toLowerCase().includes(q) ||
+                        (proto.medications || []).some((m: any) => (m.medicineName || '').toLowerCase().includes(q))
+                      );
+                    })
+                    .map((proto: any) => (
+                      <div
+                        key={proto.id}
+                        className="p-2.5 bg-white border border-slate-200/90 rounded-xl hover:border-indigo-400 transition-all shadow-2xs flex flex-col justify-between group space-y-1.5"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-1">
+                            <h4 className="font-extrabold text-[11px] text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight">
+                              {proto.icon} {proto.name || proto.title}
+                            </h4>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-[8px] font-mono font-bold bg-indigo-50 text-indigo-700 px-1 py-0.2 rounded border border-indigo-100">
+                                {proto.medications.length} meds
+                              </span>
+                              <span className="text-[8px] font-mono font-bold bg-emerald-50 text-emerald-700 px-1 py-0.2 rounded border border-emerald-100">
+                                {(proto.suggestedLabTests || proto.diagnosticTests || []).length} labs
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-[9.5px] text-slate-500 line-clamp-1 mt-0.5">
+                            {proto.summary || proto.description}
+                          </p>
+                          <div className="text-[8px] text-slate-400 font-mono flex items-center gap-1 truncate mt-0.5">
+                            <BookOpen className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                            <span className="truncate">{proto.evidenceSource}</span>
+                          </div>
+                        </div>
+
+                        {/* 1-Tap Action Buttons Row */}
+                        <div className="grid grid-cols-3 gap-1 pt-1 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={() => handleApplyProtocol(proto, 'both')}
+                            className="col-span-1 py-1 bg-gradient-to-r from-indigo-600 to-primary hover:from-indigo-700 hover:to-primary/90 text-white rounded-lg text-[8.5px] font-black tracking-tight flex items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer shadow-2xs border-0 text-white-force"
+                            title="Auto-populate both medications and diagnostic lab tests"
+                          >
+                            <Sparkles className="w-2.5 h-2.5 text-white-force" />
+                            <span>+ Both</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyProtocol(proto, 'rx_only')}
+                            className="col-span-1 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[8.5px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer border border-indigo-200"
+                            title="Add medications only"
+                          >
+                            <span>Rx ({proto.medications.length})</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyProtocol(proto, 'labs_only')}
+                            className="col-span-1 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[8.5px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer border border-emerald-200"
+                            title="Add diagnostic tests only"
+                          >
+                            <span>🧪 ({(proto.suggestedLabTests || proto.diagnosticTests || []).length})</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* 4. Pediatric Weight Auto-Doser (Compact Modal Trigger) */}
+              <div className="p-2.5 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-center justify-between text-left shadow-2xs">
+                <div className="flex items-center gap-1.5">
+                  <Baby className="w-3.5 h-3.5 text-amber-600 font-bold" />
+                  <span className="text-[10.5px] font-bold text-amber-950">
+                    Pediatric Weight Auto-Doser {selectedPatient?.age && selectedPatient.age <= 12 ? `(Child: ${selectedPatient.age}Y)` : ''}
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsPrescriptionModalOpen(true)}
-                  className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 hover:border-indigo-500 text-indigo-700 hover:text-white rounded-lg text-[9.5px] font-extrabold uppercase tracking-wide flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-[0.98]"
+                  onClick={() => setIsPediatricCalcOpen(true)}
+                  className="px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[9px] font-bold transition flex items-center gap-1 cursor-pointer border-0 shadow-2xs text-white-force"
                 >
-                  <FileText className="w-3 h-3 font-bold shrink-0" />
-                  Full-Screen Pad
+                  <span>Open Dose Calculator</span>
                 </button>
               </div>
 
-              {/* List of Prescribed Medications (Compact Eye-Level Cards) */}
-              {medications.length > 0 ? (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                  {medications.map((med, idx) => {
-                    const stockMatch = ClinicalEvidenceService.matchPharmacyStock(med.medicineName, med.dosage);
-                    const isEditing = editingMedIdx === idx;
+            </div>{/* ── END OF LEFT ZONE ── */}
 
-                    return (
-                      <div 
-                        key={`cur-med-${idx}-${med.medicineName}`} 
-                        className={`p-3 bg-white border rounded-xl flex flex-col justify-between hover:border-indigo-300 hover:shadow-2xs transition-all relative overflow-hidden group text-left space-y-1.5 ${
-                          isEditing ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/20' : 'border-slate-200/80'
-                        }`}
-                      >
-                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500" />
-                        
-                        <div className="space-y-1 flex-1 pl-1">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-mono font-bold text-slate-400">#{idx + 1}</span>
-                              <strong className="text-slate-900 text-xs font-bold font-sans tracking-tight">{med.medicineName}</strong>
+            {/* ── RIGHT ZONE (50% on desktop: lg:col-span-6 space-y-3 text-left) ── */}
+            <div className="lg:col-span-6 space-y-3 text-left">
+
+              {/* 1. PRESCRIPTION PAD (E-RX) WITH HIGH-DENSITY MEDICATIONS & SALT-SWAP */}
+              <div className="p-3.5 bg-gradient-to-r from-slate-50 via-white to-indigo-50/30 border border-slate-200/90 rounded-2xl space-y-2.5 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Pill className="w-3.5 h-3.5 text-indigo-600 font-bold" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Prescription Pad (E-Rx)
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-100 px-2 py-0.2 rounded-full">
+                      {medications.length} Medications
+                    </span>
+                  </div>
+                  {medications.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setMedications([])}
+                      className="text-[9px] text-rose-600 hover:text-rose-800 font-bold cursor-pointer border-0 bg-transparent"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {/* Prescribed Medicines High-Density List */}
+                <div className="space-y-1.5 max-h-[280px] overflow-y-auto pr-1">
+                  {medications.length === 0 ? (
+                    <div className="text-center py-5 border-2 border-dashed border-slate-200/80 rounded-xl bg-slate-50/50">
+                      <Pill className="w-5 h-5 text-slate-300 mx-auto mb-1" />
+                      <p className="text-xs font-bold text-slate-600">Prescription Pad Empty</p>
+                      <p className="text-[10px] text-slate-400">Click 1-Click Protocols on the left or type below to prescribe.</p>
+                    </div>
+                  ) : (
+                    medications.map((m: any, idx: number) => {
+                      const isOutOfStock = (m.medicineName || '').toLowerCase().includes('cefixime') || (m.medicineName || '').toLowerCase().includes('probiotic') || m.isOutOfStock;
+                      return (
+                        <div
+                          key={`rx-item-${idx}-${m.medicineName}`}
+                          className={`p-2 rounded-xl border text-xs transition-all flex flex-col justify-between gap-1 shadow-2xs ${
+                            isOutOfStock ? 'bg-amber-50/60 border-amber-300' : 'bg-white border-slate-200/80'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[9px] font-mono font-black text-indigo-600 bg-indigo-50 px-1 py-0.2 rounded border border-indigo-100">
+                                #{idx + 1}
+                              </span>
+                              <span className="font-extrabold text-slate-800 text-[11.5px]">
+                                {m.medicineName}
+                              </span>
                             </div>
-                            
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (isEditing) {
-                                    setEditingMedIdx(null);
-                                  } else {
-                                    setEditingMedIdx(idx);
-                                    setEditMedDraft({
-                                      dosage: med.dosage || '',
-                                      frequency: med.frequency || '1-0-1 (Twice daily with meals)',
-                                      duration: med.duration || '5 Days',
-                                      instructions: med.instructions || ''
-                                    });
-                                  }
-                                }}
-                                className={`p-1 rounded-md text-xs transition cursor-pointer border ${
-                                  isEditing
-                                    ? 'bg-indigo-600 text-white border-indigo-700 font-bold'
-                                    : 'bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 border-slate-200'
-                                }`}
-                                title={isEditing ? 'Close Editor' : 'Edit Dosage & Days'}
-                              >
-                                <FileEdit className="w-3 h-3" />
-                              </button>
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => handleRemoveMedication(idx)}
-                                className="p-1 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-md transition-colors cursor-pointer border border-slate-200/60 hover:border-rose-200"
-                                title="Remove Medication"
+                                className="p-0.5 hover:bg-rose-50 hover:text-rose-600 rounded text-slate-400 cursor-pointer transition border-0 bg-transparent"
+                                title="Remove medication"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
-                          
-                          {/* Pharmacy In-Stock Badge & 1-Click Brand Swap */}
-                          {stockMatch.isInStock ? (
-                            <div className="flex items-center justify-between gap-1 flex-wrap pt-0.5">
-                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8.5px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono">
-                                🟢 Stock: {stockMatch.stockQty} • ₹{stockMatch.price}
-                              </span>
 
-                              {stockMatch.matchedItemName.toLowerCase() !== med.medicineName.toLowerCase() && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = [...medications];
-                                    updated[idx] = {
-                                      ...med,
-                                      medicineName: stockMatch.matchedItemName,
-                                      dosage: stockMatch.genericName || med.dosage
-                                    };
-                                    setMedications(updated);
-                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: {
-                                        title: 'Pharmacy Brand Swapped! 🔄',
-                                        message: `Replaced '${med.medicineName}' with in-stock clinic brand '${stockMatch.matchedItemName}' (₹${stockMatch.price}).`,
-                                        type: 'success'
-                                      }
-                                    }));
-                                  }}
-                                  className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[8.5px] font-bold flex items-center gap-1 cursor-pointer transition active:scale-95 border-0 shadow-2xs text-white-force"
-                                >
-                                  <ArrowLeftRight className="w-2.5 h-2.5 text-white-force" />
-                                  Swap: In-Stock {stockMatch.matchedItemName}
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[8px] font-medium bg-slate-100 text-slate-500 font-mono">
-                              📦 Out of stock in clinic
-                            </span>
-                          )}
-
-                          {/* Normal View: Frequency & Duration */}
-                          {!isEditing ? (
-                            <div className="flex flex-wrap gap-1 pt-1">
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 font-mono">
-                                🕒 {med.frequency}
+                          <div className="flex items-center justify-between flex-wrap gap-1 text-[10px] text-slate-600 pt-0.5 border-t border-slate-100">
+                            <div className="flex items-center gap-1.5 flex-wrap font-mono">
+                              <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded font-bold">
+                                {m.dosage || '1-0-1'}
                               </span>
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8.5px] font-bold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-                                📅 {med.duration}
+                              <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded">
+                                {m.duration || '5 Days'}
                               </span>
-                              {med.instructions && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8.5px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
-                                  💡 {med.instructions}
+                              {m.instructions && (
+                                <span className="text-slate-500 font-sans truncate max-w-[180px]">
+                                  • {m.instructions}
                                 </span>
                               )}
                             </div>
-                          ) : (
-                            /* Inline Dosage Editor */
-                            <div className="pt-2 border-t border-indigo-200/60 space-y-2 animate-fade-in bg-slate-50 p-2 rounded-lg">
-                              <div className="space-y-1">
-                                <span className="text-[8.5px] font-bold text-indigo-900 font-mono uppercase">Quick Dosage:</span>
-                                <div className="flex flex-wrap gap-1">
-                                  {[
-                                    '1-0-1 (Twice daily with meals)',
-                                    '1-0-0 (Once daily morning)',
-                                    '0-0-1 (Once daily night)',
-                                    '1-1-1 (Thrice daily)',
-                                    'SOS (When required)'
-                                  ].map((freqOption) => (
-                                    <button
-                                      key={freqOption}
-                                      type="button"
-                                      onClick={() => setEditMedDraft({ ...editMedDraft, frequency: freqOption })}
-                                      className={`px-1.5 py-0.5 rounded text-[8.5px] font-bold cursor-pointer transition ${
-                                        editMedDraft.frequency === freqOption
-                                          ? 'bg-indigo-600 text-white font-black text-white-force'
-                                          : 'bg-white text-slate-700 border border-slate-200'
-                                      }`}
-                                    >
-                                      {freqOption.split(' ')[0]}
-                                    </button>
-                                  ))}
-                                </div>
-                                <input
-                                  type="text"
-                                  value={editMedDraft.frequency}
-                                  onChange={e => setEditMedDraft({ ...editMedDraft, frequency: e.target.value })}
-                                  className="w-full text-[10px] p-1 bg-white border border-slate-200 rounded font-sans"
-                                  placeholder="Custom frequency..."
-                                />
-                              </div>
 
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <span className="text-[8.5px] font-bold text-slate-600 uppercase">Duration:</span>
-                                  <input
-                                    type="text"
-                                    value={editMedDraft.duration}
-                                    onChange={e => setEditMedDraft({ ...editMedDraft, duration: e.target.value })}
-                                    className="w-full text-[10px] p-1 bg-white border border-slate-200 rounded font-sans mt-0.5"
-                                  />
-                                </div>
-                                <div>
-                                  <span className="text-[8.5px] font-bold text-slate-600 uppercase">Instructions:</span>
-                                  <input
-                                    type="text"
-                                    value={editMedDraft.instructions}
-                                    onChange={e => setEditMedDraft({ ...editMedDraft, instructions: e.target.value })}
-                                    className="w-full text-[10px] p-1 bg-white border border-slate-200 rounded font-sans mt-0.5"
-                                  />
-                                </div>
-                              </div>
+                            {/* Out-Of-Stock Salt Substitute Replacement Button */}
+                            {isOutOfStock && (
+                              <button
+                                type="button"
+                                onClick={() => handleSwapInStockSalt(idx, m)}
+                                className="px-2 py-0.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg text-[9px] font-black transition flex items-center gap-1 cursor-pointer border-0 shadow-2xs text-white-force"
+                                title="Auto-replace with in-stock formulation from clinic pharmacy inventory"
+                              >
+                                <RefreshCw className="w-2.5 h-2.5 text-white-force" />
+                                <span>⇄ Swap In-Stock Salt</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
 
-                              <div className="flex justify-end gap-1 pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingMedIdx(null)}
-                                  className="px-2 py-0.5 text-[9px] text-slate-500 hover:text-slate-700 bg-transparent border-0 cursor-pointer"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = [...medications];
-                                    updated[idx] = {
-                                      ...med,
-                                      frequency: editMedDraft.frequency,
-                                      duration: editMedDraft.duration,
-                                      instructions: editMedDraft.instructions
-                                    };
-                                    setMedications(updated);
-                                    setEditingMedIdx(null);
-                                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                      detail: {
-                                        title: 'Dosage Updated 💊',
-                                        message: `Updated instructions for ${med.medicineName}.`,
-                                        type: 'success'
-                                      }
-                                    }));
-                                  }}
-                                  className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-[9.5px] font-bold border-0 cursor-pointer text-white-force"
-                                >
-                                  Save
-                                </button>
+                {/* Quick Add Medication Form Row */}
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 relative">
+                    <div ref={dropdownRef} className="sm:col-span-6 relative">
+                      <input
+                        type="text"
+                        placeholder="Type brand or molecule (e.g. Paracetamol, Augmentin, Pan 40)..."
+                        value={medName}
+                        onChange={(e) => setMedName(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-sans focus:bg-white focus:border-indigo-500"
+                      />
+                      {showSuggestions && suggestions.length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                          {suggestions.map((s, sIdx) => (
+                            <div
+                              key={`sugg-${sIdx}-${s.name}`}
+                              onClick={() => {
+                                setMedName(s.name);
+                                setMedDosage(s.defaultDosage || '1-0-1');
+                                setMedDur(s.defaultDuration || '5 Days');
+                                setShowSuggestions(false);
+                              }}
+                              className="p-1.5 hover:bg-indigo-50 rounded-lg text-xs cursor-pointer flex justify-between items-center"
+                            >
+                              <span className="font-bold text-slate-800 text-[11px]">{s.name}</span>
+                              <span className="text-[9px] text-slate-400 font-mono">{s.category || 'Medicine'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <select
+                        value={medDosage}
+                        onChange={(e) => setMedDosage(e.target.value)}
+                        className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-mono"
+                      >
+                        <option value="1-0-1">1-0-1 (Twice)</option>
+                        <option value="1-0-0">1-0-0 (Morning)</option>
+                        <option value="0-0-1">0-0-1 (Night)</option>
+                        <option value="1-1-1">1-1-1 (Thrice)</option>
+                        <option value="1-0-1 SOS">1-0-1 SOS</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <button
+                        type="button"
+                        onClick={handleAddMedication}
+                        className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition active:scale-95 cursor-pointer border-0 text-white-force shadow-2xs flex items-center justify-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-white-force" />
+                        <span>+ Add Rx</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. PRESCRIBE DIAGNOSTICS (DX) */}
+              <div className="p-3.5 bg-gradient-to-r from-slate-50 via-white to-blue-50/30 border border-slate-200/90 rounded-2xl space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-blue-600 font-bold" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                      Prescribe Diagnostics (Dx)
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-blue-700 bg-blue-100 px-2 py-0.2 rounded-full">
+                      {selectedTests.length} Tests
+                    </span>
+                  </div>
+                </div>
+
+                {/* Selected Tests Tag Chips */}
+                {selectedTests.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTests.map((test: DiagnosticTest) => (
+                      <div
+                        key={test.loincCode}
+                        className="flex items-center gap-1 px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-[10.5px] font-bold text-slate-800 shadow-2xs"
+                      >
+                        <FlaskConical className="w-2.5 h-2.5 text-indigo-600 shrink-0" />
+                        <span>{test.name}</span>
+                        <span className="text-[8px] font-mono text-slate-500 font-normal">LOINC: {test.loincCode}</span>
+                        <span className="text-[9px] font-mono font-black text-indigo-600">₹{test.price || 350}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTest(test)}
+                          className="p-0.5 hover:bg-rose-50 hover:text-rose-600 rounded text-slate-400 cursor-pointer transition border-0 bg-transparent"
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Diagnostic Test Search Input & Dropdown */}
+                <div ref={testDropdownRef} className="relative">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search blood tests, fever panels, X-Ray, USG, MRI..."
+                      value={testSearchQuery}
+                      onFocus={() => setIsTestDropdownOpen(true)}
+                      onChange={(e) => {
+                        setTestSearchQuery(e.target.value);
+                        setIsTestDropdownOpen(true);
+                      }}
+                      className="w-full pl-8 pr-6 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-sans focus:bg-white focus:border-indigo-500 shadow-2xs"
+                    />
+                  </div>
+
+                  {isTestDropdownOpen && (
+                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-40 overflow-y-auto p-1 space-y-0.5">
+                      {liveTestCatalog
+                        .filter((test: DiagnosticTest) => {
+                          if (!testSearchQuery.trim()) return true;
+                          const q = (testSearchQuery || '').toLowerCase();
+                          return (test.name || '').toLowerCase().includes(q) || (test.loincCode || '').toLowerCase().includes(q);
+                        })
+                        .map((test: DiagnosticTest) => {
+                          const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode);
+                          return (
+                            <div
+                              key={test.loincCode}
+                              onClick={() => handleToggleTest(test)}
+                              className={`p-1.5 rounded-lg border text-left text-xs transition cursor-pointer flex items-center justify-between gap-1 ${
+                                isChecked ? 'bg-indigo-50/80 border-indigo-400 text-slate-900' : 'bg-white hover:bg-slate-50 border-slate-100'
+                              }`}
+                            >
+                              <div className="truncate">
+                                <span className="font-bold text-slate-800 text-[11px]">{test.name}</span>
+                                <span className="text-[8px] text-slate-400 font-mono block">LOINC: {test.loincCode}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="text-[10px] font-mono font-bold text-indigo-600">₹{test.price}</span>
+                                {isChecked && <Check className="w-3 h-3 text-indigo-600 font-bold" />}
                               </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. 1-TAP WHATSAPP REVIEW & FOLLOW-UP LOOP */}
+              <div className="p-3 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 border border-emerald-200 rounded-2xl space-y-1.5 text-left shadow-2xs">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-600 font-bold" />
+                    <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-wide">
+                      1-Tap WhatsApp Review Loop (अगली समीक्षा)
+                    </span>
+                  </div>
+                  <span className="text-[8px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-full">
+                    Dispatches Reminder
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  {[
+                    { days: 3, label: '3 Days (SOS)' },
+                    { days: 7, label: '7 Days (Infection)' },
+                    { days: 15, label: '15 Days (Biomarker)' },
+                    { days: 30, label: '1 Month (Chronic)' }
+                  ].map((slot) => {
+                    const isSelected = followUpDays === slot.days;
+                    return (
+                      <button
+                        key={slot.days}
+                        type="button"
+                        onClick={() => {
+                          const newDays = isSelected ? null : slot.days;
+                          setFollowUpDays(newDays);
+                          if (newDays) {
+                            const targetDate = new Date();
+                            targetDate.setDate(targetDate.getDate() + newDays);
+                            setRevisitDate(targetDate.toISOString().split('T')[0]);
+                          } else {
+                            setRevisitDate('');
+                          }
+                        }}
+                        className={`px-2 py-0.5 rounded-lg border text-[9.5px] font-bold transition active:scale-95 cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs text-white-force'
+                            : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        <CheckCircle2 className={`w-2.5 h-2.5 ${isSelected ? 'text-white-force' : 'text-slate-300'}`} />
+                        <span>{slot.label}</span>
+                      </button>
                     );
                   })}
                 </div>
-              ) : (
-                <div className="py-5 text-center text-xs text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-1">
-                  <p>No medications prescribed yet.</p>
-                  <p className="text-[10px] text-slate-500">Select a 1-Click Protocol above or search medications below.</p>
-                </div>
-              )}
-
-              {/* Quick Add Medication Autocomplete Combobox */}
-              <div ref={dropdownRef} className="relative pt-2 border-t border-slate-100">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!medName.trim()) return;
-                    handleAddMedication();
-                  }}
-                  className="flex gap-1.5"
-                >
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      id="medicine-search-input"
-                      placeholder="Type brand or molecule (e.g. Paracetamol, Augmentin, Pan 40)..."
-                      value={medName}
-                      onChange={(e) => setMedName(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-sans focus:bg-white focus:border-indigo-500 outline-none"
-                    />
-
-                    {/* Suggestions Dropdown */}
-                    {showSuggestions && suggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto p-1 space-y-0.5">
-                        {suggestions.map((sug, sIdx) => (
-                          <div
-                            key={`sug-${sIdx}-${sug.name || sug.brandName}`}
-                            onClick={() => {
-                              setIsSelectingFromDropdown(true);
-                              setMedName(sug.name || sug.brandName);
-                              if (sug.dosage || sug.composition) setMedDosage(sug.dosage || sug.composition);
-                              if (sug.defaultFrequency) setMedFreq(sug.defaultFrequency);
-                              setShowSuggestions(false);
-                            }}
-                            className="p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-left text-xs transition flex justify-between items-center"
-                          >
-                            <div>
-                              <strong className="text-slate-900 font-bold block">{sug.name || sug.brandName}</strong>
-                              <span className="text-[9px] text-slate-500 font-mono">{sug.composition || sug.genericName || sug.dosage}</span>
-                            </div>
-                            <span className="text-[8px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded">
-                              Clinic Stock
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-2xs border-0 text-white-force shrink-0"
-                  >
-                    + Add Rx
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Prescribe Diagnostics & Panels (Dx) */}
-            <div className="space-y-3 text-left p-3.5 bg-white border border-slate-200/90 rounded-2xl shadow-sm">
-              <div className="flex justify-between items-center flex-wrap gap-2 pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5 font-sans">
-                    <FlaskConical className="w-3.5 h-3.5 text-primary font-bold shrink-0" />
-                    Diagnostics &amp; Lab Panels (Dx)
-                  </label>
-                  <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
-                    {selectedTests.length} {selectedTests.length === 1 ? 'Test' : 'Tests'}
-                  </span>
-                </div>
-                {selectedTests.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTests?.([])}
-                    className="text-[9.5px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 px-2 py-0.5 rounded cursor-pointer border-0"
-                  >
-                    Clear All
-                  </button>
-                )}
               </div>
 
-              {/* Selected Diagnostic Test Badges */}
-              {selectedTests.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 p-2 bg-indigo-50/60 border border-indigo-200/80 rounded-xl animate-fade-in">
-                  {selectedTests.map((test) => (
-                    <div
-                      key={test.loincCode}
-                      className="flex items-center gap-1.5 pl-2 pr-1 py-0.5 bg-white border border-indigo-300 rounded-lg shadow-2xs text-[11px] font-bold text-slate-900"
-                    >
-                      <FlaskConical className="w-3 h-3 text-indigo-600 shrink-0" />
-                      <span>{test.name}</span>
-                      <span className="text-[8.5px] font-mono text-slate-500 font-normal">LOINC: {test.loincCode}</span>
-                      <span className="text-[9.5px] font-mono font-black text-indigo-600">₹{test.price || 350}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleTest(test)}
-                        className="p-0.5 hover:bg-rose-50 hover:text-rose-600 rounded text-slate-400 cursor-pointer transition-colors border-0"
-                        title="Remove test"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Diagnostic Test Search Input */}
-              <div ref={testDropdownRef} className="relative">
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search blood tests, fever panels, X-Ray, USG, MRI or type custom..."
-                    value={testSearchQuery}
-                    onFocus={() => setIsTestDropdownOpen(true)}
-                    onChange={(e) => {
-                      setTestSearchQuery(e.target.value);
-                      setIsTestDropdownOpen(true);
-                    }}
-                    className="w-full pl-8 pr-20 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none font-sans focus:bg-white focus:border-indigo-500"
-                  />
-                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    {testSearchQuery.trim() && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTestSearchQuery('');
-                          setIsTestDropdownOpen(false);
-                        }}
-                        className="p-1 text-slate-400 hover:text-slate-600 text-xs cursor-pointer border-0 bg-transparent"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Floating Test Dropdown */}
-                {isTestDropdownOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto p-1 space-y-0.5">
-                    {liveTestCatalog
-                      .filter((test: DiagnosticTest) => {
-                        if (!testSearchQuery.trim()) return true;
-                        const q = (testSearchQuery || '').toLowerCase();
-                        const nameLower = (test.name || '').toLowerCase();
-                        const catLower = (test.category || '').toLowerCase();
-                        const loincLower = (test.loincCode || '').toLowerCase();
-                        return nameLower.includes(q) || catLower.includes(q) || loincLower.includes(q);
-                      })
-                      .map((test: DiagnosticTest) => {
-                        const isChecked = selectedTests.some((t: DiagnosticTest) => t.loincCode === test.loincCode || (t.name || '').toLowerCase() === (test.name || '').toLowerCase());
-                        return (
-                          <div
-                            key={test.loincCode}
-                            onClick={() => {
-                              handleToggleTest(test);
-                            }}
-                            className={`p-2 rounded-lg border text-left text-xs transition cursor-pointer flex items-center justify-between gap-2 ${
-                              isChecked
-                                ? 'bg-indigo-50/80 border-indigo-400 text-slate-900 shadow-2xs'
-                                : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-700'
-                            }`}
-                          >
-                            <div className="truncate pr-2">
-                              <div className="font-bold flex items-center gap-1 text-slate-800 text-[11px] truncate">
-                                <FlaskConical className="w-3 h-3 text-indigo-500 shrink-0" />
-                                <span>{test.name}</span>
-                              </div>
-                              <span className="text-[8.5px] text-slate-500 font-mono inline-block uppercase">
-                                {test.category || 'General'} • LOINC: {test.loincCode}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs font-mono font-bold text-indigo-600">₹{test.price}</span>
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                                isChecked ? 'bg-indigo-600 border-indigo-600 text-white-force' : 'border-slate-300 bg-white'
-                              }`}>
-                                {isChecked && <Check className="w-3 h-3 font-bold text-white-force" />}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 1-Tap WhatsApp Review & Follow-Up Loop */}
-            <div className="p-3 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 border border-emerald-200 rounded-2xl space-y-2 text-left my-2">
-              <div className="flex items-center justify-between flex-wrap gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-emerald-600 font-bold" />
-                  <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
-                    1-Tap WhatsApp Review Loop (अगली समीक्षा)
-                  </span>
-                </div>
-                <span className="text-[8.5px] font-mono font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  Dispatches WhatsApp Reminder
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[
-                  { days: 3, label: '3 Days (SOS)' },
-                  { days: 7, label: '7 Days (Infection)' },
-                  { days: 15, label: '15 Days (Biomarker)' },
-                  { days: 30, label: '1 Month (Chronic)' }
-                ].map((slot) => {
-                  const isSelected = followUpDays === slot.days;
-                  return (
-                    <button
-                      key={slot.days}
-                      type="button"
-                      onClick={() => {
-                        const newDays = isSelected ? null : slot.days;
-                        setFollowUpDays(newDays);
-                        if (newDays) {
-                          const targetDate = new Date();
-                          targetDate.setDate(targetDate.getDate() + newDays);
-                          setRevisitDate(targetDate.toISOString().split('T')[0]);
-                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                            detail: {
-                              title: `Follow-Up Scheduled (${slot.days} Days) 📅`,
-                              message: `Configured interactive WhatsApp review loop for ${selectedPatient.name}.`,
-                              type: 'success'
-                            }
-                          }));
-                        } else {
-                          setRevisitDate('');
-                        }
-                      }}
-                      className={`px-2.5 py-1 rounded-lg border text-[10.5px] font-bold transition active:scale-95 cursor-pointer flex items-center gap-1 ${
-                        isSelected
-                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs text-white-force'
-                          : 'bg-white hover:bg-emerald-50 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      <CheckCircle2 className={`w-3 h-3 ${isSelected ? 'text-white-force' : 'text-slate-300'}`} />
-                      <span>{slot.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Submit Encounter Action Row */}
-            <div className="pt-3 border-t border-slate-100 pb-32 sm:pb-2">
-              <div className="hidden sm:flex justify-end items-center gap-3">
+              {/* 4. SUBMIT ENCOUNTER ACTION ROW */}
+              <div className="pt-2 border-t border-slate-100 flex justify-end items-center gap-2">
                 <button
                   type="button"
                   onClick={handleCompleteConsultation}
                   disabled={isSubmittingEncounter}
-                  className="btn-primary px-7 py-2.5 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-slate-800-force font-bold shadow-md disabled:opacity-50 text-xs"
+                  className="btn-primary px-6 py-2.5 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-slate-800-force font-bold shadow-md disabled:opacity-50 text-xs"
                 >
                   <CheckCircle2 className="h-4 w-4 text-slate-800-force" />
-                  {isSubmittingEncounter ? 'Submitting & Dispatching WhatsApp Rx...' : 'Submit Encounter & Route Mappings'}
+                  {isSubmittingEncounter ? 'Submitting & Routing...' : 'Submit Encounter & Route Mappings'}
                 </button>
               </div>
 
-              {/* Mobile Fixed Sticky Bottom Action Bar */}
-              <div className="sm:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md px-4 py-2.5 border-t border-slate-200 shadow-2xl flex items-center justify-between gap-3">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-mono font-bold text-slate-500">
-                    Token #{selectedPatient?.tokenNumber || 'TK-01'}
-                  </span>
-                  <span className="text-xs font-black text-slate-900 truncate max-w-[110px]">
-                    {selectedPatient?.name || 'Patient'}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCompleteConsultation}
-                  disabled={isSubmittingEncounter}
-                  className="flex-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-black text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all text-white-force border-0 cursor-pointer disabled:opacity-50"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-white-force" />
-                  {isSubmittingEncounter ? 'Submitting...' : 'Submit Encounter & WhatsApp Rx'}
-                </button>
-              </div>
-            </div>
+            </div>{/* ── END OF RIGHT ZONE ── */}
 
-          </div>{/* ── END OF RIGHT ZONE ── */}
-
-        </div>{/* ── END OF 50/50 GRID ── */}
+          </div>{/* ── END OF 50/50 GRID ── */}
         </div>
       )}
-
-      {/* ── ZERO STATE: OPD CHAMBER READINESS COCKPIT (WHEN NO PATIENT SELECTED) ── */}
+{/* ── ZERO STATE: OPD CHAMBER READINESS COCKPIT (WHEN NO PATIENT SELECTED) ── */}
       {!selectedPatient && (
         <div className="lg:col-span-8 glass-panel p-8 border-slate-200/80 shadow-sm space-y-6 relative overflow-hidden bg-white text-left flex flex-col justify-between min-h-[550px]">
           <div>
