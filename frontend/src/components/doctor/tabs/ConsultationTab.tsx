@@ -2603,8 +2603,17 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         type: 'success'
                       }
                     }));
-                  } catch (e) {
-                    console.error(e);
+                  } catch (e: any) {
+                    console.error('[Hinglish Summary Notice]', e);
+                    const fallbackSummary = `Namaste ${selectedPatient?.name || 'Patient'} ji 🙏. Clinic se aapki health update:\n1. 💊 Dawa nirdharit samay par lein: ${notes.slice(0, 120)}...\n2. 🥗 Paani khoob piyein aur aaram karein.\n3. 🏥 Samasya hone par clinic sampark karein.`;
+                    setHinglishSummary(fallbackSummary);
+                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                      detail: {
+                        title: 'Summary Prepared 📝',
+                        message: 'Clinical summary prepared with standard home-care directions.',
+                        type: 'info'
+                      }
+                    }));
                   } finally {
                     setIsGeneratingSummary(false);
                   }

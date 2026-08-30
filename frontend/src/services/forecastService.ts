@@ -276,7 +276,8 @@ Return ONLY a valid JSON object matching:
                 body: JSON.stringify({
                   contents: [{ parts }],
                   generationConfig: { responseMimeType: 'application/json' }
-                })
+                }),
+                signal: AbortSignal.timeout(6000)
               });
 
               if (res.ok) {
@@ -521,7 +522,8 @@ Requirements:
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: promptText }] }]
-          })
+          }),
+          signal: AbortSignal.timeout(6000)
         });
 
         if (res.ok) {
@@ -1003,7 +1005,8 @@ Rules:
               body: JSON.stringify({
                 contents: [{ parts }],
                 generationConfig: { responseMimeType: 'application/json' }
-              })
+              }),
+              signal: AbortSignal.timeout(6000)
             });
 
             if (res.ok) {
@@ -1270,7 +1273,8 @@ Return ONLY raw valid JSON without markdown code fences or conversational text.`
             body: JSON.stringify({
               contents: [{ parts }],
               generationConfig: { responseMimeType: 'application/json' }
-            })
+            }),
+            signal: AbortSignal.timeout(6000)
           });
 
           if (res.ok) {
