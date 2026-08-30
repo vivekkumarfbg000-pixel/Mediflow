@@ -21,7 +21,8 @@ import {
   Rocket, 
   User, 
   Network, 
-  History 
+  History,
+  Zap 
 } from 'lucide-react';
 
 interface SopConfigTabProps {
@@ -135,7 +136,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
     const sosFeeMatch = text.match(/(?:emergency|sos|urgent)\s*(?:fee|charge|rate)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i) ||
                         text.match(/(?:rs\.?|inr|₹)\s*(\d+(?:\.\d+)?)\s*(?:emergency|sos|urgent)/i);
-    const emergencySosFee = sosFeeMatch ? parseFloat(sosFeeMatch[1]) : (activeSop?.extractedConfig?.emergency_sos_fee ?? Math.round(docFee * 1.25));
+    const emergencySosFee = sosFeeMatch ? parseFloat(sosFeeMatch[1]) : (activeSop?.extractedConfig?.emergency_sos_fee ?? Math.round(docFee * 1.20));
 
     const splitDocMatch = text.match(/(?:doctor|physician|referring)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
     const splitPlatMatch = text.match(/(?:platform|vitalsync|software|app)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
@@ -462,7 +463,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 <span className="text-xs text-slate-600">— review before activating</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {/* Doctor Fee */}
                 <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 space-y-2">
                   <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider">
@@ -474,8 +475,35 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     <input
                       type="number"
                       value={extractedConfig.doctor_fee || 0}
-                      onChange={e => setExtractedConfig({...extractedConfig, doctor_fee: parseFloat(e.target.value) || 0})}
+                      onChange={e => {
+                        const newDocFee = parseFloat(e.target.value) || 0;
+                        setExtractedConfig({
+                          ...extractedConfig, 
+                          doctor_fee: newDocFee,
+                          emergency_sos_fee: Math.round(newDocFee * 1.20)
+                        });
+                      }}
                       className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-sm font-bold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    />
+                  </div>
+                </div>
+
+                {/* Emergency SOS Fee */}
+                <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-rose-700 font-bold text-xs uppercase tracking-wider">
+                      <Zap className="w-4 h-4 shrink-0" />
+                      Emergency SOS Fee
+                    </div>
+                    <span className="text-[10px] font-bold text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded">+20%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-600 text-sm">₹</span>
+                    <input
+                      type="number"
+                      value={extractedConfig.emergency_sos_fee || Math.round((extractedConfig.doctor_fee || 500) * 1.20)}
+                      onChange={e => setExtractedConfig({...extractedConfig, emergency_sos_fee: parseFloat(e.target.value) || 0})}
+                      className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm font-bold text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
                     />
                   </div>
                 </div>
@@ -613,9 +641,10 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 {[
                   { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig?.doctor_fee ?? 500}`, icon: <Stethoscope className="w-5 h-5 text-blue-500 mx-auto" />, colorClasses: 'bg-blue-50 border-blue-100 text-blue-700' },
+                  { label: 'Emergency SOS Fee (+20%)', value: `₹${activeSop.extractedConfig?.emergency_sos_fee ?? Math.round((activeSop.extractedConfig?.doctor_fee ?? 500) * 1.20)}`, icon: <Zap className="w-5 h-5 text-rose-500 mx-auto" />, colorClasses: 'bg-rose-50 border-rose-100 text-rose-700' },
                   { label: 'Doctor Split', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}%`, icon: <User className="w-5 h-5 text-indigo-500 mx-auto" />, colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
                   { label: 'Platform Split', value: `${activeSop.extractedConfig?.splits?.platform ?? 3}%`, icon: <Network className="w-5 h-5 text-violet-500 mx-auto" />, colorClasses: 'bg-violet-50 border-violet-100 text-violet-700' },
                   { label: 'Lab Split', value: `${activeSop.extractedConfig?.splits?.lab ?? 57}%`, icon: <Coins className="w-5 h-5 text-emerald-500 mx-auto" />, colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-700' },

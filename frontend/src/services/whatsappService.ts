@@ -1778,7 +1778,7 @@ export class WhatsAppService {
     if (offerType === 'discount_30') {
       message = `*VitalSync Patient Care Loyalty:* Dear ${patient.name}, as part of your ongoing care pod benefits, here is a special coupon for **30% Off on your next medicine refill** at our adjacent Pharmacy. Code: **MF-LOYAL30**`;
     } else if (offerType === 'virtual_appointment') {
-      message = `*VitalSync Care Loyalty:* Dear ${patient.name}, thank you for your recent visit. To support your clinical path, a **Free Virtual Follow-up Appointment with the Doctor** is unlocked for you in 10 days. Book directly via this chat.`;
+      message = `*VitalSync Care Loyalty:* Dear ${patient.name}, thank you for your recent visit. To support your clinical path, a **100% Free Loyalty Follow-up Unlocked** (Free Virtual Follow-up Appointment with the Doctor at ₹0.00) is unlocked for you for the next 15 days. Book directly via this chat with 1-click video link: https://meet.jit.si/vitalsync-consult-${patient.id.slice(0, 8)}.`;
     } else {
       message = `*VitalSync Connect:* Quick Portal Link enabled for Patient ${patient.name} to view invoices and schedule pathology sample collection.`;
     }

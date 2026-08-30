@@ -3,6 +3,24 @@ import type { RefractionRx } from '../types/ophthalmic';
 import { getIstDateDisplay } from './dateUtils';
 
 /**
+ * Sanitizes strings for pdf-lib StandardFonts (WinAnsi encoding)
+ * Prevents crashes on Rupee symbols (₹), bullet points (•), smart quotes, and Unicode characters.
+ */
+export function sanitizeWinAnsiText(text?: string | null): string {
+  if (!text) return '';
+  return String(text)
+    .replace(/₹/g, 'INR ')
+    .replace(/•/g, '-')
+    .replace(/[–—]/g, '-')
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/[^\x20-\x7E\r\n\t]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Generates a simple PDF invoice with provided data.
  * Returns a Uint8Array representing the PDF bytes.
  */
@@ -21,7 +39,7 @@ export async function generatePdfInvoice(data: {
   const textColor = rgb(0, 0, 0);
 
   const drawText = (text: string, y: number) => {
-    page.drawText(text, {
+    page.drawText(sanitizeWinAnsiText(text), {
       x: 30,
       y,
       size: fontSize,
@@ -32,11 +50,11 @@ export async function generatePdfInvoice(data: {
 
   drawText(`Invoice #: ${data.invoiceId || 'N/A'}`, height - 50);
   drawText(`Patient: ${data.patientName || 'Patient'}`, height - 80);
-  drawText(`Amount: ₹${(data.amount || 0).toFixed(2)}`, height - 110);
+  drawText(`Amount: INR ${(data.amount || 0).toFixed(2)}`, height - 110);
   drawText(`Date: ${data.date || getIstDateDisplay()}`, height - 140);
 
   // Footer
-  page.drawText('Thank you for choosing VitalSync!', {
+  page.drawText(sanitizeWinAnsiText('Thank you for choosing VitalSync!'), {
     x: 30,
     y: 30,
     size: 10,
@@ -92,7 +110,7 @@ export async function generateSpectaclePdfCard(data: {
     color: rgb(1, 1, 1),
   });
 
-  page.drawText(((data as any).clinicName || 'VITALSYNC CLINIC PARTNER').toUpperCase(), {
+  page.drawText(sanitizeWinAnsiText(((data as any).clinicName || 'VITALSYNC CLINIC PARTNER').toUpperCase()), {
     x: 30,
     y: height - 54,
     size: 8,
@@ -102,8 +120,8 @@ export async function generateSpectaclePdfCard(data: {
 
   // Patient Meta Details
   const drawMetaText = (label: string, value: string, x: number, y: number) => {
-    page.drawText(label || '', { x, y, size: 9, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
-    page.drawText(value || '—', { x: x + 70, y, size: 9, font: font, color: rgb(0.1, 0.1, 0.1) });
+    page.drawText(sanitizeWinAnsiText(label || ''), { x, y, size: 9, font: fontBold, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText(sanitizeWinAnsiText(value || '-'), { x: x + 70, y, size: 9, font: font, color: rgb(0.1, 0.1, 0.1) });
   };
 
   drawMetaText('Patient Name:', data.patientName || 'Patient', 30, height - 90);
@@ -164,12 +182,12 @@ export async function generateSpectaclePdfCard(data: {
     'OD (Right)',
     data.refractionRx?.od?.sph || 'Plano',
     data.refractionRx?.od?.cyl || '0.00',
-    data.refractionRx?.od?.axis || '—',
-    data.refractionRx?.od?.add || '—'
+    data.refractionRx?.od?.axis || '-',
+    data.refractionRx?.od?.add || '-'
   ];
   odVals.forEach((val, i) => {
     const offsetMap = [10, 90, 180, 270, 360];
-    page.drawText(String(val || '—'), {
+    page.drawText(sanitizeWinAnsiText(String(val || '-')), {
       x: startX + offsetMap[i],
       y: tableTop - rowHeight - 16,
       size: 9,
@@ -183,12 +201,12 @@ export async function generateSpectaclePdfCard(data: {
     'OS (Left)',
     data.refractionRx?.os?.sph || 'Plano',
     data.refractionRx?.os?.cyl || '0.00',
-    data.refractionRx?.os?.axis || '—',
-    data.refractionRx?.os?.add || '—'
+    data.refractionRx?.os?.axis || '-',
+    data.refractionRx?.os?.add || '-'
   ];
   osVals.forEach((val, i) => {
     const offsetMap = [10, 90, 180, 270, 360];
-    page.drawText(String(val || '—'), {
+    page.drawText(sanitizeWinAnsiText(String(val || '-')), {
       x: startX + offsetMap[i],
       y: tableTop - (2 * rowHeight) - 16,
       size: 9,
@@ -200,7 +218,7 @@ export async function generateSpectaclePdfCard(data: {
   // PD details and notes
   let bottomY = tableTop - (3 * rowHeight) - 20;
   if (data.refractionRx?.pd) {
-    page.drawText(`Pupil Distance (PD): ${data.refractionRx.pd} mm`, {
+    page.drawText(sanitizeWinAnsiText(`Pupil Distance (PD): ${data.refractionRx.pd} mm`), {
       x: 30,
       y: bottomY,
       size: 9,
@@ -211,7 +229,7 @@ export async function generateSpectaclePdfCard(data: {
   }
 
   if (data.refractionRx?.notes) {
-    page.drawText(`Clinical Notes: ${data.refractionRx.notes}`, {
+    page.drawText(sanitizeWinAnsiText(`Clinical Notes: ${data.refractionRx.notes}`), {
       x: 30,
       y: bottomY,
       size: 9,
@@ -267,7 +285,7 @@ export async function generateLabReportPdf(data: {
   });
 
   // Clinic Title
-  page.drawText(data.clinicName || 'VITALSYNC PATHOLOGY LAB & DIAGNOSTICS', {
+  page.drawText(sanitizeWinAnsiText(data.clinicName || 'VITALSYNC PATHOLOGY LAB & DIAGNOSTICS'), {
     x: 40,
     y: height - 40,
     size: 16,
@@ -275,7 +293,7 @@ export async function generateLabReportPdf(data: {
     color: rgb(1, 1, 1),
   });
 
-  page.drawText('NABL Aligned • LOINC Standardized Diagnostic Network', {
+  page.drawText('NABL Aligned - LOINC Standardized Diagnostic Network', {
     x: 40,
     y: height - 58,
     size: 9,
@@ -295,13 +313,13 @@ export async function generateLabReportPdf(data: {
   });
 
   // Patient info columns
-  page.drawText(`Patient: ${data.patientName || 'N/A'}`, { x: 50, y: height - 125, size: 10, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
-  page.drawText(`Age/Gender: ${data.age || '—'} Y / ${data.gender || '—'}`, { x: 50, y: height - 145, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
-  page.drawText(`Contact: ${data.patientPhone || '—'}`, { x: 50, y: height - 165, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Patient: ${data.patientName || 'N/A'}`), { x: 50, y: height - 125, size: 10, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
+  page.drawText(sanitizeWinAnsiText(`Age/Gender: ${data.age || '-'} Y / ${data.gender || '-'}`), { x: 50, y: height - 145, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Contact: ${data.patientPhone || '-'}`), { x: 50, y: height - 165, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
 
-  page.drawText(`Report ID: ${(data.reportId || 'REP-' + Date.now().toString().slice(-6)).toUpperCase()}`, { x: 340, y: height - 125, size: 9, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
-  page.drawText(`Date: ${data.date || getIstDateDisplay()}`, { x: 340, y: height - 145, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
-  page.drawText(`Ref. Doctor: ${data.doctorName || 'Attending Physician'}`, { x: 340, y: height - 165, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Report ID: ${(data.reportId || 'REP-' + Date.now().toString().slice(-6)).toUpperCase()}`), { x: 340, y: height - 125, size: 9, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
+  page.drawText(sanitizeWinAnsiText(`Date: ${data.date || getIstDateDisplay()}`), { x: 340, y: height - 145, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Ref. Doctor: ${data.doctorName || 'Attending Physician'}`), { x: 340, y: height - 165, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
 
   // Test Title Banner
   page.drawRectangle({
@@ -312,7 +330,7 @@ export async function generateLabReportPdf(data: {
     color: rgb(0.91, 0.94, 0.99),
   });
 
-  page.drawText(`INVESTIGATION: ${(data.testName || 'PATHOLOGY TEST').toUpperCase()}${data.loincCode ? ` (LOINC: ${data.loincCode})` : ''}`, {
+  page.drawText(sanitizeWinAnsiText(`INVESTIGATION: ${(data.testName || 'PATHOLOGY TEST').toUpperCase()}${data.loincCode ? ` (LOINC: ${data.loincCode})` : ''}`), {
     x: 45,
     y: height - 218,
     size: 10,
@@ -403,13 +421,13 @@ export async function generateLabReportPdf(data: {
       }
 
       // Key name
-      page.drawText(key.replace(/([A-Z])/g, ' $1').trim(), { x: 45, y: rowY, size: 9, font: fontBold, color: rgb(0.15, 0.2, 0.3) });
+      page.drawText(sanitizeWinAnsiText(key.replace(/([A-Z])/g, ' $1').trim()), { x: 45, y: rowY, size: 9, font: fontBold, color: rgb(0.15, 0.2, 0.3) });
       // Value & Unit
-      page.drawText(`${displayVal} ${displayUnit}`.trim(), { x: 230, y: rowY, size: 9, font: fontBold, color: isAbnormal ? rgb(0.75, 0.1, 0.1) : rgb(0.1, 0.5, 0.2) });
+      page.drawText(sanitizeWinAnsiText(`${displayVal} ${displayUnit}`.trim()), { x: 230, y: rowY, size: 9, font: fontBold, color: isAbnormal ? rgb(0.75, 0.1, 0.1) : rgb(0.1, 0.5, 0.2) });
       // Ref range
-      page.drawText(refRange, { x: 350, y: rowY, size: 9, font, color: rgb(0.4, 0.45, 0.5) });
+      page.drawText(sanitizeWinAnsiText(refRange), { x: 350, y: rowY, size: 9, font, color: rgb(0.4, 0.45, 0.5) });
       // Status
-      page.drawText(statusText, { x: 480, y: rowY, size: 8, font: fontBold, color: isAbnormal ? rgb(0.75, 0.1, 0.1) : rgb(0.1, 0.5, 0.2) });
+      page.drawText(sanitizeWinAnsiText(statusText), { x: 480, y: rowY, size: 8, font: fontBold, color: isAbnormal ? rgb(0.75, 0.1, 0.1) : rgb(0.1, 0.5, 0.2) });
 
       rowY -= 20;
     });
@@ -435,7 +453,8 @@ export async function generateLabReportPdf(data: {
     color: rgb(0.2, 0.45, 0.15),
   });
 
-  const summary = data.hinglishSummary || 'Aapki lab report generate ho chuki hai. Doctor se milkar dosage aur dietary guidance zaroor lein.';
+  const rawSummary = data.hinglishSummary || 'Aapki lab report generate ho chuki hai. Doctor se milkar dosage aur dietary guidance zaroor lein.';
+  const summary = sanitizeWinAnsiText(rawSummary);
   const line1 = summary.substring(0, 85);
   const line2 = summary.substring(85, 170);
 
@@ -463,7 +482,7 @@ export async function generateLabReportPdf(data: {
 
   page.drawText('Verified by Lab Technologist & Pathologist', { x: 45, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
   page.drawText('Attending Physician Final Review', { x: 380, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
-  page.drawText('VitalSync Connected Outpatient Network • Verified Digital Health Record', { x: 45, y: 25, size: 7, font, color: rgb(0.6, 0.65, 0.7) });
+  page.drawText('VitalSync Connected Outpatient Network - Verified Digital Health Record', { x: 45, y: 25, size: 7, font, color: rgb(0.6, 0.65, 0.7) });
 
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;
@@ -504,7 +523,7 @@ export async function generatePrescriptionPdf(data: {
     color: rgb(0.18, 0.25, 0.55), // Indigo / Navy
   });
 
-  page.drawText(data.clinicName || 'VITALSYNC SMART CLINIC NETWORK', {
+  page.drawText(sanitizeWinAnsiText(data.clinicName || 'VITALSYNC SMART CLINIC NETWORK'), {
     x: 40,
     y: height - 42,
     size: 16,
@@ -512,7 +531,7 @@ export async function generatePrescriptionPdf(data: {
     color: rgb(1, 1, 1),
   });
 
-  page.drawText(`Dr. ${data.doctorName || 'Practitioner'} • Connected OPD Consultation`, {
+  page.drawText(sanitizeWinAnsiText(`Dr. ${data.doctorName || 'Practitioner'} - Connected OPD Consultation`), {
     x: 40,
     y: height - 60,
     size: 9,
@@ -531,13 +550,13 @@ export async function generatePrescriptionPdf(data: {
     borderWidth: 1,
   });
 
-  page.drawText(`Patient: ${data.patientName || 'Patient'}`, { x: 50, y: height - 120, size: 10, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
-  page.drawText(`Age / Gender: ${data.age || '—'} Y / ${data.gender || '—'}`, { x: 50, y: height - 140, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
-  page.drawText(`Contact: ${data.patientPhone || '—'}`, { x: 50, y: height - 160, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Patient: ${data.patientName || 'Patient'}`), { x: 50, y: height - 120, size: 10, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
+  page.drawText(sanitizeWinAnsiText(`Age / Gender: ${data.age || '-'} Y / ${data.gender || '-'}`), { x: 50, y: height - 140, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Contact: ${data.patientPhone || '-'}`), { x: 50, y: height - 160, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
 
-  page.drawText(`Token: #${data.tokenNumber || 'T-01'}`, { x: 340, y: height - 120, size: 10, font: fontBold, color: rgb(0.18, 0.25, 0.55) });
-  page.drawText(`Date: ${data.date || getIstDateDisplay()}`, { x: 340, y: height - 140, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
-  page.drawText(`ABHA ID: ${data.abhaId || 'N/A'}`, { x: 340, y: height - 160, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`Token: #${data.tokenNumber || 'T-01'}`), { x: 340, y: height - 120, size: 10, font: fontBold, color: rgb(0.18, 0.25, 0.55) });
+  page.drawText(sanitizeWinAnsiText(`Date: ${data.date || getIstDateDisplay()}`), { x: 340, y: height - 140, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
+  page.drawText(sanitizeWinAnsiText(`ABHA ID: ${data.abhaId || 'N/A'}`), { x: 340, y: height - 160, size: 9, font, color: rgb(0.3, 0.35, 0.45) });
 
   let curY = height - 205;
 
@@ -567,10 +586,10 @@ export async function generatePrescriptionPdf(data: {
           color: rgb(0.97, 0.98, 0.99),
         });
       }
-      page.drawText(med.medicineName || 'Medicine', { x: 45, y: curY, size: 9, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
-      page.drawText(med.dosage || '—', { x: 250, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
-      page.drawText(med.frequency || '1-0-1', { x: 350, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
-      page.drawText(med.duration || '5 Days', { x: 450, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
+      page.drawText(sanitizeWinAnsiText(med.medicineName || 'Medicine'), { x: 45, y: curY, size: 9, font: fontBold, color: rgb(0.1, 0.15, 0.25) });
+      page.drawText(sanitizeWinAnsiText(med.dosage || '-'), { x: 250, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
+      page.drawText(sanitizeWinAnsiText(med.frequency || '1-0-1'), { x: 350, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
+      page.drawText(sanitizeWinAnsiText(med.duration || '5 Days'), { x: 450, y: curY, size: 9, font, color: rgb(0.2, 0.25, 0.35) });
       curY -= 20;
     });
   }
@@ -580,7 +599,7 @@ export async function generatePrescriptionPdf(data: {
     curY -= 15;
     page.drawText('CLINICAL ADVICE & DIRECTIONS:', { x: 45, y: curY, size: 8.5, font: fontBold, color: rgb(0.18, 0.25, 0.55) });
     curY -= 15;
-    const cleanNotes = data.notes.slice(0, 180);
+    const cleanNotes = sanitizeWinAnsiText(data.notes.slice(0, 180));
     page.drawText(cleanNotes, { x: 45, y: curY, size: 8.5, font, color: rgb(0.25, 0.3, 0.35) });
     curY -= 20;
   }
@@ -595,8 +614,8 @@ export async function generatePrescriptionPdf(data: {
   });
 
   page.drawText('Digital Signature: Valid Electronic Prescription', { x: 45, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
-  page.drawText(`Dr. ${data.doctorName || 'Physician'} (Registered Medical Practitioner)`, { x: 320, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
-  page.drawText('VitalSync Connected Outpatient Network • Verified Digital Health Record', { x: 45, y: 25, size: 7, font, color: rgb(0.6, 0.65, 0.7) });
+  page.drawText(sanitizeWinAnsiText(`Dr. ${data.doctorName || 'Physician'} (Registered Medical Practitioner)`), { x: 320, y: 50, size: 8, font, color: rgb(0.5, 0.55, 0.6) });
+  page.drawText('VitalSync Connected Outpatient Network - Verified Digital Health Record', { x: 45, y: 25, size: 7, font, color: rgb(0.6, 0.65, 0.7) });
 
   const pdfBytes = await pdfDoc.save();
   return pdfBytes;

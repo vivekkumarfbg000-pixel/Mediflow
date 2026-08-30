@@ -505,7 +505,10 @@ export const DoctorDashboard: React.FC = () => {
           localPatients.forEach(lp => mergedMap.set(lp.id, lp));
           dbPatients.forEach(dp => {
             const existing = mergedMap.get(dp.id);
-            mergedMap.set(dp.id, existing ? { ...existing, ...dp, vitals: dp.vitals || existing.vitals } : dp);
+            const finalQueueStatus = (existing?.queueStatus === 'completed' && (dp.queueStatus === 'in_consultation' || dp.queue_status === 'in_consultation'))
+              ? 'completed'
+              : (dp.queueStatus || dp.queue_status || existing?.queueStatus || 'awaiting_consultation');
+            mergedMap.set(dp.id, existing ? { ...existing, ...dp, queueStatus: finalQueueStatus, queue_status: finalQueueStatus, vitals: dp.vitals || existing.vitals } : dp);
           });
           const finalPatients = Array.from(mergedMap.values());
           api.savePatients(finalPatients);
@@ -603,6 +606,7 @@ export const DoctorDashboard: React.FC = () => {
       onLabRequisitionChange: () => syncDashboardData(),
       onFinancialLedgerChange: () => syncDashboardData(),
       onUnifiedInvoiceChange: () => syncDashboardData(),
+      onEncounterChange: () => syncDashboardData(),
       onWhatsAppSessionChange: (payload) => {
         console.log('[DoctorDashboard] Realtime WhatsApp Session update received:', payload);
         const dbSession = payload.new;
@@ -1173,6 +1177,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
     // Mark completed patient status in patient registry & queue
     api.updatePatientQueueStatus(selectedPatient.id, 'completed');
+    setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, queueStatus: 'completed', queue_status: 'completed' } : p));
 
     // Mark corresponding appointments as completed
     const currentAppts = api.getAppointments();

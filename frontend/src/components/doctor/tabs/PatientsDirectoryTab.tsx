@@ -333,9 +333,18 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
               const handlePrintPrescription = (enc: any) => {
                 const printWindow = window.open('', '_blank');
                 if (!printWindow) return;
-                const medRows = (enc.medications || []).map((m: any, idx: number) => `
+
+                const patAge = selectedDirectoryPatient.age && String(selectedDirectoryPatient.age) !== 'null' && String(selectedDirectoryPatient.age) !== 'undefined' ? `${selectedDirectoryPatient.age}y` : 'Adult';
+                const patGender = selectedDirectoryPatient.gender && String(selectedDirectoryPatient.gender) !== 'null' && String(selectedDirectoryPatient.gender) !== 'undefined' ? selectedDirectoryPatient.gender : 'Patient';
+                const patPhone = selectedDirectoryPatient.phone || (enc as any).patientPhone || (enc as any).patient_phone || '-';
+
+                const medList = (enc.medications && enc.medications.length > 0) 
+                  ? enc.medications 
+                  : (enc.extracted_medicines || enc.extractedMedicines || (enc as any).items || []);
+
+                const medRows = (medList || []).map((m: any, idx: number) => `
                   <tr>
-                    <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${idx + 1}. ${m.medicineName}</td>
+                    <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${idx + 1}. ${m.medicineName || m.name || 'Prescribed Medicine'}</td>
                     <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-family: monospace; font-weight: 600; color: #4338ca;">${m.dosage || '1-0-1'}</td>
                     <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #475569;">${m.duration || '5 Days'}</td>
                     <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #64748b;">${m.instructions || 'After meals'}</td>
@@ -376,8 +385,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     </div>
 
                     <div class="pat-info">
-                      <div><strong>Patient:</strong> ${selectedDirectoryPatient.name} (${selectedDirectoryPatient.age}y, ${selectedDirectoryPatient.gender})</div>
-                      <div><strong>Phone:</strong> ${selectedDirectoryPatient.phone}</div>
+                      <div><strong>Patient:</strong> ${selectedDirectoryPatient.name} (${patAge}, ${patGender})</div>
+                      <div><strong>Phone:</strong> ${patPhone}</div>
                       <div><strong>Patient ID:</strong> ${selectedDirectoryPatient.tokenNumber || selectedDirectoryPatient.patientCode || 'PAT'}</div>
                       <div><strong>Doctor ID:</strong> ${enc.doctorId || 'doc-1'}</div>
                     </div>

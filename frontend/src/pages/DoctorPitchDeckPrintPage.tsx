@@ -994,7 +994,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center p-1.5 bg-white rounded-lg border border-slate-300">
                       <span className="font-bold text-slate-900">🚨 Emergency SOS Priority Fee</span>
-                      <span className="font-mono font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded">₹618.00</span>
+                      <span className="font-mono font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded">Consultation + 20%</span>
                     </div>
                     <div className="flex justify-between items-center p-1.5 bg-white rounded-lg border border-slate-300">
                       <span className="font-bold text-slate-900">🏷️ Chronic Refill Loyalty Discount</span>

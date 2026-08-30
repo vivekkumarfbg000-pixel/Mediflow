@@ -13,6 +13,7 @@ export interface RealtimeSubscriptionHandlers {
   onPathologyReportChange?: (payload: any) => void;
   onSaaSInvoiceChange?: (payload: any) => void;
   onSaaSPrescriptionChange?: (payload: any) => void;
+  onEncounterChange?: (payload: any) => void;
   onPoolSettlementChange?: (payload: any) => void;
   onClinicSopChange?: (payload: any) => void;
   onChronicCohortChange?: (payload: any) => void;
@@ -193,6 +194,7 @@ export class RealtimeSyncService {
           'lab_reports': ['full_lab_reports', 'pathology_reports'],
           'saas_invoices': ['saas_invoices', 'unified_invoices'],
           'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
+          'encounters': ['encounters'],
           'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
           'clinic_sops': ['clinic_sops'],
           'chronic_care_cohorts': ['chronic_care_cohorts']
@@ -381,6 +383,15 @@ export class RealtimeSyncService {
           console.log('[RealtimeSync] SaaS Prescription change detected:', payload);
           this.autoIngestPayload('saas_prescriptions', payload);
           this.subscribers.forEach(s => s.onSaaSPrescriptionChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'encounters' },
+        (payload) => {
+          console.log('[RealtimeSync] Encounter change detected:', payload);
+          this.autoIngestPayload('encounters', payload);
+          this.subscribers.forEach(s => s.onEncounterChange?.(payload));
         }
       )
       .on(

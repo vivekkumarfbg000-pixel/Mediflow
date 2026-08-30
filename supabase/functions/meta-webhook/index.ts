@@ -1555,7 +1555,7 @@ async function triggerBotReplyPipeline(ctx: {
             .eq("entity_id", podId)
             .eq("isActive", true)
             .maybeSingle();
-          const feeFromSop = activeSop?.extractedConfig?.emergency_sos_fee;
+          const feeFromSop = activeSop?.extractedConfig?.emergency_sos_fee ?? (activeSop?.extractedConfig?.doctor_fee ? Math.round(activeSop.extractedConfig.doctor_fee * 1.20) : undefined);
           if (feeFromSop && typeof feeFromSop === 'number' && feeFromSop > 0) {
             doctorSosFee = feeFromSop;
             platformFeeSos = parseFloat((doctorSosFee * 0.03).toFixed(2));
@@ -3250,7 +3250,7 @@ async function triggerBotReplyPipeline(ctx: {
             .eq("isActive", true)
             .maybeSingle();
           
-          const sosFeeFromSop = activeSop?.extractedConfig?.emergency_sos_fee;
+          const sosFeeFromSop = activeSop?.extractedConfig?.emergency_sos_fee ?? (activeSop?.extractedConfig?.doctor_fee ? Math.round(activeSop.extractedConfig.doctor_fee * 1.20) : undefined);
           if (sosFeeFromSop && typeof sosFeeFromSop === 'number' && sosFeeFromSop > 0) {
             doctorSosFee = sosFeeFromSop;
             platformFeeSos = parseFloat((doctorSosFee * 0.03).toFixed(2));

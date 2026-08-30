@@ -117,6 +117,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       onClinicSopChange: () => sync(),
       onSaaSInvoiceChange: () => sync(),
       onSaaSPrescriptionChange: () => sync(),
+      onEncounterChange: () => sync(),
       onInventoryHoldChange: () => sync(),
       onChronicCohortChange: () => sync()
     });

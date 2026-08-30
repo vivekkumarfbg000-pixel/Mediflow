@@ -74,9 +74,23 @@ CREATE TABLE IF NOT EXISTS public.encounters (
     entity_id UUID REFERENCES public.entities(id) ON DELETE SET NULL,
     doctor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     patient_id UUID REFERENCES public.patient_registry(id) ON DELETE SET NULL,
+    appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
     clinical_notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    medications JSONB DEFAULT '[]'::jsonb,
+    diagnostic_tests JSONB DEFAULT '[]'::jsonb,
+    status VARCHAR(50) DEFAULT 'completed',
+    pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE IF EXISTS public.encounters
+  ADD COLUMN IF NOT EXISTS medications JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS diagnostic_tests JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'completed',
+  ADD COLUMN IF NOT EXISTS pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+  ADD COLUMN IF NOT EXISTS appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- Ensure public.lab_requisitions table exists
 CREATE TABLE IF NOT EXISTS public.lab_requisitions (
@@ -761,6 +775,7 @@ VALUES (
     E'Doctor Consultation Fee: INR 450\nHbA1c Test: INR 350\nSerum Creatinine: INR 250\nTotal Hemoglobin: INR 150\nSerum Sodium: INR 200\nTotal Bilirubin: INR 300\n\nCommission Splits:\n- Doctor: 40%\n- Lab: 57%\n- Platform: 3%\n\nGuidelines:\n- Auto-assign Lalit Prasad for all pathology lab tests\n- Allow doorstep sample collection scheduling by patient request\n- Hold pharmacy stock using FEFO (First Expiry First Out) policy\n- Verify patient ABHA consent prior to care pod routing\n- Issue UPI QR on invoice generation immediately',
     '{
         "doctor_fee": 450.00,
+        "emergency_sos_fee": 540.00,
         "test_prices": {
             "4544-3": 350.00,
             "2160-0": 250.00,

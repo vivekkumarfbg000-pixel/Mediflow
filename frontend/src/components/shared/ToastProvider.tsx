@@ -266,18 +266,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-
-      {/* Ultra-Sleek Floating Pill Stack — Top-Center */}
-      <div
-        className="fixed top-5 left-1/2 -translate-x-1/2 z-[100000] flex flex-col items-center gap-2 pointer-events-none w-auto max-w-[90vw]"
-        aria-label="Notifications"
-      >
-        {toasts.map(t => (
-          <div key={t.id} className="pointer-events-auto">
-            <ToastItem toast={t} onDismiss={dismiss} />
-          </div>
-        ))}
-      </div>
     </ToastContext.Provider>
   );
 }
