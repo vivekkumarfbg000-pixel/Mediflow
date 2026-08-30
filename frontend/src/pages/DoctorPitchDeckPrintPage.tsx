@@ -1466,29 +1466,39 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Direct Executive Contact Card */}
-              <div className="p-3 bg-slate-900 text-white rounded-xl mt-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-                <div className="space-y-0.5 text-center sm:text-left">
-                  <div className="text-xs font-black text-white flex items-center gap-1.5 justify-center sm:justify-start">
-                    <Sparkles className="w-3 h-3 text-teal-400" /> Schedule Your 15-Minute Practice Onboarding
-                  </div>
-                  <div className="text-[10px] text-slate-300">
-                    Speak directly with our Executive Lead for on-site clinic onboarding and chemist integration.
+              {/* Direct Founder & Executive Onboarding Card */}
+              <div className="p-3.5 bg-gradient-to-r from-slate-950 via-slate-900 to-teal-950 text-white rounded-2xl mt-3 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xl border border-teal-500/30">
+                <div className="space-y-1 text-center md:text-left">
+                  <div className="flex items-center gap-2 justify-center md:justify-start">
+                    <span className="w-7 h-7 rounded-lg bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center font-black text-xs shadow-inner">
+                      👨‍💼
+                    </span>
+                    <div>
+                      <div className="text-xs md:text-sm font-black text-white flex items-center gap-1.5 justify-center md:justify-start">
+                        <span>Vivek Kumar</span>
+                        <span className="text-[10px] font-bold text-teal-300 bg-teal-950/80 px-2 py-0.5 rounded-full border border-teal-500/40">
+                          Founder &amp; Chief Architect
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-300">
+                        VitalSync Smart Virtual Hospital Network • Direct On-Site Practice Setup &amp; Chemist Onboarding
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2 shrink-0">
                   <a 
                     href="tel:+919608032073" 
-                    className="px-3 py-1.5 bg-gradient-to-r from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-slate-950 font-black rounded-lg text-xs flex items-center gap-1 transition-all shadow-md no-underline"
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-teal-500 to-emerald-400 hover:from-teal-400 hover:to-emerald-300 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md hover:shadow-teal-500/20 no-underline"
                   >
-                    <PhoneCall className="w-3 h-3" /> +91 96080 32073
+                    <PhoneCall className="w-3.5 h-3.5 text-slate-950" /> Call / WhatsApp: +91 96080 32073
                   </a>
                   <a 
                     href="mailto:vivekobray2073@gmail.com" 
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all no-underline"
+                    className="px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all no-underline"
                   >
-                    <Mail className="w-3 h-3" /> Email
+                    <Mail className="w-3.5 h-3.5 text-teal-300" /> Email
                   </a>
                 </div>
               </div>
