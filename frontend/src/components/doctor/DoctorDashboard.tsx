@@ -667,12 +667,14 @@ export const DoctorDashboard: React.FC = () => {
       }
     };
     window.addEventListener('mediflow-financial-update', handleFinancialUpdate);
+    window.addEventListener('mediflow-state-change', syncDashboardData);
     window.addEventListener('mediflow-change-tab', handleTabChange);
 
     return () => {
       apiUnsub();
       unsubscribeRealtime();
       window.removeEventListener('mediflow-financial-update', handleFinancialUpdate);
+      window.removeEventListener('mediflow-state-change', syncDashboardData);
       window.removeEventListener('mediflow-change-tab', handleTabChange);
     };
   }, [activePod?.id]);
