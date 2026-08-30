@@ -234,6 +234,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   }, [selectedPatient?.id]);
 
   const [virtualDateInput, setVirtualDateInput] = useState('');
+  const [isQueueExpanded, setIsQueueExpanded] = useState(false);
   const [queueFilter, setQueueFilter] = useState<'awaiting' | 'in_consult' | 'today_registered' | 'completed' | 'upcoming'>('awaiting');
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
   const [expandedCitationPmid, setExpandedCitationPmid] = useState<string | null>(null);
@@ -1371,148 +1372,41 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
-      {/* LEFT COLUMN: Patient queue, CDSS Analyzer */}
-      <div className={`${selectedPatient ? 'hidden lg:block' : 'block'} lg:col-span-4 space-y-6`}>
-        {/* Patient Consultation Queue */}
-        <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary shrink-0" />
-              Consultation Queue
-            </h2>
-            <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full">
-              {patients.length} Total Patients
-            </span>
-          </div>
-
-          {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Completed Care Loop) */}
-          {(() => {
-            const todayStr = getIstDateString();
-            const invoices = BillingService.getInvoices();
-            const paidInvoicePatientIds = invoices
-              .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-              .map((i: any) => i.patientId || (i as any).patient_id);
-            const paidPatientIds = new Set([
-              ...appointments
-                .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
-                .map(a => a.patientId || (a as any).patient_id),
-              ...paidInvoicePatientIds
-            ]);
-
-            const isPatientForToday = (p: Patient) => {
-              const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
-              if (patAppts.length > 0) {
-                return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
-              }
-              const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-              return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
-            };
-
-            const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus) && isPatientForToday(p));
-            const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && isPatientForToday(p));
-            const todayRegList = patients.filter(p => {
-              const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-              return regDate.startsWith(todayStr);
-            });
-            const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
-            const upcomingList = patients.filter(p => {
-              const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
-              return patAppts.some(a => {
-                const d = getEffectiveAppointmentDate(a);
-                return Boolean(d && d > todayStr);
-              });
-            });
-
-            return (
-              <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1.5 no-scrollbar border-b border-slate-100 dark:border-white/5 font-mono text-[9.5px] font-bold select-none">
-                <button
-                  type="button"
-                  onClick={() => setQueueFilter('awaiting')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
-                    queueFilter === 'awaiting'
-                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm font-black'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>Awaiting</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'awaiting' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-                    {awaitingList.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQueueFilter('in_consult')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
-                    queueFilter === 'in_consult'
-                      ? 'bg-amber-600 text-white border-amber-700 shadow-sm font-black'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>In Chamber</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'in_consult' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-                    {inConsultList.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQueueFilter('today_registered')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
-                    queueFilter === 'today_registered'
-                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm font-black'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>Today Reg</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'today_registered' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-                    {todayRegList.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQueueFilter('upcoming')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
-                    queueFilter === 'upcoming'
-                      ? 'bg-purple-600 text-white border-purple-700 shadow-sm font-black'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>📅 Upcoming</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'upcoming' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-                    {upcomingList.length}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setQueueFilter('completed')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
-                    queueFilter === 'completed'
-                      ? 'bg-teal-600 text-white border-teal-700 shadow-sm font-black'
-                      : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-white/5 hover:bg-slate-100'
-                  }`}
-                >
-                  <span>Done</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] ${queueFilter === 'completed' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
-                    {completedList.length}
-                  </span>
-                </button>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fade-in text-slate-800">
+      {/* ── LEFT COLUMN / COMPACT QUEUE DRAWER (IMAGE 3) ── */}
+      {(!selectedPatient || isQueueExpanded) && (
+        <div className={`${selectedPatient ? 'lg:col-span-4' : 'lg:col-span-4'} space-y-3.5 text-left`}>
+          {/* Patient Consultation Queue (Compact, Reduced Font Size) */}
+          <div className="glass-panel p-3.5 border-slate-200/80 shadow-2xs relative overflow-hidden bg-white">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-2 pb-2 border-b border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+                <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  Consultation Queue
+                </h2>
+                <span className="text-[9px] font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.2 rounded-full">
+                  {patients.length} Total
+                </span>
               </div>
-            );
-          })()}
-          
-          <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
-            {(() => {
-              const parseTokenNum = (token?: string | number) => {
-                if (!token) return Infinity;
-                const match = String(token).match(/\d+/);
-                return match ? parseInt(match[0], 10) : Infinity;
-              };
+              {selectedPatient && (
+                <button
+                  type="button"
+                  onClick={() => setIsQueueExpanded(false)}
+                  className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[9px] font-bold transition flex items-center gap-1 cursor-pointer border-0 shadow-2xs"
+                  title="Hide Queue (100% Full Screen)"
+                >
+                  <X className="w-3 h-3" /> Hide Queue
+                </button>
+              )}
+            </div>
 
+            {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Done) */}
+            {(() => {
               const todayStr = getIstDateString();
               const invoices = BillingService.getInvoices();
               const paidInvoicePatientIds = invoices
                 .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-                .map((i: any) => i.patientId);
+                .map((i: any) => i.patientId || (i as any).patient_id);
               const paidPatientIds = new Set([
                 ...appointments
                   .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
@@ -1529,235 +1423,378 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
               };
 
-              const queuePatients = patients
-                .filter(p => {
-                  if (queueFilter === 'upcoming') {
-                    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
-                    return patAppts.some(a => {
-                      const d = getEffectiveAppointmentDate(a);
-                      return Boolean(d && d > todayStr);
-                    });
-                  }
-                  if (queueFilter === 'awaiting') {
-                    if (!paidPatientIds.has(p.id)) return false;
-                    if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
-                    return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
-                  }
-                  if (queueFilter === 'in_consult') {
-                    if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
-                    return p.queueStatus === 'in_consultation';
-                  }
-                  if (queueFilter === 'today_registered') {
-                    return isPatientForToday(p);
-                  }
-                  if (queueFilter === 'completed') {
-                    if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
-                    return (
-                      (p as any).queueStatus === 'completed' ||
-                      (p as any).queueStatus === 'pharmacy' ||
-                      (p as any).queueStatus === 'lab' ||
-                      (p as any).queueStatus === 'settled'
-                    );
-                  }
-                  return (isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
-                })
-                .sort((a, b) => {
-                  // Priority #1 Emergency SOS Routing (Rule 4 & Rule 16): Emergency tokens move to top
-                  const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).toUpperCase().includes(' E') || String(a.tokenNumber).toUpperCase().includes('E-') || String(a.tokenNumber).startsWith('#EM-'))));
-                  const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).toUpperCase().includes(' E') || String(b.tokenNumber).toUpperCase().includes('E-') || String(b.tokenNumber).startsWith('#EM-'))));
-                  if (isSosA && !isSosB) return -1;
-                  if (!isSosA && isSosB) return 1;
-
-                  const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
-                  const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
-                  const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
-                  if (statusA !== statusB) return statusA - statusB;
-
-                  const tokenA = parseTokenNum(a.tokenNumber);
-                  const tokenB = parseTokenNum(b.tokenNumber);
-                  return tokenA - tokenB;
+              const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus) && isPatientForToday(p));
+              const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && isPatientForToday(p));
+              const todayRegList = patients.filter(p => {
+                const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+                return regDate.startsWith(todayStr);
+              });
+              const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
+              const upcomingList = patients.filter(p => {
+                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                return patAppts.some(a => {
+                  const d = getEffectiveAppointmentDate(a);
+                  return Boolean(d && d > todayStr);
                 });
+              });
 
-              if (queuePatients.length === 0) {
-                return (
-                  <ZeroQueueState queueType="patient_queue" className="mx-0" />
-                );
-              }
-
-              return queuePatients.map((p: Patient) => {
-                const isSelected = selectedPatient?.id === p.id;
-                const patientAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id));
-                const virtualAppt = patientAppts.find(a => Boolean(a.isVirtual || (a as any).is_virtual));
-                const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).toUpperCase().includes(' E') || String(p.tokenNumber).toUpperCase().includes('E-') || String(p.tokenNumber).startsWith('#EM-'))));
-
-                return (
+              return (
+                <div className="flex items-center gap-1 mb-2.5 overflow-x-auto pb-1 no-scrollbar border-b border-slate-100 dark:border-white/5 font-mono text-[8.5px] font-bold select-none">
                   <button
-                    key={p.id}
-                    onClick={() => setSelectedPatient(p)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative group overflow-hidden ${
-                      isEmergencySos
-                        ? 'bg-rose-50/90 border-rose-400 shadow-md ring-2 ring-rose-400/40'
-                        : (isSelected 
-                            ? 'bg-primary-container/20 border-primary shadow-sm' 
-                            : 'bg-slate-50 border-slate-200/60 hover:bg-slate-100/80')
+                    type="button"
+                    onClick={() => setQueueFilter('awaiting')}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
+                      queueFilter === 'awaiting'
+                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs font-black'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
-                    {isSelected && (
-                      <div className="absolute left-0 top-0 bottom-0 w-[4px] bg-primary" />
-                    )}
-                    <div className="flex justify-between items-start flex-wrap gap-1">
-                      <div className="font-bold text-xs text-slate-700 group-hover:text-primary transition-colors flex items-center gap-1.5 flex-wrap">
-                        {p.name}
-                        {p.tokenNumber && (
-                          <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded font-black shrink-0 border ${
-                            isEmergencySos
-                              ? 'bg-rose-600 text-white border-rose-700 animate-pulse shadow-xs'
-                              : 'bg-indigo-50 border-indigo-200/50 text-indigo-700'
-                          }`}>
-                            {p.tokenNumber} {isEmergencySos ? '🚨 PRIORITY #1' : ''}
-                          </span>
-                        )}
-                        {p.vitals && (() => {
-                          const triage = api.checkTriageAlert(p);
-                          if (triage.isAlert) {
-                            return (
-                              <span className="text-[7px] font-bold bg-rose-600 text-white px-1.5 py-0.2 rounded-full animate-pulse border-0">
-                                Triage: {triage.reason.split(':')[0]}
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                      <span className="text-[9px] font-extrabold text-indigo-800 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-md font-mono shrink-0">
-                        [{p.patientCode || p.tokenNumber || (p.id || '').toUpperCase().substring(0, 6)}]
-                      </span>
-                    </div>
-                    
-                    <div className="text-[10px] text-slate-500 mt-2 flex justify-between items-center flex-wrap gap-1.5">
-                      <span>{p.gender}, {p.age} years</span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {isOphthalmology && p.vitals?.dilationStatus && (
-                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase border flex items-center gap-0.5 ${
-                            p.vitals.dilationStatus === 'dilated'
-                              ? 'bg-emerald-50 text-emerald-750 border-emerald-200'
-                              : 'bg-amber-550/10 text-amber-700 border-amber-200/60 animate-pulse'
-                          }`}>
-                            {p.vitals.dilationStatus === 'dilated' ? '👁️ Dilated' : '⏳ Dilating'}
-                            {p.vitals.dilationStatus === 'instilled' && p.vitals.dilationStartTime && !isNaN(new Date(p.vitals.dilationStartTime).getTime()) && (
-                              <span className="font-mono">
-                                ({Math.max(0, Math.ceil((new Date(p.vitals.dilationStartTime).getTime() + 20 * 60 * 1000 - Date.now()) / (60 * 1000)))}m)
-                              </span>
-                            )}
-                          </span>
-                        )}
-                        {p.abhaId && (
-                          <span className="bg-secondary/10 text-secondary border border-secondary/20 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-wider font-mono">
-                            ABHA
-                          </span>
-                        )}
-                        {virtualAppt && (
-                          <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 px-1.5 py-0.5 rounded-md animate-pulse font-sans">
-                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-700 shrink-0" />
-                            📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
-                          </span>
-                        )}
-                        {(() => {
-                          const futureAppt = patientAppts.find(a => {
-                            const d = getEffectiveAppointmentDate(a);
-                            return Boolean(d && d > todayStr);
-                          });
-                          if (futureAppt) {
-                            const d = getEffectiveAppointmentDate(futureAppt);
-                            const isTomorrow = d === getIstOffsetDateString(1);
-                            return (
-                              <span className="flex items-center gap-0.5 text-[8px] font-bold bg-purple-50 border border-purple-200 text-purple-700 px-1.5 py-0.5 rounded-md font-sans">
-                                📅 {isTomorrow ? 'Tomorrow' : d} ({futureAppt.virtualTime || (futureAppt as any).virtual_time || 'Advance'})
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    </div>
+                    <span>Awaiting</span>
+                    <span className={`px-1 py-0.1 rounded-full text-[8px] ${queueFilter === 'awaiting' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      {awaitingList.length}
+                    </span>
                   </button>
-                );
-              });
+                  <button
+                    type="button"
+                    onClick={() => setQueueFilter('in_consult')}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
+                      queueFilter === 'in_consult'
+                        ? 'bg-amber-600 text-white border-amber-700 shadow-2xs font-black'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>In Chamber</span>
+                    <span className={`px-1 py-0.1 rounded-full text-[8px] ${queueFilter === 'in_consult' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      {inConsultList.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQueueFilter('today_registered')}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
+                      queueFilter === 'today_registered'
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs font-black'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>Today Reg</span>
+                    <span className={`px-1 py-0.1 rounded-full text-[8px] ${queueFilter === 'today_registered' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      {todayRegList.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQueueFilter('upcoming')}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
+                      queueFilter === 'upcoming'
+                        ? 'bg-purple-600 text-white border-purple-700 shadow-2xs font-black'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>📅 Upcoming</span>
+                    <span className={`px-1 py-0.1 rounded-full text-[8px] ${queueFilter === 'upcoming' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      {upcomingList.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQueueFilter('completed')}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all whitespace-nowrap border cursor-pointer shrink-0 active:scale-95 ${
+                      queueFilter === 'completed'
+                        ? 'bg-teal-600 text-white border-teal-700 shadow-2xs font-black'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>Done</span>
+                    <span className={`px-1 py-0.1 rounded-full text-[8px] ${queueFilter === 'completed' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                      {completedList.length}
+                    </span>
+                  </button>
+                </div>
+              );
             })()}
-          </div>
-        </div>
-
-        {/* Laboratory Report History (Past & Present) */}
-        {selectedPatient && !isOphthalmology && (
-          <div className="glass-panel p-6 border-slate-200/80 shadow-sm relative overflow-hidden bg-white mt-4">
-            <h2 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-              <FolderArchive className="w-4 h-4 text-primary shrink-0" />
-              Biomarker Reports History
-            </h2>
-            <p className="text-[10px] text-slate-600 mb-4">Click a report to open a full-screen clinical AI analysis</p>
             
-            <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto pr-1">
+            {/* Compact Patient Cards List */}
+            <div className="space-y-2 lg:max-h-[260px] max-h-none lg:overflow-y-auto pr-1">
               {(() => {
-                const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
-                if (history.length === 0) {
+                const parseTokenNum = (token?: string | number) => {
+                  if (!token) return Infinity;
+                  const match = String(token).match(/\d+/);
+                  return match ? parseInt(match[0], 10) : Infinity;
+                };
+
+                const todayStr = getIstDateString();
+                const invoices = BillingService.getInvoices();
+                const paidInvoicePatientIds = invoices
+                  .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
+                  .map((i: any) => i.patientId);
+                const paidPatientIds = new Set([
+                  ...appointments
+                    .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
+                    .map(a => a.patientId || (a as any).patient_id),
+                  ...paidInvoicePatientIds
+                ]);
+
+                const isPatientForToday = (p: Patient) => {
+                  const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                  if (patAppts.length > 0) {
+                    return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
+                  }
+                  const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+                  return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
+                };
+
+                const queuePatients = patients
+                  .filter(p => {
+                    if (queueFilter === 'upcoming') {
+                      const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                      return patAppts.some(a => {
+                        const d = getEffectiveAppointmentDate(a);
+                        return Boolean(d && d > todayStr);
+                      });
+                    }
+                    if (queueFilter === 'awaiting') {
+                      if (!paidPatientIds.has(p.id)) return false;
+                      if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
+                      return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
+                    }
+                    if (queueFilter === 'in_consult') {
+                      if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
+                      return p.queueStatus === 'in_consultation';
+                    }
+                    if (queueFilter === 'today_registered') {
+                      return isPatientForToday(p);
+                    }
+                    if (queueFilter === 'completed') {
+                      if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
+                      return (
+                        (p as any).queueStatus === 'completed' ||
+                        (p as any).queueStatus === 'pharmacy' ||
+                        (p as any).queueStatus === 'lab' ||
+                        (p as any).queueStatus === 'settled'
+                      );
+                    }
+                    return (isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
+                  })
+                  .sort((a, b) => {
+                    const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).toUpperCase().includes(' E') || String(a.tokenNumber).toUpperCase().includes('E-') || String(a.tokenNumber).startsWith('#EM-'))));
+                    const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).toUpperCase().includes(' E') || String(b.tokenNumber).toUpperCase().includes('E-') || String(b.tokenNumber).startsWith('#EM-'))));
+                    if (isSosA && !isSosB) return -1;
+                    if (!isSosA && isSosB) return 1;
+
+                    const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
+                    const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
+                    const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
+                    if (statusA !== statusB) return statusA - statusB;
+
+                    const tokenA = parseTokenNum(a.tokenNumber);
+                    const tokenB = parseTokenNum(b.tokenNumber);
+                    return tokenA - tokenB;
+                  });
+
+                if (queuePatients.length === 0) {
                   return (
-                    <div className="text-center py-6 text-slate-600 text-xs italic">
-                      No historical biomarker reports found.
-                    </div>
+                    <ZeroQueueState queueType="patient_queue" className="mx-0 py-4" />
                   );
                 }
-                return history.slice().reverse().map((report, idx) => (
-                  <button
-                    key={`hist-report-${idx}-${report.date || (report as any).id || idx}`}
-                    onClick={() => setAnalyzingReport(report)}
-                    className="w-full text-left p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-center w-full">
-                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                        <FlaskConical className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                        Report Dated: {report.date}
-                      </span>
-                      <span className="text-[8px] bg-indigo-50 border border-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider font-mono">
-                        Analyze
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-200/40 text-[10px] text-slate-500">
-                      <div>
-                        <span className="text-slate-600 font-medium block">{isOphthalmology ? 'VA (OD)' : 'HbA1c'}</span>
-                        <span className={`font-mono font-bold ${!isOphthalmology && report.HbA1c > 6.5 ? 'text-rose-500' : 'text-slate-700'}`}>{isOphthalmology ? '6/6' : `${report.HbA1c}%`}</span>
+
+                return queuePatients.map((p: Patient) => {
+                  const isSelected = selectedPatient?.id === p.id;
+                  const patientAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id));
+                  const virtualAppt = patientAppts.find(a => Boolean(a.isVirtual || (a as any).is_virtual));
+                  const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).toUpperCase().includes(' E') || String(p.tokenNumber).toUpperCase().includes('E-') || String(p.tokenNumber).startsWith('#EM-'))));
+
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setSelectedPatient(p);
+                        setIsQueueExpanded(false);
+                      }}
+                      className={`w-full text-left p-2.5 rounded-xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
+                        isEmergencySos
+                          ? 'bg-rose-50 border-rose-400 shadow-sm ring-1 ring-rose-400/40'
+                          : (isSelected 
+                              ? 'bg-indigo-50/80 border-indigo-500 shadow-2xs ring-1 ring-indigo-500/30' 
+                              : 'bg-slate-50/80 border-slate-200/70 hover:bg-slate-100/90')
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-indigo-600" />
+                      )}
+                      <div className="flex justify-between items-start flex-wrap gap-1">
+                        <div className="font-bold text-xs text-slate-800 group-hover:text-indigo-600 transition-colors flex items-center gap-1.5 flex-wrap">
+                          {p.name}
+                          {p.tokenNumber && (
+                            <span className={`text-[8px] font-mono px-1.5 py-0.2 rounded font-black shrink-0 border ${
+                              isEmergencySos
+                                ? 'bg-rose-600 text-white border-rose-700 animate-pulse'
+                                : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                            }`}>
+                              {p.tokenNumber} {isEmergencySos ? '🚨' : ''}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[8px] font-mono font-bold text-slate-500 bg-white px-1.5 py-0.2 rounded border border-slate-200 shrink-0">
+                          [{p.patientCode || p.tokenNumber || (p.id || '').toUpperCase().substring(0, 5)}]
+                        </span>
                       </div>
-                      <div>
-                        <span className="text-slate-600 font-medium block">{isOphthalmology ? 'IOP' : 'Creatinine'}</span>
-                        <span className={`font-mono font-bold ${!isOphthalmology && report.creatinine > 1.2 ? 'text-rose-500' : 'text-slate-700'}`}>{isOphthalmology ? '16 mmHg' : `${report.creatinine} mg/dL`}</span>
+                      
+                      <div className="text-[9.5px] text-slate-500 mt-1 flex justify-between items-center flex-wrap gap-1">
+                        <span>{p.gender}, {p.age}y</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {virtualAppt && (
+                            <span className="text-[7.5px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 px-1 py-0.2 rounded font-mono">
+                              📹 Virtual
+                            </span>
+                          )}
+                          {p.abhaId && (
+                            <span className="text-[7.5px] font-bold bg-primary/10 text-primary border border-primary/20 px-1 py-0.2 rounded font-mono">
+                              ABHA
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-slate-600 font-medium block">{isOphthalmology ? 'VA (OS)' : 'Hemoglobin'}</span>
-                        <span className={`font-mono font-bold ${!isOphthalmology && report.hemoglobin < 12.0 ? 'text-amber-500' : 'text-slate-700'}`}>{isOphthalmology ? '6/9' : `${report.hemoglobin} g/dL`}</span>
-                      </div>
-                    </div>
-                  </button>
-                ));
+                    </button>
+                  );
+                });
               })()}
             </div>
           </div>
-        )}
 
-        {isOphthalmology && (
-          <OphthalmologyPatientAnalysisPanel
-            selectedPatient={selectedPatient}
-            history={activeHistory}
-            analyzingReport={analyzingReport}
-            baselineDate={baselineDate}
-            comparisonDate={comparisonDate}
-            onAnalyzeReport={setAnalyzingReport}
-            onCloseAnalysis={() => setAnalyzingReport(null)}
-          />
-        )}
-      </div>
+          {/* Compact Biomarker Reports History (Image 3 Lower Half) */}
+          {selectedPatient && !isOphthalmology && (
+            <div className="glass-panel p-3.5 border-slate-200/80 shadow-2xs relative overflow-hidden bg-white">
+              <div className="flex items-center justify-between gap-1.5 mb-1.5 pb-1 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <FolderArchive className="w-3.5 h-3.5 text-primary shrink-0" />
+                  Biomarker History
+                </h3>
+                <span className="text-[8.5px] text-slate-500 font-mono">Click to analyze</span>
+              </div>
+              
+              <div className="space-y-2 lg:max-h-[220px] max-h-none lg:overflow-y-auto pr-1">
+                {(() => {
+                  const history = api.getPatientHistoricalBiomarkers(selectedPatient.id);
+                  if (history.length === 0) {
+                    return (
+                      <div className="text-center py-3 text-slate-500 text-[10px] italic">
+                        No previous biomarker reports.
+                      </div>
+                    );
+                  }
+                  return history.slice().reverse().map((report, idx) => (
+                    <button
+                      key={`hist-report-${idx}-${report.date || (report as any).id || idx}`}
+                      onClick={() => setAnalyzingReport(report)}
+                      className="w-full text-left p-2 bg-slate-50 border border-slate-200/70 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group cursor-pointer"
+                    >
+                      <div className="flex justify-between items-center w-full">
+                        <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
+                          <FlaskConical className="w-3 h-3 text-indigo-600 shrink-0" />
+                          Dated: {report.date}
+                        </span>
+                        <span className="text-[8px] bg-indigo-50 border border-indigo-200 text-indigo-700 px-1.5 py-0.2 rounded font-bold uppercase font-mono">
+                          Analyze
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 mt-1.5 pt-1.5 border-t border-slate-200/50 text-[9px] text-slate-600">
+                        <div>
+                          <span className="text-slate-400 block text-[8px]">HbA1c</span>
+                          <span className={`font-mono font-bold ${report.HbA1c > 6.5 ? 'text-rose-600' : 'text-slate-800'}`}>{report.HbA1c}%</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[8px]">Creatinine</span>
+                          <span className={`font-mono font-bold ${report.creatinine > 1.2 ? 'text-rose-600' : 'text-slate-800'}`}>{report.creatinine}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[8px]">Hb</span>
+                          <span className={`font-mono font-bold ${report.hemoglobin < 12.0 ? 'text-amber-600' : 'text-slate-800'}`}>{report.hemoglobin}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ));
+                })()}
+              </div>
+            </div>
+          )}
 
-      {/* RIGHT COLUMN: Consultation Sheet, e-Rx Form */}
+          {isOphthalmology && (
+            <OphthalmologyPatientAnalysisPanel
+              selectedPatient={selectedPatient}
+              history={activeHistory}
+              analyzingReport={analyzingReport}
+              baselineDate={baselineDate}
+              comparisonDate={comparisonDate}
+              onAnalyzeReport={setAnalyzingReport}
+              onCloseAnalysis={() => setAnalyzingReport(null)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── RIGHT COLUMN / 100% FULL SCREEN CONSULTATION COCKPIT ── */}
       {selectedPatient && (
-        <div className="lg:col-span-8 glass-panel p-6 border-slate-200/80 shadow-sm space-y-6 relative overflow-hidden bg-white">
+        <div className={`${isQueueExpanded ? 'lg:col-span-8' : 'lg:col-span-12'} glass-panel p-5 md:p-6 border-slate-200/80 shadow-sm space-y-4 relative overflow-hidden bg-white transition-all duration-300`}>
+          
+          {/* 1-SINGLE LINE TOP-LEFT CORNER PATIENT BAR & QUEUE TOGGLE */}
+          <div className="flex items-center justify-between flex-wrap gap-2 p-2.5 bg-slate-50/90 border border-slate-200/80 rounded-2xl shadow-2xs text-left select-none">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              {/* 1-Tap Queue Expand / Collapse Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsQueueExpanded(prev => !prev)}
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold transition-all flex items-center gap-1.5 cursor-pointer border shadow-2xs ${
+                  isQueueExpanded
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-indigo-600/20'
+                    : 'bg-white hover:bg-indigo-50 text-indigo-700 border-indigo-200 hover:border-indigo-300'
+                }`}
+                title={isQueueExpanded ? "Hide Queue (100% Full Screen)" : "Show Patient Queue"}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Patient Queue</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[8.5px] font-mono ${isQueueExpanded ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'}`}>
+                  {patients.filter(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus).length}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isQueueExpanded ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* 1-Line Active Patient Summary Pill */}
+              <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200/90 rounded-xl text-xs font-medium text-slate-800 truncate shadow-2xs">
+                <span className="font-mono font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">
+                  {selectedPatient.tokenNumber || 'Token #1'}
+                </span>
+                <span className="font-extrabold text-slate-900 truncate">
+                  {selectedPatient.name}
+                </span>
+                <span className="text-[10.5px] text-slate-500 font-normal">
+                  ({selectedPatient.age}y, {selectedPatient.gender})
+                </span>
+                {compounderVitals?.bloodPressure && (
+                  <span className="text-[9.5px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    BP {compounderVitals.bloodPressure}
+                  </span>
+                )}
+                {compounderVitals?.pulseRate && (
+                  <span className="text-[9.5px] font-mono font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                    HR {compounderVitals.pulseRate} bpm
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right side helper action buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsQueueExpanded(prev => !prev)}
+                className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer shadow-2xs flex items-center gap-1"
+              >
+                {isQueueExpanded ? '✕ Close Queue Panel' : '⇄ Switch Patient'}
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={() => setSelectedPatient(null)}

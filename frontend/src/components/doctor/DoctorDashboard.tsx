@@ -26,7 +26,8 @@ import {
   FileText,
   X,
   WifiOff,
-  Network
+  Network,
+  Menu
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
@@ -2037,6 +2038,18 @@ Keep the tone professional, clinical, objective, and precise.`;
         {/* Top row */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3">
           <div className="flex items-center gap-2.5">
+            {/* 3-Dot Sidebar Menu Trigger Button */}
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
+              }}
+              className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-xl text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+              title="Toggle Ecosystem Modules Sidebar (3-Dot Menu)"
+              aria-label="Toggle Ecosystem Sidebar"
+            >
+              <Menu className="w-4 h-4 text-slate-700 dark:text-zinc-300" />
+            </button>
             <span className="hidden sm:inline-flex items-center justify-center h-8 w-8 rounded-lg bg-indigo-600 text-white shadow-sm shrink-0">
               <Network className="w-4 h-4" />
             </span>

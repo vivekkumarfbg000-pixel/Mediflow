@@ -142,7 +142,7 @@ function AppContent({
 }: AppContentProps) {
   const { partnerStatus } = useClinic();
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
   const [activeDoctorTab, setActiveDoctorTab] = useState('pod_view');
   const [isDark, setIsDark] = useState(() => {
@@ -151,6 +151,14 @@ function AppContent({
     }
     return false;
   });
+
+  useEffect(() => {
+    const handleSidebarToggle = () => {
+      setIsSidebarCollapsed(prev => !prev);
+    };
+    window.addEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
+    return () => window.removeEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
+  }, []);
 
   useEffect(() => {
     const handleThemeChange = (e: Event) => {
@@ -383,7 +391,7 @@ function AppContent({
       />
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
-      <main className={`flex-1 ${isSidebarCollapsed ? 'md:pl-20' : 'md:pl-64'} transition-[padding-left] duration-300 dense-theme flex flex-col`}>
+      <main className={`flex-1 ${isSidebarCollapsed ? 'md:pl-0' : 'md:pl-64'} transition-[padding-left] duration-300 dense-theme flex flex-col`}>
         {/* Premium Breadcrumb Navigator Bar */}
         {currentRole !== 'doctor' && (
           <div className="hidden md:flex bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 items-center justify-between shrink-0 select-none">

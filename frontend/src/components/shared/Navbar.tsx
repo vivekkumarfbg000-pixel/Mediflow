@@ -288,29 +288,32 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* Premium Desktop Left Sidebar Navigation */}
+      {/* Desktop Backdrop Overlay when Sidebar is expanded */}
+      {!isSidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-slate-900/25 backdrop-blur-2xs z-40 hidden md:block animate-fade-in cursor-pointer"
+          onClick={() => onToggleSidebarCollapse?.(true)}
+          title="Click to close sidebar"
+        />
+      )}
+
+      {/* Premium Desktop Left Sidebar Navigation Drawer */}
       <aside 
-        onClick={() => {
-          if (isSidebarCollapsed) {
-            onToggleSidebarCollapse?.(false);
-          }
-        }}
-        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 ${isSidebarCollapsed ? 'w-20 p-3 items-center' : 'w-64 p-5'} bg-white/70 dark:bg-slate-950/60 backdrop-blur-md border-r border-slate-200/50 dark:border-white/5 z-40 transition-all duration-300 overflow-y-auto no-scrollbar ${isSidebarCollapsed ? 'cursor-pointer' : ''}`}
+        className={`hidden md:flex flex-col fixed top-0 bottom-0 left-0 w-64 p-5 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-r border-slate-200/80 dark:border-white/10 z-50 transition-transform duration-300 overflow-y-auto no-scrollbar shadow-2xl ${
+          isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0'
+        }`}
       >
-        {/* Collapse Toggle Button (Circular) */}
+        {/* Collapse Close Button */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
-            onToggleSidebarCollapse?.(!isSidebarCollapsed);
+            onToggleSidebarCollapse?.(true);
           }}
-          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 rounded-full bg-white border border-slate-200/80 shadow-sm items-center justify-center text-slate-600 hover:text-slate-700 hover:scale-105 transition-all z-50 cursor-pointer"
-          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          className="hidden md:flex absolute right-3 top-4 w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 border border-slate-200/80 shadow-xs items-center justify-center text-slate-600 hover:text-slate-900 transition-all cursor-pointer"
+          title="Close Sidebar (100% Full Screen)"
         >
-          {isSidebarCollapsed ? (
-            <ChevronRight className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronLeft className="h-3.5 w-3.5" />
-          )}
+          <X className="h-4 w-4" />
         </button>
 
         {/* Top: Brand Logo and Connected Info */}
