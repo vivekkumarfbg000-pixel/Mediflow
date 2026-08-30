@@ -1228,6 +1228,9 @@ Keep the tone professional, clinical, objective, and precise.`;
     setSelectedTests([]);
     setRefractionRx(EMPTY_REFRACTION_RX);
     consultGuard.clearSnapshot(); // Clear crash-recovery snapshot on successful save
+    try {
+      localStorage.removeItem(`vitalsync_rx_draft_${selectedPatient.id}`);
+    } catch (_e) { /* ignore */ }
     
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {

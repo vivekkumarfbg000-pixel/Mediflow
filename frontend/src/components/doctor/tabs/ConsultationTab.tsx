@@ -202,6 +202,35 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     };
   }, [selectedPatient, hinglishSummary, comparativeTrend, aiInsight]);
 
+  // 🛡️ Automatic Consultation Draft Persistence (Protects against accidental reloads or power cuts)
+  useEffect(() => {
+    if (!selectedPatient?.id) return;
+    try {
+      const draftKey = `vitalsync_rx_draft_${selectedPatient.id}`;
+      if (notes || (medications && medications.length > 0)) {
+        localStorage.setItem(draftKey, JSON.stringify({ notes, medications, timestamp: Date.now() }));
+      }
+    } catch (_e) { /* ignore storage quota */ }
+  }, [selectedPatient?.id, notes, medications]);
+
+  // Restore draft when selecting a patient if active notes/meds are empty
+  useEffect(() => {
+    if (!selectedPatient?.id) return;
+    try {
+      const draftKey = `vitalsync_rx_draft_${selectedPatient.id}`;
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed && (parsed.notes || (parsed.medications && parsed.medications.length > 0))) {
+          if (!notes && parsed.notes) setNotes(parsed.notes);
+          if (medications.length === 0 && Array.isArray(parsed.medications) && parsed.medications.length > 0) {
+            setMedications(parsed.medications);
+          }
+        }
+      }
+    } catch (_e) { /* ignore */ }
+  }, [selectedPatient?.id]);
+
   const [virtualDateInput, setVirtualDateInput] = useState('');
   const [queueFilter, setQueueFilter] = useState<'awaiting' | 'in_consult' | 'today_registered' | 'completed' | 'upcoming'>('awaiting');
   const [virtualTimeInput, setVirtualTimeInput] = useState('');
