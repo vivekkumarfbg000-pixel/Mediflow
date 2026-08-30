@@ -340,6 +340,7 @@ export class BillingService {
     let appts = load<Appointment[]>('saas_appointments', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
+      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -348,7 +349,7 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
         if (!pod && currentPodId) {
           (a as any).podId = currentPodId;
         }

@@ -57,12 +57,13 @@ export class PatientService {
     
     // Purge pre-seeded initial demo patient IDs and mock artifacts from local storage cache
     const currentPodId = getPodContext().podId;
+    const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
     const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
     
     rawPatients = rawPatients.filter(p => {
       const pod = (p as any).podId || (p as any).pod_id;
-      if (pod && currentPodId && pod !== currentPodId) return false;
+      if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
       if (!pod && currentPodId) {
         (p as any).podId = currentPodId;
       }

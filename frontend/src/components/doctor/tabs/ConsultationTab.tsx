@@ -1352,7 +1352,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             const invoices = BillingService.getInvoices();
             const paidInvoicePatientIds = invoices
               .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-              .map((i: any) => i.patientId);
+              .map((i: any) => i.patientId || (i as any).patient_id);
             const paidPatientIds = new Set([
               ...appointments
                 .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')

@@ -868,7 +868,7 @@ if (!isManualRelay) {
         return new Response("Missing metadata", { status: 400 });
       }
 
-      // 3. Resolve Tenant Pod Context & Decrypt API System User Token (Fast-path from env)
+      // 3. Resolve Tenant Pod Context & Decrypt API System User Token
       const envSystemToken = Deno.env.get("META_WHATSAPP_TOKEN") || Deno.env.get("META_ACCESS_TOKEN") || Deno.env.get("OWNER_SYSTEM_TOKEN") || "";
       let tenantToken = envSystemToken;
       let connection = {
@@ -877,36 +877,36 @@ if (!isManualRelay) {
         decrypted_token: envSystemToken
       };
 
-      if (!envSystemToken) {
-        try {
-          const { data: wabaConn } = await supabase
-            .rpc("decrypt_tenant_waba_connection", {
-              p_phone_number_id: phoneId,
-              p_secret_key: wabaSecretKey
-            });
-          if (wabaConn && wabaConn.length > 0) {
-            connection = {
-              pod_id: toValidUuid(wabaConn[0].pod_id),
-              entity_id: toValidUuid(wabaConn[0].entity_id, wabaConn[0].pod_id),
-              decrypted_token: wabaConn[0].decrypted_token || ""
-            };
-            tenantToken = connection.decrypted_token;
+      try {
+        const { data: dbConn } = await supabase
+          .from("waba_connections")
+          .select("phone_number_id, pod_id, entity_id, encrypted_system_user_token, access_token")
+          .eq("phone_number_id", phoneId)
+          .maybeSingle();
+
+        if (dbConn) {
+          if (dbConn.pod_id) connection.pod_id = toValidUuid(dbConn.pod_id);
+          if (dbConn.entity_id) connection.entity_id = toValidUuid(dbConn.entity_id, connection.pod_id);
+          if (!tenantToken) {
+            tenantToken = dbConn.access_token || dbConn.encrypted_system_user_token || "";
           }
-        } catch (wErr) {
-          console.warn("[Meta Webhook] RPC token resolution warning:", wErr);
         }
+      } catch (_wErr) {
+        console.warn("[Meta Webhook] WABA connection lookup notice:", _wErr);
       }
 
       if (!tenantToken) {
         try {
           const { data: dbConn } = await supabase
             .from("waba_connections")
-            .select("phone_number_id, encrypted_system_user_token, access_token")
+            .select("phone_number_id, pod_id, entity_id, encrypted_system_user_token, access_token")
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
           if (dbConn) {
+            if (dbConn.pod_id) connection.pod_id = toValidUuid(dbConn.pod_id);
+            if (dbConn.entity_id) connection.entity_id = toValidUuid(dbConn.entity_id, connection.pod_id);
             tenantToken = dbConn.access_token || dbConn.encrypted_system_user_token || "";
           }
         } catch (_wErr) {}
