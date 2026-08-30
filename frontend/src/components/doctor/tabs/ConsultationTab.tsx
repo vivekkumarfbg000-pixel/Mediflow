@@ -1882,26 +1882,44 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               </div>
 
               {/* Embedded Pre-Checked Vitals Badges (Beside Patient Name) */}
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[9px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/80 flex items-center gap-1 shrink-0">
-                  <Activity className="w-2.5 h-2.5 text-rose-500" /> BP {compounderVitals?.bloodPressure || '120/80'}
+              {compounderVitals && (compounderVitals.bloodPressure || compounderVitals.pulseRate || compounderVitals.temperature || compounderVitals.bloodSugar || compounderVitals.spO2 || compounderVitals.weight) ? (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {compounderVitals.bloodPressure && (
+                    <span className="text-[9px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/80 flex items-center gap-1 shrink-0">
+                      <Activity className="w-2.5 h-2.5 text-rose-500" /> BP {compounderVitals.bloodPressure}
+                    </span>
+                  )}
+                  {compounderVitals.pulseRate && (
+                    <span className="text-[9px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/80 flex items-center gap-1 shrink-0">
+                      <Heart className="w-2.5 h-2.5 text-rose-500" /> HR {compounderVitals.pulseRate}
+                    </span>
+                  )}
+                  {compounderVitals.temperature && (
+                    <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1 shrink-0">
+                      <Thermometer className="w-2.5 h-2.5 text-amber-500" /> {compounderVitals.temperature}°F
+                    </span>
+                  )}
+                  {compounderVitals.bloodSugar && (
+                    <span className="text-[9px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/80 flex items-center gap-1 shrink-0">
+                      <Droplets className="w-2.5 h-2.5 text-blue-500" /> Sugar {compounderVitals.bloodSugar}
+                    </span>
+                  )}
+                  {compounderVitals.spO2 && (
+                    <span className="text-[9px] font-mono font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-lg border border-cyan-200/80 flex items-center gap-1 shrink-0">
+                      <Wind className="w-2.5 h-2.5 text-cyan-500" /> SpO2 {compounderVitals.spO2}%
+                    </span>
+                  )}
+                  {compounderVitals.weight && (
+                    <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200/80 flex items-center gap-1 shrink-0">
+                      <Scale className="w-2.5 h-2.5 text-indigo-500" /> {compounderVitals.weight}kg
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1">
+                  <Activity className="w-2.5 h-2.5 text-amber-500" /> 🩺 Vitals Pending Compounder Intake
                 </span>
-                <span className="text-[9px] font-mono font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-200/80 flex items-center gap-1 shrink-0">
-                  <Heart className="w-2.5 h-2.5 text-rose-500" /> HR {compounderVitals?.pulseRate || 72}
-                </span>
-                <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1 shrink-0">
-                  <Thermometer className="w-2.5 h-2.5 text-amber-500" /> {compounderVitals?.temperature || 98.6}°F
-                </span>
-                <span className="text-[9px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200/80 flex items-center gap-1 shrink-0">
-                  <Droplets className="w-2.5 h-2.5 text-blue-500" /> Sugar {compounderVitals?.bloodSugar || 105}
-                </span>
-                <span className="text-[9px] font-mono font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-lg border border-cyan-200/80 flex items-center gap-1 shrink-0">
-                  <Wind className="w-2.5 h-2.5 text-cyan-500" /> SpO2 {compounderVitals?.spO2 || 99}%
-                </span>
-                <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-200/80 flex items-center gap-1 shrink-0">
-                  <Scale className="w-2.5 h-2.5 text-indigo-500" /> {compounderVitals?.weight || 65}kg
-                </span>
-              </div>
+              )}
             </div>
 
             {/* Right side helper action buttons */}

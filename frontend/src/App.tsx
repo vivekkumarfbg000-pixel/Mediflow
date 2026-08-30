@@ -90,7 +90,7 @@ import { WhatsAppPaymentPage } from './pages/WhatsAppPaymentPage';
 import { LegalPoliciesPage } from './pages/LegalPoliciesPage';
 import { DoctorPitchDeckPrintPage } from './pages/DoctorPitchDeckPrintPage';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut, Menu } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
@@ -395,16 +395,29 @@ function AppContent({
         {/* Premium Breadcrumb Navigator Bar */}
         {currentRole !== 'doctor' && (
           <div className="hidden md:flex bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 items-center justify-between shrink-0 select-none">
-            <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
-              {getBreadcrumbs().map((item, idx, arr) => (
-                <span key={`crumb-${idx}-${item.label}`} className="flex items-center gap-1.5">
-                  {idx > 0 && <span className="text-slate-300">/</span>}
-                  <span className={idx === arr.length - 1 ? 'text-indigo-600 font-extrabold' : 'text-slate-650 hover:text-slate-900 transition-colors'}>
-                    {item.label}
+            <div className="flex items-center gap-3">
+              {/* Universal 3-Dot Sidebar Menu Trigger Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
+                }}
+                className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-xl text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+                title="Toggle Ecosystem Sidebar Menu (3-Dot Menu)"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+              <nav className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                {getBreadcrumbs().map((item, idx, arr) => (
+                  <span key={`crumb-${idx}-${item.label}`} className="flex items-center gap-1.5">
+                    {idx > 0 && <span className="text-slate-300">/</span>}
+                    <span className={idx === arr.length - 1 ? 'text-indigo-600 font-extrabold' : 'text-slate-650 hover:text-slate-900 transition-colors'}>
+                      {item.label}
+                    </span>
                   </span>
-                </span>
-              ))}
-            </nav>
+                ))}
+              </nav>
+            </div>
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[9px] font-bold text-emerald-600 font-mono uppercase tracking-wider">Sync Active</span>

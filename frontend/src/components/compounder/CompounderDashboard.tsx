@@ -88,6 +88,7 @@ import {
   PhoneCall,
   Scissors,
   Check,
+  Menu,
   ArrowRight,
   Crosshair,
   Camera,
@@ -2488,8 +2489,20 @@ export const CompounderDashboard: React.FC = () => {
 
       {/* ── DESKTOP HEADER (Hidden on mobile to prevent duplicate headers with global navbar) ──────────── */}
       <div className="hidden md:flex items-center justify-between gap-2 px-3 py-2.5 bg-white/95 dark:bg-clinical-900/90 backdrop-blur-xl border-b border-slate-200/70 dark:border-white/5 mb-3 md:mb-4 sticky top-0 z-20 md:mx-0 md:rounded-2xl md:border md:shadow-xs">
-        {/* Left: Icon + Clinic name + live status */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        {/* Left: 3-Dot Sidebar Menu Trigger + Icon + Clinic name + live status */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          {/* Universal 3-Dot Sidebar Menu Trigger Button */}
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
+            }}
+            className="p-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200/90 dark:border-white/10 rounded-xl text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+            title="Toggle Ecosystem Sidebar Menu"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-teal-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/25">
             <Stethoscope className="w-4 h-4" />
           </div>
@@ -2638,7 +2651,11 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1.5">
                               <span className="font-mono font-semibold">ID: {pid}</span>
                               <span>·</span>
-                              <span>{p ? `${p.age}y / ${p.gender}` : '+91 ' + a.patientPhone}</span>
+                              <span>
+                                {p && (p.age || p.gender)
+                                  ? `${p.age ? p.age + 'y' : ''}${p.age && p.gender ? ' · ' : ''}${p.gender || ''}`
+                                  : (a.patientPhone ? '+91 ' + String(a.patientPhone).replace(/\D/g, '').slice(-10) : 'Walk-in')}
+                              </span>
                             </div>
                           </div>
                         </div>
