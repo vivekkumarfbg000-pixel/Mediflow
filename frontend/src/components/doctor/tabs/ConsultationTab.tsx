@@ -3003,13 +3003,30 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                               type="button"
                               onClick={() => {
                                 const existingNames = new Set(medications.map(m => (m.medicineName || '').toLowerCase()));
-                                const toAdd = pack.medications.filter(m => !existingNames.has(m.medicineName.toLowerCase()));
+                                
+                                let swappedCount = 0;
+                                const toAdd = pack.medications
+                                  .map(m => {
+                                    const resolved = ClinicalEvidenceService.resolveMedicationWithInventorySwap(m);
+                                    if (resolved.isSwapped) swappedCount++;
+                                    return {
+                                      medicineName: resolved.medicineName,
+                                      dosage: resolved.dosage,
+                                      frequency: resolved.frequency,
+                                      duration: resolved.duration,
+                                      instructions: resolved.instructions,
+                                    };
+                                  })
+                                  .filter(m => !existingNames.has(m.medicineName.toLowerCase()));
+
                                 setMedications([...medications, ...toAdd]);
 
                                 window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                   detail: {
                                     title: `${pack.name} Prescribed! ⚡`,
-                                    message: `Added ${toAdd.length} guideline medications with instant FEFO stock check.`,
+                                    message: swappedCount > 0 
+                                      ? `Added ${toAdd.length} meds (${swappedCount} auto-swapped to in-stock clinic inventory brands).`
+                                      : `Added ${toAdd.length} guideline medications with instant FEFO stock check.`,
                                     type: 'success'
                                   }
                                 }));

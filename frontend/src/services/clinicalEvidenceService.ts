@@ -737,82 +737,6 @@ export class ClinicalEvidenceService {
   }
 
   /**
-   * Matches prescribed medication against live clinic Pharmacy Inventory
-   * based on generic salt / active ingredient composition.
-   */
-  static matchPharmacyStock(medicineName: string, dosage?: string): PharmacyStockMatch {
-    const inventory = PharmacyService.getPharmacyInventory();
-    if (!inventory || inventory.length === 0) {
-      return {
-        isInStock: false,
-        stockQty: 0,
-        unit: 'units',
-        matchedItemName: '',
-        genericName: '',
-        price: 0,
-        batchNumber: '',
-        expiryDate: ''
-      };
-    }
-
-    const cleanMedName = (medicineName || '').toLowerCase().trim();
-    const cleanDosage = (dosage || '').toLowerCase().trim();
-
-    // Extract core molecule name tokens (e.g. "Paracetamol", "Metformin", "Atorvastatin", "Pantoprazole", "Amoxicillin", "Telmisartan", "Amlodipine", "Moxifloxacin")
-    const KEY_MOLECULES = [
-      'paracetamol', 'metformin', 'atorvastatin', 'pantoprazole', 'amoxicillin',
-      'telmisartan', 'amlodipine', 'moxifloxacin', 'carboxymethylcellulose', 'homatropine',
-      'teneligliptin', 'aceclofenac', 'rabeprazole', 'levocetirizine', 'montelukast',
-      'nitrofurantoin', 'azithromycin', 'ciprofloxacin', 'cefixime', 'pantocid',
-      'calpol', 'dolo', 'glycomet', 'lipaglyn', 'atorva', 'telma'
-    ];
-
-    const matchedMolecule = KEY_MOLECULES.find(m => cleanMedName.includes(m) || cleanDosage.includes(m));
-
-    // Search inventory for matching item
-    const matchedItem = inventory.find(item => {
-      const iName = (item.name || '').toLowerCase();
-      const iGen = (item.genericName || '').toLowerCase();
-
-      if (matchedMolecule) {
-        if (iName.includes(matchedMolecule) || iGen.includes(matchedMolecule)) {
-          return true;
-        }
-      }
-
-      // Fallback substring checks
-      if (cleanMedName && (iName.includes(cleanMedName) || cleanMedName.includes(iName))) return true;
-      if (cleanDosage && (iGen.includes(cleanDosage) || cleanDosage.includes(iGen))) return true;
-
-      return false;
-    });
-
-    if (matchedItem && matchedItem.stock > 0) {
-      return {
-        isInStock: true,
-        stockQty: matchedItem.stock,
-        unit: matchedItem.unit || 'tabs',
-        matchedItemName: matchedItem.name,
-        genericName: matchedItem.genericName,
-        price: Number(matchedItem.price || matchedItem.mrp || 0),
-        batchNumber: matchedItem.batchNumber || 'BATCH-2026-X1',
-        expiryDate: matchedItem.expiryDate || '2026-12-31'
-      };
-    }
-
-    return {
-      isInStock: false,
-      stockQty: 0,
-      unit: 'units',
-      matchedItemName: '',
-      genericName: '',
-      price: 0,
-      batchNumber: '',
-      expiryDate: ''
-    };
-  }
-
-  /**
    * Analyzes active patient record (chief complaints, vitals, chronic history, biomarkers)
    * and recommends evidence-based guideline-directed drug combos and diagnostic panels.
    */
@@ -945,6 +869,134 @@ export class ClinicalEvidenceService {
       recommendedProtocols,
       recommendedTests,
       clinicalInsights
+    };
+  }
+
+  /**
+   * Matches prescribed medication against live clinic Pharmacy Inventory
+   * based on generic salt / active ingredient composition.
+   */
+  static matchPharmacyStock(medicineName: string, dosage?: string): PharmacyStockMatch {
+    const inventory = PharmacyService.getPharmacyInventory();
+    if (!inventory || inventory.length === 0) {
+      return {
+        isInStock: false,
+        stockQty: 0,
+        unit: 'units',
+        matchedItemName: '',
+        genericName: '',
+        price: 0,
+        batchNumber: '',
+        expiryDate: ''
+      };
+    }
+
+    const cleanMedName = (medicineName || '').toLowerCase().trim();
+    const cleanDosage = (dosage || '').toLowerCase().trim();
+
+    // Comprehensive list of active molecule / salt tokens
+    const KEY_MOLECULES = [
+      'paracetamol', 'metformin', 'atorvastatin', 'pantoprazole', 'amoxicillin',
+      'clavulanic', 'telmisartan', 'amlodipine', 'moxifloxacin', 'carboxymethylcellulose',
+      'homatropine', 'teneligliptin', 'aceclofenac', 'rabeprazole', 'levocetirizine',
+      'montelukast', 'nitrofurantoin', 'azithromycin', 'ciprofloxacin', 'cefixime',
+      'ofloxacin', 'ornidazole', 'racecadotril', 'ondansetron', 'carica papaya', 'papaya',
+      'artemether', 'lumefantrine', 'bilastine', 'fexofenadine', 'naproxen', 'flunarizine',
+      'thiocolchicoside', 'serratiopeptidase', 'calcium', 'acebrophylline', 'acetylcysteine',
+      'dextromethorphan', 'pantocid', 'calpol', 'dolo', 'glycomet', 'lipaglyn', 'atorva',
+      'telma', 'augmentin', 'zifi', 'o2', 'pan 40', 'pan-d', 'montair', 'voveran', 'caripill',
+      'emeset', 'electral'
+    ];
+
+    const matchedMolecule = KEY_MOLECULES.find(m => cleanMedName.includes(m) || cleanDosage.includes(m));
+
+    // Search inventory for matching item
+    const matchedItem = inventory.find(item => {
+      const iName = (item.name || '').toLowerCase();
+      const iGen = (item.genericName || '').toLowerCase();
+
+      if (matchedMolecule) {
+        if (iName.includes(matchedMolecule) || iGen.includes(matchedMolecule)) {
+          return true;
+        }
+      }
+
+      // Fallback substring checks
+      if (cleanMedName && (iName.includes(cleanMedName) || cleanMedName.includes(iName))) return true;
+      if (cleanDosage && (iGen.includes(cleanDosage) || cleanDosage.includes(iGen))) return true;
+
+      return false;
+    });
+
+    if (matchedItem && matchedItem.stock > 0) {
+      return {
+        isInStock: true,
+        stockQty: matchedItem.stock,
+        unit: matchedItem.unit || 'tabs',
+        matchedItemName: matchedItem.name,
+        genericName: matchedItem.genericName,
+        price: Number(matchedItem.price || matchedItem.mrp || 0),
+        batchNumber: matchedItem.batchNumber || 'BATCH-2026-X1',
+        expiryDate: matchedItem.expiryDate || '2026-12-31'
+      };
+    }
+
+    return {
+      isInStock: false,
+      stockQty: 0,
+      unit: 'units',
+      matchedItemName: '',
+      genericName: '',
+      price: 0,
+      batchNumber: '',
+      expiryDate: ''
+    };
+  }
+
+  /**
+   * ⚡ Automatic Salt-Based Inventory Brand Auto-Swapper
+   * Automatically resolves generic disease combo medications to matching in-stock
+   * pharmacy inventory brands (e.g. Paracetamol 650mg -> Dolo 650mg Tablet).
+   */
+  static resolveMedicationWithInventorySwap(med: {
+    medicineName: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions: string;
+    saltComposition?: string;
+  }): {
+    medicineName: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions: string;
+    swappedBrand?: string;
+    isSwapped: boolean;
+    stockQty?: number;
+    batchNumber?: string;
+    price?: number;
+  } {
+    const stockMatch = this.matchPharmacyStock(med.medicineName, med.dosage || med.saltComposition);
+
+    if (stockMatch && stockMatch.isInStock && stockMatch.matchedItemName) {
+      return {
+        medicineName: stockMatch.matchedItemName,
+        dosage: stockMatch.genericName || med.dosage,
+        frequency: med.frequency,
+        duration: med.duration,
+        instructions: med.instructions,
+        swappedBrand: stockMatch.matchedItemName,
+        isSwapped: true,
+        stockQty: stockMatch.stockQty,
+        batchNumber: stockMatch.batchNumber,
+        price: stockMatch.price
+      };
+    }
+
+    return {
+      ...med,
+      isSwapped: false
     };
   }
 }
