@@ -1582,8 +1582,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           '2. Add Tab. Atorvastatin 10mg (0-0-1) bedtime for cardiovascular risk stabilization.',
           '3. Proactive 90-day repeat diagnostic panel scheduled on patient WhatsApp loop.'
         ],
-        rxAdjustments: insight.rxAdjustments || [],
-        biomarkers: insight.biomarkers || {},
+        rxAdjustments: (insight as any).rxAdjustments || insight.suggestedPrescriptionAdjustments || [],
+        biomarkers: (insight as any).biomarkers || {},
         overallStatus: insight.overallStatus || 'MODERATE_RISK',
         suggestedCompositions: [
           { medicine_name: 'Metformin Hydrochloride 500mg', composition: 'Metformin 500mg', suggested_dosage: '500mg (1-0-1)', justification: 'Glycemic optimization for elevated HbA1c' },

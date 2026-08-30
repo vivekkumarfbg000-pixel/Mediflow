@@ -62,6 +62,7 @@ export interface DoctorLabInsightReport {
   }[];
   actionableDirectives: string[];
   suggestedPrescriptionAdjustments: string[];
+  rxAdjustments?: string[];
   formattedClinicalNote: string;
 }
 
