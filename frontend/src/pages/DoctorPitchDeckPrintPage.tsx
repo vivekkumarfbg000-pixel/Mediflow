@@ -343,7 +343,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     Category-Defining Clinical Partnership
                   </span>
                   <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200">
-                    SLIDE 01 / 12
+                    SLIDE 01 / 13
                   </span>
                 </div>
               </div>
@@ -444,7 +444,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     The Clinical &amp; Revenue Reality
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 02 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 02 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -525,7 +525,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     The Practice Economics
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 03 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 03 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -618,7 +618,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     The Clinical Safety &amp; Discounter Threat
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 04 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 04 / 13</span>
               </div>
 
               {/* Core Problem Headline & Quote */}
@@ -750,7 +750,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     The VitalSync Technology Suite
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 05 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 05 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -834,7 +834,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     Lifelong Care Loop
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 06 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 06 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -899,7 +899,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     The Patient Magnet
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 07 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 07 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -969,7 +969,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     Governance &amp; Fee Protection
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 08 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 08 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -1041,7 +1041,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     Operational Workflow
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 09 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 09 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -1108,19 +1108,150 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
-            SLIDE 10: INTERACTIVE PRACTICE ROI & REVENUE SIMULATOR
+            SLIDE 10: THE 8-STEP COMPLETE CLINICAL CARE LOOP
            ════════════════════════════════════════════════════════════════ */}
         {(viewMode === 'continuous' || activeSlide === 10) && (
           <section className="print-slide bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/90 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-xs shadow-sm">10</span>
+                  <span className="w-6 h-6 rounded-lg bg-teal-600 text-white flex items-center justify-center font-black text-xs shadow-sm">10</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-teal-900 bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-300">
+                    Clinical Operating System
+                  </span>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 10 / 13</span>
+              </div>
+
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+                The 8-Step Complete Clinical Care Loop
+              </h2>
+              <p className="text-xs text-slate-700 mt-0.5">
+                An automated, hospital-grade outpatient journey from front-desk token intake to recurring chronic care on WhatsApp.
+              </p>
+
+              {/* 8-Step Interactive Visual Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+                {/* Step 1 */}
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-300 space-y-1 hover:border-teal-400 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-slate-900 text-white flex items-center justify-center font-black text-[10px]">1</span>
+                    <span className="text-[9px] font-mono font-bold text-slate-500">#TK-001</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-900">1. Smart Intake</div>
+                  <p className="text-[10px] text-slate-700 leading-snug">
+                    Walk-in counter registration or WhatsApp greeting. Emergency SOS priority (+20% fee) moves to top.
+                  </p>
+                </div>
+
+                {/* Step 2 */}
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-300 space-y-1 hover:border-teal-400 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-teal-700 text-white flex items-center justify-center font-black text-[10px]">2</span>
+                    <span className="text-[9px] font-mono font-bold text-teal-700">BP / Sugar</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-900">2. Nursing &amp; Vitals</div>
+                  <p className="text-[10px] text-slate-700 leading-snug">
+                    Compounder records BP, Pulse, SpO₂, Temp, Sugar, BMI formula, and 15-min Eye Dilation timer.
+                  </p>
+                </div>
+
+                {/* Step 3 */}
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-300 space-y-1 hover:border-teal-400 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-indigo-700 text-white flex items-center justify-center font-black text-[10px]">3</span>
+                    <span className="text-[9px] font-mono font-bold text-indigo-700">0% MDR</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-900">3. Payment Gate</div>
+                  <p className="text-[10px] text-slate-700 leading-snug">
+                    Zero-MDR Dynamic UPI QR (<code className="text-[9px]">vitalsync@axl</code>) &amp; Cash Counter. Unpaid visits held safely.
+                  </p>
+                </div>
+
+                {/* Step 4 */}
+                <div className="p-2.5 bg-teal-50/80 rounded-xl border-2 border-teal-400 space-y-1 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-teal-900 text-white flex items-center justify-center font-black text-[10px]">4</span>
+                    <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">100% Doctor</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-950">4. Doctor EMR &amp; Scribe</div>
+                  <p className="text-[10px] text-slate-800 leading-snug font-medium">
+                    CDSS AI Scribe, Refraction grid, 1-0-1 dosage tokens. 100% doctor fee immunity directly to bank.
+                  </p>
+                </div>
+
+                {/* Step 5 */}
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-300 space-y-1 hover:border-teal-400 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-emerald-700 text-white flex items-center justify-center font-black text-[10px]">5</span>
+                    <span className="text-[9px] font-mono font-bold text-emerald-700">&lt;300ms</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-900">5. WhatsApp e-Rx</div>
+                  <p className="text-[10px] text-slate-700 leading-snug">
+                    Sub-300ms Hinglish dosage advice (<em>"Subah 1 goli khane ke baad"</em>) + auto-assigned evening slot.
+                  </p>
+                </div>
+
+                {/* Step 6 */}
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-300 space-y-1 hover:border-teal-400 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-amber-700 text-white flex items-center justify-center font-black text-[10px]">6</span>
+                    <span className="text-[9px] font-mono font-bold text-amber-700">5% GST</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-900">6. Pharmacy POS</div>
+                  <p className="text-[10px] text-slate-700 leading-snug">
+                    FEFO batch allocation (<code className="text-[9px]">BATCH-2026-X1</code>), standardized 5% GST, Counter Pickup / Home Delivery.
+                  </p>
+                </div>
+
+                {/* Step 7 */}
+                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-300 space-y-1 hover:border-teal-400 transition-all">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-purple-700 text-white flex items-center justify-center font-black text-[10px]">7</span>
+                    <span className="text-[9px] font-mono font-bold text-purple-700">LOINC</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-900">7. Pathology Loop</div>
+                  <p className="text-[10px] text-slate-700 leading-snug">
+                    LOINC requisition (<code className="text-[9px]">4544-3</code> HbA1c), barcode tracking, signed digital PDF upload on WhatsApp.
+                  </p>
+                </div>
+
+                {/* Step 8 */}
+                <div className="p-2.5 bg-purple-50/80 rounded-xl border-2 border-purple-400 space-y-1 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="w-5 h-5 rounded-md bg-purple-900 text-white flex items-center justify-center font-black text-[10px]">8</span>
+                    <span className="text-[9px] font-bold text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <div className="text-xs font-black text-slate-950">8. Care Club &amp; Day 25</div>
+                  <p className="text-[10px] text-slate-800 leading-snug font-medium">
+                    1 Free Virtual Consult (₹0.00 Jitsi), Day-25 1-Tap chronic refill reminders &amp; referral rewards.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Invariant Banner */}
+            <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
+              <span className="text-slate-800 font-bold">100% Realtime CDC synchronized • Zero app downloads required for patients.</span>
+              <span className="text-teal-800 font-black">Revenue Simulator →</span>
+            </div>
+          </section>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            SLIDE 11: INTERACTIVE PRACTICE ROI & REVENUE SIMULATOR
+           ════════════════════════════════════════════════════════════════ */}
+        {(viewMode === 'continuous' || activeSlide === 11) && (
+          <section className="print-slide bg-white rounded-3xl p-6 md:p-8 shadow-xl border border-slate-200/90 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-xs shadow-sm">11</span>
                   <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
                     Practice Revenue Forecast
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 10 / 12</span>
+                <span className="text-xs font-mono font-bold text-slate-500">SLIDE 11 / 13</span>
               </div>
 
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
