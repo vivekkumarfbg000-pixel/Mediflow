@@ -89,6 +89,7 @@ import { BrandMark } from './components/shared/BrandMark';
 import { WhatsAppPaymentPage } from './pages/WhatsAppPaymentPage';
 import { LegalPoliciesPage } from './pages/LegalPoliciesPage';
 import { DoctorPitchDeckPrintPage } from './pages/DoctorPitchDeckPrintPage';
+import { VisitingCardPrintPage } from './pages/VisitingCardPrintPage';
 import { supabase } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut, Menu } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -495,7 +496,7 @@ const setCrossDomainCookie = (active: boolean) => {
 };
 
 export default function App() {
-  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal' | 'pitch'>(() => {
+  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal' | 'pitch' | 'card'>(() => {
     if (typeof window !== 'undefined') {
       const pathName = window.location.pathname.toLowerCase();
       const searchParams = new URLSearchParams(window.location.search);
@@ -519,6 +520,15 @@ export default function App() {
         searchParams.get('page') === 'deck'
       ) {
         return 'pitch';
+      }
+      if (
+        pathName.startsWith('/card') ||
+        pathName.startsWith('/visiting') ||
+        searchParams.get('page') === 'card' ||
+        searchParams.get('page') === 'visiting-card' ||
+        searchParams.get('page') === 'visiting'
+      ) {
+        return 'card';
       }
     }
     return null;
@@ -1366,6 +1376,13 @@ export default function App() {
     return (
       <ToastProvider>
         <DoctorPitchDeckPrintPage />
+      </ToastProvider>
+    );
+  }
+  if (publicPage === 'card') {
+    return (
+      <ToastProvider>
+        <VisitingCardPrintPage />
       </ToastProvider>
     );
   }

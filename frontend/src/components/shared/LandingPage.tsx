@@ -3,7 +3,8 @@ import { BrandMark } from './BrandMark';
 import { AppInstallBanner } from './AppInstallBanner';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
-  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye, MessageSquare
+  X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye, MessageSquare,
+  Stethoscope, Pill, Printer, Smartphone, Send, Check
 } from 'lucide-react';
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
@@ -625,6 +626,134 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
+      {/* ── 4-STEP CLINICAL OPERATING WORKFLOW (ZERO HABIT CHANGE) ── */}
+      <section className="py-16 relative z-10 bg-slate-50 border-t border-slate-200 text-slate-800">
+        <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
+          <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-widest font-mono">
+            <Zap className="h-3.5 w-3.5 text-teal-600" /> Seamless 4-Step Clinic Operating Loop
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900">
+              How VitalSync Works in 4 Simple Clinic Steps
+            </h2>
+            <p className="text-slate-600 text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-medium">
+              Zero disruption to your daily OPD rush. Doctors can write on paper or type on screen — while your compounder, chemist, and lab sync automatically in real time.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-left pt-2">
+            {/* Step 1 */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                    01
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    🩺 Front Desk Intake
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Smart OPD Token &amp; Vitals</h3>
+                  <ul className="text-xs text-slate-600 mt-2 space-y-1 list-disc list-inside">
+                    <li>Compounder registers patient with phone &amp; age.</li>
+                    <li>Records BP, Pulse, SpO₂, Temp, Blood Sugar.</li>
+                    <li>Generates OPD Token (<code className="text-[10px] bg-slate-100 px-1 rounded font-bold font-mono">#TK-001</code>).</li>
+                    <li>Unpaid visits held safely at payment gate.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-teal-800 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-teal-600" /> Patient waits in queue
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="p-5 rounded-2xl bg-teal-50/70 border-2 border-teal-300 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                    02
+                  </span>
+                  <span className="text-[10px] font-bold text-teal-900 bg-teal-100 px-2 py-0.5 rounded-md border border-teal-200">
+                    👨‍⚕️ Doctor's Choice
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-teal-950">2-Way Flexible Consult</h3>
+                  <div className="space-y-2 mt-2 text-xs">
+                    <div className="p-2 bg-white rounded-lg border border-teal-200">
+                      <strong className="text-teal-950 font-bold block">Option A (Paper-Friendly):</strong>
+                      <span className="text-slate-600 text-[11px]">Write on paper pad as usual. Compounder snaps 1 photo ➡️ AI digitizes in 1.2s.</span>
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-teal-200">
+                      <strong className="text-teal-950 font-bold block">Option B (1-Click Screen):</strong>
+                      <span className="text-slate-600 text-[11px]">Select 1-click clinical protocols or AI Voice Scribe on screen.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-teal-200 text-[10.5px] font-bold text-teal-900 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-teal-700" /> 100% Doctor Fee Protected
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                    03
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                    ⚡ Auto-Billing Hub
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">Instant Itemized Bill</h3>
+                  <ul className="text-xs text-slate-600 mt-2 space-y-1 list-disc list-inside">
+                    <li>Medicines &amp; lab tests auto-load with live catalog prices.</li>
+                    <li>Compounder explains 4 VIP Member Benefits to patient.</li>
+                    <li>Collects payment: Cash or Dynamic Zero-Fee UPI QR.</li>
+                    <li>1-Click prints consolidated computerized receipt.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-indigo-700 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-indigo-600" /> Zero manual data entry
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                    04
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    📱 360° Real-time Sync
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">WhatsApp &amp; Partner Dispatch</h3>
+                  <ul className="text-xs text-slate-600 mt-2 space-y-1 list-disc list-inside">
+                    <li>Patient receives WhatsApp e-Rx + 1 Free Follow-up pass.</li>
+                    <li>Pharmacy Dashboard receives medicine dispensing order.</li>
+                    <li>Lab Dashboard receives blood sample LOINC requisition.</li>
+                    <li>Patient picks up packed meds &amp; gives sample with ₹0 delay.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-emerald-800 flex items-center gap-1">
+                <Check className="w-3.5 h-3.5 text-emerald-600" /> 100% Zero Patient Leakage
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* 4 Premium Patient Member Benefits Section */}
       <section className="py-16 relative z-10 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white border-y border-emerald-700/40">
         <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
@@ -1060,6 +1189,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <MessageSquare className="w-4 h-4 text-white shrink-0" />
                 <span>Contact Support via WhatsApp</span>
               </button>
+              <a
+                href="mailto:vivek@vitalsync.in"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-teal-300 font-bold transition-all shadow-sm no-underline font-sans text-xs"
+              >
+                <Mail className="w-4 h-4 text-teal-400 shrink-0" />
+                <span>vivek@vitalsync.in</span>
+              </a>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-500 font-medium">
