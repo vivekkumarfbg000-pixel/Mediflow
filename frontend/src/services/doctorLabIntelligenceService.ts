@@ -181,7 +181,9 @@ export class DoctorLabIntelligenceService {
         description: rawKey
       };
 
-      const numericVal = typeof rawVal === 'number' ? rawVal : parseFloat(String(rawVal));
+      const extractedVal = typeof rawVal === 'object' && rawVal !== null ? (rawVal.value ?? rawVal.val ?? rawVal.result ?? '') : rawVal;
+      const extractedUnit = typeof rawVal === 'object' && rawVal !== null && rawVal.unit ? String(rawVal.unit) : (rawBiomarkers[`${rawKey}_unit`] || rawBiomarkers.unit || ref.unit || '');
+      const numericVal = typeof extractedVal === 'number' ? extractedVal : parseFloat(String(extractedVal));
       const isValidNum = !isNaN(numericVal);
 
       let severity: BiomarkerSeverity = 'normal';

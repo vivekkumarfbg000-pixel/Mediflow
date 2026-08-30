@@ -350,30 +350,45 @@ export async function generateLabReportPdf(data: {
     });
     rowY -= 25;
   } else {
-    entries.forEach(([key, val], idx) => {
-      const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
-      const valNum = parseFloat(String(val));
-      let refRange = 'Normal Reference';
-      let statusText = 'NORMAL';
-      let isAbnormal = false;
+    entries.forEach(([key, rawVal], idx) => {
+      let displayVal = '';
+      let displayUnit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
+      let customRef = '';
+      let customFlag = '';
+
+      if (typeof rawVal === 'object' && rawVal !== null) {
+        displayVal = String(rawVal.value ?? rawVal.val ?? rawVal.result ?? '');
+        if (rawVal.unit) displayUnit = String(rawVal.unit);
+        if (rawVal.reference || rawVal.refRange) customRef = String(rawVal.reference || rawVal.refRange);
+        if (rawVal.flag || rawVal.status) customFlag = String(rawVal.flag || rawVal.status);
+      } else {
+        displayVal = String(rawVal ?? '');
+      }
+
+      const valNum = parseFloat(displayVal);
+      let refRange = customRef || 'Normal Reference';
+      let statusText = customFlag || 'NORMAL';
+      let isAbnormal = Boolean(customFlag && !customFlag.toLowerCase().includes('normal'));
 
       const kLower = key.toLowerCase();
       if (kLower.includes('hba1c')) {
-        refRange = '4.0 - 5.6 %';
-        if (valNum > 6.5) { statusText = 'HIGH (Diabetic)'; isAbnormal = true; }
-        else if (valNum >= 5.7) { statusText = 'BORDERLINE'; isAbnormal = true; }
+        if (!customRef) refRange = '4.0 - 5.6 %';
+        if (!isNaN(valNum)) {
+          if (valNum > 6.5) { statusText = 'HIGH (Diabetic)'; isAbnormal = true; }
+          else if (valNum >= 5.7) { statusText = 'BORDERLINE'; isAbnormal = true; }
+        }
       } else if (kLower.includes('creatinine')) {
-        refRange = '0.6 - 1.2 mg/dL';
-        if (valNum > 1.3) { statusText = 'ELEVATED'; isAbnormal = true; }
+        if (!customRef) refRange = '0.6 - 1.2 mg/dL';
+        if (!isNaN(valNum) && valNum > 1.3) { statusText = 'ELEVATED'; isAbnormal = true; }
       } else if (kLower.includes('hemoglobin') || kLower === 'hb') {
-        refRange = '12.0 - 16.0 g/dL';
-        if (valNum < 11.0) { statusText = 'LOW (Anemia)'; isAbnormal = true; }
+        if (!customRef) refRange = '12.0 - 16.0 g/dL';
+        if (!isNaN(valNum) && valNum < 11.0) { statusText = 'LOW (Anemia)'; isAbnormal = true; }
       } else if (kLower.includes('glucose') || kLower.includes('sugar') || kLower.includes('eag')) {
-        refRange = '70 - 140 mg/dL';
-        if (valNum > 140) { statusText = 'HIGH'; isAbnormal = true; }
+        if (!customRef) refRange = '70 - 140 mg/dL';
+        if (!isNaN(valNum) && valNum > 140) { statusText = 'HIGH'; isAbnormal = true; }
       } else if (kLower.includes('egfr')) {
-        refRange = '> 90 mL/min';
-        if (valNum < 60) { statusText = 'REDUCED'; isAbnormal = true; }
+        if (!customRef) refRange = '> 90 mL/min';
+        if (!isNaN(valNum) && valNum < 60) { statusText = 'REDUCED'; isAbnormal = true; }
       }
 
       // Alternating row background
@@ -390,7 +405,7 @@ export async function generateLabReportPdf(data: {
       // Key name
       page.drawText(key.replace(/([A-Z])/g, ' $1').trim(), { x: 45, y: rowY, size: 9, font: fontBold, color: rgb(0.15, 0.2, 0.3) });
       // Value & Unit
-      page.drawText(`${val} ${unit}`.trim(), { x: 230, y: rowY, size: 9, font: fontBold, color: isAbnormal ? rgb(0.75, 0.1, 0.1) : rgb(0.1, 0.5, 0.2) });
+      page.drawText(`${displayVal} ${displayUnit}`.trim(), { x: 230, y: rowY, size: 9, font: fontBold, color: isAbnormal ? rgb(0.75, 0.1, 0.1) : rgb(0.1, 0.5, 0.2) });
       // Ref range
       page.drawText(refRange, { x: 350, y: rowY, size: 9, font, color: rgb(0.4, 0.45, 0.5) });
       // Status
