@@ -24,7 +24,7 @@ export const VisitingCardPrintPage: React.FC = () => {
   const [sheetMode, setSheetMode] = useState<'duplex' | 'sideBySide'>('duplex');
   const [cardTheme, setCardTheme] = useState<'pearl' | 'dark'>('pearl');
   const [name, setName] = useState<string>('Vivek Kumar');
-  const [title, setTitle] = useState<string>('Founder & Chief Architect');
+  const [title, setTitle] = useState<string>('Founder & CTO');
   const [phone, setPhone] = useState<string>('+91 96080 32073');
   const [email, setEmail] = useState<string>('vivek@vitalsync.in');
   const [websiteUrl, setWebsiteUrl] = useState<string>('https://vitalsync.in');

@@ -1544,7 +1544,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                       <div className="text-xs md:text-sm font-black text-white flex items-center gap-1.5 justify-center md:justify-start">
                         <span>Vivek Kumar</span>
                         <span className="text-[10px] font-bold text-teal-300 bg-teal-950/80 px-2 py-0.5 rounded-full border border-teal-500/40">
-                          Founder &amp; Chief Architect
+                          Founder &amp; CTO
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-300">

@@ -1176,6 +1176,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <span className="font-bold text-slate-700 block mb-0.5">Clinical Hub Address:</span>
               Patna Bailey Road, Patna, Bihar, India
             </p>
+            <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 pt-0.5">
+              <span>Leadership:</span>
+              <span className="font-bold text-slate-800">Vivek Kumar</span>
+              <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-md">Founder &amp; CTO</span>
+            </div>
           </div>
 
           {/* Right Column: Contact CTA & Metadata */}
@@ -1192,9 +1197,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <a
                 href="mailto:vivek@vitalsync.in"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-teal-300 font-bold transition-all shadow-sm no-underline font-sans text-xs"
+                title="Founder & CTO Desk"
               >
                 <Mail className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>vivek@vitalsync.in</span>
+                <span>Founder &amp; CTO: vivek@vitalsync.in</span>
               </a>
             </div>
 

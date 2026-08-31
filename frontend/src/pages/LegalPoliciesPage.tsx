@@ -449,7 +449,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   <div className="space-y-1 text-xs">
                     <p className="text-sm font-semibold text-slate-200">VitalSync Technologies</p>
                     <p className="text-slate-400">Brand Name: VitalSync Connected Clinic</p>
-                    <p className="text-slate-400">Founder: Vivek Kumar</p>
+                    <p className="text-slate-400">Founder &amp; CTO: Vivek Kumar</p>
                     <p className="text-slate-400">Category: Healthcare SaaS & OPD Scheduling Platform</p>
                   </div>
                 </div>
@@ -472,7 +472,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                     <h4 className="text-base font-bold text-white">Email Contact Addresses</h4>
                   </div>
                   <div className="space-y-1 text-xs">
-                    <p className="text-slate-300">Founder &amp; Partnerships: <span className="text-emerald-400 font-bold">vivek@vitalsync.in</span></p>
+                    <p className="text-slate-300">Founder &amp; CTO: <span className="text-emerald-400 font-bold">vivek@vitalsync.in</span></p>
                     <p className="text-slate-300">General Enquiries: <span className="text-cyan-400">support@vitalsync.in</span></p>
                     <p className="text-slate-300">Billing &amp; Refunds: <span className="text-cyan-400">refunds@vitalsync.in</span></p>
                     <p className="text-slate-300">Grievance / Privacy: <span className="text-cyan-400">privacy@vitalsync.in</span></p>
