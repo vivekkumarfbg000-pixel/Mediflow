@@ -31,7 +31,6 @@ import {
   HelpCircle,
   Video,
   ShieldAlert,
-  Smartphone,
   Check,
   Eye,
   Lock,
@@ -306,14 +305,6 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               title="Visit Official Website"
             >
               <Globe className="w-3.5 h-3.5 text-teal-700" /> vitalsync.in
-            </a>
-
-            <a
-              href="/visiting-card"
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all no-underline shadow-xs"
-              title="Open Visiting Card Generator & Print Page"
-            >
-              <Smartphone className="w-3.5 h-3.5 text-teal-700" /> Visiting Card
             </a>
 
             <button
