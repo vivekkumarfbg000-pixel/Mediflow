@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { PaymentService } from './paymentService';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
-import { FALLBACK_POD_ID } from './podContext';
+import { FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from './podContext';
 
 // ─── Telemetry Types ────────────────────────────────────────────────────────────
 
@@ -215,8 +215,8 @@ export class StateHealingEngine {
           const invId = inv?.id || inv?.invoice_id;
           if (inv && invId && !existingInvoiceIds.has(invId)) {
             const pId = inv.patientId || inv.patient_id || 'unknown-patient';
-            const docId = inv.doctorId || inv.doctor_id || 'doc-1';
-            const gross = inv.totalAmount || inv.total_amount || 500;
+            const docId = inv.doctorId || inv.doctor_id || FALLBACK_DOCTOR_ID;
+            const gross = Number(inv.totalAmount || inv.total_amount || 0);
             const payStatus = inv.paymentStatus || inv.payment_status || inv.status || 'pending';
             const payMethod = inv.paymentMethod || inv.payment_method || 'upi';
 

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
+import { FALLBACK_DOCTOR_ID } from '../../../services/podContext';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ClinicalSafetySentry } from '../../../services/clinicalSafetySentry';
 import { DoctorLabIntelligenceService, type DoctorLabInsightReport } from '../../../services/doctorLabIntelligenceService';
@@ -1059,7 +1060,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           patientId: selectedPatient.id,
           patientName: selectedPatient.name,
           patientPhone: selectedPatient.phone,
-          doctorId: activeDoctorProfile?.id || clinicProfile?.doctorId || 'doc-1',
+          doctorId: activeDoctorProfile?.id || clinicProfile?.doctorId || FALLBACK_DOCTOR_ID,
           clinicalNotes: notes,
           medications: finalMedications,
           diagnosticTests: selectedTests

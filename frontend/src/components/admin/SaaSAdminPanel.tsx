@@ -692,7 +692,13 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
 
   // Dispatch White-Glove Proactive Support WhatsApp Message (Multi-Language)
   const handleSendProactiveSupportMsg = async (pod: PodInfo, issueReason = 'Routine 24/7 DevSecOps Auto-Heal Check') => {
-    const doctorPhone = pod.phone || '+919876543210';
+    if (!pod.phone) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Missing Contact', message: `No phone number configured for clinic pod ${pod.name}.`, type: 'error' }
+      }));
+      return;
+    }
+    const doctorPhone = pod.phone;
     const doctorName = pod.doctor_name || 'Doctor';
     
     const msg = supportLanguage === 'hi' 
@@ -819,9 +825,12 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         } catch (_dbPErr) { /* ignore */ }
       }
 
-      // Fallback if no numbers in registry
       if (phonesToDispatch.size === 0) {
-        phonesToDispatch.add('+919876543210');
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: { title: 'Broadcast Aborted', message: 'No registered recipient phone numbers found.', type: 'error' }
+        }));
+        setIsSendingBroadcast(false);
+        return;
       }
 
       let successCount = 0;
@@ -910,10 +919,17 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       return;
     }
 
+    if (!pod.phone) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Missing Contact', message: `No phone number configured for clinic pod ${pod.name}.`, type: 'error' }
+      }));
+      return;
+    }
+
     const invoiceCode = `INV-COMM-${Math.floor(1000 + Math.random() * 9000)}`;
-    const phone = pod.phone || '+919876543210';
+    const phone = pod.phone;
     const doctorName = pod.doctor_name || 'Doctor';
-    const invoiceMsg = `🧾 *VITALSYNC PLATFORM COMMISSION INVOICE* 💳\n\nInvoice ID: *${invoiceCode}*\nDate: ${getIstDateDisplay()}\nTo: Dr. ${doctorName} (${pod.name})\n\n• *Pending Cash Split Balance*: ₹${pendingBalance.toFixed(2)}\n• *Revenue Commission Share Rate*: ${pod.platform_fee_percent || 2.5}%\n\nPlease settle via Cashfree QR or bank transfer. Contact Platform Administration (+91 99999 99999) for receipt confirmation.`;
+    const invoiceMsg = `🧾 *VITALSYNC PLATFORM COMMISSION INVOICE* 💳\n\nInvoice ID: *${invoiceCode}*\nDate: ${getIstDateDisplay()}\nTo: Dr. ${doctorName} (${pod.name})\n\n• *Pending Cash Split Balance*: ₹${pendingBalance.toFixed(2)}\n• *Revenue Commission Share Rate*: ${pod.platform_fee_percent || 3.0}%\n\nPlease settle via Cashfree QR or bank transfer. Contact Platform Administration for receipt confirmation.`;
 
     try {
       api.pushWhatsAppMessageFromBot(phone, invoiceMsg);
@@ -1031,8 +1047,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
   const handleRunDunningCycle = async () => {
     let remindedCount = 0;
     for (const pod of podsList) {
-      if ((pod.pending_cash_balance || 0) > 0) {
-        const phone = pod.phone || '+919876543210';
+      if ((pod.pending_cash_balance || 0) > 0 && pod.phone) {
+        const phone = pod.phone;
         const dunningMsg = `🏥 *VITALSYNC FINANCIAL SENTRY — PAYMENT REMINDER* 💳\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'}!\n\nThis is a friendly reminder that your clinic pod (*${pod.name}*) has a pending cash settlement balance of *₹${pod.pending_cash_balance?.toFixed(2)}*.\n\nPlease settle via Cashfree Split QR or contact accounting to avoid temporary feature limits. Thank you!`;
         try {
           api.pushWhatsAppMessageFromBot(phone, dunningMsg);
@@ -1054,7 +1070,13 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
   // Meta WhatsApp Video Onboarding Tutorial Dispatcher
   const handleSendVideoTutorial = (pod: PodInfo) => {
-    const phone = pod.phone || '+919876543210';
+    if (!pod.phone) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Missing Contact', message: `No phone number configured for clinic pod ${pod.name}.`, type: 'error' }
+      }));
+      return;
+    }
+    const phone = pod.phone;
     const tutorialMsg = `🎓 *VITALSYNC CLINIC MASTERCLASS & TRAINING* 📽️\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'}!\n\nWelcome to VitalSync Connected Care Network! To help your staff master 1-Tap Prescriptions, Pharmacy Sync, and WhatsApp Patient Booking in under 5 minutes, watch our quick video guide:\n\n▶️ *Interactive Video Guide*: https://mediflow.in/tutorials/doctor-onboarding\n\nOur 24/7 AI Sentry is always active to assist you!`;
 
     try {
@@ -1077,13 +1099,15 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
   const handleRunAdoptionCheckIn = async () => {
     let checkInCount = 0;
     for (const pod of podsList) {
-      const phone = pod.phone || '+919876543210';
-      const nudgeMsg = `👋 *VITALSYNC CUSTOMER SUCCESS CHECK-IN*\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'} (${pod.name})!\n\nOur AI Customer Success Sentry noticed zero active consultation locks in the last 24 hours. Need assistance configuring your digital RX printer or WhatsApp booking link?\n\nReply directly to this chat for instant assistance!`;
-      try {
-        api.pushWhatsAppMessageFromBot(phone, nudgeMsg);
-        checkInCount++;
-      } catch (_e) {
-        /* ignore nudge dispatch error */
+      if (pod.phone) {
+        const phone = pod.phone;
+        const nudgeMsg = `👋 *VITALSYNC CUSTOMER SUCCESS CHECK-IN*\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'} (${pod.name})!\n\nOur AI Customer Success Sentry noticed zero active consultation locks in the last 24 hours. Need assistance configuring your digital RX printer or WhatsApp booking link?\n\nReply directly to this chat for instant assistance!`;
+        try {
+          api.pushWhatsAppMessageFromBot(phone, nudgeMsg);
+          checkInCount++;
+        } catch (_e) {
+          /* ignore nudge dispatch error */
+        }
       }
     }
 
@@ -1347,8 +1371,19 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         .eq('role', 'doctor')
         .limit(1);
 
-      const phone = staff?.[0]?.phone || '9876543210';
+      const phone = staff?.[0]?.phone;
       const name = staff?.[0]?.display_name || clinicName;
+
+      if (!phone) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Doctor Contact Missing',
+            message: `No phone number registered for ${name}. Cannot send WhatsApp reminder.`,
+            type: 'error'
+          }
+        }));
+        return;
+      }
 
       const reminderText = `Namaste ${name}! 🏥 Mediflow Platform Administration. Aapke clinic pod ka outstanding platform fee pending balance *₹${(pendingCash || 0).toFixed(2)}* hai. Please settle this amount to ensure unhindered billing splits routing and live AI services. Thank you!`;
 
@@ -3458,7 +3493,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                     <input
                       type="tel"
                       required
-                      placeholder="e.g. +919876543210"
+                      placeholder="e.g. +91 98000 00000"
                       value={provisionForm.phone}
                       onChange={(e) => setProvisionForm(f => ({ ...f, phone: e.target.value }))}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500/50 outline-none text-xs font-semibold bg-slate-50/50"

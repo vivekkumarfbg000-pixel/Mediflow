@@ -1219,18 +1219,22 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                     <div className="space-y-4">
                       <div className="text-center bg-zinc-950/80 p-4 rounded-2xl border border-white/5">
                         <span className="text-[8px] text-zinc-500 block uppercase font-bold tracking-widest font-mono">Invoice Settle Total</span>
-                        <h2 className="text-xl font-extrabold text-cyan-400 font-mono mt-1">₹{activeUpiInvoice.totalAmount}.00</h2>
+                        <h2 className="text-xl font-extrabold text-cyan-400 font-mono mt-1">₹{(activeUpiInvoice.totalAmount || 0).toFixed(2)}</h2>
                       </div>
 
                       {/* Split calculations break logs */}
                       <div className="text-[9.5px] bg-zinc-950/50 p-3.5 border border-white/5 rounded-2xl space-y-2 text-zinc-400">
                         <span className="block text-[8px] font-bold text-zinc-500 uppercase font-mono tracking-widest">Ecosystem Split Ledger Settles</span>
-                        <div className="flex justify-between"><span>👩‍⚕️ Doctor Appt (doc-1):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.doctorFee}.00</span></div>
-                        <div className="flex justify-between"><span>🧪 Lab Pathology (350/test):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.labFee}.00</span></div>
-                        <div className="flex justify-between"><span>💊 Pharmacy POS (150/hold):</span><span className="font-mono text-zinc-300">₹{activeUpiInvoice.pharmacyFee}.00</span></div>
+                        <div className="flex justify-between"><span>👩‍⚕️ Doctor Consultation:</span><span className="font-mono text-zinc-300">₹{(activeUpiInvoice.doctorFee || 0).toFixed(2)}</span></div>
+                        {((activeUpiInvoice.labFee || 0) > 0) && (
+                          <div className="flex justify-between"><span>🧪 Lab Pathology:</span><span className="font-mono text-zinc-300">₹{(activeUpiInvoice.labFee || 0).toFixed(2)}</span></div>
+                        )}
+                        {((activeUpiInvoice.pharmacyFee || 0) > 0) && (
+                          <div className="flex justify-between"><span>💊 Pharmacy Medication:</span><span className="font-mono text-zinc-300">₹{(activeUpiInvoice.pharmacyFee || 0).toFixed(2)}</span></div>
+                        )}
                         <div className="flex justify-between border-t border-white/5 pt-1.5 font-bold text-white text-[10px]">
-                          <span>🛡️ VitalSync Fee (flat ₹10 min):</span>
-                          <span className="font-mono text-cyan-400">₹{activeUpiInvoice.platformFee}.00</span>
+                          <span>🛡️ VitalSync Platform Fee (3%):</span>
+                          <span className="font-mono text-cyan-400">₹{(activeUpiInvoice.platformFee || 0).toFixed(2)}</span>
                         </div>
                       </div>
 
@@ -1264,7 +1268,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         ) : (
                           <>
                             <Lock className="w-3.5 h-3.5 text-white-force font-bold" />
-                            Pay UPI splits (₹{activeUpiInvoice.totalAmount}.00)
+                            Pay UPI splits (₹{(activeUpiInvoice.totalAmount || 0).toFixed(2)})
                           </>
                         )}
                       </button>
@@ -1282,33 +1286,46 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                           setIsPaying(true);
                           try {
                             const res = await PaymentService.initiatePaymentOrder({
-                              gateway: 'paytm',
+                              gateway: 'razorpay',
                               invoiceId: activeUpiInvoice.id,
                               amount: activeUpiInvoice.totalAmount,
                               patientName: activePatient?.name || 'Patient',
-                              patientPhone: activePatient?.phone || '9999999999'
+                              patientPhone: activePatient?.phone || ''
                             });
 
-                            if (res.success && res.paymentSessionId) {
-                              window.open(res.paymentSessionId, '_blank');
-                              setPaymentSuccess(true);
-                              BillingService.clearInvoice(activeUpiInvoice.id, 'paytm');
-                              setTimeout(() => {
-                                setIsUpiModalOpen(false);
-                                setActiveUpiInvoice(null);
-                                setInvoices(api.getUnifiedInvoices());
-                              }, 1500);
+                            if (res.success && res.orderId) {
+                              await PaymentService.launchRazorpayModal({
+                                orderId: res.orderId,
+                                amount: activeUpiInvoice.totalAmount,
+                                invoiceId: activeUpiInvoice.id,
+                                name: activePatient?.name || 'Patient',
+                                phone: activePatient?.phone || '',
+                                onSuccess: () => {
+                                  setPaymentSuccess(true);
+                                  BillingService.clearInvoice(activeUpiInvoice.id, 'razorpay');
+                                  setTimeout(() => {
+                                    setIsUpiModalOpen(false);
+                                    setActiveUpiInvoice(null);
+                                    setInvoices(api.getUnifiedInvoices());
+                                  }, 1500);
+                                },
+                                onError: (err) => {
+                                  console.warn('[Razorpay Checkout Error]:', err);
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: { title: 'Payment Incomplete', message: err.message || 'Payment not completed.', type: 'error' }
+                                  }));
+                                }
+                              });
                             } else {
-                              BillingService.clearInvoice(activeUpiInvoice.id, 'paytm');
-                              setPaymentSuccess(true);
-                              setTimeout(() => {
-                                setIsUpiModalOpen(false);
-                                setActiveUpiInvoice(null);
-                                setInvoices(api.getUnifiedInvoices());
-                              }, 1500);
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: { title: 'Gateway Connection Failed', message: 'Unable to initialize Razorpay checkout order.', type: 'error' }
+                              }));
                             }
-                          } catch (e) {
-                            console.warn('[Paytm Patient Checkout Error]:', e);
+                          } catch (e: any) {
+                            console.warn('[Razorpay Patient Checkout Error]:', e);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: { title: 'Checkout Error', message: e.message || 'Payment initiation failed.', type: 'error' }
+                            }));
                           } finally {
                             setIsPaying(false);
                           }
@@ -1317,7 +1334,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         className="w-full py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white-force cursor-pointer shadow-md flex justify-center items-center gap-2"
                       >
                         <QrCode className="w-4 h-4 text-white-force" />
-                        <span>Pay via Razorpay (0% MDR Gateway)</span>
+                        <span>Pay via Razorpay (Online Payment)</span>
                       </button>
                     </div>
                   )}

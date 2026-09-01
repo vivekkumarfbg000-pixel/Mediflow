@@ -271,9 +271,8 @@ export class WhatsAppSupportBotService {
       safeSetStorageJSON('vitalsync_support_tickets', updated);
       window.dispatchEvent(new CustomEvent('mediflow-support-ticket-updated'));
 
-      if (ticket && resolutionMsg) {
-        const targetPhone = ticket.phone || '+919876543210';
-        api.pushWhatsAppMessageFromBot(targetPhone, `✅ *VITALSYNC PLATFORM OWNER RESOLUTION*\n\nRe: Ticket ${ticket.id} (${ticket.query_text})\n\nResolution: ${resolutionMsg}\n\nThank you for trusting VitalSync Connected Care Network!`);
+      if (ticket && resolutionMsg && ticket.phone) {
+        api.pushWhatsAppMessageFromBot(ticket.phone, `✅ *VITALSYNC PLATFORM OWNER RESOLUTION*\n\nRe: Ticket ${ticket.id} (${ticket.query_text})\n\nResolution: ${resolutionMsg}\n\nThank you for trusting VitalSync Connected Care Network!`);
       }
     } catch (_e) {
       /* ignore resolve error */

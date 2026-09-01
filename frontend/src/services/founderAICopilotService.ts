@@ -281,7 +281,10 @@ export class FounderAICopilotService {
         (entities || []).forEach(e => { if (e.phone) phoneSet.add(e.phone.replace(/\D/g, '').slice(-10)); });
         (profiles || []).forEach(p => { if (p.phone) phoneSet.add(p.phone.replace(/\D/g, '').slice(-10)); });
         
-        const targetList = phoneSet.size > 0 ? Array.from(phoneSet) : ['9876543210'];
+        const targetList = Array.from(phoneSet);
+        if (targetList.length === 0) {
+          return { success: false, message: 'No registered clinic contacts found to broadcast to.' };
+        }
         for (const phone of targetList) {
           api.pushWhatsAppMessageFromBot(phone, msg);
         }

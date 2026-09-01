@@ -4,7 +4,7 @@ import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
 import { PatientService } from '../../services/patientService';
 import { supabase } from '../../lib/supabaseClient';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import { safeGetStorageJSON } from '../../utils/storage';
@@ -1180,7 +1180,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
       patientPhone: selectedPatient.phone,
-      doctorId: getPodContext().doctorId || activeDoctorProfile?.id || 'doc-1',
+      doctorId: activeDoctorProfile?.id || getPodContext().doctorId || FALLBACK_DOCTOR_ID,
       clinicalNotes: finalNotes,
       medications: finalMedications,
       diagnosticTests: sourceTests
@@ -1214,7 +1214,8 @@ Keep the tone professional, clinical, objective, and precise.`;
         let eveningSlotObj: { startTime: string; endTime: string } | null = null;
         try {
           const existingSlot = api.getAppointmentByPatient(selectedPatient.id);
-          const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, 'doc-1');
+          const docId = activeDoctorProfile?.id || getPodContext().doctorId || FALLBACK_DOCTOR_ID;
+          const slot = existingSlot ?? await api.createEveningSlot(selectedPatient.id, docId);
           if (slot) {
             eveningSlotObj = { startTime: slot.startTime, endTime: slot.endTime };
             await api.scheduleAppointment(slot);

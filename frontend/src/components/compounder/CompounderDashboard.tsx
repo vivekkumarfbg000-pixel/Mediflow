@@ -2361,7 +2361,8 @@ export const CompounderDashboard: React.FC = () => {
       } else {
         // Auto-allocate slot for this patient if none exists
         try {
-          const newSlot = await api.createEveningSlot(billingPatient.id, 'doc-1');
+          const docId = (activePod as any)?.doctorId || (activePod as any)?.doctor_id || getPodContext().doctorId || FALLBACK_DOCTOR_ID;
+          const newSlot = await api.createEveningSlot(billingPatient.id, docId);
           if (newSlot) {
             setEveningSlot(newSlot);
             dosageInvoiceText += `\n\n🕒 *Doctor Follow-up (Aaj Shaam):*\n${activeDocName} aapko aaj *${newSlot.startTime}* se *${newSlot.endTime}* ke beech dekhenge.\nKrupaya 5 minute pehle clinic pahunchen.`;

@@ -400,7 +400,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                       <div><strong>Patient:</strong> ${selectedDirectoryPatient.name} (${patAge}, ${patGender})</div>
                       <div><strong>Phone:</strong> ${patPhone}</div>
                       <div><strong>Patient ID:</strong> ${selectedDirectoryPatient.tokenNumber || selectedDirectoryPatient.patientCode || 'PAT'}</div>
-                      <div><strong>Doctor ID:</strong> ${enc.doctorId || 'doc-1'}</div>
+                      <div><strong>Doctor:</strong> ${enc.doctorName || enc.doctorId || 'Consulting Physician'}</div>
                     </div>
 
                     ${enc.clinicalNotes ? `

@@ -25,9 +25,22 @@ serve(async (req) => {
   }
 
   try {
-    const cleanInvoiceId = (invoiceId || 'direct').replace(/[^a-zA-Z0-9-]/g, '').substring(0, 20);
+    let bodyObj: any = {};
+    try {
+      const text = await req.text();
+      if (text) {
+        bodyObj = JSON.parse(text);
+        if (typeof bodyObj === 'string') bodyObj = JSON.parse(bodyObj);
+      }
+    } catch (_e) {
+      bodyObj = {};
+    }
+
+    const { amount, invoiceId, patientId, patientPhone, patientName } = (bodyObj && bodyObj.body && typeof bodyObj.body === 'object') ? bodyObj.body : bodyObj;
+
+    const cleanInvoiceId = String(invoiceId || 'direct').replace(/[^a-zA-Z0-9-]/g, '').substring(0, 20);
     const orderId = `PYTM_${cleanInvoiceId}_${Date.now().toString().slice(-6)}`;
-    const cleanAmount = (Math.round((amount || 500) * 100) / 100).toFixed(2);
+    const cleanAmount = (Math.round((Number(amount) || 500) * 100) / 100).toFixed(2);
     const sanitizedPhone = (patientPhone || '').replace(/\D/g, '').slice(-10) || '9999999999';
 
     const paytmBody = {
