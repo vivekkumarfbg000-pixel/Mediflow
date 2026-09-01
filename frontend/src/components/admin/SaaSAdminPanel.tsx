@@ -3781,6 +3781,38 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           document.body
         )}
 
+        {/* ── Fixed Native Mobile App Bottom Navigation Dock ─────────────────── */}
+        <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-white/10 px-2 py-1.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-6 gap-1 max-w-md mx-auto">
+            {[
+              { id: 'saas_health' as const, label: 'Health', icon: Activity },
+              { id: 'ai_fleet'    as const, label: 'AI Fleet', icon: Bot },
+              { id: 'onboarding'  as const, label: 'Pods',     icon: Building },
+              { id: 'revenue'     as const, label: 'Finance',  icon: Coins },
+              { id: 'costs'       as const, label: 'Costs',    icon: MessageSquare },
+              { id: 'firewall'    as const, label: 'Sentry',   icon: ShieldAlert }
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleSwitchTab(tab.id)}
+                  className={`flex flex-col items-center justify-center py-1.5 px-0.5 rounded-xl transition-all cursor-pointer select-none active:scale-90 ${
+                    isActive
+                      ? 'text-indigo-600 dark:text-indigo-400 font-extrabold bg-indigo-50/80 dark:bg-indigo-950/60'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 ${isActive ? 'stroke-[2.5px] scale-110' : 'stroke-[1.8px]'}`} />
+                  <span className="text-[8.5px] tracking-tight mt-0.5 font-bold truncate">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
     );
   }

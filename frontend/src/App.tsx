@@ -1071,6 +1071,10 @@ export default function App() {
 
       setSession(currentSession);
       if (currentSession?.user) {
+        if (activeProfile && activeProfile.id !== currentSession.user.id) {
+          setActiveProfile(null);
+          setIsLoadingSession(true);
+        }
         setCrossDomainCookie(true);
         const finalProfile = await loadOrHealProfile(currentSession);
         if (active) {
@@ -1138,9 +1142,14 @@ export default function App() {
           console.log('[VitalSync Auth] Ops redirect in progress. Standing down — LandingPage will handle navigation.');
           return;
         }
+        // If switching users, unmount stale profile immediately
+        if (activeProfile && activeProfile.id !== session.user.id) {
+          setActiveProfile(null);
+          setIsLoadingSession(true);
+        }
         // For SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
         resolvePodContext().catch(() => {});
-        if (event === 'TOKEN_REFRESHED' && activeProfile) {
+        if (event === 'TOKEN_REFRESHED' && activeProfile && activeProfile.id === session.user.id) {
           setIsLoadingSession(false);
           return;
         }
@@ -1508,7 +1517,7 @@ export default function App() {
   // 2. Landing Page & Local Single-Domain Routing
   // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
-    if (session && isLoadingSession) {
+    if (session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
     if (session && activeProfile && new URLSearchParams(window.location.search).get('landing') !== 'true') {
@@ -1572,6 +1581,9 @@ export default function App() {
     isPwaLaunch;
 
   if (isSingleDomain) {
+    if (session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
+      return <FullPageLoader message="Initializing clinical session..." />;
+    }
     if (!session || !activeProfile) {
       if (isConsoleRequested) {
         return (
@@ -1604,9 +1616,7 @@ export default function App() {
 
   // 3. Super Admin Dashboard Subdomain Routing
   if (isAdminSubdomain) {
-    // Session exists but profile hasn't loaded yet (e.g. arriving via ops-modal redirect).
-    // Show a loader instead of the login form to give loadOrHealProfile time to finish.
-    if (session && !activeProfile && isLoadingSession) {
+    if (session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
       return <FullPageLoader message="Verifying operations credentials..." />;
     }
 
