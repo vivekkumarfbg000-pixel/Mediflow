@@ -1224,12 +1224,12 @@ Keep the tone professional, clinical, objective, and precise.`;
         const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
         const clinicTitle = activePod?.name || activeDoctorProfile?.clinicName || 'Clinic';
 
-        const prescriptionMeds = medications.map((m: any) => ({
-          medicineName: m.medicineName,
-          dosage: m.dosage,
-          frequency: m.frequency,
-          duration: m.duration,
-          instructions: m.instructions
+        const prescriptionMeds = sourceMeds.map((m: any) => ({
+          medicineName: m.medicineName || m.name || 'Prescribed Medicine',
+          dosage: m.dosage || '1-0-1',
+          frequency: m.frequency || '1-0-1',
+          duration: m.duration || '5 Days',
+          instructions: m.instructions || 'Take as directed'
         }));
 
         // If ophthalmology spectacle refraction is present, add as an item
@@ -1249,7 +1249,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           doctorName: docTitle,
           clinicName: clinicTitle,
           medications: prescriptionMeds,
-          clinicalNotes: notes,
+          clinicalNotes: sourceNotes,
           hinglishAdvice: hinglishSummary,
           eveningSlot: eveningSlotObj
         });

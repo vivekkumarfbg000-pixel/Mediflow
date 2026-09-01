@@ -133,22 +133,45 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setVoiceTranscript('');
 
       // Check if there is an active digital prescription / encounter
-      const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, selectedPatient));
-      const latestEncounter = encounters[encounters.length - 1];
+      const encounters = EncounterService.getEncounters()
+        .filter(e => isEncounterMatchingPatient(e, selectedPatient))
+        .sort((a, b) => new Date(b.createdAt || (b as any).created_at || 0).getTime() - new Date(a.createdAt || (a as any).created_at || 0).getTime());
 
-      if (latestEncounter) {
+      let saasPrescriptions: any[] = [];
+      try {
+        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : JSON.parse(localStorage.getItem('saas_prescriptions') || '[]'))
+          .filter((r: any) => isEncounterMatchingPatient(r, selectedPatient))
+          .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
+      } catch (_rxErr) { /* ignore */ }
+
+      const latestEncounter = encounters[0];
+      const latestRx = saasPrescriptions[0];
+
+      const rawMeds = (latestEncounter?.medications && latestEncounter.medications.length > 0)
+        ? latestEncounter.medications
+        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || []);
+
+      const rawTests = (latestEncounter?.diagnosticTests && latestEncounter.diagnosticTests.length > 0)
+        ? latestEncounter.diagnosticTests
+        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || []);
+
+      if (rawMeds.length > 0 || rawTests.length > 0 || latestEncounter || latestRx) {
         setBillingMode('digital');
         // Pre-select all digital medicines
         const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
-        (latestEncounter.medications || []).forEach(m => {
-          initialMeds[(m.medicineName || '').toLowerCase()] = { selected: true, qty: 10 };
+        rawMeds.forEach((m: any) => {
+          const mName = (m.medicineName || m.name || '').toLowerCase();
+          if (mName) initialMeds[mName] = { selected: true, qty: 10 };
         });
         setSelectedMedicines(initialMeds);
 
         // Pre-select all digital tests
         const initialTests: Record<string, boolean> = {};
-        (latestEncounter.diagnosticTests || []).forEach(t => {
-          if (t?.loincCode) initialTests[t.loincCode] = true;
+        rawTests.forEach((t: any) => {
+          const loinc = typeof t === 'string'
+            ? (LabService.getTestCatalog().find(cat => cat.name.toLowerCase() === t.toLowerCase())?.loincCode || t)
+            : (t?.loincCode || t?.testCode || t?.code);
+          if (loinc) initialTests[loinc] = true;
         });
         setSelectedTests(initialTests);
       } else {
@@ -427,32 +450,58 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     let testsList: DiagnosticTest[] = [];
 
     if (billingMode === 'digital') {
-      const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, selectedPatient));
-      const latest = encounters[encounters.length - 1];
-      if (latest) {
-        (latest.medications || []).forEach(med => {
-          const matched = inventory.find(i => (i.name || '').toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
-          medicinesList.push({
-            name: med.medicineName,
-            mrp: matched?.mrp || 120,
-            price: matched?.price || 100,
-            batch: matched?.batchNumber || 'N/A',
-            stock: matched?.stock ?? 0
-          });
-        });
+      const encounters = EncounterService.getEncounters()
+        .filter(e => isEncounterMatchingPatient(e, selectedPatient))
+        .sort((a, b) => new Date(b.createdAt || (b as any).created_at || 0).getTime() - new Date(a.createdAt || (a as any).created_at || 0).getTime());
 
-        (latest.diagnosticTests || []).forEach(test => {
-          const matched = LabService.getTestCatalog().find(t => t.loincCode === test.loincCode);
-          testsList.push({
-            loincCode: test.loincCode,
-            name: test.name,
-            price: matched?.price || 250,
-            category: matched?.category || 'General',
-            normalRange: matched?.normalRange || '',
-            unit: matched?.unit || ''
-          });
+      let saasPrescriptions: any[] = [];
+      try {
+        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : JSON.parse(localStorage.getItem('saas_prescriptions') || '[]'))
+          .filter((r: any) => isEncounterMatchingPatient(r, selectedPatient))
+          .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
+      } catch (_rxErr) { /* ignore */ }
+
+      const latest = encounters[0];
+      const latestRx = saasPrescriptions[0];
+
+      const rawMeds = (latest?.medications && latest.medications.length > 0)
+        ? latest.medications
+        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || []);
+
+      const rawTests = (latest?.diagnosticTests && latest.diagnosticTests.length > 0)
+        ? latest.diagnosticTests
+        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || []);
+
+      rawMeds.forEach((med: any) => {
+        const medName = med.medicineName || med.name || 'Prescribed Medicine';
+        const matched = inventory.find(i => (i.name || '').toLowerCase() === medName.toLowerCase() || (i.genericName || '').toLowerCase() === medName.toLowerCase());
+        medicinesList.push({
+          name: medName,
+          mrp: matched?.mrp || 120,
+          price: matched?.price || 100,
+          batch: matched?.batchNumber || 'BATCH-01',
+          stock: matched?.stock ?? 10
         });
-      }
+      });
+
+      rawTests.forEach((test: any) => {
+        let testObj: any = test;
+        if (typeof test === 'string') {
+          const matched = LabService.getTestCatalog().find(t => (t.name || '').toLowerCase() === test.toLowerCase() || t.loincCode === test);
+          testObj = matched || { loincCode: '4544-3', name: test, price: 350 };
+        } else {
+          const matched = LabService.getTestCatalog().find(t => t.loincCode === test.loincCode);
+          if (matched && !testObj.price) testObj.price = matched.price;
+        }
+        testsList.push({
+          loincCode: testObj.loincCode || '4544-3',
+          name: testObj.name || 'Diagnostic Test',
+          price: testObj.price || 350,
+          category: testObj.category || 'General',
+          normalRange: testObj.normalRange || '',
+          unit: testObj.unit || ''
+        });
+      });
     } else {
       // Manual billing combines OCR + Manual list additions
       const combinedMeds = [...manualMedicinesList];

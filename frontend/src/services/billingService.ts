@@ -237,16 +237,25 @@ export class BillingService {
     let modified = false;
 
     // Filter out any platform_fee entries generated for consultation appointments
-    const filteredLedgers = ledgers.filter(l => {
+    // Filter out duplicate appointment_fee entries for the same patient on the same date
+    const seenConsultLedgerKeys = new Set<string>();
+    const filteredLedgers: FinancialLedgerEntry[] = [];
+
+    ledgers.forEach(l => {
       if (l.transactionType === 'platform_fee' && (l.grossAmount === 500 || l.grossAmount === 450 || l.netPayout < 50)) {
         modified = true;
-        return false;
+        return;
       }
-      return true;
-    });
-
-    filteredLedgers.forEach((l) => {
       if (l.transactionType === 'appointment_fee') {
+        const dateStr = getIstDateString(l.createdAt || l.settledAt);
+        const pIdentifier = String((l as any).patientId || l.patientName || '').toLowerCase().trim();
+        const consultKey = `${pIdentifier}_${dateStr}`;
+        if (seenConsultLedgerKeys.has(consultKey)) {
+          modified = true;
+          return; // Skip duplicate consult ledger
+        }
+        seenConsultLedgerKeys.add(consultKey);
+
         if (l.grossAmount === 450 || l.netPayout === 450) {
           l.grossAmount = 500;
           l.netPayout = 500;
@@ -261,21 +270,29 @@ export class BillingService {
         l.patientName = 'Patient Customer';
         modified = true;
       }
+      filteredLedgers.push(l);
     });
 
-    // Ensure all paid invoices have corresponding financial ledger entries
+    // Ensure all paid invoices have corresponding financial ledger entries without duplicates
     const paidInvoices = this.getInvoices().filter(i => i.status === 'paid');
     const existingInvoiceIds = new Set(filteredLedgers.map(l => l.invoiceId));
 
     paidInvoices.forEach(inv => {
-      if (!existingInvoiceIds.has(inv.id)) {
-        const appts = this.getAppointments();
-        const appt = appts.find(a => a.id === inv.appointmentId);
-        const patId = inv.patientId || appt?.patientId;
-        const patients = PatientService.getPatients();
-        const patient = patients.find(p => p.id === patId);
-        const patientName = patient?.name || (inv as any).patientName || (appt as any)?.patient_name || 'Patient Customer';
+      const appts = this.getAppointments();
+      const appt = appts.find(a => a.id === inv.appointmentId);
+      const patId = inv.patientId || appt?.patientId;
+      const patients = PatientService.getPatients();
+      const patient = patients.find(p => p.id === patId);
+      const patientName = patient?.name || (inv as any).patientName || (appt as any)?.patient_name || 'Patient Customer';
+      const dateStr = getIstDateString(inv.createdAt || (appt?.createdAt));
+      const pIdentifier = String(patId || patientName).toLowerCase().trim();
+      const consultKey = `${pIdentifier}_${dateStr}`;
 
+      if (inv.type === 'consult' && seenConsultLedgerKeys.has(consultKey)) {
+        return; // Already recorded
+      }
+
+      if (!existingInvoiceIds.has(inv.id)) {
         const grossAmount = inv.amount || 0;
         let transactionType: FinancialLedgerEntry['transactionType'] = 'appointment_fee';
         let commissionRate = 0;
@@ -293,6 +310,8 @@ export class BillingService {
           transactionType = 'medicine_commission';
           commissionRate = medDoctorSplit / 100;
           netPayout = Math.round(grossAmount * commissionRate);
+        } else if (inv.type === 'consult') {
+          seenConsultLedgerKeys.add(consultKey);
         }
 
         const newLedger: FinancialLedgerEntry = {
@@ -1458,9 +1477,15 @@ export class BillingService {
 
     const allAppointments = this.getAppointments();
 
+    const countedConsultPatientDates = new Set<string>();
+
     paidInvoices.forEach(inv => {
       const amt = inv.amount || 0;
       const appt = allAppointments.find(a => a.id === inv.appointmentId);
+      const patId = inv.patientId || appt?.patientId || '';
+      const dateStr = getIstDateString(inv.createdAt || (appt?.createdAt));
+      const consultKey = `${patId}_${dateStr}`;
+
       const isWhatsAppBooking = String((inv as any).source || '').toLowerCase().includes('whatsapp') ||
         String((inv as any).channel || '').toLowerCase().includes('whatsapp') ||
         String(appt?.source || '').toLowerCase().includes('whatsapp') ||
@@ -1472,11 +1497,14 @@ export class BillingService {
         inv.paymentMethod === 'paytm';
 
       if (inv.type === 'consult') {
-        doctorConsultsEarned += amt; // ALWAYS added to Total Doctor Net Earnings!
-        
-        // ONLY WhatsApp bookings add to Commission Pool Balance (Online Receipts)!
-        if (isWhatsAppBooking) {
-          totalOnlineOffsetReceived += amt;
+        if (!countedConsultPatientDates.has(consultKey)) {
+          countedConsultPatientDates.add(consultKey);
+          doctorConsultsEarned += amt; // ALWAYS added to Total Doctor Net Earnings!
+          
+          // ONLY WhatsApp bookings add to Commission Pool Balance (Online Receipts)!
+          if (isWhatsAppBooking) {
+            totalOnlineOffsetReceived += amt;
+          }
         }
         // Compounder / Counter appointments add ₹0 debt and ₹0 to Commission Pool balance!
       } else if (inv.type === 'lab' || (inv as any).type === 'pathology') {
@@ -1497,6 +1525,10 @@ export class BillingService {
     uInvoices.forEach(uInv => {
       if (uInv.paymentStatus === 'cleared') {
         const appt = allAppointments.find(a => a.id === uInv.encounterId);
+        const patId = uInv.patientId || (uInv as any).patient_id || appt?.patientId || '';
+        const dateStr = getIstDateString(uInv.createdAt || (uInv as any).created_at);
+        const consultKey = `${patId}_${dateStr}`;
+
         const isWhatsAppBooking = String((uInv as any).source || '').toLowerCase().includes('whatsapp') ||
           String(appt?.source || '').toLowerCase().includes('whatsapp') ||
           (appt as any)?.is_virtual === true ||
@@ -1506,7 +1538,8 @@ export class BillingService {
           (uInv as any).paymentMethod === 'phonepe' ||
           (uInv as any).paymentMethod === 'paytm';
 
-        if (uInv.doctorFee > 0 && paidInvoices.every(i => i.appointmentId !== uInv.encounterId)) {
+        if (uInv.doctorFee > 0 && !countedConsultPatientDates.has(consultKey)) {
+          countedConsultPatientDates.add(consultKey);
           doctorConsultsEarned += uInv.doctorFee;
           if (isWhatsAppBooking) {
             totalOnlineOffsetReceived += uInv.doctorFee;
