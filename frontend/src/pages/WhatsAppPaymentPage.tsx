@@ -263,15 +263,19 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             // Sync appointment record to scheduled/confirmed
             const targetApptId = invoice?.appointment_id;
             const targetPatId = patient?.id || invoice?.patient_id;
+            const isVirtual = Boolean(appointment?.is_virtual || appointment?.isVirtual);
+            const nextQueueStatus = isVirtual ? 'awaiting_consultation' : 'awaiting_vitals';
+            const nextApptStatus = isVirtual ? 'ready_for_consult' : 'scheduled';
+
             if (targetApptId) {
               await supabase
                 .from('appointments')
-                .update({ status: 'scheduled', payment_status: 'cleared' })
+                .update({ status: nextApptStatus, payment_status: 'cleared' })
                 .eq('id', targetApptId);
             } else if (targetPatId) {
               await supabase
                 .from('appointments')
-                .update({ status: 'scheduled', payment_status: 'cleared' })
+                .update({ status: nextApptStatus, payment_status: 'cleared' })
                 .eq('patient_id', targetPatId)
                 .neq('status', 'completed')
                 .neq('status', 'cancelled');
@@ -280,7 +284,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             if (targetPatId) {
               await supabase
                 .from('patient_registry')
-                .update({ queue_status: 'awaiting_consultation' })
+                .update({ queue_status: nextQueueStatus })
                 .eq('id', targetPatId);
             }
 
@@ -354,15 +358,19 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
 
       const targetApptId = invoice?.appointment_id;
       const targetPatId = patient?.id || invoice?.patient_id;
+      const isVirtual = Boolean(appointment?.is_virtual || appointment?.isVirtual);
+      const nextQueueStatus = isVirtual ? 'awaiting_consultation' : 'awaiting_vitals';
+      const nextApptStatus = isVirtual ? 'ready_for_consult' : 'scheduled';
+
       if (targetApptId) {
         await supabase
           .from('appointments')
-          .update({ status: 'scheduled', payment_status: 'cleared' })
+          .update({ status: nextApptStatus, payment_status: 'cleared' })
           .eq('id', targetApptId);
       } else if (targetPatId) {
         await supabase
           .from('appointments')
-          .update({ status: 'scheduled', payment_status: 'cleared' })
+          .update({ status: nextApptStatus, payment_status: 'cleared' })
           .eq('patient_id', targetPatId)
           .neq('status', 'completed')
           .neq('status', 'cancelled');
@@ -371,7 +379,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
       if (targetPatId) {
         await supabase
           .from('patient_registry')
-          .update({ queue_status: 'awaiting_consultation' })
+          .update({ queue_status: nextQueueStatus })
           .eq('id', targetPatId);
       }
 

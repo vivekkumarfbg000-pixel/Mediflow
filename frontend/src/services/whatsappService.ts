@@ -894,11 +894,11 @@ export class WhatsAppService {
                 if (!patientObj) {
                   // Auto-register patient to prevent duplicate registers or unlinked draft invoice deadlocks
                   patientObj = PatientService.registerPatient({
-                    name: 'WhatsApp Patient',
+                    name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || 'Patient',
                     phone: phone,
                     abhaId: `ABHA-WA-${Date.now().toString().slice(-4)}`,
-                    age: 35,
-                    gender: 'Male',
+                    age: Number(sessionData.tempNewPatientAge) || 30,
+                    gender: sessionData.tempNewPatientGender || 'Male',
                     allergies: [],
                     chronicConditions: [],
                     queueStatus: 'awaiting_vitals'

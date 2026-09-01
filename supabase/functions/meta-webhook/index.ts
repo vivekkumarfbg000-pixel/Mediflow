@@ -1167,47 +1167,34 @@ async function triggerBotReplyPipeline(ctx: {
   let nextState = state;
   const chatHistory = Array.isArray(sessionData.chatHistory) ? sessionData.chatHistory : [];
 
-  // Parallelize patient profile lookup & consent verification for fast response
+  // Parallelize patient profile lookup, consent, doctor profile, and clinic entity in a single fast batch
   let patient: any = null;
   let consents: any[] = [];
+  let resolvedDoctorName = "Doctor";
+  let resolvedClinicName = connection?.clinic_display_name || sessionData?.clinicName || "Clinic";
+  let resolvedConsultationFee = 500;
   
   try {
     const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
-    const [patRes, consentRes] = await Promise.all([
+    const currentPodId = toValidUuid(connection?.pod_id || session.pod_id);
+
+    const [patRes, consentRes, docRes, entityRes, podRes] = await Promise.all([
       session.patient_id
         ? supabase.from("patient_registry").select("*").eq("id", session.patient_id).maybeSingle()
         : supabase.from("patient_registry").select("*").or(`phone.eq.${clean10},phone.eq.${patientPhone},phone.eq.91${clean10}`).maybeSingle(),
       session.patient_id
         ? supabase.from("patient_consents").select("*").eq("patient_id", session.patient_id)
-        : Promise.resolve({ data: [] })
+        : Promise.resolve({ data: [] }),
+      supabase.from("profiles").select("id, display_name, consultation_fee, pod_id, entity_id").eq("role", "doctor").eq("pod_id", currentPodId).limit(1).maybeSingle(),
+      supabase.from("entities").select("name").eq("pod_id", currentPodId).eq("entity_type", "clinic").limit(1).maybeSingle(),
+      supabase.from("pods").select("name").eq("id", currentPodId).maybeSingle()
     ]);
 
     patient = patRes?.data ?? null;
     if (patient && !session.patient_id) session.patient_id = patient.id;
     consents = consentRes?.data ?? [];
-  } catch (pErr) {
-    console.warn("[Meta Webhook] Parallel fetch error:", pErr);
-  }
 
-  const patientName = patient?.name || sessionData.familyDetails?.name || sessionData.tempNewPatientName || "Valued Patient";
-
-  // Dynamically resolve active Doctor Profile (display_name, consultation_fee) and Clinic Name for this session/pod
-  let resolvedDoctorName = "Doctor";
-  let resolvedClinicName = connection?.clinic_display_name || sessionData?.clinicName || "Clinic";
-  let resolvedConsultationFee = 500;
-
-  try {
-    const currentPodId = toValidUuid(connection?.pod_id || session.pod_id);
-    let docQuery = supabase
-      .from("profiles")
-      .select("id, display_name, consultation_fee, pod_id, entity_id")
-      .eq("role", "doctor");
-
-    if (currentPodId) {
-      docQuery = docQuery.eq("pod_id", currentPodId);
-    }
-    const { data: docProfile } = await docQuery.limit(1).maybeSingle();
-
+    const docProfile = docRes?.data;
     if (docProfile) {
       if (docProfile.display_name) {
         resolvedDoctorName = docProfile.display_name.startsWith("Dr.") ? docProfile.display_name : `Doctor ${docProfile.display_name}`;
@@ -1219,35 +1206,15 @@ async function triggerBotReplyPipeline(ctx: {
 
     if (connection?.clinic_display_name) {
       resolvedClinicName = connection.clinic_display_name;
-    } else if (currentPodId) {
-      // 1. Check entity table for clinic name
-      const { data: podEntity } = await supabase
-        .from("entities")
-        .select("name")
-        .eq("pod_id", currentPodId)
-        .eq("entity_type", "clinic")
-        .limit(1)
-        .maybeSingle();
-
-      if (podEntity?.name) {
-        resolvedClinicName = podEntity.name;
-      } else {
-        // 2. Check pods table
-        const { data: podData } = await supabase
-          .from("pods")
-          .select("name")
-          .eq("id", currentPodId)
-          .maybeSingle();
-
-        if (podData?.name) {
-          resolvedClinicName = podData.name;
-        } else if (docProfile?.display_name) {
-          resolvedClinicName = `${resolvedDoctorName}'s Clinic`;
-        }
-      }
+    } else if (entityRes?.data?.name) {
+      resolvedClinicName = entityRes.data.name;
+    } else if (podRes?.data?.name) {
+      resolvedClinicName = podRes.data.name;
+    } else if (docProfile?.display_name) {
+      resolvedClinicName = `${resolvedDoctorName}'s Clinic`;
     }
-  } catch (lookupErr) {
-    console.warn("[Meta Webhook] Error resolving doctor profile or clinic entity:", lookupErr);
+  } catch (pErr) {
+    console.warn("[Meta Webhook] Parallel startup fetch warning:", pErr);
   }
 
   // devsecops consent check: check patient_consents for explicit revocation
@@ -2586,7 +2553,7 @@ async function triggerBotReplyPipeline(ctx: {
                 pod_id: safePodId,
                 registered_at_entity: safeEntityId,
                 token_number: String(tokenNumber),
-                queue_status: "awaiting_consultation"
+                queue_status: isVirtualSlot ? "awaiting_consultation" : "awaiting_vitals"
               });
               if (regErr) {
                 console.error("[Meta Webhook] Auto-register patient error:", regErr);
@@ -2811,11 +2778,19 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             if (apptId) {
-              const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+              const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
               await supabase
                 .from("appointments")
                 .update({ status: finalStatus, payment_status: "cleared", utr_number: utr })
                 .eq("id", apptId);
+            }
+
+            if (bookingPatId) {
+              const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
+              await supabase
+                .from("patient_registry")
+                .update({ queue_status: nextQ, token_number: String(tokenNumber) })
+                .eq("id", bookingPatId);
             }
 
             nextState = "COMPLETED";
@@ -2824,7 +2799,7 @@ async function triggerBotReplyPipeline(ctx: {
             if (isVirtualSlot) {
               replyText = `🎉 *PAYMENT VERIFIED via AI OCR!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
             } else {
-              replyText = `🎉 *PAYMENT VERIFIED via AI OCR!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you! 😊`;
+              replyText = `🎉 *PAYMENT VERIFIED via AI OCR!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Compounder intake desk par vitals verify honge! Thank you! 😊`;
             }
           } else {
             console.error("[Meta Webhook] Failed to update reconciled status:", updErr);
@@ -2875,16 +2850,24 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             if (apptId) {
-              const finalStatus = isVirtualSlot ? "ready_for_consult" : "scheduled";
+              const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
               await supabase
                 .from("appointments")
                 .update({ status: finalStatus, payment_status: "cleared", utr_number: utr })
                 .eq("id", apptId);
             }
 
+            if (bookingPatId) {
+              const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
+              await supabase
+                .from("patient_registry")
+                .update({ queue_status: nextQ, token_number: String(tokenNumber) })
+                .eq("id", bookingPatId);
+            }
+
             nextState = "COMPLETED";
             const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
-            replyText = `🎉 *PAYMENT VERIFIED VIA DIRECT UPI (0% MDR)!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Thank you for choosing VitalSync! 😊`;
+            replyText = `🎉 *PAYMENT VERIFIED VIA DIRECT UPI (0% MDR)!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• UTR Ref No: \`${utr}\`\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) show karein. Compounder intake desk par vitals verify honge! Thank you for choosing VitalSync! 😊`;
           } else {
             replyText = "⚠️ *Database Lock Error*\n\nTransaction match ho gaya hai lekin database update fail ho gaya. Please try again.";
           }
@@ -2908,7 +2891,7 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (apptId) {
-          const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "ready_for_consult");
+          const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
           await supabase
             .from("appointments")
             .update({ status: finalStatus, payment_status: "cleared", token_number: String(tokenNumber) })
@@ -2939,9 +2922,10 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (bookingPatId) {
+          const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
           await supabase
             .from("patient_registry")
-            .update({ queue_status: "awaiting_consultation", token_number: String(tokenNumber) })
+            .update({ queue_status: nextQ, token_number: String(tokenNumber) })
             .eq("id", bookingPatId);
         }
 
@@ -2958,7 +2942,7 @@ async function triggerBotReplyPipeline(ctx: {
         } else if (isVirtualSlot) {
           replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Thank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Compounder intake desk par vitals verify honge! Thank you for choosing VitalSync! 😊`;
         }
 
       // 4. Global navigation / Reset (Anti-Lockup)
@@ -4116,24 +4100,26 @@ CLINICAL GUIDELINES:
           }
         };
 
-        try {
-          const listRes = await fetch(metaUrl, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${decryptedToken}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(listPayload)
+        // Non-blocking async dispatch of the services list menu so primary reply reaches patient sub-300ms
+        fetch(metaUrl, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${decryptedToken}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(listPayload)
+        })
+          .then(async (listRes) => {
+            const listResult = await listRes.json();
+            if (listRes.ok) {
+              console.log("[Meta Outbound] Dispatched welcome list success ✅", JSON.stringify(listResult));
+            } else {
+              console.error("[Meta Outbound] Meta API returned an error for welcome list:", JSON.stringify(listResult));
+            }
+          })
+          .catch((listErr) => {
+            console.error("[Meta Outbound] Failed to dispatch welcome list message:", listErr);
           });
-          const listResult = await listRes.json();
-          if (listRes.ok) {
-            console.log("[Meta Outbound] Dispatched welcome list success ✅", JSON.stringify(listResult));
-          } else {
-            console.error("[Meta Outbound] Meta API returned an error for welcome list:", JSON.stringify(listResult));
-          }
-        } catch (listErr) {
-          console.error("[Meta Outbound] Failed to dispatch welcome list message:", listErr);
-        }
       }
     } else {
       console.error("[Meta Outbound] Meta API returned an error:", JSON.stringify(result));

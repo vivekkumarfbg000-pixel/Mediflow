@@ -237,15 +237,40 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     } catch (_e) { /* ignore */ }
   }, [selectedPatient?.id]);
 
-  // Auto-select first awaiting patient if none is selected
+  // Auto-select first awaiting patient for TODAY if none is selected
   useEffect(() => {
     if (!selectedPatient && patients && patients.length > 0) {
-      const awaiting = patients.find(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus);
+      const todayStr = getIstDateString();
+      const invoices = BillingService.getInvoices();
+      const paidInvoicePatientIds = invoices
+        .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
+        .map((i: any) => i.patientId || (i as any).patient_id);
+      const paidPatientIds = new Set([
+        ...appointments
+          .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
+          .map(a => a.patientId || (a as any).patient_id),
+        ...paidInvoicePatientIds
+      ]);
+
+      const isPatientForToday = (p: Patient) => {
+        const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+        if (patAppts.length > 0) {
+          return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
+        }
+        const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
+        return Boolean(regDate && regDate.startsWith(todayStr) && paidPatientIds.has(p.id));
+      };
+
+      const awaiting = patients.find(p => 
+        (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation') && 
+        isPatientForToday(p) && 
+        paidPatientIds.has(p.id)
+      );
       if (awaiting) {
         setSelectedPatient(awaiting);
       }
     }
-  }, [patients, selectedPatient]);
+  }, [patients, selectedPatient, appointments]);
 
   const [virtualDateInput, setVirtualDateInput] = useState('');
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);

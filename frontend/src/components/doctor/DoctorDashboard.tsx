@@ -484,8 +484,8 @@ export const DoctorDashboard: React.FC = () => {
               referralCode: p.referral_code || (localP as any)?.referralCode,
               tokenNumber: p.token_number || p.tokenNumber || localP?.tokenNumber || undefined,
               token_number: p.token_number || p.tokenNumber || localP?.tokenNumber || undefined,
-              queueStatus: p.queue_status || p.queueStatus || localP?.queueStatus || 'awaiting_consultation',
-              queue_status: p.queue_status || p.queueStatus || localP?.queueStatus || 'awaiting_consultation',
+              queueStatus: p.queue_status || p.queueStatus || localP?.queueStatus || 'registered',
+              queue_status: p.queue_status || p.queueStatus || localP?.queueStatus || 'registered',
               allergies: p.allergies || localP?.allergies || [],
               chronicConditions: p.chronic_conditions || p.chronicConditions || localP?.chronicConditions || [],
               abhaId: p.abha_id || p.abhaId || localP?.abhaId || undefined,
@@ -508,7 +508,7 @@ export const DoctorDashboard: React.FC = () => {
             const dpAny = dp as any;
             const finalQueueStatus = (existing?.queueStatus === 'completed' && (dp.queueStatus === 'in_consultation' || dpAny.queue_status === 'in_consultation'))
               ? 'completed'
-              : (dp.queueStatus || dpAny.queue_status || existing?.queueStatus || 'awaiting_consultation');
+              : (dp.queueStatus || dpAny.queue_status || existing?.queueStatus || 'registered');
             mergedMap.set(dp.id, existing ? { ...existing, ...dp, queueStatus: finalQueueStatus, queue_status: finalQueueStatus, vitals: dp.vitals || existing.vitals } : dp);
           });
           const finalPatients = Array.from(mergedMap.values());
