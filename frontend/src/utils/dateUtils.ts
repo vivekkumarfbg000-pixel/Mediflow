@@ -7,8 +7,15 @@
  * Returns YYYY-MM-DD date string in Indian Standard Time (IST, UTC+5:30).
  * Prevents UTC serverless date shifts between 12:00 AM and 05:30 AM IST.
  */
-export function getIstDateString(date: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(date);
+export function getIstDateString(date?: Date | string | null): string {
+  if (!date) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  }
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) {
+    return typeof date === 'string' ? date.split('T')[0] : '';
+  }
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
 }
 
 /**

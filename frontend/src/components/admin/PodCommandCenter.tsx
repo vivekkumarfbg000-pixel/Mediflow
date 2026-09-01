@@ -139,7 +139,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
     }
     const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-    return regDate.startsWith(todayStr);
+    const pDate = getIstDateString(regDate);
+    return pDate === todayStr || regDate.startsWith(todayStr);
   };
 
   const labMetrics = useMemo(() => ({

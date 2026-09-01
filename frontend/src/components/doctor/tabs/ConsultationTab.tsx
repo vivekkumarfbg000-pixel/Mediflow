@@ -125,7 +125,7 @@ interface ConsultationTabProps {
   handleAddMedication: () => void;
   handleRemoveMedication: (idx: number) => void;
   handleToggleTest: (test: DiagnosticTest) => void;
-  handleSaveEncounter: () => void;
+  handleSaveEncounter?: (data?: { medications?: any[]; diagnosticTests?: DiagnosticTest[]; notes?: string }) => void | Promise<void>;
   handleLaunchVideoConsult?: () => void;
   activeDoctorProfile?: any;
   activeProfile?: any;
@@ -682,8 +682,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        handleSaveEncounter();
+        if (typeof handleSaveEncounter === 'function') {
+          handleSaveEncounter({
+            medications: medications.map((m: any, idx: number) => ({ ...m, id: m.id || `med-${idx}` })),
+            diagnosticTests: selectedTests,
+            notes
+          });
+        }
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
         if (patientLabReports.length > 0) {
@@ -1051,9 +1056,13 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
       // 3. Delegate to master encounter save & WhatsApp dispatch (or execute direct local save)
       if (typeof handleSaveEncounter === 'function') {
-        await handleSaveEncounter();
+        await handleSaveEncounter({
+          medications: medications.map((m: any, idx: number) => ({ ...m, id: m.id || `med-${idx}` })),
+          diagnosticTests: selectedTests,
+          notes
+        });
       } else {
-        const finalMedications = medications.map((m: any, idx: number) => ({ ...m, id: `med-${idx}` }));
+        const finalMedications = medications.map((m: any, idx: number) => ({ ...m, id: m.id || `med-${idx}` }));
         api.createEncounter({
           patientId: selectedPatient.id,
           patientName: selectedPatient.name,
@@ -1699,14 +1708,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                 }
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-                return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
+                const pDate = getIstDateString(regDate);
+                return (pDate === todayStr || regDate.startsWith(todayStr)) && paidPatientIds.has(p.id);
               };
 
               const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment' && isPatientForToday(p));
               const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && isPatientForToday(p));
               const todayRegList = patients.filter(p => {
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-                return regDate.startsWith(todayStr);
+                const pDate = getIstDateString(regDate);
+                return pDate === todayStr || regDate.startsWith(todayStr);
               });
               const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
               const upcomingList = patients.filter(p => {

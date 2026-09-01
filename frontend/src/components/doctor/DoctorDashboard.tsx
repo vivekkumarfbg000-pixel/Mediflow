@@ -1145,10 +1145,14 @@ Keep the tone professional, clinical, objective, and precise.`;
     }
   };
 
-  const handleSaveEncounter = async () => {
+  const handleSaveEncounter = async (dataOverride?: { medications?: MedicationRequest[]; diagnosticTests?: DiagnosticTest[]; notes?: string }) => {
     if (!selectedPatient) return;
 
-    const finalMedications = medications.map((m: Omit<MedicationRequest, 'id'>, idx: number) => ({ ...m, id: `med-${idx}` }));
+    const sourceMeds = dataOverride?.medications || medications;
+    const sourceTests = dataOverride?.diagnosticTests || selectedTests;
+    const sourceNotes = dataOverride?.notes !== undefined ? dataOverride.notes : notes;
+
+    const finalMedications = sourceMeds.map((m: any, idx: number) => ({ ...m, id: m.id || `med-${idx}` }));
 
     // Ophthalmology spectacle support
     if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
@@ -1161,7 +1165,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       });
     }
 
-    let finalNotes = notes;
+    let finalNotes = sourceNotes;
     if (isOphthalmology && (refractionRx.od.sph || refractionRx.os.sph)) {
       finalNotes += serializeRefractionRx(refractionRx);
     }
@@ -1176,7 +1180,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       doctorId: getPodContext().doctorId || activeDoctorProfile?.id || 'doc-1',
       clinicalNotes: finalNotes,
       medications: finalMedications,
-      diagnosticTests: selectedTests
+      diagnosticTests: sourceTests
     });
 
     // Mark completed patient status in patient registry & queue

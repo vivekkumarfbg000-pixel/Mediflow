@@ -439,14 +439,15 @@ export class PatientService {
     const currentPodId = getPodContext().podId;
     const patients = this.getPatients();
     const newId = (patientData.id && this.isUUID(patientData.id)) ? patientData.id : crypto.randomUUID();
-    const customPatientId = this.generateSmartPatientId(patientData.name, patients);
+    const customPatientId = patientData.patientCode || `PID-${newId.slice(0, 6).toUpperCase()}`;
+    const nextToken = patientData.tokenNumber || this.generateNextTokenNumber(undefined, false);
 
     const newPatient: Patient = {
       ...patientData,
       id: newId,
       podId: currentPodId,
-      patientCode: patientData.patientCode || customPatientId,
-      tokenNumber: patientData.tokenNumber || customPatientId,
+      patientCode: customPatientId,
+      tokenNumber: nextToken,
       createdAt: new Date().toISOString()
     } as any;
     
