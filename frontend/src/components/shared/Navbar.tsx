@@ -649,71 +649,73 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </aside>
 
-      {/* Mobile Top Header Navigation */}
-      <nav 
-        className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full"
-        style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Mobile Sidebar Drawer Hamburger Trigger */}
-            <button 
-              onClick={() => setIsMobileDrawerOpen(true)}
-              className="p-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 rounded-lg text-slate-550 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center border-0 outline-none"
-              aria-label="Open Sidebar Drawer"
-            >
-              <Menu className="h-4.5 w-4.5" />
-            </button>
+      {/* Mobile Top Header Navigation (Hidden for saas_admin which has its dedicated mobile app bar) */}
+      {currentRole !== 'saas_admin' && (
+        <nav 
+          className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full"
+          style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {/* Mobile Sidebar Drawer Hamburger Trigger */}
+              <button 
+                onClick={() => setIsMobileDrawerOpen(true)}
+                className="p-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 rounded-lg text-slate-550 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-white transition-all shadow-[0_1px_2px_rgba(0,0,0,0.01)] cursor-pointer min-h-[32px] min-w-[32px] flex items-center justify-center border-0 outline-none"
+                aria-label="Open Sidebar Drawer"
+              >
+                <Menu className="h-4.5 w-4.5" />
+              </button>
 
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 dark:text-slate-350 truncate flex items-center gap-1.5 leading-none">
-                {activeProfile?.display_name 
-                  ? (activeProfile.role === 'doctor' && !(activeProfile.display_name || '').toLowerCase().startsWith('dr.')
-                      ? `Dr. ${activeProfile.display_name}`
-                      : activeProfile.display_name)
-                  : 'VitalSync'}
-                {' · '}
-                {currentRole === 'doctor' ? 'Doctor Dashboard' :
-                 currentRole === 'compounder' ? 'Compounder Operations' :
-                 currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
-                 currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
-                 currentRole === 'billing' ? 'UPI Ledger' :
-                 currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
-              </h1>
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <h1 className="font-bold text-[9px] uppercase tracking-wider text-slate-700 dark:text-slate-350 truncate flex items-center gap-1.5 leading-none">
+                  {activeProfile?.display_name 
+                    ? (activeProfile.role === 'doctor' && !(activeProfile.display_name || '').toLowerCase().startsWith('dr.')
+                        ? `Dr. ${activeProfile.display_name}`
+                        : activeProfile.display_name)
+                    : 'VitalSync'}
+                  {' · '}
+                  {currentRole === 'doctor' ? 'Doctor Dashboard' :
+                   currentRole === 'compounder' ? 'Compounder Operations' :
+                   currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
+                   currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
+                   currentRole === 'billing' ? 'UPI Ledger' :
+                   currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
+                </h1>
+              </div>
             </div>
-          </div>
 
-          {/* SRE Live Sync Status Pill, Settings & Theme Toggle */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <SyncStatusPill compact={true} />
+            {/* SRE Live Sync Status Pill, Settings & Theme Toggle */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <SyncStatusPill compact={true} />
 
-            {/* Quick Mobile Settings Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setProfileModalInitialTab('profile');
-                setIsProfileModalOpen(true);
-              }}
-              className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
-              title="Settings & Control Center"
-              aria-label="Settings & Control Center"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
+              {/* Quick Mobile Settings Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileModalInitialTab('profile');
+                  setIsProfileModalOpen(true);
+                }}
+                className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
+                title="Settings & Control Center"
+                aria-label="Settings & Control Center"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
 
-            {/* Quick Mobile Theme Toggle Button */}
-            <button
-              type="button"
-              onClick={handleToggleTheme}
-              className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-amber-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
-              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              aria-label="Toggle Theme Mode"
-            >
-              {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-            </button>
-          </div>
-      </div>
-      </nav>
+              {/* Quick Mobile Theme Toggle Button */}
+              <button
+                type="button"
+                onClick={handleToggleTheme}
+                className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-amber-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
+                title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                aria-label="Toggle Theme Mode"
+              >
+                {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+              </button>
+            </div>
+        </div>
+        </nav>
+      )}
 
       {/* Mobile Drawer Slide-over Panel Sheet */}
       {isMobileDrawerOpen && (

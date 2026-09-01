@@ -1671,8 +1671,19 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 disabled={metricsLoading}
                 className="h-7.5 w-7.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl flex items-center justify-center border border-slate-200/80 dark:border-white/10 active:scale-95 transition-all cursor-pointer shrink-0"
                 aria-label="Sync Metrics"
+                title="Sync Live Metrics"
               >
                 <RefreshCw className={`h-3 w-3 text-indigo-600 dark:text-indigo-400 ${metricsLoading ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="h-7.5 w-7.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-xl flex items-center justify-center border border-rose-200/80 dark:border-rose-900/40 active:scale-95 transition-all cursor-pointer shrink-0"
+                aria-label="Sign Out"
+                title="Sign Out Workspace"
+              >
+                <LogOut className="h-3 w-3" />
               </button>
             </div>
           </div>
