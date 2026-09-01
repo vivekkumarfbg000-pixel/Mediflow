@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString } from '../utils/dateUtils';
 
@@ -29,7 +29,6 @@ export class BillingService {
     let invoices = load<UnifiedInvoice[]>('unified_invoices', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -202,7 +201,6 @@ export class BillingService {
     let ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -360,7 +358,6 @@ export class BillingService {
     let appts = load<Appointment[]>('saas_appointments', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -425,7 +422,6 @@ export class BillingService {
     let invoices = load<Invoice[]>('saas_invoices', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -565,7 +561,7 @@ export class BillingService {
           is_virtual: source === 'whatsapp',
           virtual_date: effectiveDate,
           virtual_time: effectiveTime,
-          pod_id: ctx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+          pod_id: ctx.podId || FALLBACK_POD_ID
         });
 
         await supabase.from('unified_invoices').upsert({
@@ -577,7 +573,7 @@ export class BillingService {
           platform_fee: source === 'whatsapp' ? 15 : 0,
           total_amount: source === 'whatsapp' ? consultFee + 15 : consultFee,
           payment_status: 'pending',
-          pod_id: ctx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+          pod_id: ctx.podId || FALLBACK_POD_ID
         });
       } catch (_dbSyncErr) {
         console.warn('[BillingService] Initial consult Supabase upsert note:', _dbSyncErr);
@@ -1026,8 +1022,8 @@ export class BillingService {
             appointment_id: appt.id,
             patient_id: patId,
             doctor_id: appt.doctorId || (appt as any).doctor_id,
-            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-            destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+            source_entity_id: getPodContext().entityId || FALLBACK_ENTITY_ID,
+            destination_entity_id: getPodContext().entityId || FALLBACK_ENTITY_ID,
             transaction_type: 'appointment_fee',
             gross_amount: amount || 500,
             commission_rate: 0,
@@ -1037,7 +1033,7 @@ export class BillingService {
             platform_fee_deducted: 0,
             gateway_disbursed_net: paymentMethod === 'cash' ? 0.00 : (amount || 500),
             payment_method: paymentMethod,
-            pod_id: getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+            pod_id: getPodContext().podId || FALLBACK_POD_ID
           };
           supabase.from('financial_ledgers').upsert([dbDocLedger], { onConflict: 'id' }).then(({ error }) => {
             if (error) console.error('[BillingService] Error upserting consult ledger in Supabase:', error);
@@ -1344,7 +1340,7 @@ export class BillingService {
   static getClinicSops(): ClinicSop[] {
     const defaultSop: ClinicSop = {
       id: 'sop-standard-1',
-      entityId: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      entityId: getPodContext().entityId || FALLBACK_ENTITY_ID,
       sopFileName: 'VitalSync_Clinic_Standard_SOP.txt',
       sopText: 'Doctor consultation fee: INR 500. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
       extractedConfig: {
@@ -1386,7 +1382,7 @@ export class BillingService {
       }
       return {
         id: validId,
-        entity_id: sop.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        entity_id: sop.entityId || FALLBACK_ENTITY_ID,
         sop_file_name: sop.sopFileName,
         sop_text: sop.sopText,
         extracted_config: sop.extractedConfig,

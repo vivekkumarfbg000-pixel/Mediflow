@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { BillingService } from '../services/billingService';
+import { FALLBACK_POD_ID } from '../services/podContext';
 import { 
   ShieldCheck, 
   CreditCard, 
@@ -308,7 +309,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                   platform_fee_deducted: Number(invoice?.platform_fee) || 15,
                   gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
                   payment_method: 'razorpay',
-                  pod_id: invoice?.pod_id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+                  pod_id: invoice?.pod_id || FALLBACK_POD_ID
                 }, { onConflict: 'id' });
               } catch (_fErr) {
                 console.warn('[WhatsApp Payment] Financial ledger upsert error:', _fErr);
@@ -403,7 +404,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             platform_fee_deducted: Number(invoice?.platform_fee) || 15,
             gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
             payment_method: 'upi',
-            pod_id: invoice?.pod_id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+            pod_id: invoice?.pod_id || FALLBACK_POD_ID
           }, { onConflict: 'id' });
         } catch (_fErr) {
           console.warn('[WhatsApp Payment] Financial ledger upsert error:', _fErr);

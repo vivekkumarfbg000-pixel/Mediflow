@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
+import { FALLBACK_POD_ID } from '../services/podContext';
 import type { Pod, Entity } from '../types';
 
 interface ClinicContextType {
@@ -66,7 +67,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       const cleanStoredPodName = localActivePod?.name && !localActivePod.name.toLowerCase().includes('apex') ? localActivePod.name : null;
       const customName = activeProfile?.clinicName || activeProfile?.clinic_name || cleanStoredPodName || (activeProfile?.display_name ? `${activeProfile.display_name.startsWith('Dr.') ? activeProfile.display_name : `Dr. ${activeProfile.display_name}`}'s Care Clinic` : 'VitalSync Smart Care Clinic');
       const demoPod: Pod = {
-        id: localActivePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        id: localActivePod?.id || FALLBACK_POD_ID,
         name: customName,
         location: localActivePod?.location || 'Central Medical Plaza, Tier-2 Clinic Node',
         clinicCode: localActivePod?.clinic_code || localActivePod?.clinicCode || 'VS-V01R',

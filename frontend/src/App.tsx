@@ -7,6 +7,7 @@ import { PwaSyncManager } from './pwa';
 import { MessageSquare } from 'lucide-react';
 import { isStrongPassword, getPasswordValidationError } from './utils/passwordPolicy';
 import { PasswordStrengthMeter } from './components/shared/PasswordStrengthMeter';
+import { FALLBACK_DOCTOR_ID, FALLBACK_ENTITY_ID } from './services/podContext';
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -931,8 +932,8 @@ export default function App() {
         }
       } catch (_e) { /* ignore */ }
       return {
-        id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-        entity_id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        id: FALLBACK_DOCTOR_ID,
+        entity_id: FALLBACK_ENTITY_ID,
         role: 'doctor',
         display_name: 'Dr. Vivek Kumar (Demo)',
         email: 'doctor@mediflow.com'

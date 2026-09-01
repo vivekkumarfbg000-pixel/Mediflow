@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { TelemetryService } from './telemetry';
 import { PatientService } from './patientService';
 import { WhatsAppService } from './whatsappService';
-import { getPodContext, FALLBACK_POD_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_PHARM_ENTITY } from './podContext';
 import { getIstDateString, getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { 
@@ -401,7 +401,7 @@ export class PharmacyService {
       try {
         const dbRows = items.map(item => ({
           id: item.id,
-          pharmacy_entity_id: (getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? getPodContext().pharmacyEntityId : null,
+          pharmacy_entity_id: (getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== FALLBACK_PHARM_ENTITY) ? getPodContext().pharmacyEntityId : null,
           medicine_name: item.name,
           batch_number: item.batchNumber,
           expiry_date: item.expiryDate,
@@ -530,7 +530,7 @@ export class PharmacyService {
     // Sync to Supabase
     const dbRow = {
       id: newItem.id,
-      pharmacy_entity_id: (entityId && entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? entityId : ((getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? getPodContext().pharmacyEntityId : null),
+      pharmacy_entity_id: (entityId && entityId !== FALLBACK_PHARM_ENTITY) ? entityId : ((getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== FALLBACK_PHARM_ENTITY) ? getPodContext().pharmacyEntityId : null),
       medicine_name: newItem.name,
       batch_number: newItem.batchNumber,
       expiry_date: newItem.expiryDate,
@@ -609,7 +609,7 @@ export class PharmacyService {
 
         dbRows.push({
           id: newItem.id,
-          pharmacy_entity_id: (entityId && entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? entityId : ((getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004') ? getPodContext().pharmacyEntityId : null),
+          pharmacy_entity_id: (entityId && entityId !== FALLBACK_PHARM_ENTITY) ? entityId : ((getPodContext().pharmacyEntityId && getPodContext().pharmacyEntityId !== FALLBACK_PHARM_ENTITY) ? getPodContext().pharmacyEntityId : null),
           medicine_name: newItem.name,
           batch_number: newItem.batchNumber,
           expiry_date: newItem.expiryDate,
@@ -1045,7 +1045,7 @@ export class PharmacyService {
         // Create hold
         holds.push({
           id: `hold-wa-${crypto.randomUUID().substring(0, 8)}`,
-          pharmacyId: getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004',
+          pharmacyId: getPodContext().pharmacyEntityId || FALLBACK_PHARM_ENTITY,
           patientId: bill.patientId,
           medicineName: item.name,
           dosage: item.dosage,

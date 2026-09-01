@@ -11,6 +11,7 @@ import { FounderAICopilotModal } from './FounderAICopilotModal';
 import { AIFleetCommanderTab } from './AIFleetCommanderTab';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 import { getIstDateDisplay } from '../../utils/dateUtils';
+import { FALLBACK_POD_ID } from '../../services/podContext';
 import { 
   ShieldAlert, 
   Lock, 
@@ -153,14 +154,14 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     clinics: 1,
     pharmacies: 1,
     labs: 1,
-    total_profiles: Math.max(api.getPatients().length, 12)
+    total_profiles: api.getPatients().length
   }));
   const [revenueStats, setRevenueStats] = useState<RevenueStats>(() => {
     const invoices = api.getUnifiedInvoices();
     const totalGmv = invoices.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0);
     return {
       total_gmv: totalGmv,
-      platform_commission: Math.round(totalGmv * 0.025),
+      platform_commission: Math.round(totalGmv * 0.03),
       paid_invoices: invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length,
       unpaid_invoices: invoices.filter(i => i.paymentStatus === 'pending').length
     };
@@ -172,7 +173,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     ai_cost: 0.00
   }));
   const [podsList, setPodsList] = useState<PodInfo[]>(() => [{
-    id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    id: FALLBACK_POD_ID,
     name: 'Central Medical Pod, Patna',
     doctor_name: 'Dr. Rohit Sharma',
     phone: '+919608032073',
@@ -452,7 +453,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         setBudgetInputs(inputs);
       } else {
         const demoPods: PodInfo[] = [{
-          id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+          id: FALLBACK_POD_ID,
           name: 'Central Medical Pod, Patna',
           location: 'Clinic Hub',
           clinic_code: 'VS-V01R',
@@ -468,7 +469,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           doctor_name: 'Chief Ophthalmic Specialist'
         }];
         setPodsList(demoPods);
-        setBudgetInputs({ 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001': '500' });
+        setBudgetInputs({ [FALLBACK_POD_ID]: '500' });
       }
     } catch (err) {
       console.error('[SaaS Admin] Failed to fetch metrics aggregates:', err);

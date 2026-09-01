@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { PaymentService } from './paymentService';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
+import { FALLBACK_POD_ID } from './podContext';
 
 // ─── Telemetry Types ────────────────────────────────────────────────────────────
 
@@ -426,7 +427,7 @@ export class StateHealingEngine {
   /** 🔒 Phase 38: Autonomous Multi-Tenant Isolation Verifier */
   static verifyMultiTenantIsolation(): boolean {
     try {
-      const activePodId = localStorage.getItem('mediflow_active_pod_id') || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+      const activePodId = localStorage.getItem('mediflow_active_pod_id') || FALLBACK_POD_ID;
       if (activePodId) {
         this.totalHealedCount++;
         return true;
@@ -949,7 +950,7 @@ export class StateHealingEngine {
       let podId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || null;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!podId || !uuidRegex.test(podId)) {
-        podId = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+        podId = FALLBACK_POD_ID;
       }
 
       try {
@@ -2493,7 +2494,7 @@ export class ProactiveHealthMonitor {
         // Defensive validation: ensure pod_id is a valid UUID, fallback to active window pod or default
         let entryPodId = entry.pod_id;
         if (!entryPodId || !uuidRegex.test(entryPodId)) {
-          entryPodId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+          entryPodId = (typeof window !== 'undefined' && (window as any).__mediflow_active_pod_id) || FALLBACK_POD_ID;
         }
 
         // Reconstruct telemetry table first if missing (just in case)

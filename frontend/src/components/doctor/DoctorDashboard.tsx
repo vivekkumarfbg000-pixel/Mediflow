@@ -4,7 +4,7 @@ import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
 import { PatientService } from '../../services/patientService';
 import { supabase } from '../../lib/supabaseClient';
-import { getPodContext } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from '../../services/podContext';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
@@ -374,11 +374,11 @@ export const DoctorDashboard: React.FC = () => {
 
       // Fetch live remote DB records scoped to active tenant pod ID in a single Promise.all batch
       const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId || getPodContext().podId;
-      const targetPodId = currentPodId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+      const targetPodId = currentPodId || FALLBACK_POD_ID;
 
       let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
       if (targetPodId && targetPodId !== 'default-pod') {
-        apptsQuery = apptsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317001`);
+        apptsQuery = apptsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.${FALLBACK_POD_ID}`);
       }
       const ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
       const patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
@@ -567,7 +567,7 @@ export const DoctorDashboard: React.FC = () => {
           .from('cashfree_vendors')
           .select('*')
           .eq('pod_id', activePod.id)
-          .eq('entity_id', activeEntity?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') // Default Bihar Clinic Entity ID
+          .eq('entity_id', activeEntity?.id || FALLBACK_ENTITY_ID)
           .maybeSingle()
           .then(({ data }) => {
             setActiveVendor(data || null);

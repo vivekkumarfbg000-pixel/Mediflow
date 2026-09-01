@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
-import { getPodContext, FALLBACK_POD_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_LAB_ENTITY } from './podContext';
 import { getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
@@ -512,7 +512,7 @@ export class LabService {
       encounter_id: null,
       patient_id: patientId,
       pod_id: getPodContext().podId,
-      lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') ? getPodContext().labEntityId : null,
+      lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== FALLBACK_LAB_ENTITY) ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
       barcode,
@@ -714,7 +714,7 @@ export class LabService {
       encounter_id: null,
       patient_id: patientId,
       pod_id: getPodContext().podId,
-      lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') ? getPodContext().labEntityId : null,
+      lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== FALLBACK_LAB_ENTITY) ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
       barcode,

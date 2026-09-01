@@ -11,6 +11,7 @@ import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
 import { isStrongPassword, getPasswordValidationError } from '../../utils/passwordPolicy';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
+import { FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 
 interface LoginAttempt {
   email: string;
@@ -103,8 +104,8 @@ const DEMO_ACCOUNTS = [
     label: 'Doctor EMR',
     name: 'Dr. Vivek Kumar',
     email: 'doctor@mediflow.com',
-    id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    id: FALLBACK_DOCTOR_ID,
+    entityId: FALLBACK_ENTITY_ID,
     icon: '👨‍⚕️'
   },
   {
@@ -113,7 +114,7 @@ const DEMO_ACCOUNTS = [
     name: 'Ramesh Singh',
     email: 'compounder@mediflow.com',
     id: 'c1111111-1111-1111-1111-111111111111',
-    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    entityId: FALLBACK_ENTITY_ID,
     icon: '🏥'
   },
   {
@@ -122,7 +123,7 @@ const DEMO_ACCOUNTS = [
     name: 'Suresh Kumar',
     email: 'pharmacy@mediflow.com',
     id: 'p2222222-2222-2222-2222-222222222222',
-    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    entityId: FALLBACK_ENTITY_ID,
     icon: '💊'
   },
   {
@@ -131,7 +132,7 @@ const DEMO_ACCOUNTS = [
     name: 'Vikram Mehta',
     email: 'labtech@mediflow.com',
     id: 'l3333333-3333-3333-3333-333333333333',
-    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    entityId: FALLBACK_ENTITY_ID,
     icon: '🧪'
   },
   {
@@ -140,7 +141,7 @@ const DEMO_ACCOUNTS = [
     name: 'Platform Administrator',
     email: 'admin@vitalsync.health',
     id: 'a4444444-4444-4444-4444-444444444444',
-    entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    entityId: FALLBACK_ENTITY_ID,
     icon: '🛡️'
   }
 ];

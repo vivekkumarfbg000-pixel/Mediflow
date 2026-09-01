@@ -293,7 +293,7 @@ export class ChronicCareService {
         patientName: 'Rajesh Kumar Verma',
         patientPhone: '+91 9835012345',
         doctorId: 'doc-primary',
-        podId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        podId: FALLBACK_POD_ID,
         conditionCode: 'DIABETES',
         conditionName: 'Type-2 Diabetes Mellitus',
         medications: [
@@ -316,7 +316,7 @@ export class ChronicCareService {
         patientName: 'Sunita Devi Sharma',
         patientPhone: '+91 9431023456',
         doctorId: 'doc-primary',
-        podId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        podId: FALLBACK_POD_ID,
         conditionCode: 'HYPERTENSION',
         conditionName: 'Essential Hypertension',
         medications: [
@@ -339,7 +339,7 @@ export class ChronicCareService {
         patientName: 'Anita Gupta',
         patientPhone: '+91 9122034567',
         doctorId: 'doc-primary',
-        podId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        podId: FALLBACK_POD_ID,
         conditionCode: 'THYROID',
         conditionName: 'Hypothyroidism',
         medications: [
@@ -361,7 +361,7 @@ export class ChronicCareService {
         patientName: 'Manoj Kumar Singh',
         patientPhone: '+91 9304045678',
         doctorId: 'doc-primary',
-        podId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        podId: FALLBACK_POD_ID,
         conditionCode: 'CARDIAC',
         conditionName: 'Post-PTCA CAD / Dyslipidemia',
         medications: [
@@ -384,7 +384,7 @@ export class ChronicCareService {
         patientName: 'Vikramaditya Roy',
         patientPhone: '+91 9709056789',
         doctorId: 'doc-primary',
-        podId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        podId: FALLBACK_POD_ID,
         conditionCode: 'RESPIRATORY',
         conditionName: 'Severe Bronchial Asthma',
         medications: [
@@ -407,7 +407,7 @@ export class ChronicCareService {
         patientName: 'Baidyanath Prasad',
         patientPhone: '+91 9934067890',
         doctorId: 'doc-primary',
-        podId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+        podId: FALLBACK_POD_ID,
         conditionCode: 'ARTHRITIS',
         conditionName: 'Severe Knee Osteoarthritis',
         medications: [

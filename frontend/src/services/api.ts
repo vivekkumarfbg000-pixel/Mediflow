@@ -13,7 +13,7 @@ import { AIService, type AIResult } from './aiService';
 import { ClinicalNotificationService } from './clinicalNotificationService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
-import { getPodContext, resolvePodContext } from './podContext';
+import { getPodContext, resolvePodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
 
 import type { 
@@ -442,8 +442,8 @@ class MediflowApiService {
               .upsert({
                 id: entry.id, // client UUID (idempotency key)
                 patient_id: payload.patientId,
-                doctor_id: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-                entity_id: ctx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+                doctor_id: ctx.doctorId || FALLBACK_DOCTOR_ID,
+                entity_id: ctx.entityId || FALLBACK_ENTITY_ID,
                 clinical_notes: payload.clinicalNotes,
                 status: 'active',
                 pod_id: ctx.podId
@@ -524,7 +524,7 @@ class MediflowApiService {
               chronic_conditions: payload.chronicConditions,
               abha_id: payload.abhaId,
               token_number: payload.tokenNumber,
-              registered_at_entity: ctx.entityId && ctx.entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.entityId : null,
+              registered_at_entity: ctx.entityId && ctx.entityId !== FALLBACK_ENTITY_ID ? ctx.entityId : null,
               pod_id: ctx.podId
             }, { onConflict: 'id' });
             if (error) throw error;
@@ -542,7 +542,7 @@ class MediflowApiService {
               test_name: payload.testName,
               barcode: payload.barcode || `WALK-${Date.now()}-${payload.testCode}`,
               status: 'pending',
-              assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
+              assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== FALLBACK_LAB_ENTITY ? ctx.labEntityId : null,
               created_at: entry.timestamp,
               pod_id: ctx.podId
             }, { onConflict: 'id' });
@@ -561,7 +561,7 @@ class MediflowApiService {
               barcode: payload.barcode || `RX-${Date.now()}-${payload.testCode}`,
               status: 'pending',
               prescription_file_url: payload.prescriptionFileUrl,
-              assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003' ? ctx.labEntityId : null,
+              assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== FALLBACK_LAB_ENTITY ? ctx.labEntityId : null,
               created_at: entry.timestamp,
               pod_id: ctx.podId
             }, { onConflict: 'id' });

@@ -322,6 +322,83 @@ function scanAdvancedDirectives(dir) {
             reason: 'Hardcoded age 30 fallbacks corrupt clinical records. Extract age dynamically from patient registry record.'
           });
         }
+
+        // Invariant 19: Centralized Pod/Doctor/Entity UUID Constant Enforcement (Rule 28/46/78)
+        const FORBIDDEN_RAW_UUIDS = [
+          'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+          'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003',
+          'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004'
+        ];
+        if (!relPath.includes('podContext.ts') && !relPath.includes('test') && !relPath.includes('scripts') && !relPath.includes('seed')) {
+          for (const rawUuid of FORBIDDEN_RAW_UUIDS) {
+            if (line.includes(`'${rawUuid}'`) || line.includes(`"${rawUuid}"`)) {
+              violations.push({
+                rule: 'INVARIANT_19_CENTRALIZED_POD_UUID_ENFORCEMENT',
+                file: relPath,
+                line: lineNum,
+                content: line.trim(),
+                reason: `Raw hardcoded UUID '${rawUuid}' detected. All modules MUST import FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID from podContext.ts (Rule 28/46/78).`
+              });
+              break;
+            }
+          }
+        }
+
+        // Invariant 20: No Phantom Invoice Creation Loophole (WhatsAppPaymentPage)
+        if (relPath.includes('WhatsAppPaymentPage.tsx') && line.includes('inv = {') && line.includes('payment_status:')) {
+          violations.push({
+            rule: 'INVARIANT_20_NO_PHANTOM_INVOICE_GENERATION',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Synthesizing dummy/phantom invoice objects on missing DB records is forbidden. Must throw access denied / not found error.'
+          });
+        }
+
+        // Invariant 21: No Direct LocalStorage WhatsApp Bot Simulation (Rule 1/6)
+        if (relPath.includes('services') && !relPath.includes('whatsappService.ts') && line.includes("sender: 'bot'") && line.includes('whatsapp_sessions')) {
+          violations.push({
+            rule: 'INVARIANT_21_NO_DIRECT_LOCALSTORAGE_BOT_MUTATION',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Direct localStorage mutation of whatsapp_sessions with simulated bot messages is forbidden. Use WhatsAppService.pushWhatsAppMessageFromBot.'
+          });
+        }
+
+        // Invariant 22: No Artificial Profile Metric Floor Padding
+        if (relPath.includes('SaaSAdminPanel.tsx') && line.includes('Math.max(') && line.includes('getPatients()') && line.includes('12')) {
+          violations.push({
+            rule: 'INVARIANT_22_NO_ARTIFICIAL_METRIC_FLOOR_PADDING',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Artificial Math.max(..., 12) padding on profile metrics creates false analytics. Must report authentic counts.'
+          });
+        }
+
+        // Invariant 23: Standard 3% Platform Commission Rate (Rule 6)
+        if (relPath.includes('SaaSAdminPanel.tsx') && line.includes('realTotalGmv * 0.025')) {
+          violations.push({
+            rule: 'INVARIANT_23_STANDARD_PLATFORM_COMMISSION_RATE',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Platform fee calculation must adhere to the VitalSync 3.0% standard (* 0.03) per Rule 6.'
+          });
+        }
+
+        // Invariant 24: Secure Server-Verified Auth in Services
+        if ((relPath.includes('whatsappService.ts') || relPath.includes('forecastService.ts')) && line.includes('supabase.auth.getSession()') && line.includes('user')) {
+          violations.push({
+            rule: 'INVARIANT_24_SECURE_SERVER_VERIFIED_AUTH',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'getSession() is vulnerable to token forgery. Sensitive referral and billing services must use server-verified supabase.auth.getUser().'
+          });
+        }
       });
     }
   }

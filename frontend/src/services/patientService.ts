@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
-import { getPodContext, FALLBACK_POD_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { Patient, PatientVitals } from '../types';
@@ -477,7 +477,7 @@ export class PatientService {
         abha_id: newPatient.abhaId,
         token_number: newPatient.tokenNumber,
         patient_code: newPatient.patientCode,
-        registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') ? getPodContext().entityId : null,
+        registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== FALLBACK_ENTITY_ID) ? getPodContext().entityId : null,
         pod_id: currentPodId
       },
       timestamp: new Date().toISOString(),

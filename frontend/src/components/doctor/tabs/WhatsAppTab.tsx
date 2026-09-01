@@ -23,6 +23,7 @@ import {
   PhoneCall
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { FALLBACK_POD_ID } from '../../../services/podContext';
 import { supabase } from '../../../lib/supabaseClient';
 import type { Patient } from '../../../types';
 import { ClinicPlacardGenerator } from '../../admin/ClinicPlacardGenerator';
@@ -878,7 +879,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                     const messageContent = broadcastMsg.trim();
                     const campaignId = `bc-${Date.now()}`;
-                    const podId = activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+                    const podId = activePod?.id || FALLBACK_POD_ID;
 
                     // 1. Optimistic Local Chat Sessions Update
                     targetPhones.forEach(phone => {

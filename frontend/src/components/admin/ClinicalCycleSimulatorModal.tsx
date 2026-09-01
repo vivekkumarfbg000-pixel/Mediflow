@@ -22,7 +22,7 @@ import { EncounterService } from '../../services/encounterService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { LabService } from '../../services/labService';
 import { WhatsAppService } from '../../services/whatsappService';
-import { getPodContext } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID } from '../../services/podContext';
 
 interface ClinicalCycleSimulatorModalProps {
   isOpen: boolean;
@@ -98,7 +98,7 @@ export const ClinicalCycleSimulatorModal: React.FC<ClinicalCycleSimulatorModalPr
     setSimulationLogs([]);
     setCurrentStepIndex(0);
 
-    const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+    const podId = getPodContext().podId || FALLBACK_POD_ID;
     const simPatientId = `sim-${Date.now()}`;
     const simPhone = '9876500001';
     const simName = 'Rohit Verma (Simulated)';
