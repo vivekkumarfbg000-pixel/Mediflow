@@ -1024,16 +1024,8 @@ export class StateHealingEngine {
         healingSteps.push('🔍 Initiating autonomous database schema drift repair sequence...');
         healingSteps.push('📋 Scanning live schema against expected column manifest...');
 
-        // Gap 6 Fix: Load schema manifest dynamically, fall back to hardcoded baseline
-        const hardcodedBaseline = [
-          { table_name: 'patient_registry',        column_name: 'vitals',           column_type: 'JSONB' },
-          { table_name: 'patient_registry',        column_name: 'token_number',     column_type: 'TEXT' },
-          { table_name: 'patient_registry',        column_name: 'queue_status',     column_type: "TEXT DEFAULT 'awaiting_vitals'" },
-          { table_name: 'whatsapp_sessions',       column_name: 'auto_healed_flag', column_type: 'BOOLEAN DEFAULT TRUE' },
-          { table_name: 'system_health_telemetry', column_name: 'updated_at',       column_type: 'TIMESTAMPTZ DEFAULT NOW()' },
-        ];
-
-        let requiredColumns: { table: string; column: string; type: string }[];
+        // Gap 6 Fix: Load schema manifest dynamically (Removed hardcoded baseline)
+        let requiredColumns: { table: string; column: string; type: string }[] = [];
         try {
           const { data: manifest, error: manifestErr } = await supabase
             .from('schema_manifest')
@@ -1046,45 +1038,47 @@ export class StateHealingEngine {
             requiredColumns = manifest.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
             healingSteps.push(`📦 Loaded ${requiredColumns.length} columns from live schema_manifest.`);
           } else {
-            requiredColumns = hardcodedBaseline.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
-            healingSteps.push('📦 schema_manifest empty — using hardcoded baseline (5 columns).');
+            healingSteps.push('⚠️ schema_manifest empty — skipping autonomous database repair.');
           }
         } catch {
-          requiredColumns = hardcodedBaseline.map(m => ({ table: m.table_name, column: m.column_name, type: m.column_type }));
-          healingSteps.push('⚠️ schema_manifest unavailable — falling back to hardcoded baseline.');
+          healingSteps.push('⚠️ schema_manifest unavailable — skipping autonomous database repair.');
         }
 
-        let repairCount = 0;
-        for (const col of requiredColumns) {
-          let repairDone = false;
-          try {
-            const { data: res } = await supabase.rpc('heal_schema_drift', {
-              p_table_name: col.table,
-              p_column_name: col.column,
-              p_column_type: col.type,
-            });
-            if (res && res.success) repairDone = true;
-          } catch (_e) {
-            const { data: res } = await supabase.rpc('execute_autonomous_db_repair', {
-              p_table:  col.table,
-              p_column: col.column,
-              p_type:   col.type,
-            });
-            if (res) repairDone = true;
+        if (requiredColumns.length > 0) {
+          let repairCount = 0;
+          for (const col of requiredColumns) {
+            let repairDone = false;
+            try {
+              const { data: res } = await supabase.rpc('heal_schema_drift', {
+                p_table_name: col.table,
+                p_column_name: col.column,
+                p_column_type: col.type,
+              });
+              if (res && res.success) repairDone = true;
+            } catch (_e) {
+              const { data: res } = await supabase.rpc('execute_autonomous_db_repair', {
+                p_table:  col.table,
+                p_column: col.column,
+                p_type:   col.type,
+              });
+              if (res) repairDone = true;
+            }
+
+            if (repairDone) {
+              repairCount++;
+              healingSteps.push(`✅ Repaired: ${col.table}.${col.column} (${col.type})`);
+            }
           }
 
-          if (repairDone) {
-            repairCount++;
-            healingSteps.push(`✅ Repaired: ${col.table}.${col.column} (${col.type})`);
+          if (repairCount > 0) {
+            healingSteps.push(`🛠️ Schema repair complete: ${repairCount} column(s) auto-patched.`);
+          } else {
+            healingSteps.push('✅ Schema scan complete: No missing columns detected.');
           }
-        }
-
-        if (repairCount > 0) {
-          healingSteps.push(`🛠️ Schema repair complete: ${repairCount} column(s) auto-patched.`);
+          healingSuccess = true;
         } else {
-          healingSteps.push('✅ Schema scan complete: No missing columns detected.');
+          healingSuccess = false;
         }
-        healingSuccess = true;
 
       } else if (subsystem === 'frontend') {
         healingSteps.push('🔧 Isolating frontend state. Flushing corrupted cache keys...');

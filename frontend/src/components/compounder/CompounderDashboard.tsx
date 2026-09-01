@@ -12,7 +12,7 @@ import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
 import { load } from '../../services/apiHelper';
-import { getPodContext } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
 import type {
@@ -556,7 +556,7 @@ export const CompounderDashboard: React.FC = () => {
         const newAppt: Appointment = {
           id: `apt-${Date.now()}`,
           patientId: patId,
-          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
           status: 'ready_for_consult',
           date: getIstDateString(),
           tokenNumber: String(assignedToken),
@@ -1134,7 +1134,7 @@ export const CompounderDashboard: React.FC = () => {
         const newAppt: Appointment = {
           id: `apt-${Date.now()}`,
           patientId: targetPatient.id,
-          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
           status: 'ready_for_consult',
           date: todayStr,
           tokenNumber: String(assignedToken),
@@ -1405,14 +1405,14 @@ export const CompounderDashboard: React.FC = () => {
 
   const fetchLiveAppointments = useCallback(async () => {
     try {
-      const podId = getPodContext().podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+      const podId = getPodContext().podId || FALLBACK_POD_ID;
       let apptQuery = supabase
         .from('appointments')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (podId && podId !== 'default-pod') {
-        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317001`);
+        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID}`);
       }
 
       let patQuery = supabase
@@ -1420,7 +1420,7 @@ export const CompounderDashboard: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (podId && podId !== 'default-pod') {
-        patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317001`);
+        patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID}`);
       }
 
       const [apptRes, patRes] = await Promise.all([apptQuery, patQuery]);

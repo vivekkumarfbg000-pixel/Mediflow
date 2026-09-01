@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
 import { ClinicalNotificationService } from './clinicalNotificationService';
 import { safeGetStorageJSON } from '../utils/storage';
@@ -191,7 +191,7 @@ export class ChronicCareService {
    */
   public static async getChronicCohorts(): Promise<ChronicCohortRecord[]> {
     const pod = getPodContext();
-    const podId = pod?.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+    const podId = pod?.podId || FALLBACK_POD_ID;
 
     try {
       const { data, error } = await supabase

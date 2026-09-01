@@ -414,14 +414,14 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         clinics: 1,
         pharmacies: 1,
         labs: 1,
-        total_profiles: Math.max(api.getPatients().length, 12)
+        total_profiles: api.getPatients().length
       });
 
       const liveInvs = api.getUnifiedInvoices();
       const realTotalGmv = liveInvs.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0);
       setRevenueStats((revenue as RevenueStats) || {
         total_gmv: realTotalGmv,
-        platform_commission: Math.round(realTotalGmv * 0.025),
+        platform_commission: Math.round(realTotalGmv * 0.03),
         paid_invoices: liveInvs.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length,
         unpaid_invoices: liveInvs.filter(i => i.paymentStatus === 'pending').length
       });
@@ -459,10 +459,10 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           is_active: true,
           created_at: new Date().toISOString(),
           daily_cost_budget: 500.00,
-          daily_spend: 142.50,
-          platform_fee_percent: 2.5,
-          lifetime_platform_revenue: 1212.50,
-          pending_cash_balance: 450.00,
+          daily_spend: 0.00,
+          platform_fee_percent: 3.0,
+          lifetime_platform_revenue: 0.00,
+          pending_cash_balance: 0.00,
           is_verified_for_billing: true,
           phone: '9876543210',
           doctor_name: 'Chief Ophthalmic Specialist'

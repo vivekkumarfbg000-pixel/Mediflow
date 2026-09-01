@@ -107,15 +107,8 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
           if (prefixInv) inv = prefixInv;
         }
 
-        // Resilient Fallback: If DB query returned null due to anon RLS or mock session ID, construct invoice object
         if (!inv && invoiceId) {
-          inv = {
-            id: invoiceId,
-            doctor_fee: fallbackDocFee,
-            platform_fee: fallbackPlatFee,
-            total_amount: fallbackTotal,
-            payment_status: 'pending'
-          };
+          throw new Error('Invoice not found or access denied. Please contact the clinic.');
         }
 
         if (isMounted && inv) {

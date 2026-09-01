@@ -23,6 +23,7 @@ import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice, DiagnosticTest } from '../../types';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
+import { FALLBACK_POD_ID } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { getIstDateString, getIstDateDisplay } from '../../utils/dateUtils';
 
@@ -851,7 +852,7 @@ export const LabDashboard: React.FC = () => {
         quantitative_result: stringifiedPayload,
         created_at: requisitionDate,
         updated_at: requisitionDate,
-        pod_id: activePod?.id || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+        pod_id: activePod?.id || FALLBACK_POD_ID
       }, { onConflict: 'id' });
 
       const reportUuid = crypto.randomUUID();

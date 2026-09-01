@@ -1207,23 +1207,10 @@ export class BillingService {
           .eq('id', inv.patient_id)
           .maybeSingle();
         if (patient?.phone) {
-          // Trigger mock whatsapp message send payload
-          const pDigits = (patient.phone || '').replace(/\D/g, '').slice(-10);
-          const sessions = load<any[]>('whatsapp_sessions', []);
-          const existing = sessions.find(s => {
-            const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
-            return sDigits && pDigits && sDigits === pDigits;
-          });
-          if (existing) {
-            const currentHistory = existing.sessionData.chatHistory || [];
-            currentHistory.push({ sender: 'bot', text: `Invoice MF-INV-${invoiceId.substring(0,4)} is marked PAID.`, time: new Date().toISOString() });
-            existing.sessionData = { ...existing.sessionData, chatHistory: currentHistory };
-            save('whatsapp_sessions', sessions);
-            await supabase.from('whatsapp_sessions').update({
-              session_data: existing.sessionData,
-              last_interaction: new Date().toISOString()
-            }).eq('patient_phone', patient.phone);
-          }
+          // Send real WhatsApp notification via WhatsAppService (dynamic import to prevent circular dependency)
+          const { WhatsAppService } = await import('./whatsappService');
+          const msg = `Invoice MF-INV-${invoiceId.substring(0,4)} is marked PAID.`;
+          WhatsAppService.pushWhatsAppMessageFromBot(patient.phone, msg);
         }
       }
     }

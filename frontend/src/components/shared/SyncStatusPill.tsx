@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Wifi, WifiOff, RefreshCw, ShieldCheck, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
-import { getPodContext } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID } from '../../services/podContext';
 
 interface SyncStatusPillProps {
   className?: string;
@@ -68,7 +68,7 @@ export const SyncStatusPill: React.FC<SyncStatusPillProps> = ({ className = '', 
     };
   }, [checkPing]);
 
-  const podId = getPodContext().podId || 'demo-pod';
+  const podId = getPodContext().podId || FALLBACK_POD_ID;
 
   return (
     <div className={`relative inline-block ${className}`}>

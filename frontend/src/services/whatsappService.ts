@@ -6,7 +6,7 @@ import { PharmacyService } from './pharmacyService';
 import { LabService } from './labService';
 import { BillingService } from './billingService';
 import { PaymentService } from './paymentService';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from './podContext';
 import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getIstOffsetDateDisplay } from '../utils/dateUtils';
 import type { 
   WhatsAppSession, 
@@ -57,7 +57,6 @@ export class WhatsAppService {
     let sessions = load<WhatsAppSession[]>('whatsapp_sessions', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const testSyntheticPhones = new Set(['9999999999', '9876543210', '0000000000']);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
       sessions = sessions.filter(s => {
@@ -365,7 +364,7 @@ export class WhatsAppService {
               gender: regGender,
               queue_status: 'awaiting_vitals',
               registered_at: now,
-              pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+              pod_id: podCtx.podId || FALLBACK_POD_ID
             }, { onConflict: 'id' }).then(() => {});
           } catch (_e) { /* ignore */ }
 
@@ -413,7 +412,7 @@ export class WhatsAppService {
                 token_number: tokenNumber,
                 appointment_time: new Date().toISOString(),
                 created_at: now,
-                pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+                pod_id: podCtx.podId || FALLBACK_POD_ID
               }, { onConflict: 'id' }).then(() => {});
             } catch (_e) { /* ignore */ }
 
@@ -444,8 +443,8 @@ export class WhatsAppService {
         Promise.resolve(supabase.rpc('atomic_update_whatsapp_session', {
           p_patient_phone: phone,
           p_patient_id: session.patientId || null,
-          p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-          p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+          p_pod_id: podCtx.podId || FALLBACK_POD_ID,
+          p_entity_id: podCtx.entityId || FALLBACK_ENTITY_ID,
           p_current_state: nextState,
           p_message: botMsg
         })).catch(() => {});
@@ -567,7 +566,7 @@ export class WhatsAppService {
                 token_number: tokenNumber,
                 appointment_time: new Date().toISOString(),
                 created_at: new Date().toISOString(),
-                pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+                pod_id: podCtx.podId || FALLBACK_POD_ID
               }, { onConflict: 'id' }).then(() => {});
             } catch (_e) { /* ignore */ }
 
@@ -706,7 +705,7 @@ export class WhatsAppService {
                 token_number: tokenNumber,
                 appointment_time: new Date().toISOString(),
                 created_at: new Date().toISOString(),
-                pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+                pod_id: podCtx.podId || FALLBACK_POD_ID
               }, { onConflict: 'id' }).then(() => {});
             } catch (_e) { /* ignore */ }
 
@@ -1686,8 +1685,8 @@ export class WhatsAppService {
       supabase.rpc('atomic_update_whatsapp_session', {
         p_patient_phone: phone,
         p_patient_id: existing.sessionData?.patientId || null,
-        p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-        p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+        p_pod_id: podCtx.podId || FALLBACK_POD_ID,
+        p_entity_id: podCtx.entityId || FALLBACK_ENTITY_ID,
         p_current_state: 'AWAITING_WELCOME',
         p_message: initialChat,
         p_session_data_updates: updates
@@ -1859,8 +1858,8 @@ export class WhatsAppService {
     supabase.rpc('atomic_update_whatsapp_session', {
       p_patient_phone: phone,
       p_patient_id: existing?.sessionData?.patientId || null,
-      p_pod_id: podCtx.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
-      p_entity_id: podCtx.entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+      p_pod_id: podCtx.podId || FALLBACK_POD_ID,
+      p_entity_id: podCtx.entityId || FALLBACK_ENTITY_ID,
       p_current_state: existing ? existing.currentState : 'AWAITING_WELCOME',
       p_message: msgObj,
       p_session_data_updates: existing ? null : { step: 'main_menu' }

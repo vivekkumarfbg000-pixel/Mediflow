@@ -435,6 +435,28 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
   /* ─── Quick Actions & Handlers ─────────────────────────────────── */
   const checkInWalkInPatient = () => {
+    let isDemo = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          isDemo = parsed?.isDemo === true || parsed?.email === 'demo@mediflow.com';
+        }
+      } catch (_e) {}
+    }
+
+    if (!isDemo && !import.meta.env.DEV) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Walk-In Intake 📋',
+          message: 'Please register live walk-in patients via the Compounder Desk to capture verified clinical vitals and demographics.',
+          type: 'info'
+        }
+      }));
+      return;
+    }
+
     const firstNames = ['Amit', 'Rajesh', 'Suresh', 'Priya', 'Anjali', 'Neha', 'Vikram', 'Rohan', 'Sunita', 'Kiran'];
     const lastNames = ['Kumar', 'Sharma', 'Singh', 'Verma', 'Gupta', 'Prasad', 'Das', 'Roy', 'Mehta', 'Yadav'];
     const name = `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
@@ -447,7 +469,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
     const token = PatientService.generateNextTokenNumber();
     
-    // Generate mock clinical vitals for triage illustration
+    // Generate mock clinical vitals for triage illustration in demo mode
     const bpSystolic = Math.random() > 0.6 ? (Math.random() > 0.5 ? 148 : 84) : 120;
     const bpDiastolic = bpSystolic > 120 ? 94 : 80;
     const temp = Math.random() > 0.6 ? 101.4 : 98.6;
