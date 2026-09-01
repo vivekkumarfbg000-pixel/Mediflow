@@ -311,6 +311,17 @@ function scanAdvancedDirectives(dir) {
             reason: 'Numeric tokenNumber.toLowerCase() throws TypeError. Wrap with String(p.tokenNumber || "").toLowerCase() per Rule 11.'
           });
         }
+
+        // Invariant 18: Zero Hardcoded Age Fallbacks ('30y' / '28y' / age: 30)
+        if (relPath.includes('components') && (/\{.*patient\.age\s*\|\|\s*['"]30['"]\}/i.test(line) || /\{.*p\.age\s*\|\|\s*['"]30['"]\}/i.test(line))) {
+          violations.push({
+            rule: 'INVARIANT_18_ZERO_HARDCODED_AGE_FALLBACKS',
+            file: relPath,
+            line: lineNum,
+            content: line.trim(),
+            reason: 'Hardcoded age 30 fallbacks corrupt clinical records. Extract age dynamically from patient registry record.'
+          });
+        }
       });
     }
   }
