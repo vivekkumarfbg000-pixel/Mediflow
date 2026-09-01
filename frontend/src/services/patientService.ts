@@ -368,12 +368,15 @@ export class PatientService {
 
   static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
     const appointments = load<any[]>('saas_appointments', []);
+    const directAppts = safeGetStorageJSON<any[]>('appointments', []);
     const localAppts = safeGetStorageJSON<any[]>('mediflow_appointments', []);
-    const allAppts = [...appointments, ...localAppts];
+    const allAppts = [...appointments, ...directAppts, ...localAppts];
 
     const patients = load<any[]>('saas_patients', []);
+    const directPatients = safeGetStorageJSON<any[]>('patients', []);
+    const registryPatients = safeGetStorageJSON<any[]>('patient_registry', []);
     const localPatients = safeGetStorageJSON<any[]>('mediflow_patients', []);
-    const allPatients = [...patients, ...localPatients];
+    const allPatients = [...patients, ...directPatients, ...registryPatients, ...localPatients];
 
     const dateStr = targetDate || getIstDateString();
 

@@ -35,6 +35,7 @@ export interface ExtractedScribeData {
 
 export class AmbientAudioScribeService {
   private static recognitionInstance: any = null;
+  private static isListeningActive: boolean = false;
 
   /**
    * Checks if browser supports Speech Recognition
@@ -59,6 +60,11 @@ export class AmbientAudioScribeService {
         return false;
       }
 
+      if (this.recognitionInstance) {
+        try { this.recognitionInstance.stop(); } catch (_e) { /* ignore */ }
+      }
+
+      this.isListeningActive = true;
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -90,6 +96,17 @@ export class AmbientAudioScribeService {
         }
       };
 
+      recognition.onend = () => {
+        // Auto-reconnect if browser speech recognition times out due to temporary silence
+        if (this.isListeningActive) {
+          try {
+            recognition.start();
+          } catch (_e) {
+            /* ignore restart collision */
+          }
+        }
+      };
+
       recognition.start();
       this.recognitionInstance = recognition;
       return true;
@@ -105,6 +122,7 @@ export class AmbientAudioScribeService {
    */
   static stopLiveTranscription(): void {
     try {
+      this.isListeningActive = false;
       if (this.recognitionInstance) {
         this.recognitionInstance.stop();
         this.recognitionInstance = null;

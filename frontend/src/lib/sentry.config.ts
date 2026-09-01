@@ -4,7 +4,8 @@ export function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN || '';
   
   if (!dsn) {
-    console.log('[Sentry Warning] No VITE_SENTRY_DSN provided. Telemetry will log locally to console instead.');
+    // Sentry is optional; in development/preview without a DSN, do not initialize to avoid overhead or SDK errors
+    return;
   }
 
   Sentry.init({

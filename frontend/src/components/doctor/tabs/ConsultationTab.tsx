@@ -363,15 +363,6 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     ambientTimerRef.current = setInterval(() => {
       sec += 1;
       setAmbientTimer(sec);
-      // Continuous speech simulation fallback if microphone has no active speech in testing
-      setAmbientTranscript(prev => {
-        if (!prev || prev.startsWith('Listening')) {
-          if (sec >= 4 && selectedPatient) {
-            return `Doctor: Namaste ${selectedPatient.name} ji, kya takleef hai? Patient: Doctor sahab 3 din se tez bukhar aur gale me dard hai. Bodyache bhi hai. BP 125/82 hai. Doctor: Theek hai, Paracetamol 650mg 1-0-1 aur Azithromycin 500mg lein, sath me warm water gargles karein.`;
-          }
-        }
-        return prev;
-      });
     }, 1000);
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {

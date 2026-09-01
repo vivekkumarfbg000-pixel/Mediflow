@@ -1501,7 +1501,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 const activeVirtual = appts.find(a => ((a as any).patientId === p.id || (a as any).patient_id === p.id) && ((a as any).isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
                 
                 const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, p));
-                const hasRx = encounters.length > 0;
+                const saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : []).filter((r: any) => isEncounterMatchingPatient(r, p));
+                const hasRx = encounters.length > 0 || saasPrescriptions.length > 0;
 
                 return (
                   <button

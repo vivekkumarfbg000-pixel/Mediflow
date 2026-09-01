@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
+import { PatientService } from '../../services/patientService';
 import { supabase } from '../../lib/supabaseClient';
 import { getPodContext } from '../../services/podContext';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
@@ -410,8 +411,8 @@ export const DoctorDashboard: React.FC = () => {
               doctorId: a.doctor_id,
               doctor_id: a.doctor_id,
               status: a.status || 'scheduled',
-              tokenNumber: String(a.token_number || (a as any).tokenNumber || 'T-04'),
-              token_number: String(a.token_number || (a as any).tokenNumber || 'T-04'),
+              tokenNumber: String(a.token_number || (a as any).tokenNumber || PatientService.generateNextTokenNumber()),
+              token_number: String(a.token_number || (a as any).tokenNumber || PatientService.generateNextTokenNumber()),
               date: apptDate,
               createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
               is_virtual: Boolean(a.is_virtual),
@@ -1249,7 +1250,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           doctorName: docTitle,
           clinicName: clinicTitle,
           medications: prescriptionMeds,
-          clinicalNotes: sourceNotes,
+          clinicalNotes: finalNotes || sourceNotes,
           hinglishAdvice: hinglishSummary,
           eveningSlot: eveningSlotObj
         });

@@ -57,25 +57,40 @@ export class EncounterService {
       }
     });
 
-    // Merge and normalize medications from saas_prescriptions if encounter.medications is empty
+    // Merge and normalize medications and diagnostic tests from saas_prescriptions if empty
     return Array.from(encMap.values()).map(enc => {
       let meds = enc.medications || [];
       if (!meds || meds.length === 0) {
-        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && p.createdAt?.slice(0, 10) === enc.createdAt?.slice(0, 10)));
+        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
         if (matchSaas) {
           meds = matchSaas.extractedMedicines || matchSaas.extracted_medicines || matchSaas.medications || [];
         } else {
-          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && p.createdAt?.slice(0, 10) === enc.createdAt?.slice(0, 10)));
+          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
           if (matchRx) {
             meds = matchRx.medications || matchRx.medicines || [];
           }
         }
       }
+
+      let tests = enc.diagnosticTests || [];
+      if (!tests || tests.length === 0) {
+        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
+        if (matchSaas) {
+          tests = (matchSaas.extractedTests || matchSaas.extracted_tests || []).map((t: any) => typeof t === 'string' ? { name: t, loincCode: t } : t);
+        } else {
+          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
+          if (matchRx) {
+            tests = (matchRx.diagnosticTests || matchRx.diagnostic_tests || []).map((t: any) => typeof t === 'string' ? { name: t, loincCode: t } : t);
+          }
+        }
+      }
+
       return {
         ...enc,
-        medications: meds
+        medications: meds,
+        diagnosticTests: tests
       };
-    });
+    }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }
 
   static createEncounter(encounterData: Omit<Encounter, 'id' | 'createdAt' | 'status'>): Encounter {

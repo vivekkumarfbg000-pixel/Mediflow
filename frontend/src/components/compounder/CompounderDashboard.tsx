@@ -696,8 +696,16 @@ export const CompounderDashboard: React.FC = () => {
   const cachedEncountersMap = useMemo(() => {
     const map = new Map<string, any[]>();
     EncounterService.getEncounters().forEach(e => {
-      if (!map.has(e.patientId)) map.set(e.patientId, []);
-      map.get(e.patientId)!.push(e);
+      const pId = e.patientId || (e as any).patient_id;
+      if (pId) {
+        if (!map.has(pId)) map.set(pId, []);
+        map.get(pId)!.push(e);
+      }
+      const phone = (e.patientPhone || (e as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+      if (phone && phone.length >= 6) {
+        if (!map.has(phone)) map.set(phone, []);
+        map.get(phone)!.push(e);
+      }
     });
     return map;
   }, [dataRevision]);
@@ -844,10 +852,30 @@ export const CompounderDashboard: React.FC = () => {
 
   const activeOpdAppointments = useMemo(() => {
     const todayStr = getIstDateString();
-    return appointments.filter(a => {
+    const rawList = appointments.filter(a => {
       const aDate = getEffectiveAppointmentDate(a);
       return (aDate === todayStr || (a.createdAt || '').startsWith(todayStr)) && a.status !== 'cancelled';
     });
+
+    // Deduplicate by patient ID so each patient has exactly one active appointment card in today's queue
+    const seenPatients = new Map<string, Appointment>();
+    rawList.forEach(appt => {
+      const pKey = String(appt.patientId || (appt as any).patient_id || appt.id);
+      if (!seenPatients.has(pKey)) {
+        seenPatients.set(pKey, appt);
+      } else {
+        // Keep whichever appointment is in active progress or more recently updated
+        const existing = seenPatients.get(pKey)!;
+        const statusPriority: Record<string, number> = { in_consult: 4, vitals_completed: 3, checked_in: 2, scheduled: 1, completed: 0 };
+        const curScore = statusPriority[appt.status] ?? 1;
+        const existScore = statusPriority[existing.status] ?? 1;
+        if (curScore > existScore || (curScore === existScore && new Date(appt.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime())) {
+          seenPatients.set(pKey, appt);
+        }
+      }
+    });
+
+    return Array.from(seenPatients.values());
   }, [appointments, dataRevision]);
 
   const inChamberAppointment = useMemo(() => {
@@ -1185,8 +1213,9 @@ export const CompounderDashboard: React.FC = () => {
 
   // High-Speed Memoized Dynamic Patient Workflow Calculator (< 3ms)
   const getPatientWorkflowState = useCallback((patient: Patient, appt: Appointment) => {
-    const patientEncounters = cachedEncountersMap.get(patient.id) || [];
-    const latestEncounter = patientEncounters[patientEncounters.length - 1];
+    const rawEncounters = cachedEncountersMap.get(patient.id) || (patient.phone ? cachedEncountersMap.get((patient.phone || '').replace(/\D/g, '').slice(-10)) : []) || [];
+    const patientEncounters = [...rawEncounters].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    const latestEncounter = patientEncounters[0];
 
     const reqs = cachedLabReqsMap.get(patient.id) || [];
     const reports = cachedLabReportsMap.get(patient.id) || [];
@@ -4100,8 +4129,8 @@ export const CompounderDashboard: React.FC = () => {
                             {/* Patient Visual Workflow & Quick Actions */}
                             {(() => {
                               const steps = getPatientWorkflowState(patient, appt);
-                              const patientEncounters = EncounterService.getEncounters().filter(e => e.patientId === patient.id);
-                              const latestEncounter = patientEncounters[patientEncounters.length - 1];
+                              const patientEncounters = EncounterService.getEncounters().filter(e => e.patientId === patient.id || (e as any).patient_id === patient.id).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+                              const latestEncounter = patientEncounters[0];
                               const reports = LabService.getFullLabReports().filter(r => r.patientId === patient.id);
                               
                               const hasPrescription = latestEncounter && (latestEncounter.clinicalNotes || latestEncounter.medications.length > 0);
@@ -5321,8 +5350,8 @@ export const CompounderDashboard: React.FC = () => {
 
               {/* PRESCRIPTION TYPE */}
               {activeWorkflowDetail.type === 'prescription' && (() => {
-                const patientEncounters = EncounterService.getEncounters().filter(e => e.patientId === activeWorkflowDetail.patientId);
-                const latestEncounter = patientEncounters[patientEncounters.length - 1];
+                const patientEncounters = EncounterService.getEncounters().filter(e => e.patientId === activeWorkflowDetail.patientId || (e as any).patient_id === activeWorkflowDetail.patientId).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+                const latestEncounter = patientEncounters[0];
 
                 if (!latestEncounter) {
                   return (
@@ -5562,7 +5591,7 @@ export const CompounderDashboard: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="px-2.5 py-0.5 rounded-lg bg-white/20 text-white font-mono font-black text-xs">
-                            #{String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04').startsWith('T-') || String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '').startsWith('TK-') ? (vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'T-04') : `TK-${String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || '04').padStart(2, '0')}`}
+                            #{String(vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || 'TK-01')}
                           </span>
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 ${
                             activeSrcTag === 'whatsapp'

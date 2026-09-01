@@ -238,6 +238,8 @@ export class BillingService {
 
     // Filter out any platform_fee entries generated for consultation appointments
     // Filter out duplicate appointment_fee entries for the same patient on the same date
+    const allAppts = this.getAppointments();
+    const paidInvoices = this.getInvoices().filter(i => i.status === 'paid');
     const seenConsultLedgerKeys = new Set<string>();
     const filteredLedgers: FinancialLedgerEntry[] = [];
 
@@ -248,7 +250,10 @@ export class BillingService {
       }
       if (l.transactionType === 'appointment_fee') {
         const dateStr = getIstDateString(l.createdAt || l.settledAt);
-        const pIdentifier = String((l as any).patientId || l.patientName || '').toLowerCase().trim();
+        const invMatch = paidInvoices.find(i => i.id === l.invoiceId);
+        const apptMatch = allAppts.find(a => a.id === invMatch?.appointmentId || a.id === (l as any).appointmentId);
+        const patId = (l as any).patientId || (l as any).patient_id || invMatch?.patientId || apptMatch?.patientId;
+        const pIdentifier = String(patId || l.patientName || '').toLowerCase().trim();
         const consultKey = `${pIdentifier}_${dateStr}`;
         if (seenConsultLedgerKeys.has(consultKey)) {
           modified = true;
@@ -274,12 +279,10 @@ export class BillingService {
     });
 
     // Ensure all paid invoices have corresponding financial ledger entries without duplicates
-    const paidInvoices = this.getInvoices().filter(i => i.status === 'paid');
     const existingInvoiceIds = new Set(filteredLedgers.map(l => l.invoiceId));
 
     paidInvoices.forEach(inv => {
-      const appts = this.getAppointments();
-      const appt = appts.find(a => a.id === inv.appointmentId);
+      const appt = allAppts.find(a => a.id === inv.appointmentId);
       const patId = inv.patientId || appt?.patientId;
       const patients = PatientService.getPatients();
       const patient = patients.find(p => p.id === patId);
