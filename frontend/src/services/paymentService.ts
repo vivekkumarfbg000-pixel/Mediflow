@@ -346,7 +346,7 @@ export class PaymentService {
       ...(params.orderId && params.orderId.startsWith('order_') && params.orderId.length >= 14 && !params.orderId.includes('inv') && !params.orderId.includes('fallback') ? { order_id: params.orderId } : {}),
       prefill: {
         name: params.name || 'VitalSync Patient',
-        email: params.email || 'patient@vitalsync.in',
+        email: params.email || (params.phone ? `patient_${params.phone.replace(/\D/g, '').slice(-10)}@vitalsync.in` : ''),
         contact: params.phone || ''
       },
       theme: {
