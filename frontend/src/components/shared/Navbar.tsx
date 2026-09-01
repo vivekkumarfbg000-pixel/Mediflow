@@ -678,8 +678,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                    currentRole === 'compounder' ? 'Compounder Operations' :
                    currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
                    currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
-                   currentRole === 'billing' ? 'UPI Ledger' :
-                   currentRole === 'saas_admin' ? 'Platform Admin' : 'Care Dashboard'}
+                   currentRole === 'billing' ? 'UPI Ledger' : 'Care Dashboard'}
                 </h1>
               </div>
             </div>
