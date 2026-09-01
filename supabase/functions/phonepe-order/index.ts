@@ -25,7 +25,18 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, invoiceId, patientId, patientPhone, patientName, redirectUrl } = await req.json();
+    let bodyObj: any = {};
+    try {
+      const text = await req.text();
+      if (text) {
+        bodyObj = JSON.parse(text);
+        if (typeof bodyObj === 'string') bodyObj = JSON.parse(bodyObj);
+      }
+    } catch (_e) {
+      bodyObj = {};
+    }
+
+    const { amount, invoiceId, patientId, patientPhone, patientName, redirectUrl } = (bodyObj && bodyObj.body && typeof bodyObj.body === 'object') ? bodyObj.body : bodyObj;
 
     if (!invoiceId) {
       throw new Error("Missing invoiceId");

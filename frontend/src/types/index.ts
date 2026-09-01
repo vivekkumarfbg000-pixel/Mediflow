@@ -288,6 +288,7 @@ export interface Pod {
   doctorName?: string;
   upiVpa?: string;
   upi_vpa?: string;
+  phone?: string;
   specialization?: string;
 }
 

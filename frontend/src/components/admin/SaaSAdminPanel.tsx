@@ -465,7 +465,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           lifetime_platform_revenue: 0.00,
           pending_cash_balance: 0.00,
           is_verified_for_billing: true,
-          phone: '9876543210',
+          phone: '',
           doctor_name: 'Chief Ophthalmic Specialist'
         }];
         setPodsList(demoPods);

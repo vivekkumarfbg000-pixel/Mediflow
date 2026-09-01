@@ -2256,7 +2256,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             </button>
             <ClinicPlacardGenerator
               clinicName={activePod?.name || activeDoctorProfile?.clinicName || (headerDoctorTitle + "'s Care Clinic")}
-              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || localStorage.getItem('vitalsync_waba_number') || '+910000000000'}
+              activeWabaNumber={activeWabaConnection?.phone_number || activeWabaConnection?.display_phone_number || safeGetStorageJSON<string>('vitalsync_waba_number', '') || activePod?.phone || ''}
             />
           </div>
         </div>,

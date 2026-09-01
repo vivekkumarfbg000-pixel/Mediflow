@@ -1603,7 +1603,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                         const conn = result?.connection || {
                           id: `waba-conn-${Date.now()}`,
-                          phone_number: clinicPhoneInput ? `+91${clinicPhoneInput.replace(/\D/g, '')}` : '+910000000000',
+                          phone_number: clinicPhoneInput ? `+91${clinicPhoneInput.replace(/\D/g, '')}` : '',
                           phone_number_id: onboardPhoneNumberId || '105829471928374',
                           waba_id: 'waba-act-custom',
                           clinic_display_name: clinicDisplayName.trim(),

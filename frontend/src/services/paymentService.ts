@@ -347,7 +347,7 @@ export class PaymentService {
       prefill: {
         name: params.name || 'VitalSync Patient',
         email: params.email || 'patient@vitalsync.in',
-        contact: params.phone || '9999999999'
+        contact: params.phone || ''
       },
       theme: {
         color: '#0f62fe'

@@ -1373,7 +1373,7 @@ export const LabDashboard: React.FC = () => {
                                       invoiceId: inv.id,
                                       amount: inv.totalAmount || inv.labFee,
                                       patientName: inv.patientName || 'Patient',
-                                      patientPhone: inv.patientPhone || '9999999999'
+                                      patientPhone: inv.patientPhone || ''
                                     });
                                     if (res.success && res.paymentSessionId) {
                                       window.open(res.paymentSessionId, '_blank');

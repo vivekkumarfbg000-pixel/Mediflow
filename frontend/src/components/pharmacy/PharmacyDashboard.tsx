@@ -1256,7 +1256,7 @@ export const PharmacyDashboard: React.FC = () => {
                                               invoiceId: invoice.id,
                                               amount: invoice.totalAmount || invoice.pharmacyFee,
                                               patientName: invoice.patientName || 'Patient',
-                                              patientPhone: invoice.patientPhone || '9999999999'
+                                              patientPhone: invoice.patientPhone || ''
                                             });
                                             if (res.success && res.paymentSessionId) {
                                               window.open(res.paymentSessionId, '_blank');
