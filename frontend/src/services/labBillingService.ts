@@ -144,11 +144,14 @@ export class LabBillingService {
       const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       const labAmt = parseFloat((amount - platformAmt).toFixed(2));
 
+      const podEntityId = getPodContext().entityId;
+      const labDestId = getPodContext().labEntityId || podEntityId;
+
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: id,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'platform-admin-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: podEntityId,
         transactionType: 'platform_fee',
         grossAmount: amount,
         commissionRate: splitPlat / 100,
@@ -161,8 +164,8 @@ export class LabBillingService {
       const labLedger: FinancialLedgerEntry = {
         id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: id,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'lab-partner-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: labDestId,
         transactionType: 'lab_commission',
         grossAmount: amount,
         commissionRate: 1 - splitPlat / 100,
@@ -181,8 +184,8 @@ export class LabBillingService {
           {
             id: platformLedger.id,
             invoice_id: id,
-            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-            destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+            source_entity_id: podEntityId,
+            destination_entity_id: podEntityId,
             transaction_type: 'platform_fee',
             gross_amount: amount,
             commission_rate: splitPlat,
@@ -194,8 +197,8 @@ export class LabBillingService {
           {
             id: labLedger.id,
             invoice_id: id,
-            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-            destination_entity_id: getPodContext().labEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003',
+            source_entity_id: podEntityId,
+            destination_entity_id: labDestId,
             transaction_type: 'lab_commission',
             gross_amount: amount,
             commission_rate: 100 - splitPlat,

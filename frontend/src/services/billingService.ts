@@ -116,11 +116,12 @@ export class BillingService {
         
         const platformAmt = parseFloat((invoiceAmount * 0.03).toFixed(2));
         
+        const podEntityId = getPodContext().entityId;
         const referralLedger: FinancialLedgerEntry = {
           id: `tx-ref-${crypto.randomUUID().substring(0, 8)}`,
           invoiceId: invoiceId,
-          sourceEntityId: 'clinic-admin-entity',
-          destinationEntityId: 'clinic-admin-entity',
+          sourceEntityId: podEntityId,
+          destinationEntityId: podEntityId,
           transactionType: 'appointment_fee',
           grossAmount: invoiceAmount,
           commissionRate: 0.10,
@@ -133,8 +134,8 @@ export class BillingService {
         const platformLedger: FinancialLedgerEntry = {
           id: `tx-plat-ref-${crypto.randomUUID().substring(0, 8)}`,
           invoiceId: invoiceId,
-          sourceEntityId: 'clinic-admin-entity',
-          destinationEntityId: 'platform-admin-entity',
+          sourceEntityId: podEntityId,
+          destinationEntityId: podEntityId,
           transactionType: 'platform_fee',
           grossAmount: invoiceAmount,
           commissionRate: 0.03,
@@ -307,11 +308,12 @@ export class BillingService {
           seenConsultLedgerKeys.add(consultKey);
         }
 
+        const podEntityId = getPodContext().entityId;
         const newLedger: FinancialLedgerEntry = {
           id: `tx-auto-${(inv.id || 'N/A').substring(0, 8)}`,
           invoiceId: inv.id,
-          sourceEntityId: 'clinic-admin-entity',
-          destinationEntityId: 'clinic-admin-entity',
+          sourceEntityId: podEntityId,
+          destinationEntityId: podEntityId,
           transactionType,
           grossAmount,
           commissionRate,
@@ -789,14 +791,17 @@ export class BillingService {
     let platformAmt = 0;
     const isCash = paymentMethod === 'cash';
 
+    const podEntityId = getPodContext().entityId;
+    const labDestId = getPodContext().labEntityId || podEntityId;
+    const pharmDestId = getPodContext().pharmacyEntityId || podEntityId;
+
     if (type === 'consult') {
       const docAmt = amount;
-
       const docLedger: FinancialLedgerEntry = {
         id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'clinic-admin-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: podEntityId,
         transactionType: 'appointment_fee',
         grossAmount: amount,
         commissionRate: 0,
@@ -819,8 +824,8 @@ export class BillingService {
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'platform-admin-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: podEntityId,
         transactionType: 'platform_fee',
         grossAmount: amount,
         commissionRate: splitPlat / 100,
@@ -833,8 +838,8 @@ export class BillingService {
       const docLedger: FinancialLedgerEntry = {
         id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'clinic-admin-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: podEntityId,
         transactionType: 'appointment_fee',
         grossAmount: amount,
         commissionRate: splitDoc / 100,
@@ -847,8 +852,8 @@ export class BillingService {
       const labLedger: FinancialLedgerEntry = {
         id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'lab-partner-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: labDestId,
         transactionType: 'lab_commission',
         grossAmount: amount,
         commissionRate: splitLab / 100,
@@ -870,8 +875,8 @@ export class BillingService {
       const platformLedger: FinancialLedgerEntry = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'platform-admin-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: podEntityId,
         transactionType: 'platform_fee',
         grossAmount: amount,
         commissionRate: splitPlat / 100,
@@ -884,8 +889,8 @@ export class BillingService {
       const docMedLedger: FinancialLedgerEntry = {
         id: `tx-doc-med-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'clinic-admin-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: podEntityId,
         transactionType: 'medicine_commission',
         grossAmount: amount,
         commissionRate: medDoctorSplit / 100,
@@ -898,8 +903,8 @@ export class BillingService {
       const pharmacyLedger: FinancialLedgerEntry = {
         id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: invoiceId,
-        sourceEntityId: 'clinic-admin-entity',
-        destinationEntityId: 'pharmacy-partner-entity',
+        sourceEntityId: podEntityId,
+        destinationEntityId: pharmDestId,
         transactionType: 'medicine_commission',
         grossAmount: amount,
         commissionRate: (100 - splitPlat - medDoctorSplit) / 100,
@@ -919,10 +924,8 @@ export class BillingService {
       const dbEntries = listToSave.map(s => ({
         id: s.id,
         invoice_id: s.invoiceId,
-        source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-        destination_entity_id: s.destinationEntityId === 'platform-admin-entity' 
-          ? getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' 
-          : (s.destinationEntityId === 'lab-partner-entity' ? (getPodContext().labEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003') : (getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004')),
+        source_entity_id: s.sourceEntityId,
+        destination_entity_id: s.destinationEntityId,
         transaction_type: s.transactionType,
         gross_amount: s.grossAmount,
         commission_rate: Math.round(s.commissionRate * 100),

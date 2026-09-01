@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { Patient, PatientVitals } from '../types';
@@ -57,7 +57,6 @@ export class PatientService {
     
     // Purge pre-seeded initial demo patient IDs and mock artifacts from local storage cache
     const currentPodId = getPodContext().podId;
-    const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
     const demoIds = new Set(['dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402', 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
     

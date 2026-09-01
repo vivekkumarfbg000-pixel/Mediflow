@@ -636,7 +636,9 @@ export class WhatsAppService {
             }));
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
 
-            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai!\n\n• Token Number: *${tokenNumber}*\n• Doctor: *${docName}*\n• Clinic Desk: *${clinicName}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹618.00*\n\nKripya turant clinic emergency desk par pahuchein aur token *${tokenNumber}* show karein! 🩺`;
+            const activeSop = BillingService.getActiveSop();
+            const emergencyFee = activeSop?.extractedConfig?.emergency_sos_fee ?? 618;
+            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai!\n\n• Token Number: *${tokenNumber}*\n• Doctor: *${docName}*\n• Clinic Desk: *${clinicName}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹${emergencyFee.toFixed(2)}*\n\nKripya turant clinic emergency desk par pahuchein aur token *${tokenNumber}* show karein! 🩺`;
           } else if (cleaned === '5' || cleaned.includes('refill') || cleaned.includes('medicine') || cleaned.includes('dawai')) {
             const completed = EncounterService.getEncounters()
               .filter(e => e.patientId === patient.id && e.status === 'completed');
@@ -1023,12 +1025,13 @@ export class WhatsAppService {
             }
 
             const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
-            const labDestinationEntityId = getPodContext().labEntityId || getPodContext().entityId;
+            const podEntityId = getPodContext().entityId;
+            const labDestinationEntityId = getPodContext().labEntityId || podEntityId;
             const doorstepSplits: FinancialLedgerEntry[] = [
               {
                 id: `tx-tech-${crypto.randomUUID().substring(0, 8)}`,
                 invoiceId: invoiceId,
-                sourceEntityId: getPodContext().entityId,
+                sourceEntityId: podEntityId,
                 destinationEntityId: labDestinationEntityId,
                 transactionType: 'lab_commission',
                 grossAmount: 100,
@@ -1041,7 +1044,7 @@ export class WhatsAppService {
               {
                 id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
                 invoiceId: invoiceId,
-                sourceEntityId: getPodContext().entityId,
+                sourceEntityId: podEntityId,
                 destinationEntityId: labDestinationEntityId,
                 transactionType: 'lab_commission',
                 grossAmount: 100,
@@ -1054,8 +1057,8 @@ export class WhatsAppService {
               {
                 id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
                 invoiceId: invoiceId,
-                sourceEntityId: 'clinic-admin-entity',
-                destinationEntityId: 'platform-admin-entity',
+                sourceEntityId: podEntityId,
+                destinationEntityId: podEntityId,
                 transactionType: 'platform_fee',
                 grossAmount: 100,
                 commissionRate: 0.10,
@@ -1072,8 +1075,8 @@ export class WhatsAppService {
             const dbSplits = doorstepSplits.map(s => ({
               id: s.id,
               invoice_id: s.invoiceId,
-              source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
-              destination_entity_id: s.destinationEntityId === 'platform-admin-entity' ? (getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002') : s.destinationEntityId,
+              source_entity_id: s.sourceEntityId,
+              destination_entity_id: s.destinationEntityId,
               transaction_type: s.transactionType,
               gross_amount: s.grossAmount,
               commission_rate: s.commissionRate * 100,
@@ -1212,7 +1215,9 @@ export class WhatsAppService {
             }));
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
 
-            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai!\n\n• Token Number: *${tokenNumber}*\n• Doctor: *${docName}*\n• Clinic Desk: *${this.getDynamicClinicName()}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹618.00*\n\nKripya turant clinic emergency desk par pahuchein aur token *${tokenNumber}* show karein! 🩺`;
+            const activeSop = BillingService.getActiveSop();
+            const emergencyFee = activeSop?.extractedConfig?.emergency_sos_fee ?? 618;
+            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai!\n\n• Token Number: *${tokenNumber}*\n• Doctor: *${docName}*\n• Clinic Desk: *${this.getDynamicClinicName()}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹${emergencyFee.toFixed(2)}*\n\nKripya turant clinic emergency desk par pahuchein aur token *${tokenNumber}* show karein! 🩺`;
           } else if (cleaned === '6' || cleaned.includes('refer') || cleaned.includes('code') || cleaned.includes('reward')) {
             nextState = 'AWAITING_CONFIRMATION';
             const effectivePat = currentPat || patient;
@@ -1474,15 +1479,20 @@ export class WhatsAppService {
               };
               BillingService.saveAppointment(newAppt);
 
+              const activeSop = BillingService.getActiveSop();
+              const baseDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
+              const onlinePlatFee = parseFloat((baseDocFee * 0.03).toFixed(2));
+              const totalOnlinePayable = parseFloat((baseDocFee + onlinePlatFee).toFixed(2));
+
               const newInvoice: any = {
                 id: invoiceId,
                 appointmentId: apptId,
                 patientId: activePat.id,
                 type: 'consult',
-                amount: 515,
-                doctorFee: 500,
-                platformFee: 15,
-                totalAmount: 515,
+                amount: totalOnlinePayable,
+                doctorFee: baseDocFee,
+                platformFee: onlinePlatFee,
+                totalAmount: totalOnlinePayable,
                 status: 'pending',
                 paymentStatus: 'pending',
                 paymentMethod: 'upi',
@@ -1500,12 +1510,12 @@ export class WhatsAppService {
                 patientId: activePat.id,
                 patientName: activePat.name,
                 patientPhone: activePat.phone,
-                doctorFee: 500,
+                doctorFee: baseDocFee,
                 labFee: 0,
                 pharmacyFee: 0,
-                platformFee: 15,
-                totalAmount: 515,
-                upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=515.00&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
+                platformFee: onlinePlatFee,
+                totalAmount: totalOnlinePayable,
+                upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=${totalOnlinePayable.toFixed(2)}&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
                 paymentStatus: 'pending',
                 createdAt: new Date().toISOString()
               });
@@ -2007,14 +2017,14 @@ export class WhatsAppService {
       }
 
       let referrerName = "Your doctor";
-      let referrerDoctorId = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101';
+      let referrerDoctorId: string | null = null;
       try {
-        const { data: { session: authSession } } = await supabase.auth.getSession();
-        if (authSession?.user) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
           const { data: referrerProfile } = await supabase
             .from('profiles')
             .select('id, display_name')
-            .eq('id', authSession.user.id)
+            .eq('id', authUser.id)
             .maybeSingle();
           if (referrerProfile) {
             referrerDoctorId = referrerProfile.id;

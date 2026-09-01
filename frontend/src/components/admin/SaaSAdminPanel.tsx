@@ -157,19 +157,19 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   }));
   const [revenueStats, setRevenueStats] = useState<RevenueStats>(() => {
     const invoices = api.getUnifiedInvoices();
-    const totalGmv = invoices.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0) || 48500;
+    const totalGmv = invoices.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0);
     return {
       total_gmv: totalGmv,
       platform_commission: Math.round(totalGmv * 0.025),
-      paid_invoices: invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length || 18,
-      unpaid_invoices: invoices.filter(i => i.paymentStatus === 'pending').length || 3
+      paid_invoices: invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length,
+      unpaid_invoices: invoices.filter(i => i.paymentStatus === 'pending').length
     };
   });
   const [costStats, setCostStats] = useState<CostStats>(() => ({
-    waba_msgs_sent: 142,
-    waba_cost: 35.50,
-    ai_tasks_run: 84,
-    ai_cost: 12.60
+    waba_msgs_sent: 0,
+    waba_cost: 0.00,
+    ai_tasks_run: 0,
+    ai_cost: 0.00
   }));
   const [podsList, setPodsList] = useState<PodInfo[]>(() => [{
     id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
@@ -183,7 +183,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     daily_cost_budget: 500.00,
     daily_spend: 0.00,
     platform_fee_percent: 2.5,
-    lifetime_platform_revenue: 48500.00,
+    lifetime_platform_revenue: 0.00,
     pending_cash_balance: 0.00,
     is_verified_for_billing: true,
     health_score: 100,
@@ -417,18 +417,20 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         total_profiles: Math.max(api.getPatients().length, 12)
       });
 
+      const liveInvs = api.getUnifiedInvoices();
+      const realTotalGmv = liveInvs.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0);
       setRevenueStats((revenue as RevenueStats) || {
-        total_gmv: api.getUnifiedInvoices().reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0) || 48500,
-        platform_commission: Math.round((api.getUnifiedInvoices().reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0) || 48500) * 0.025),
-        paid_invoices: api.getUnifiedInvoices().filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length || 18,
-        unpaid_invoices: api.getUnifiedInvoices().filter(i => i.paymentStatus === 'pending').length || 3
+        total_gmv: realTotalGmv,
+        platform_commission: Math.round(realTotalGmv * 0.025),
+        paid_invoices: liveInvs.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length,
+        unpaid_invoices: liveInvs.filter(i => i.paymentStatus === 'pending').length
       });
 
       setCostStats((costs as CostStats) || {
-        waba_msgs_sent: 142,
-        waba_cost: 35.50,
-        ai_tasks_run: 84,
-        ai_cost: 12.60
+        waba_msgs_sent: 0,
+        waba_cost: 0.00,
+        ai_tasks_run: 0,
+        ai_cost: 0.00
       });
       
       if (pods) {

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
@@ -246,7 +246,6 @@ export class LabService {
     let reqs = load<LabRequisition[]>('lab_requisitions', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       const demoPatientIds = new Set([
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
         'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
@@ -531,7 +530,6 @@ export class LabService {
   static getPathologyReports(): PathologyReport[] {
     let reports = load<PathologyReport[]>('pathology_reports', []);
     const currentPodId = getPodContext().podId;
-    const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
     reports = reports.filter(r => {
       const pod = (r as any).podId || (r as any).pod_id;
@@ -595,11 +593,14 @@ export class LabService {
       const docAmt = parseFloat((testPrice * (splitDoc / 100)).toFixed(2));
       const labAmt = parseFloat((testPrice * (splitLab / 100)).toFixed(2));
 
+      const podEntityId = getPodContext().entityId;
+      const labDestId = getPodContext().labEntityId || podEntityId;
+
       const docLedger = {
         id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: `inv-rep-${reportId}`,
-        sourceEntityId: 'lab-partner-entity',
-        destinationEntityId: 'clinic-admin-entity',
+        sourceEntityId: labDestId,
+        destinationEntityId: podEntityId,
         transactionType: 'lab_commission',
         grossAmount: testPrice,
         commissionRate: splitDoc / 100, 
@@ -612,8 +613,8 @@ export class LabService {
       const platformLedger = {
         id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: `inv-rep-${reportId}`,
-        sourceEntityId: 'lab-partner-entity',
-        destinationEntityId: 'platform-admin-entity',
+        sourceEntityId: labDestId,
+        destinationEntityId: podEntityId,
         transactionType: 'platform_fee',
         grossAmount: testPrice,
         commissionRate: splitPlat / 100,
@@ -626,8 +627,8 @@ export class LabService {
       const labLedger = {
         id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
         invoiceId: `inv-rep-${reportId}`,
-        sourceEntityId: 'lab-partner-entity',
-        destinationEntityId: 'lab-partner-entity',
+        sourceEntityId: labDestId,
+        destinationEntityId: labDestId,
         transactionType: 'lab_commission',
         grossAmount: testPrice,
         commissionRate: splitLab / 100,

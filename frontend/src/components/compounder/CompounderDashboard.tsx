@@ -504,6 +504,8 @@ export const CompounderDashboard: React.FC = () => {
   const [instantSugar, setInstantSugar] = useState('');
   const [instantWeight, setInstantWeight] = useState('65');
   const [isSubmittingInstant, setIsSubmittingInstant] = useState(false);
+  const activeSop = BillingService.getActiveSop();
+  const currentConsultFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
 
   useEffect(() => {
     if (vitalsPatient) {
@@ -1162,7 +1164,7 @@ export const CompounderDashboard: React.FC = () => {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: `Token #${assignedToken} Confirmed! 🩺`,
-          message: `${targetPatient.name} booked, fee cleared (₹500.00 ${instantFeeStatus === 'paid_cash' ? 'Cash' : 'UPI'}), vitals recorded & routed to Doctor!`,
+          message: `${targetPatient.name} booked, fee cleared (₹${currentConsultFee.toFixed(2)} ${instantFeeStatus === 'paid_cash' ? 'Cash' : 'UPI'}), vitals recorded & routed to Doctor!`,
           type: 'success'
         }
       }));
@@ -1915,7 +1917,7 @@ export const CompounderDashboard: React.FC = () => {
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Registered & Dispatched ${name} to Payment Counter. Please collect ₹500.00 (Cash / UPI QR) to confirm appointment.`,
+        message: `Registered & Dispatched ${name} to Payment Counter. Please collect ₹${currentConsultFee.toFixed(2)} (Cash / UPI QR) to confirm appointment.`,
         type: 'success',
         title: 'Patient Registered — Collect Payment'
       }
@@ -1960,7 +1962,7 @@ export const CompounderDashboard: React.FC = () => {
       setOpdSubTab('today_queue');
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: `⚠️ Consultation Fee Pending: Please collect ₹500.00 at the Payment Counter before dispatching ${vitalsPatient.name} to Doctor's chamber.`,
+          message: `⚠️ Consultation Fee Pending: Please collect ₹${currentConsultFee.toFixed(2)} at the Payment Counter before dispatching ${vitalsPatient.name} to Doctor's chamber.`,
           type: 'error',
           title: 'Payment Required'
         }
@@ -2466,7 +2468,7 @@ export const CompounderDashboard: React.FC = () => {
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        message: `Registered & Dispatched: ${quickRegName.trim()} to Payment Counter. Please collect ₹500.00 (Cash / UPI QR).`,
+        message: `Registered & Dispatched: ${quickRegName.trim()} to Payment Counter. Please collect ₹${currentConsultFee.toFixed(2)} (Cash / UPI QR).`,
         type: 'success',
         title: 'Patient Registered — Collect Payment'
       }
@@ -5660,7 +5662,7 @@ export const CompounderDashboard: React.FC = () => {
                     Consultation Fee &amp; Payment Clearance
                   </span>
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    ₹500.00 Doctor Consultation Fee
+                    ₹{currentConsultFee.toFixed(2)} Doctor Consultation Fee
                   </span>
                 </div>
                 <span className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-mono font-bold rounded-lg shadow-sm">
@@ -6607,7 +6609,7 @@ export const CompounderDashboard: React.FC = () => {
                 {/* 3. Fee Payment Mode Selector */}
                 <div>
                   <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
-                    Consultation Fee Clearance (₹500.00 Doctor Fee)
+                    Consultation Fee Clearance (₹{currentConsultFee.toFixed(2)} Doctor Fee)
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button

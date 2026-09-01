@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { TelemetryService } from './telemetry';
 import { PatientService } from './patientService';
 import { WhatsAppService } from './whatsappService';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { getIstDateString, getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { 
@@ -720,7 +720,6 @@ export class PharmacyService {
     let holds = load<InventoryHold[]>('inventory_holds', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       holds = holds.filter(h => {
         const pod = (h as any).podId || (h as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
@@ -788,7 +787,6 @@ export class PharmacyService {
     let bills = load<MedicineBill[]>('medicine_bills', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
-      const FALLBACK_POD_ID = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
       bills = bills.filter(b => {
         const pod = (b as any).podId || (b as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
@@ -958,11 +956,14 @@ export class PharmacyService {
         const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
         const pharmaAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
 
+        const podEntityId = getPodContext().entityId;
+        const pharmDestId = getPodContext().pharmacyEntityId || podEntityId;
+
         const platformLedger: FinancialLedgerEntry = {
           id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
           invoiceId: id,
-          sourceEntityId: 'clinic-admin-entity',
-          destinationEntityId: 'platform-admin-entity',
+          sourceEntityId: podEntityId,
+          destinationEntityId: podEntityId,
           transactionType: 'platform_fee',
           grossAmount: amount,
           commissionRate: splitPlat / 100,
@@ -975,8 +976,8 @@ export class PharmacyService {
         const pharmacyLedger: FinancialLedgerEntry = {
           id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
           invoiceId: id,
-          sourceEntityId: 'clinic-admin-entity',
-          destinationEntityId: 'pharmacy-partner-entity',
+          sourceEntityId: podEntityId,
+          destinationEntityId: pharmDestId,
           transactionType: 'medicine_commission',
           grossAmount: amount,
           commissionRate: 1 - splitPlat / 100,
@@ -994,8 +995,8 @@ export class PharmacyService {
           {
             id: platformLedger.id,
             invoice_id: id,
-            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
-            destination_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic-admin/platform-admin mapping
+            source_entity_id: podEntityId,
+            destination_entity_id: podEntityId,
             transaction_type: 'platform_fee',
             gross_amount: amount,
             commission_rate: splitPlat,
@@ -1007,8 +1008,8 @@ export class PharmacyService {
           {
             id: pharmacyLedger.id,
             invoice_id: id,
-            source_entity_id: getPodContext().entityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002', // clinic
-            destination_entity_id: getPodContext().pharmacyEntityId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004', // pharmacy
+            source_entity_id: podEntityId,
+            destination_entity_id: pharmDestId,
             transaction_type: 'medicine_commission',
             gross_amount: amount,
             commission_rate: 100 - splitPlat,

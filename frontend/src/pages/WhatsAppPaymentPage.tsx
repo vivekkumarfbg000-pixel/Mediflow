@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { BillingService } from '../services/billingService';
 import { 
   ShieldCheck, 
   CreditCard, 
@@ -65,12 +66,17 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
 
   // Fetch Invoice and Patient Details
   useEffect(() => {
+    const activeSop = BillingService.getActiveSop();
+    const fallbackDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
+    const fallbackPlatFee = parseFloat((fallbackDocFee * 0.03).toFixed(2));
+    const fallbackTotal = parseFloat((fallbackDocFee + fallbackPlatFee).toFixed(2));
+
     if (!invoiceId) {
       setInvoice({
         id: 'inv-wa-default',
-        doctor_fee: 500.00,
-        platform_fee: 15.00,
-        total_amount: 515.00,
+        doctor_fee: fallbackDocFee,
+        platform_fee: fallbackPlatFee,
+        total_amount: fallbackTotal,
         payment_status: 'pending'
       });
       setLoading(false);
@@ -105,9 +111,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
         if (!inv && invoiceId) {
           inv = {
             id: invoiceId,
-            doctor_fee: 500.00,
-            platform_fee: 15.00,
-            total_amount: 515.00,
+            doctor_fee: fallbackDocFee,
+            platform_fee: fallbackPlatFee,
+            total_amount: fallbackTotal,
             payment_status: 'pending'
           };
         }

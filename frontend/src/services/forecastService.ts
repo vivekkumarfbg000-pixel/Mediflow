@@ -876,13 +876,16 @@ Dhyan rakhein aur jaldi theek hon!`;
     medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
     diagnosticTests: DiagnosticTest[];
   }> {
-    // Get session non-blocking — Vision AI tiers can fire independently of auth status
+    // Get verified auth and session token — Vision AI tiers can fire independently of auth status
     let session: any = null;
+    let authUser: any = null;
     try {
-      const { data } = await supabase.auth.getSession();
-      session = data?.session ?? null;
-    } catch (_sessionErr) {
-      console.warn('[Mediflow AI] Could not fetch session; proceeding without auth token.');
+      const { data: userData } = await supabase.auth.getUser();
+      authUser = userData?.user ?? null;
+      const { data: sessionData } = await supabase.auth.getSession();
+      session = sessionData?.session ?? null;
+    } catch (_userErr) {
+      console.warn('[Mediflow AI] Could not fetch verified auth; proceeding without auth token.');
     }
 
     // Fetch active pod parameters for budget enforcement

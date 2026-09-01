@@ -764,12 +764,13 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                     </div>
 
                     <div className="flex items-center justify-between bg-zinc-950 px-3 py-2 rounded-xl border border-white/5">
-                      <span className="text-xs font-mono font-bold text-cyan-400 tracking-wide select-all">vitalsync@axl</span>
+                      <span className="text-xs font-mono font-bold text-cyan-400 tracking-wide select-all">{activePod?.upiVpa || 'vitalsync@axl'}</span>
                       <button
                         onClick={async () => {
+                          const vpaToCopy = activePod?.upiVpa || 'vitalsync@axl';
                           try {
                             if (navigator?.clipboard?.writeText) {
-                              await navigator.clipboard.writeText('vitalsync@axl');
+                              await navigator.clipboard.writeText(vpaToCopy);
                             }
                           } catch {
                             /* ignore permission errors */
@@ -777,7 +778,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
                             detail: {
                               title: 'VPA Copied! 📋',
-                              message: 'vitalsync@axl has been copied to your clipboard.',
+                              message: `${vpaToCopy} has been copied to your clipboard.`,
                               type: 'success'
                             }
                           }));
