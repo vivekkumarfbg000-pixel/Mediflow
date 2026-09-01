@@ -140,21 +140,21 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
     }
     const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
     const pDate = getIstDateString(regDate);
-    return pDate === todayStr || regDate.startsWith(todayStr);
+    return pDate === todayStr;
   };
 
   const labMetrics = useMemo(() => ({
     total: labReqs.length,
     pending: labReqs.filter(r => r.status === 'pending').length,
     processing: labReqs.filter(r => r.status === 'collected' || r.status === 'processed').length,
-    completedToday: labReqs.filter(r => r.status === 'completed' && (r.createdAt || '').startsWith(todayStr)).length,
+    completedToday: labReqs.filter(r => r.status === 'completed' && getIstDateString(r.createdAt) === todayStr).length,
     lowReagents: reagents.filter(r => r.stockVolume < 200).length,
     criticalReagents: reagents.filter(r => r.stockVolume < 100).length,
   }), [labReqs, reagents, todayStr]);
 
   const pharmacyMetrics = useMemo(() => ({
     pendingHolds: inventoryHolds.filter(h => h.holdStatus === 'held').length,
-    dispensedToday: inventoryHolds.filter(h => h.holdStatus === 'dispensed' && (h.createdAt || '').startsWith(todayStr)).length,
+    dispensedToday: inventoryHolds.filter(h => h.holdStatus === 'dispensed' && getIstDateString(h.createdAt) === todayStr).length,
     lowStockItems: pharmacyInventory.filter((i: any) => i.stock <= i.threshold).length,
     criticalStockItems: pharmacyInventory.filter((i: any) => i.stock === 0).length,
   }), [inventoryHolds, pharmacyInventory, todayStr]);
@@ -193,7 +193,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       .filter(i => (i.paymentStatus as string) === 'pending' || (i.paymentStatus as string) === 'unpaid')
       .reduce((s, i) => s + (i.totalAmount || 0), 0);
 
-    const todayLedgers = allInvoices.filter(i => i.createdAt?.startsWith(todayStr)).length;
+    const todayLedgers = allInvoices.filter(i => getIstDateString(i.createdAt) === todayStr).length;
 
     return { grossRev, cleared, pending, todayLedgers };
   }, [financials, todayStr]);

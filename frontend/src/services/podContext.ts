@@ -28,6 +28,8 @@ export const FALLBACK_ENTITY_ID    = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
 export const FALLBACK_LAB_ENTITY   = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003';
 export const FALLBACK_PHARM_ENTITY = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004';
 export const FALLBACK_DOCTOR_ID    = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101';
+export const DEMO_PATIENT_ID_1     = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401';
+export const DEMO_PATIENT_ID_2     = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402';
 
 // Sentinel values for unresolved non-demo contexts (never collide with real data)
 const UNRESOLVED_POD    = 'unresolved-pod';

@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString } from '../utils/dateUtils';
 
@@ -20,7 +20,7 @@ export class BillingService {
             parsed.isDemo === true ||
             email === 'demo@mediflow.com' ||
             email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+            id === FALLBACK_DOCTOR_ID
           );
         }
       } catch (_e) { /* ignore */ }
@@ -30,8 +30,8 @@ export class BillingService {
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        DEMO_PATIENT_ID_1, 
+        DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
@@ -192,7 +192,7 @@ export class BillingService {
             parsed.isDemo === true ||
             email === 'demo@mediflow.com' ||
             email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+            id === FALLBACK_DOCTOR_ID
           );
         }
       } catch (_e) { /* ignore */ }
@@ -202,8 +202,8 @@ export class BillingService {
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        DEMO_PATIENT_ID_1, 
+        DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
@@ -349,7 +349,7 @@ export class BillingService {
             parsed.isDemo === true ||
             email === 'demo@mediflow.com' ||
             email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+            id === FALLBACK_DOCTOR_ID
           );
         }
       } catch (_e) { /* ignore */ }
@@ -359,8 +359,8 @@ export class BillingService {
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        DEMO_PATIENT_ID_1, 
+        DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
@@ -413,7 +413,7 @@ export class BillingService {
             parsed.isDemo === true ||
             email === 'demo@mediflow.com' ||
             email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+            id === FALLBACK_DOCTOR_ID
           );
         }
       } catch (_e) { /* ignore */ }
@@ -423,8 +423,8 @@ export class BillingService {
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401', 
-        'dfb2a1a8-8e68-4f8a-929e-4a6c8e317402',
+        DEMO_PATIENT_ID_1, 
+        DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);

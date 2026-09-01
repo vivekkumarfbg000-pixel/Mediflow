@@ -1087,7 +1087,7 @@ export class PharmacyService {
     
     const tx = txs.find(t => 
       t.patientId === patientId && 
-      (t.createdAt || '').startsWith(todayStr) && 
+      getIstDateString(t.createdAt) === todayStr && 
       t.appointmentBookedAtCounter && 
       t.labBookedAtCounter
     );
@@ -1306,6 +1306,14 @@ Thank you for choosing VitalSync! 🟢`;
   }
 
   static simulateIncomingWhatsAppOrder() {
+    // Guard against mock injection in production accounts
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      const cached = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+      isDemoAccount = Boolean(cached?.isDemo || localStorage.getItem('mediflow_dev_bypass') === 'true');
+    }
+    if (!isDemoAccount) return;
+
     const orders = this.getWhatsAppDrugOrders();
     const patients = PatientService.getPatients();
     const activePatient = patients[Math.floor(Math.random() * patients.length)];

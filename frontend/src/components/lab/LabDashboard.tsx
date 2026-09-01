@@ -311,12 +311,12 @@ export const LabDashboard: React.FC = () => {
   const todayAppointments = useMemo(() => {
     const todayStr = getIstDateString();
     const appts = BillingService.getAppointments();
-    return appts.filter(a => (a.date || '').startsWith(todayStr) || (a.createdAt || (a as any).created_at || '').startsWith(todayStr));
+    return appts.filter(a => getIstDateString(a.date || a.createdAt || (a as any).created_at) === todayStr);
   }, [requisitions, invoices, patients]);
 
   const todayQueuePatients = useMemo(() => {
     const todayStr = getIstDateString();
-    const activeReqs = requisitions.filter(r => (r.createdAt || '').startsWith(todayStr) || r.status !== 'completed');
+    const activeReqs = requisitions.filter(r => getIstDateString(r.createdAt) === todayStr || r.status !== 'completed');
     
     const map = new Map<string, {
       patient: Patient;
@@ -431,7 +431,7 @@ export const LabDashboard: React.FC = () => {
   /* ─── Analytics data ─────────────────────────────────────────── */
   const todayStr = getIstDateString();
   const todayCompleted = useMemo(
-    () => completedList.filter(r => (r.createdAt || '').startsWith(todayStr)),
+    () => completedList.filter(r => getIstDateString(r.createdAt) === todayStr),
     [completedList, todayStr]
   );
   const todayRevenue = useMemo(() => {

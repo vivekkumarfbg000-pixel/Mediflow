@@ -378,7 +378,7 @@ export class WhatsAppService {
           if (cleaned === '1' || cleaned.includes('physical')) {
             const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || (a.createdAt || '').startsWith(todayStr)));
+            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
             const nextNum = todayAppts.length + 1;
             const tokenNumber = `#TK-${nextNum.toString().padStart(3, '0')}`;
             const apptId = crypto.randomUUID();
@@ -534,7 +534,7 @@ export class WhatsAppService {
           if (cleaned === '1' || cleaned.includes('physical') || cleaned.includes('clinic')) {
             const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || (a.createdAt || '').startsWith(todayStr)));
+            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
             const nextNum = todayAppts.length + 1;
             const tokenNumber = `#TK-${nextNum.toString().padStart(3, '0')}`;
             const apptId = crypto.randomUUID();
@@ -603,7 +603,7 @@ export class WhatsAppService {
             nextState = 'COMPLETED';
             const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || (a.createdAt || '').startsWith(todayStr)));
+            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
             const tokenNumber = `T-${(todayAppts.length + 1).toString().padStart(2, '0')} E`;
             const apptId = crypto.randomUUID();
             const docName = this.getDynamicDoctorName();
@@ -673,7 +673,7 @@ export class WhatsAppService {
           if (cleaned === '1' || cleaned.includes('physical')) {
             const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || (a.createdAt || '').startsWith(todayStr)));
+            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
             const nextNum = todayAppts.length + 1;
             const tokenNumber = `#TK-${nextNum.toString().padStart(3, '0')}`;
             const apptId = crypto.randomUUID();
@@ -1179,7 +1179,7 @@ export class WhatsAppService {
             nextState = 'COMPLETED';
             const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || (a.createdAt || '').startsWith(todayStr)));
+            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
             const tokenNumber = `T-${(todayAppts.length + 1).toString().padStart(2, '0')} E`;
             const apptId = crypto.randomUUID();
             const docName = this.getDynamicDoctorName();

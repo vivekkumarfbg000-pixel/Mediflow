@@ -460,23 +460,19 @@ export class StateHealingEngine {
   /** 🆔 Phase 42: Autonomous ABHA Identity & Consent Integrity Guard */
   static auditAbhaReportIntegrity(): boolean {
     try {
-      const rawPatients = localStorage.getItem('patients') || localStorage.getItem('patient_registry');
-      if (rawPatients) {
-        const patients = JSON.parse(rawPatients);
-        if (Array.isArray(patients)) {
-          let modified = false;
-          const cleaned = patients.map((p: any) => {
-            if (p && !p.abhaId) {
-              p.abhaId = `12-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-              modified = true;
-            }
-            return p;
-          });
-          if (modified) {
-            localStorage.setItem('patient_registry', JSON.stringify(cleaned));
-            this.totalHealedCount++;
-            return true;
+      const patients = safeGetStorageJSON<any[]>('patient_registry', []);
+      if (Array.isArray(patients) && patients.length > 0) {
+        // Validate format of recorded ABHA identifiers without fabricating fake IDs
+        const abhaRegex = /^(\d{2}-\d{4}-\d{4}-\d{4}|[a-zA-Z0-9._-]+@abdm)$/;
+        let hasValidRecords = false;
+        patients.forEach((p: any) => {
+          if (p && p.abhaId && abhaRegex.test(String(p.abhaId).trim())) {
+            hasValidRecords = true;
           }
+        });
+        if (hasValidRecords) {
+          this.totalHealedCount++;
+          return true;
         }
       }
     } catch (e) {
@@ -2009,9 +2005,9 @@ export class WebVitalsGuardian {
         }));
       }
       // Persist to dedicated web vitals metrics (not founder alerts to prevent false bug alarms)
-      const metrics: any[] = JSON.parse(localStorage.getItem('web_vitals_metrics') || '[]');
+      const metrics: any[] = safeGetStorageJSON<any[]>('web_vitals_metrics', []);
       metrics.unshift({ type: 'VITALS_METRIC', metric, value, threshold, createdAt: new Date().toISOString() });
-      localStorage.setItem('web_vitals_metrics', JSON.stringify(metrics.slice(0, 20)));
+      safeSetStorageJSON('web_vitals_metrics', metrics.slice(0, 20));
     } catch { /* ignore alert error */ }
   }
 }
@@ -2190,7 +2186,7 @@ export class SaaSGrowthAgent {
         console.log(`[SaaSGrowthAgent] 💬 Found ${abandoned.length} abandoned booking(s). Auto-queuing WhatsApp retention follow-up...`);
         // Auto-queue retention reminder
         try {
-          const rawOutbox: any[] = JSON.parse(localStorage.getItem('retention_outbox') || '[]');
+          const rawOutbox: any[] = safeGetStorageJSON<any[]>('retention_outbox', []);
           abandoned.forEach((app: any) => {
             if (!rawOutbox.some(r => r.appointmentId === app.id)) {
               rawOutbox.push({
@@ -2202,7 +2198,7 @@ export class SaaSGrowthAgent {
               });
             }
           });
-          localStorage.setItem('retention_outbox', JSON.stringify(rawOutbox.slice(0, 50)));
+          safeSetStorageJSON('retention_outbox', rawOutbox.slice(0, 50));
         } catch { /* ignore storage error */ }
       }
     } catch {

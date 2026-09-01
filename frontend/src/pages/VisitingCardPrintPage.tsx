@@ -17,15 +17,14 @@ import {
   Moon
 } from 'lucide-react';
 import { BrandMark } from '../components/shared/BrandMark';
+import { safeGetStorageJSON } from '../utils/storage';
 
 export const VisitingCardPrintPage: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'single' | 'sheet'>('single');
   const [sheetMode, setSheetMode] = useState<'duplex' | 'sideBySide'>('duplex');
   const [cardTheme, setCardTheme] = useState<'pearl' | 'dark'>('pearl');
-  const cachedProfile = typeof window !== 'undefined' ? (() => {
-    try { return JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}'); } catch { return {}; }
-  })() : {};
+  const cachedProfile = safeGetStorageJSON<any>('vitalsync_cached_profile', {});
 
   const [name, setName] = useState<string>(cachedProfile?.display_name || cachedProfile?.name || 'Vivek Kumar');
   const [title, setTitle] = useState<string>(cachedProfile?.role === 'doctor' ? (cachedProfile?.specialization ? `Specialist (${cachedProfile.specialization})` : 'Consulting Physician') : 'Founder & CTO');

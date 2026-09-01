@@ -4,6 +4,7 @@ import { api } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
+import { safeGetStorageJSON } from '../../utils/storage';
 import { useSpecialization } from '../../context/SpecializationContext';
 import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
@@ -144,12 +145,8 @@ export const PharmacyDashboard: React.FC = () => {
         .select('*, medicine_bill_items(*), patient_registry(name, phone)')
         .order('created_at', { ascending: false });
 
-      const currentPodId = activePod?.id || (typeof window !== 'undefined' ? (() => {
-        try {
-          const raw = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('mediflow_active_pod');
-          return raw ? JSON.parse(raw)?.id : null;
-        } catch { return null; }
-      })() : null);
+      const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null) || safeGetStorageJSON<any>('mediflow_active_pod', null);
+      const currentPodId = activePod?.id || localActivePod?.id || null;
 
       if (currentPodId) {
         query = query.eq('pod_id', currentPodId);

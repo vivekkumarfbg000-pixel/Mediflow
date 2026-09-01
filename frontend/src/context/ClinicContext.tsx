@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
-import { FALLBACK_POD_ID } from '../services/podContext';
+import { FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../services/podContext';
 import type { Pod, Entity } from '../types';
 
 interface ClinicContextType {
@@ -61,7 +61,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
 
     // Explicit Demo Account Check
     const email = String(activeProfile.email || '').toLowerCase();
-    const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+    const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === FALLBACK_DOCTOR_ID);
     if (isDemo) {
       const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
       const cleanStoredPodName = localActivePod?.name && !localActivePod.name.toLowerCase().includes('apex') ? localActivePod.name : null;

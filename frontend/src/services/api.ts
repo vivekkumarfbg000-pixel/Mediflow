@@ -678,7 +678,7 @@ class MediflowApiService {
         if (user) {
           reqQuery = reqQuery.or(`assigned_technician_id.eq.${user.id},assigned_technician_id.is.null`);
         } else {
-          reqQuery = reqQuery.or(`assigned_technician_id.eq.dfb2a1a8-8e68-4f8a-929e-4a6c8e317102,assigned_technician_id.is.null`);
+          reqQuery = reqQuery.or(`assigned_technician_id.eq.${FALLBACK_LAB_ENTITY},assigned_technician_id.is.null`);
         }
       }
 
@@ -967,7 +967,7 @@ class MediflowApiService {
                 if (parsed) {
                   const email = String(parsed.email || '').toLowerCase();
                   const id = String(parsed.id || '').toLowerCase();
-                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === FALLBACK_DOCTOR_ID);
                 }
               }
             } catch (_e) { /* ignore */ }
@@ -1021,7 +1021,7 @@ class MediflowApiService {
                 if (parsed) {
                   const email = String(parsed.email || '').toLowerCase();
                   const id = String(parsed.id || '').toLowerCase();
-                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === FALLBACK_DOCTOR_ID);
                 }
               }
             } catch (_e) { /* ignore */ }
@@ -1059,7 +1059,7 @@ class MediflowApiService {
                 if (parsed) {
                   const email = String(parsed.email || '').toLowerCase();
                   const id = String(parsed.id || '').toLowerCase();
-                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === FALLBACK_DOCTOR_ID);
                 }
               }
             } catch (_e) { /* ignore */ }
@@ -2003,7 +2003,7 @@ class MediflowApiService {
         await supabase.from('appointments').upsert({
           id: slot.appointmentId,
           patient_id: patientId,
-          doctor_id: doctorId === 'doc-1' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' : doctorId,
+          doctor_id: doctorId === 'doc-1' ? FALLBACK_DOCTOR_ID : doctorId,
           status: 'scheduled',
           appointment_time: slot.startISO,
           end_time: slot.endISO,
@@ -2035,7 +2035,7 @@ class MediflowApiService {
       await supabase.from('appointments').upsert({
         id: slot.appointmentId,
         patient_id: slot.patientId,
-        doctor_id: slot.doctorId === 'doc-1' ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' : slot.doctorId,
+        doctor_id: slot.doctorId === 'doc-1' ? FALLBACK_DOCTOR_ID : slot.doctorId,
         status: 'scheduled',
         appointment_time: slot.startISO,
         end_time: slot.endISO,

@@ -258,7 +258,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
         }
         const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-        return Boolean(regDate && regDate.startsWith(todayStr) && paidPatientIds.has(p.id));
+        const pDate = getIstDateString(regDate);
+        return Boolean(pDate && pDate === todayStr && paidPatientIds.has(p.id));
       };
 
       const awaiting = patients.find(p => 
@@ -1700,7 +1701,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 }
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
-                return (pDate === todayStr || regDate.startsWith(todayStr)) && paidPatientIds.has(p.id);
+                return (pDate === todayStr) && paidPatientIds.has(p.id);
               };
 
               const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment' && isPatientForToday(p));
@@ -1708,7 +1709,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const todayRegList = patients.filter(p => {
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
-                return pDate === todayStr || regDate.startsWith(todayStr);
+                return pDate === todayStr;
               });
               const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
               const upcomingList = patients.filter(p => {
@@ -1822,7 +1823,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                   }
                   const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-                  return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
+                  const pDate = getIstDateString(regDate);
+                  return pDate === todayStr && paidPatientIds.has(p.id);
                 };
 
                 const queuePatients = patients

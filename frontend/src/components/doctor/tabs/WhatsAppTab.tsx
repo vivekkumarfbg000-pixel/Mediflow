@@ -256,7 +256,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
           } catch (_pErr) { /* ignore parse error */ }
         }
 
-        const currentPodId = activePod?.id || (typeof window !== 'undefined' ? (() => { try { return JSON.parse(localStorage.getItem('vitalsync_active_pod') || '{}')?.id; } catch { return null; } })() : null);
+        const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
+        const currentPodId = activePod?.id || localActivePod?.id || null;
         let query = supabase.from('waba_connections').select('*');
         if (currentPodId) {
           query = query.or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`);

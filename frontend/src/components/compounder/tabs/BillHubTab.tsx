@@ -18,6 +18,7 @@ import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ForecastService } from '../../../services/forecastService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
+import { safeGetStorageJSON } from '../../../utils/storage';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 export interface BillHubTabProps {
@@ -139,7 +140,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       let saasPrescriptions: any[] = [];
       try {
-        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : JSON.parse(localStorage.getItem('saas_prescriptions') || '[]'))
+        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : safeGetStorageJSON<any[]>('saas_prescriptions', []))
           .filter((r: any) => isEncounterMatchingPatient(r, selectedPatient))
           .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
       } catch (_rxErr) { /* ignore */ }
@@ -190,7 +191,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     const todayStr = getIstDateString();
     const appts = BillingService.getAppointments().filter(a => {
       const aDate = getEffectiveAppointmentDate(a);
-      return (aDate === todayStr || (a.createdAt || '').startsWith(todayStr)) && a.status !== 'cancelled';
+      return (aDate === todayStr || getIstDateString(a.createdAt) === todayStr) && a.status !== 'cancelled';
     });
     const ids = new Set<string>();
     appts.forEach(a => {
@@ -198,7 +199,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       if ((a as any).patient_id) ids.add((a as any).patient_id);
     });
     patients.forEach(p => {
-      if ((p.registeredAt || (p as any).createdAt || (p as any).created_at || '').startsWith(todayStr)) {
+      if (getIstDateString(p.registeredAt || (p as any).createdAt || (p as any).created_at) === todayStr) {
         ids.add(p.id);
       }
     });
@@ -456,7 +457,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       let saasPrescriptions: any[] = [];
       try {
-        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : JSON.parse(localStorage.getItem('saas_prescriptions') || '[]'))
+        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : safeGetStorageJSON<any[]>('saas_prescriptions', []))
           .filter((r: any) => isEncounterMatchingPatient(r, selectedPatient))
           .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
       } catch (_rxErr) { /* ignore */ }

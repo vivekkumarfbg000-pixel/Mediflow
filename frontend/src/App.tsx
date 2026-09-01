@@ -1059,7 +1059,7 @@ export default function App() {
         console.log('[Dev Bypass] Bypassing session check. Creating mock session.');
         currentSession = {
           user: {
-            id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+            id: FALLBACK_DOCTOR_ID,
             email: 'doctor@mediflow.com',
             user_metadata: {
               display_name: 'Dr. Vivek Kumar (Mock)',
@@ -1236,7 +1236,7 @@ export default function App() {
       finalProfile?.isDemo === true ||
       emailLower === 'demo@mediflow.com' ||
       emailLower === 'doctor@mediflow.com' ||
-      finalProfile?.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+      finalProfile?.id === FALLBACK_DOCTOR_ID
     );
 
     // Rule 75: Live user zero-state baseline - purge demo keys on authenticated sign-in

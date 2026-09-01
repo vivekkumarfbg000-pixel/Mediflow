@@ -856,7 +856,7 @@ export const CompounderDashboard: React.FC = () => {
     const todayStr = getIstDateString();
     const rawList = appointments.filter(a => {
       const aDate = getEffectiveAppointmentDate(a);
-      return (aDate === todayStr || (a.createdAt || '').startsWith(todayStr)) && a.status !== 'cancelled';
+      return (aDate === todayStr || getIstDateString(a.createdAt) === todayStr) && a.status !== 'cancelled';
     });
 
     // Deduplicate by patient ID so each patient has exactly one active appointment card in today's queue
@@ -891,7 +891,7 @@ export const CompounderDashboard: React.FC = () => {
 
     // 1. Check patients in local registry
     patients.forEach(p => {
-      const isToday = (p.registeredAt || (p as any).createdAt || (p as any).created_at || '').startsWith(todayStr) ||
+      const isToday = getIstDateString(p.registeredAt || (p as any).createdAt || (p as any).created_at) === todayStr ||
         activeOpdAppointments.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
       const lacksVitals = !p.vitals || !p.vitals.bloodPressure || p.vitals.bloodPressure === '';
       const isPendingQueue = p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_consultation' || !p.queueStatus;
@@ -934,7 +934,7 @@ export const CompounderDashboard: React.FC = () => {
     const todayStr = getIstDateString();
     const appt = appointments.find(a => 
       (a.patientId === p.id || (a as any).patient_id === p.id) &&
-      (getEffectiveAppointmentDate(a) === todayStr || (a.createdAt || '').startsWith(todayStr))
+      (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr)
     );
     const src = String(appt?.source || (p as any).source || '').toLowerCase();
     if (src.includes('whatsapp') || src.includes('bot')) return 'whatsapp';
@@ -1122,7 +1122,7 @@ export const CompounderDashboard: React.FC = () => {
       const todayStr = getIstDateString();
       const existingAppt = appointments.find(a => 
         (a.patientId === targetPatient.id || (a as any).patient_id === targetPatient.id) &&
-        (getEffectiveAppointmentDate(a) === todayStr || (a.createdAt || '').startsWith(todayStr))
+        (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr)
       );
 
       if (existingAppt) {
@@ -1820,7 +1820,7 @@ export const CompounderDashboard: React.FC = () => {
     if (billingPatient) {
       const txs = api.getCounterTransactions();
       const todayStr = getIstDateString();
-      const existingTx = txs.find(t => t.patientId === billingPatient.id && (t.createdAt || '').startsWith(todayStr));
+      const existingTx = txs.find(t => t.patientId === billingPatient.id && getIstDateString(t.createdAt) === todayStr);
       
       if (existingTx) {
         setApptCounterBooked(existingTx.appointmentBookedAtCounter);

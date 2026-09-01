@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
+import { FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { 
   ClinicalSafetyAgent, 
   ResourceAllocationAgent, 
@@ -298,7 +299,7 @@ export const AgenticConsole: React.FC<AgenticConsoleProps> = ({ onWorkflowExecut
       await api.createEncounter({
         patientId: currentPat.id,
         patientName: currentPat.name,
-        doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+        doctorId: FALLBACK_DOCTOR_ID,
         clinicalNotes: `AI Agent parsed request: "${query}"`,
         medications: [{ id: crypto.randomUUID(), medicineName: drugName, dosage, frequency: '1-0-1', duration: '5 days' }],
         diagnosticTests: [{ loincCode: loinc, name: testName, category: 'Pathology', normalRange: 'N/A', unit: 'N/A' }]

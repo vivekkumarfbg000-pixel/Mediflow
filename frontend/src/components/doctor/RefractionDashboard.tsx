@@ -101,7 +101,7 @@ export const RefractionDashboard: React.FC = () => {
       return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
     }
     const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-    return regDate.startsWith(todayStr);
+    return getIstDateString(regDate) === todayStr;
   }, [appointments]);
 
   const filteredPatients = useMemo(() => {

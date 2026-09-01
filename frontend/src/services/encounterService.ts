@@ -1,11 +1,12 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog } from './apiHelper';
-import { getPodContext, resolvePodContext } from './podContext';
+import { getPodContext, resolvePodContext, DEMO_PATIENT_ID_1 } from './podContext';
 import { PatientService } from './patientService';
 import { PaymentService } from './paymentService';
 import { BillingService } from './billingService';
 import { MASTER_TEST_CATALOG } from './labService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
+import { safeGetStorageJSON } from '../utils/storage';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
 export class EncounterService {
@@ -390,8 +391,9 @@ export class EncounterService {
     ];
 
     const historyList: HistoricalBiomarker[] = [];
-    const isDemo = typeof window !== 'undefined' && (localStorage.getItem('mediflow_dev_bypass') === 'true' || Boolean(JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}')?.isDemo));
-    if (isDemo && (patientId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401' || patientId === 'p-1')) {
+    const cachedProfile = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+    const isDemo = typeof window !== 'undefined' && (localStorage.getItem('mediflow_dev_bypass') === 'true' || Boolean(cachedProfile?.isDemo));
+    if (isDemo && (patientId === DEMO_PATIENT_ID_1 || patientId === 'p-1')) {
       historyList.push(...baseline.map(b => ({ ...b })));
     }
 

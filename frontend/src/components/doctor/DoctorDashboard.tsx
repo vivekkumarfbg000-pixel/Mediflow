@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from '../../services/podContext';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
+import { safeGetStorageJSON } from '../../utils/storage';
 import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
 import { 
   Trash2, 
@@ -260,7 +261,8 @@ export const DoctorDashboard: React.FC = () => {
         }
 
         // DB Fallback Hydration
-        const currentPodId = activePod?.id || getPodContext().podId || (typeof window !== 'undefined' ? (() => { try { return JSON.parse(localStorage.getItem('vitalsync_active_pod') || '{}')?.id; } catch { return null; } })() : null);
+        const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
+        const currentPodId = activePod?.id || getPodContext().podId || localActivePod?.id || null;
         let query = supabase.from('waba_connections').select('*');
         if (currentPodId) {
           query = query.or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`);
@@ -1288,7 +1290,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
       }
       const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
-      return regDate.startsWith(todayStr);
+      return getIstDateString(regDate) === todayStr;
     };
 
     const activeQueue = api.getPatients()

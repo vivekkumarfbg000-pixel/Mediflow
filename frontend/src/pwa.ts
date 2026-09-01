@@ -1,5 +1,6 @@
 // Mediflow Connected Care Ecosystem v2.3 - PWA Connection & Database Sync Coordinator
 import { api } from './services/api';
+import { safeGetStorageJSON, safeSetStorageJSON } from './utils/storage';
 
 export class PwaSyncManager {
   private static isSyncActive = false;
@@ -91,10 +92,10 @@ export class PwaSyncManager {
 
     let queue: any[] = [];
     try {
-      queue = JSON.parse(localStorage.getItem('offline_sync_queue') || '[]');
+      queue = safeGetStorageJSON<any[]>('offline_sync_queue', []);
     } catch (_err) {
       console.error('[PWA-Sync] Corrupted offline_sync_queue, resetting:', _err);
-      localStorage.setItem('offline_sync_queue', '[]');
+      safeSetStorageJSON('offline_sync_queue', []);
       queue = [];
     }
     if (queue.length === 0) return;
