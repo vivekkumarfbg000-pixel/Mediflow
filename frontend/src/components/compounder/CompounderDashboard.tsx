@@ -766,10 +766,23 @@ export const CompounderDashboard: React.FC = () => {
     try {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const text = `Token number ${tokenNum}. Patient ${patientName}, please proceed to Doctor Chamber.`;
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
+        const cleanToken = String(tokenNum || '').replace('#', '').trim();
+        const cleanName = (patientName || 'मरीज़').trim();
+        
+        // Authentic Hindi OPD announcement phrasing:
+        const hindiText = `टोकन नंबर ${cleanToken} ... ${cleanName} जी, कृपया डॉक्टर चेंबर में आएं।`;
+        const utterance = new SpeechSynthesisUtterance(hindiText);
+        utterance.lang = 'hi-IN';
+        utterance.rate = 0.88;
+        utterance.pitch = 1.05;
+
+        // Pick authentic Hindi / Indian voice if available
+        const voices = window.speechSynthesis.getVoices();
+        const hindiVoice = voices.find(v => v.lang === 'hi-IN' || v.lang.startsWith('hi') || v.name.includes('Hindi') || v.name.includes('India') || v.lang === 'en-IN');
+        if (hindiVoice) {
+          utterance.voice = hindiVoice;
+        }
+
         window.speechSynthesis.speak(utterance);
       }
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -835,13 +848,44 @@ export const CompounderDashboard: React.FC = () => {
 
   const pendingVitalsList = useMemo(() => {
     const todayStr = getIstDateString();
-    return patients.filter(p => {
+    const seenPatientIds = new Set<string>();
+    const list: Patient[] = [];
+
+    // 1. Check patients in local registry
+    patients.forEach(p => {
       const isToday = (p.registeredAt || (p as any).createdAt || (p as any).created_at || '').startsWith(todayStr) ||
         activeOpdAppointments.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
       const lacksVitals = !p.vitals || !p.vitals.bloodPressure || p.vitals.bloodPressure === '';
       const isPendingQueue = p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_consultation' || !p.queueStatus;
-      return isToday && lacksVitals && isPendingQueue;
+      if (isToday && lacksVitals && isPendingQueue) {
+        seenPatientIds.add(p.id);
+        list.push(p);
+      }
     });
+
+    // 2. Also ensure all today's active appointments (especially WhatsApp / online bookings) are present
+    activeOpdAppointments.forEach(a => {
+      const pid = a.patientId || (a as any).patient_id;
+      if (pid && !seenPatientIds.has(pid)) {
+        const existing = patients.find(p => p.id === pid);
+        if (!existing || !existing.vitals || !existing.vitals.bloodPressure) {
+          seenPatientIds.add(pid);
+          list.push(existing || {
+            id: pid,
+            name: a.patientName || (a as any).patient_name || 'WhatsApp Patient',
+            phone: a.patientPhone || (a as any).patient_phone || '9999000000',
+            age: 28,
+            gender: 'Female',
+            registeredAt: a.date || a.createdAt || new Date().toISOString(),
+            tokenNumber: a.tokenNumber || (a as any).token_number || 'T-01',
+            queueStatus: 'awaiting_vitals',
+            source: a.source || 'whatsapp'
+          } as any);
+        }
+      }
+    });
+
+    return list;
   }, [patients, activeOpdAppointments, dataRevision]);
 
   const nextQueuedPatient = useMemo(() => {
@@ -2624,12 +2668,12 @@ export const CompounderDashboard: React.FC = () => {
                               : 'bg-amber-500'
                           }`}>
                             <span className="text-[7.5px] font-bold uppercase opacity-80">TOKEN</span>
-                            <span className="text-xs font-black -mt-0.5">#{String(a.tokenNumber || 'TK').replace(/\D/g, '').slice(-2) || '01'}</span>
+                            <span className="text-xs font-black -mt-0.5">#{String(a.tokenNumber || (a as any).token_number || p?.tokenNumber || 'TK').replace(/\D/g, '').slice(-2) || '01'}</span>
                           </div>
 
                           <div className="min-w-0">
                             <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
-                              <span className="truncate capitalize">{a.patientName}</span>
+                              <span className="truncate capitalize">{a.patientName || (a as any).patient_name || p?.name || 'Walk-In Patient'}</span>
                               {src.includes('whatsapp') && <span className="text-[8.5px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-bold">🟢 WA</span>}
                               {src.includes('qr') && <span className="text-[8.5px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.2 rounded font-bold">📲 QR</span>}
                               {isSOS && <span className="text-[8.5px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1.5 py-0.2 rounded font-bold">🚨 SOS</span>}

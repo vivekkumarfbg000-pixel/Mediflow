@@ -368,20 +368,44 @@ export class PatientService {
 
   static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
     const appointments = load<any[]>('saas_appointments', []);
+    const localAppts = safeGetStorageJSON<any[]>('mediflow_appointments', []);
+    const allAppts = [...appointments, ...localAppts];
+
+    const patients = load<any[]>('saas_patients', []);
+    const localPatients = safeGetStorageJSON<any[]>('mediflow_patients', []);
+    const allPatients = [...patients, ...localPatients];
+
     const dateStr = targetDate || getIstDateString();
 
-    const apptsForDate = appointments.filter(a => {
-      const apptDate = a.virtualDate || a.date || a.appointment_time || a.createdAt || '';
+    const apptsForDate = allAppts.filter(a => {
+      const apptDate = a.virtualDate || a.date || a.appointment_time || a.appointment_date || a.createdAt || a.created_at || '';
       return String(apptDate).startsWith(dateStr);
     });
 
-    const tokenNums = apptsForDate
-      .map(a => {
-        const t = String(a.token_number || a.tokenNumber || '');
-        const match = t.match(/\d+/);
-        return match ? parseInt(match[0], 10) : 0;
-      })
-      .filter(n => n > 0);
+    const tokenNums: number[] = [];
+
+    // 1. Collect all token numbers from today's appointments
+    apptsForDate.forEach(a => {
+      const t = String(a.token_number || a.tokenNumber || '');
+      const match = t.match(/\d+/);
+      if (match) {
+        const val = parseInt(match[0], 10);
+        if (val > 0 && !isNaN(val)) tokenNums.push(val);
+      }
+    });
+
+    // 2. Collect all token numbers from today's patient registry
+    allPatients.forEach(p => {
+      const pDate = p.registeredAt || p.createdAt || p.created_at || '';
+      const isToday = String(pDate).startsWith(dateStr) || !pDate;
+      if (isToday && p.tokenNumber) {
+        const match = String(p.tokenNumber).match(/\d+/);
+        if (match) {
+          const val = parseInt(match[0], 10);
+          if (val > 0 && !isNaN(val)) tokenNums.push(val);
+        }
+      }
+    });
 
     const maxVal = tokenNums.length > 0 ? Math.max(...tokenNums, apptsForDate.length) : apptsForDate.length;
     const nextVal = maxVal + 1;

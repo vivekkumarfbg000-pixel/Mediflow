@@ -283,28 +283,32 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'saas_admin', name: 'Platform Operations', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
   ];
 
-  const allModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
+  const clinicalModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'];
+  const adminModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
+
   const allowedRolesMap: Record<string, string[]> = {
-    'doctor': allModulesList,
-    'ophthalmologist': allModulesList,
-    'general_physician': allModulesList,
-    'physician': allModulesList,
-    'compounder': allModulesList,
-    'receptionist': allModulesList,
-    'staff': allModulesList,
-    'lab_technician': allModulesList,
-    'lab': allModulesList,
-    'pharmacist': allModulesList,
-    'pharmacy': allModulesList,
+    'doctor': clinicalModulesList,
+    'ophthalmologist': clinicalModulesList,
+    'general_physician': clinicalModulesList,
+    'physician': clinicalModulesList,
+    'compounder': ['compounder', 'billing'],
+    'receptionist': ['compounder', 'billing'],
+    'staff': ['compounder', 'billing'],
+    'lab_technician': ['lab'],
+    'lab': ['lab'],
+    'pharmacist': ['pharmacy'],
+    'pharmacy': ['pharmacy'],
     'patient': ['patient'],
-    'admin': allModulesList,
-    'platform_admin': allModulesList,
-    'saas_admin': allModulesList,
-    'refraction': allModulesList,
+    'admin': adminModulesList,
+    'platform_admin': adminModulesList,
+    'saas_admin': adminModulesList,
+    'superadmin': adminModulesList,
+    'owner': adminModulesList,
+    'refraction': ['refraction', 'doctor'],
   };
 
-  const activeUserRole = activeProfile?.role || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole);
-  const allowedList = allowedRolesMap[activeUserRole] || allModulesList;
+  const activeUserRole = (activeProfile?.role || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole) || '').toLowerCase();
+  const allowedList = allowedRolesMap[activeUserRole] || (['admin', 'platform_admin', 'saas_admin'].includes(activeUserRole) ? adminModulesList : clinicalModulesList);
 
   const visibleRoles = isBypassMode 
     ? roles 
