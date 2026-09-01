@@ -1432,7 +1432,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                                 <div>
                                   <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                     {patient.name}
-                                    <span className="text-xs text-slate-500 font-normal">({patient.age || '30'}y · {patient.gender || 'M'})</span>
+                                    <span className="text-xs text-slate-500 font-normal">({patient.age ? `${patient.age}y` : 'Adult'}{patient.gender ? ` · ${patient.gender}` : ''})</span>
                                   </h3>
                                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
                                     <span>Phone: {patient.phone || 'N/A'}</span>

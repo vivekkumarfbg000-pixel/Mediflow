@@ -766,21 +766,29 @@ export const CompounderDashboard: React.FC = () => {
     try {
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
-        const cleanToken = String(tokenNum || '').replace('#', '').trim();
-        const cleanName = (patientName || 'मरीज़').trim();
         
-        // Authentic Hindi OPD announcement phrasing:
-        const hindiText = `टोकन नंबर ${cleanToken} ... ${cleanName} जी, कृपया डॉक्टर चेंबर में आएं।`;
-        const utterance = new SpeechSynthesisUtterance(hindiText);
-        utterance.lang = 'hi-IN';
-        utterance.rate = 0.88;
-        utterance.pitch = 1.05;
+        // Extract clean numeric digits for natural pronunciation (e.g. "T-01" -> "1")
+        const numMatch = String(tokenNum || '').match(/\d+/);
+        const numericToken = numMatch ? parseInt(numMatch[0], 10) : tokenNum;
+        const cleanName = (patientName || 'मरीज़').trim();
 
-        // Pick authentic Hindi / Indian voice if available
+        // 1. Get available speech synthesis voices
         const voices = window.speechSynthesis.getVoices();
-        const hindiVoice = voices.find(v => v.lang === 'hi-IN' || v.lang.startsWith('hi') || v.name.includes('Hindi') || v.name.includes('India') || v.lang === 'en-IN');
-        if (hindiVoice) {
-          utterance.voice = hindiVoice;
+        const hindiVoice = voices.find(v => v.lang === 'hi-IN' || v.lang.startsWith('hi') || v.name.toLowerCase().includes('hindi') || v.name.toLowerCase().includes('hemant') || v.name.toLowerCase().includes('kalpana') || v.name.toLowerCase().includes('swara'));
+        const indianVoice = hindiVoice || voices.find(v => v.lang === 'en-IN' || v.name.toLowerCase().includes('india') || v.name.toLowerCase().includes('heera') || v.name.toLowerCase().includes('ravi'));
+
+        // 2. Select authentic phrasing based on engine support
+        const speechText = hindiVoice
+          ? `टोकन नंबर ${numericToken}, ${cleanName} जी, कृपया डॉक्टर चेंबर में आएं।`
+          : `Token number ${numericToken}, ${cleanName} ji, please proceed to Doctor Chamber.`;
+
+        const utterance = new SpeechSynthesisUtterance(speechText);
+        utterance.lang = hindiVoice ? 'hi-IN' : (indianVoice ? 'en-IN' : 'hi-IN');
+        utterance.rate = 0.92;
+        utterance.pitch = 1.0;
+
+        if (indianVoice) {
+          utterance.voice = indianVoice;
         }
 
         window.speechSynthesis.speak(utterance);
@@ -874,8 +882,8 @@ export const CompounderDashboard: React.FC = () => {
             id: pid,
             name: a.patientName || (a as any).patient_name || 'WhatsApp Patient',
             phone: a.patientPhone || (a as any).patient_phone || '9999000000',
-            age: 28,
-            gender: 'Female',
+            age: Number((a as any).patientAge || (a as any).age || 0) || 0,
+            gender: (a as any).patientGender || (a as any).gender || 'Other',
             registeredAt: a.date || a.createdAt || new Date().toISOString(),
             tokenNumber: a.tokenNumber || (a as any).token_number || 'T-01',
             queueStatus: 'awaiting_vitals',

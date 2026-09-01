@@ -1702,7 +1702,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return regDate.startsWith(todayStr) && paidPatientIds.has(p.id);
               };
 
-              const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus) && isPatientForToday(p));
+              const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment' && isPatientForToday(p));
               const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && isPatientForToday(p));
               const todayRegList = patients.filter(p => {
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';

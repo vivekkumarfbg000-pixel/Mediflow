@@ -246,18 +246,23 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         // Must be a patient for today
         if (!isPatientForToday(p)) return false;
 
-        // Handle metric-specific filters
+        // Handle metric-specific filters (Enforces vitals intake & payment verification before doctor queue)
+        const isAwaitingConsult = (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) &&
+                                  p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment';
+        const isInConsult = p.queueStatus === 'in_consultation';
+        const isCompleted = p.queueStatus === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab';
+
         if (selectedMetric === 'all') {
           return true;
         } else if (selectedMetric === 'awaiting') {
-          return p.queueStatus === 'awaiting_consultation' || !p.queueStatus;
+          return isAwaitingConsult;
         } else if (selectedMetric === 'active') {
-          return p.queueStatus === 'in_consultation';
+          return isInConsult;
         } else if (selectedMetric === 'completed') {
-          return p.queueStatus === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab';
+          return isCompleted;
         } else {
-          // Default filter: Active Queue (Awaiting or In Consultation)
-          return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
+          // Default filter: Active Consultation Queue (Only patients whose vitals & payment are verified)
+          return isAwaitingConsult || isInConsult;
         }
       })
       .sort((a, b) => {
@@ -814,7 +819,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                           )}
                         </div>
                         <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                          {p.age}y · {p.gender} · {(p.chronicConditions || []).join(', ') || 'General Checkup'}
+                          {p.age ? `${p.age}y` : 'Adult'} · {p.gender || 'Patient'} · {(p.chronicConditions || []).join(', ') || 'General Checkup'}
                         </div>
                       </div>
                       {onStartConsultation && (
