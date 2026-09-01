@@ -326,9 +326,21 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
 
             {/* ── Clinical Encounters & Past Prescriptions Timeline ────────── */}
             {(() => {
-              const encounters = EncounterService.getEncounters().filter(e => 
-                (e.patientId === selectedDirectoryPatient.id || (e as any).patient_id === selectedDirectoryPatient.id)
-              ).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+              const encounters = EncounterService.getEncounters().filter(e => {
+                const encPatId = e.patientId || (e as any).patient_id;
+                const targetId = selectedDirectoryPatient.id;
+                const targetCode = selectedDirectoryPatient.patientCode || (selectedDirectoryPatient as any).patient_code;
+                const targetPhone = (selectedDirectoryPatient.phone || '').replace(/\D/g, '').slice(-10);
+                const targetName = (selectedDirectoryPatient.name || '').toLowerCase().trim();
+
+                const encPhone = ((e as any).patientPhone || (e as any).patient_phone || '').replace(/\D/g, '').slice(-10);
+                const encName = ((e as any).patientName || (e as any).patient_name || '').toLowerCase().trim();
+
+                return encPatId === targetId ||
+                       (targetCode && encPatId === targetCode) ||
+                       (targetPhone && encPhone && targetPhone.length >= 6 && targetPhone === encPhone) ||
+                       (targetName && encName && targetName.length >= 3 && targetName === encName);
+              }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
               const handlePrintPrescription = (enc: any) => {
                 const printWindow = window.open('', '_blank');

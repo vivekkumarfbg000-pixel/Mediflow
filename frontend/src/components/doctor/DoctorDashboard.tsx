@@ -1172,6 +1172,7 @@ Keep the tone professional, clinical, objective, and precise.`;
     api.createEncounter({
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
+      patientPhone: selectedPatient.phone,
       doctorId: getPodContext().doctorId || activeDoctorProfile?.id || 'doc-1',
       clinicalNotes: finalNotes,
       medications: finalMedications,

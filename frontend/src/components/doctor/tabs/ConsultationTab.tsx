@@ -1057,6 +1057,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         api.createEncounter({
           patientId: selectedPatient.id,
           patientName: selectedPatient.name,
+          patientPhone: selectedPatient.phone,
           doctorId: activeDoctorProfile?.id || clinicProfile?.doctorId || 'doc-1',
           clinicalNotes: notes,
           medications: finalMedications,

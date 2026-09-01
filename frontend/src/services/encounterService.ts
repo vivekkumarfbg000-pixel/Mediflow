@@ -12,11 +12,55 @@ export class EncounterService {
     const saasPrescriptions = load<any[]>('saas_prescriptions', []);
     const prescriptions = load<any[]>('prescriptions', []);
 
+    // Build unified map of encounters
+    const encMap = new Map<string, Encounter>();
+
+    rawEncounters.forEach(enc => {
+      encMap.set(enc.id, { ...enc });
+    });
+
+    // Synthesize from saas_prescriptions if not in rawEncounters
+    saasPrescriptions.forEach(rx => {
+      const encId = rx.encounterId || rx.encounter_id || rx.id;
+      if (!encMap.has(encId)) {
+        encMap.set(encId, {
+          id: encId,
+          patientId: rx.patientId || rx.patient_id,
+          patientName: rx.patientName || rx.patient_name || 'Patient',
+          patientPhone: rx.patientPhone || rx.patient_phone || '',
+          doctorId: rx.doctorId || rx.doctor_id || 'doc-1',
+          clinicalNotes: rx.notes || rx.clinical_notes || rx.clinicalNotes || '',
+          medications: rx.extractedMedicines || rx.extracted_medicines || rx.medications || [],
+          diagnosticTests: (rx.extractedTests || rx.extracted_tests || []).map((t: any) => typeof t === 'string' ? { name: t, loincCode: t } : t),
+          status: rx.status || 'completed',
+          createdAt: rx.createdAt || rx.created_at || new Date().toISOString()
+        });
+      }
+    });
+
+    // Synthesize from legacy prescriptions if not present
+    prescriptions.forEach(rx => {
+      const encId = rx.encounterId || rx.encounter_id || rx.id;
+      if (!encMap.has(encId)) {
+        encMap.set(encId, {
+          id: encId,
+          patientId: rx.patientId || rx.patient_id,
+          patientName: rx.patientName || rx.patient_name || 'Patient',
+          patientPhone: rx.patientPhone || rx.patient_phone || '',
+          doctorId: rx.doctorId || rx.doctor_id || 'doc-1',
+          clinicalNotes: rx.notes || rx.clinical_notes || '',
+          medications: rx.medications || rx.medicines || [],
+          diagnosticTests: (rx.diagnosticTests || rx.diagnostic_tests || []).map((t: any) => typeof t === 'string' ? { name: t, loincCode: t } : t),
+          status: rx.status || 'completed',
+          createdAt: rx.createdAt || rx.created_at || new Date().toISOString()
+        });
+      }
+    });
+
     // Merge and normalize medications from saas_prescriptions if encounter.medications is empty
-    return rawEncounters.map(enc => {
+    return Array.from(encMap.values()).map(enc => {
       let meds = enc.medications || [];
       if (!meds || meds.length === 0) {
-        // Look up by encounter ID or patient ID
         const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && p.createdAt?.slice(0, 10) === enc.createdAt?.slice(0, 10)));
         if (matchSaas) {
           meds = matchSaas.extractedMedicines || matchSaas.extracted_medicines || matchSaas.medications || [];
@@ -38,13 +82,17 @@ export class EncounterService {
     const encounters = load<Encounter[]>('encounters', []);
     const encounterId = crypto.randomUUID();
     const ctx = getPodContext();
+    const patientObj = PatientService.getPatients().find(p => p.id === encounterData.patientId || (p as any).patient_code === encounterData.patientId);
+    
     const newEncounter: Encounter = {
       ...encounterData,
       id: encounterId,
+      patientPhone: encounterData.patientPhone || patientObj?.phone || '',
+      patientName: encounterData.patientName || patientObj?.name || 'Patient',
       status: 'completed',
       createdAt: new Date().toISOString()
     };
-    encounters.push(newEncounter);
+    encounters.unshift(newEncounter);
     save('encounters', encounters);
 
     // Also persist into local saas_prescriptions for instant cross-console availability
@@ -55,12 +103,18 @@ export class EncounterService {
       encounter_id: encounterId,
       patientId: newEncounter.patientId,
       patient_id: newEncounter.patientId,
+      patientName: newEncounter.patientName,
+      patient_name: newEncounter.patientName,
+      patientPhone: newEncounter.patientPhone,
+      patient_phone: newEncounter.patientPhone,
       doctorId: newEncounter.doctorId || ctx.doctorId || 'doc-1',
       doctor_id: newEncounter.doctorId || ctx.doctorId || 'doc-1',
       extractedMedicines: newEncounter.medications || [],
       extracted_medicines: newEncounter.medications || [],
       extractedTests: (newEncounter.diagnosticTests || []).map(t => t.loincCode || t.name),
       extracted_tests: (newEncounter.diagnosticTests || []).map(t => t.loincCode || t.name),
+      clinicalNotes: newEncounter.clinicalNotes,
+      clinical_notes: newEncounter.clinicalNotes,
       status: 'active',
       podId: ctx.podId,
       pod_id: ctx.podId,

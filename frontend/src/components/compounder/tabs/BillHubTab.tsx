@@ -81,8 +81,26 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [isClearing, setIsClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const isEncounterMatchingPatient = (e: any, pat: Patient | null): boolean => {
+    if (!pat) return false;
+    const encPatId = e.patientId || e.patient_id;
+    const patId = pat.id;
+    const patCode = pat.patientCode || (pat as any).patient_code;
+    const patPhone = (pat.phone || '').replace(/\D/g, '').slice(-10);
+    const patName = (pat.name || '').toLowerCase().trim();
+
+    const encPhone = (e.patientPhone || e.patient_phone || '').replace(/\D/g, '').slice(-10);
+    const encName = (e.patientName || e.patient_name || '').toLowerCase().trim();
+
+    return encPatId === patId ||
+           (patCode && encPatId === patCode) ||
+           (patPhone && encPhone && patPhone.length >= 6 && patPhone === encPhone) ||
+           (patName && encName && patName.length >= 3 && patName === encName);
+  };
+
   // Fetch initial list of patients & live state listener
   useEffect(() => {
+    setPatients(PatientService.getPatients());
     const handleStateChange = () => {
       setRefreshKey(prev => prev + 1);
       setPatients(PatientService.getPatients());
@@ -105,8 +123,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       // Check if consultation fee was ALREADY paid at Gate 1 booking time
       const saasInvoices = BillingService.getInvoices();
       const uInvoices = BillingService.getUnifiedInvoices();
-      const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'paid') ||
-                                 uInvoices.some((i: any) => (i.patientId === selectedPatient.id || i.patient_id === selectedPatient.id) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+      const alreadyPaidConsult = saasInvoices.some((i: any) => (i.patientId === selectedPatient.id || (selectedPatient.patientCode && i.patientId === selectedPatient.patientCode)) && i.type === 'consult' && i.status === 'paid') ||
+                                 uInvoices.some((i: any) => isEncounterMatchingPatient(i, selectedPatient) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
 
       setIncludeConsult(!alreadyPaidConsult);
       setIncludeOT(true);
@@ -115,7 +133,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setVoiceTranscript('');
 
       // Check if there is an active digital prescription / encounter
-      const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id || (e as any).patient_id === selectedPatient.id);
+      const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, selectedPatient));
       const latestEncounter = encounters[encounters.length - 1];
 
       if (latestEncounter) {
@@ -409,7 +427,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     let testsList: DiagnosticTest[] = [];
 
     if (billingMode === 'digital') {
-      const encounters = EncounterService.getEncounters().filter(e => e.patientId === selectedPatient.id || (e as any).patient_id === selectedPatient.id);
+      const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, selectedPatient));
       const latest = encounters[encounters.length - 1];
       if (latest) {
         (latest.medications || []).forEach(med => {
@@ -1433,7 +1451,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 const appts = BillingService.getAppointments();
                 const activeVirtual = appts.find(a => ((a as any).patientId === p.id || (a as any).patient_id === p.id) && ((a as any).isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
                 
-                const encounters = EncounterService.getEncounters().filter(e => e.patientId === p.id || (e as any).patient_id === p.id);
+                const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, p));
                 const hasRx = encounters.length > 0;
 
                 return (

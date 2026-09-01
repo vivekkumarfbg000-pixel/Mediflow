@@ -182,6 +182,7 @@ export interface Encounter {
   id: string;
   patientId: string;
   patientName: string;
+  patientPhone?: string;
   doctorId: string;
   clinicalNotes: string;
   medications: MedicationRequest[];
