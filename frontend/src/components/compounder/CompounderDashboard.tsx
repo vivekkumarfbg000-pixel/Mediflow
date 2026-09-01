@@ -495,7 +495,7 @@ export const CompounderDashboard: React.FC = () => {
   const [instantPhone, setInstantPhone] = useState('');
   const [instantAge, setInstantAge] = useState('');
   const [instantGender, setInstantGender] = useState<'Male' | 'Female' | 'Other'>('Male');
-  const [instantFeeStatus, setInstantFeeStatus] = useState<'paid_cash' | 'paid_upi' | 'waived_loyalty'>('paid_upi');
+  const [instantFeeStatus, setInstantFeeStatus] = useState<'paid_cash' | 'paid_upi'>('paid_upi');
   const [instantBpSys, setInstantBpSys] = useState('120');
   const [instantBpDia, setInstantBpDia] = useState('80');
   const [instantPulse, setInstantPulse] = useState('72');
@@ -1033,9 +1033,7 @@ export const CompounderDashboard: React.FC = () => {
       // 2. Create Gate 1 Consultation Invoice and clear payment
       const inv = BillingService.createGate1Consult(targetPatient.id);
       if (inv) {
-        if (instantFeeStatus !== 'waived_loyalty') {
-          await BillingService.recordInvoicePayment(inv.id, instantFeeStatus === 'paid_cash' ? 'cash' : 'upi');
-        }
+        await BillingService.recordInvoicePayment(inv.id, instantFeeStatus === 'paid_cash' ? 'cash' : 'upi');
       }
 
       // 3. Create or update Appointment
@@ -1084,7 +1082,7 @@ export const CompounderDashboard: React.FC = () => {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: `Token #${assignedToken} Confirmed! 🩺`,
-          message: `${targetPatient.name} booked, fee cleared (${instantFeeStatus === 'waived_loyalty' ? 'Loyalty Waived' : '₹500.00 Paid'}), vitals recorded & routed to Doctor!`,
+          message: `${targetPatient.name} booked, fee cleared (₹500.00 ${instantFeeStatus === 'paid_cash' ? 'Cash' : 'UPI'}), vitals recorded & routed to Doctor!`,
           type: 'success'
         }
       }));
@@ -6530,41 +6528,30 @@ export const CompounderDashboard: React.FC = () => {
                   <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
                     Consultation Fee Clearance (₹500.00 Doctor Fee)
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setInstantFeeStatus('paid_upi')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
                         instantFeeStatus === 'paid_upi'
                           ? 'bg-emerald-600 text-white shadow-sm font-black'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                       }`}
                     >
-                      <QrCode className="w-3.5 h-3.5" />
+                      <QrCode className="w-4 h-4" />
                       <span>₹500 UPI Paid</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => setInstantFeeStatus('paid_cash')}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                      className={`py-2.5 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2 ${
                         instantFeeStatus === 'paid_cash'
                           ? 'bg-emerald-600 text-white shadow-sm font-black'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
                       }`}
                     >
-                      <Coins className="w-3.5 h-3.5" />
+                      <Coins className="w-4 h-4" />
                       <span>₹500 Cash</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInstantFeeStatus('waived_loyalty')}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                        instantFeeStatus === 'waived_loyalty'
-                          ? 'bg-indigo-600 text-white shadow-sm font-black'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                      }`}
-                    >
-                      <span>₹0 Waived</span>
                     </button>
                   </div>
                 </div>
