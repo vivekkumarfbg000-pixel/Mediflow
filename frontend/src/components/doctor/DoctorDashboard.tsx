@@ -2111,31 +2111,6 @@ Keep the tone professional, clinical, objective, and precise.`;
           </div>
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
-            {/* Quick Change Password Button */}
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'security' } }));
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-xl text-[11px] font-bold text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer active:scale-95"
-              title="Edit / Change Account Security Password"
-            >
-              <Lock className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Password</span>
-            </button>
-
-            {/* Quick Settings & Control Center Button */}
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'profile' } }));
-              }}
-              className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-xl text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
-              title="Settings & Control Center (Doctor Profile, Partners, Preferences)"
-              aria-label="Settings & Control Center"
-            >
-              <Settings className="w-4 h-4 text-slate-600 dark:text-zinc-300" />
-            </button>
 
             {/* Status pill - hidden on small mobile viewports */}
             <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">

@@ -2200,6 +2200,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               </div>
             </div>
 
+            <div className="flex justify-end pr-1">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('forgot'); setErrorMsg(null); setResetSent(false); }}
+                className="text-[10.5px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 transition-colors cursor-pointer hover:underline"
+              >
+                Forgot Password?
+              </button>
+            </div>
+
             <button
               type="submit"
               onClick={(e) => { e.preventDefault(); handleEmailSignIn(e); }}
@@ -2875,8 +2885,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 <div className="flex justify-end pr-1">
                   <button
                     type="button"
-                    onClick={() => { setActiveTab('forgot'); setErrorMsg(null); }}
-                    className="text-[10px] font-bold text-cyan-600 hover:text-cyan-850 transition-colors cursor-pointer underline"
+                    onClick={() => { setActiveTab('forgot'); setErrorMsg(null); setResetSent(false); }}
+                    className="text-[10.5px] font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 transition-colors cursor-pointer hover:underline"
                   >
                     Forgot Password?
                   </button>

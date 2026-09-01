@@ -21,6 +21,7 @@ import {
   Settings,
   FileText,
   Eye,
+  Lock,
   Sun,
   Moon,
   LayoutDashboard,
@@ -605,10 +606,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setProfileModalInitialTab('profile');
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 px-2.5 bg-indigo-50/80 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300 rounded-lg transition-all duration-200 font-bold text-xs cursor-pointer shadow-2xs"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-2.5 bg-indigo-50/80 hover:bg-indigo-100/80 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300 rounded-lg transition-all duration-200 font-bold text-xs cursor-pointer shadow-2xs active:scale-[0.98]"
                     >
-                      <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      Open Settings Hub
+                      <Settings className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Settings & Control Center</span>
+                    </button>
+
+                    {/* Change Account Password button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileModalInitialTab('security');
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-2.5 bg-slate-50/80 hover:bg-slate-100/80 dark:bg-slate-900/40 dark:hover:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800/40 text-slate-700 dark:text-slate-300 rounded-lg transition-all duration-200 font-bold text-xs cursor-pointer shadow-2xs active:scale-[0.98]"
+                    >
+                      <Lock className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>Change Password</span>
                     </button>
 
                     {/* Log Out Action Button */}
