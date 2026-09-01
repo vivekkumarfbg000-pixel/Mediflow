@@ -263,7 +263,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             // Sync appointment record to scheduled/confirmed
             const targetApptId = invoice?.appointment_id;
             const targetPatId = patient?.id || invoice?.patient_id;
-            const isVirtual = Boolean(appointment?.is_virtual || appointment?.isVirtual);
+            const isVirtual = Boolean(invoice?.is_virtual || invoice?.isVirtual || invoice?.consultation_type === 'virtual');
             const nextQueueStatus = isVirtual ? 'awaiting_consultation' : 'awaiting_vitals';
             const nextApptStatus = isVirtual ? 'ready_for_consult' : 'scheduled';
 
@@ -358,7 +358,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
 
       const targetApptId = invoice?.appointment_id;
       const targetPatId = patient?.id || invoice?.patient_id;
-      const isVirtual = Boolean(appointment?.is_virtual || appointment?.isVirtual);
+      const isVirtual = Boolean(invoice?.is_virtual || invoice?.isVirtual || invoice?.consultation_type === 'virtual');
       const nextQueueStatus = isVirtual ? 'awaiting_consultation' : 'awaiting_vitals';
       const nextApptStatus = isVirtual ? 'ready_for_consult' : 'scheduled';
 
