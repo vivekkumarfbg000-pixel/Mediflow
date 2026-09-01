@@ -1023,12 +1023,13 @@ export class WhatsAppService {
             }
 
             const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+            const labDestinationEntityId = getPodContext().labEntityId || getPodContext().entityId;
             const doorstepSplits: FinancialLedgerEntry[] = [
               {
                 id: `tx-tech-${crypto.randomUUID().substring(0, 8)}`,
                 invoiceId: invoiceId,
-                sourceEntityId: 'clinic-admin-entity',
-                destinationEntityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003',
+                sourceEntityId: getPodContext().entityId,
+                destinationEntityId: labDestinationEntityId,
                 transactionType: 'lab_commission',
                 grossAmount: 100,
                 commissionRate: 0.70,
@@ -1040,8 +1041,8 @@ export class WhatsAppService {
               {
                 id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
                 invoiceId: invoiceId,
-                sourceEntityId: 'clinic-admin-entity',
-                destinationEntityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003',
+                sourceEntityId: getPodContext().entityId,
+                destinationEntityId: labDestinationEntityId,
                 transactionType: 'lab_commission',
                 grossAmount: 100,
                 commissionRate: 0.20,
@@ -1543,8 +1544,14 @@ export class WhatsAppService {
             const targetInvoiceId = sessionData.pendingInvoiceId || `inv-wa-${apptId.substring(0, 8)}`;
             const razorpayPayLink = `${baseUrl}/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
             const chosenDateDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate === getIstDateString() ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`);
+            const activeSop = BillingService.getActiveSop();
+            const baseDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
+            const onlinePlatFee = parseFloat((baseDocFee * 0.03).toFixed(2));
+            const totalOnlinePayable = parseFloat((baseDocFee + onlinePlatFee).toFixed(2));
+            const assignedToken = (activePat as any)?.tokenNumber || (activePat as any)?.token_number || '#TK-001';
+
             nextState = 'AWAITING_VIRTUAL_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹500.00\n- Online Convenience Platform Fee (3%): ₹15.00\n---------------------------------------\n*Total Amount Payable: ₹515.00*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token #TK-001 issue ho jayega 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹${baseDocFee.toFixed(2)}\n- Online Convenience Platform Fee (3%): ₹${onlinePlatFee.toFixed(2)}\n---------------------------------------\n*Total Amount Payable: ₹${totalOnlinePayable.toFixed(2)}*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token ${assignedToken} issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
@@ -1584,8 +1591,9 @@ export class WhatsAppService {
             window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
 
             const docName = WhatsAppService.getDynamicDoctorName();
+            const realToken = targetAppt?.tokenNumber || (targetAppt as any)?.token_number || (patient as any)?.tokenNumber || '#TK-001';
             nextState = 'COMPLETED';
-            replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\n${docName} ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *#TK-001*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
+            replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\n${docName} ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *${realToken}*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
           } else {
             const invId = sessionData.pendingInvoiceId || `inv-wa-${Date.now()}`;
             const baseUrl = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://vitalsync.in';
@@ -1982,17 +1990,20 @@ export class WhatsAppService {
 
       const session = sessions[sessionIndex];
 
-      let doctorName = "Dr. Sinha";
-      let specialty = "Cardiologist";
-      if (targetDoctorId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317103') {
-        doctorName = "Dr. Sinha";
-        specialty = "Cardiologist";
-      } else if (targetDoctorId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317102') {
-        doctorName = "Dr. Anjali";
-        specialty = "Gynecologist";
-      } else if (targetDoctorId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101') {
-        doctorName = "Dr. Raj";
-        specialty = "Pediatrician";
+      let doctorName = "Doctor";
+      let specialty = "Specialist";
+      try {
+        const { data: targetDocProfile } = await supabase
+          .from('profiles')
+          .select('display_name, specialization, role')
+          .eq('id', targetDoctorId)
+          .maybeSingle();
+        if (targetDocProfile) {
+          doctorName = targetDocProfile.display_name || "Doctor";
+          specialty = targetDocProfile.specialization || "Specialist";
+        }
+      } catch (err) {
+        console.warn('[Mediflow Referrals] Could not dynamically resolve target doctor profile:', err);
       }
 
       let referrerName = "Your doctor";

@@ -1363,8 +1363,8 @@ export const CompounderDashboard: React.FC = () => {
       const mode = (appt.is_virtual || appt.isVirtual) ? 'Virtual Video' : 'Physical Chamber';
       const doctor = (activePod?.doctor_name || 'Dr. Attending Physician').replace(/"/g, '""');
       const status = appt.status === 'completed' ? 'Completed' : 'Seen / Archived';
-      const fee = appt.amount === 0 ? 'Waived / Free' : 'Cleared (₹500.00)';
-      const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token || `TK-${String(idx + 1).padStart(2, '0')}`;
+      const fee = appt.amount === 0 ? 'Waived / Free' : (appt.amount ? `Cleared (₹${Number(appt.amount).toFixed(2)})` : 'Cleared');
+      const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token || p?.tokenNumber || (p as any)?.token_number || `TK-${String(idx + 1).padStart(2, '0')}`;
 
       return [
         `"${rawToken}"`,

@@ -1279,72 +1279,89 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             result = result || { error: `Server response error: ${res.status}` };
                           }
                         } catch (fetchErr: any) {
-                          console.warn('[WhatsApp Onboarding] Edge function unreachable, activating resilient sandbox onboarding:', fetchErr);
-                          result = {
-                            success: true,
-                            isFallback: true,
-                            phoneNumberId: 'mock-phone-num-id-12345',
-                            message: `OTP dispatched to +91${clinicPhoneInput} via ${otpMethod} (Sandbox Mode). Enter '123456' to verify.`
-                          };
+                          console.warn('[WhatsApp Onboarding] Edge function unreachable:', fetchErr);
+                          if (import.meta.env.DEV) {
+                            result = {
+                              success: true,
+                              isFallback: true,
+                              phoneNumberId: 'dev-sandbox-phone-id',
+                              message: `OTP dispatched to +91${clinicPhoneInput} via ${otpMethod} (Dev Sandbox Mode). Enter '123456' to verify.`
+                            };
+                          } else {
+                            result = { error: 'Meta Business API gateway is temporarily unreachable. Please check network connectivity or try again in a few minutes.' };
+                          }
                         }
 
                         if (!result || result.error) {
                           const errText = String(result?.error || '');
                           if (errText.includes('136024') || errText.toLowerCase().includes('already verified') || errText.toLowerCase().includes('already registered')) {
                             console.log('[WhatsApp Onboarding] Number is already verified on Meta WABA! Auto-activating channel...');
-                            const conn = {
-                              id: `waba-conn-${Date.now()}`,
-                              phone_number: `+91${clinicPhoneInput}`,
-                              phone_number_id: onboardPhoneNumberId || '105829471928374',
-                              waba_id: 'waba-act-987654321',
-                              clinic_display_name: clinicDisplayName.trim(),
-                              waba_status: 'active',
-                              is_active: true,
-                              created_at: new Date().toISOString()
-                            };
-                            setActiveWabaConnection(conn);
-                            localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
+                            const phoneNumId = onboardPhoneNumberId || (result as any)?.phoneNumberId || (result as any)?.phone_number_id;
+                            if (phoneNumId) {
+                              const conn = {
+                                id: `waba-conn-${Date.now()}`,
+                                phone_number: `+91${clinicPhoneInput}`,
+                                phone_number_id: phoneNumId,
+                                waba_id: (result as any)?.waba_id || (result as any)?.wabaId || 'waba-live',
+                                clinic_display_name: clinicDisplayName.trim(),
+                                waba_status: 'active',
+                                is_active: true,
+                                created_at: new Date().toISOString()
+                              };
+                              setActiveWabaConnection(conn);
+                              localStorage.setItem('vitalsync_waba_connection', JSON.stringify(conn));
 
-                            if (activePod?.id) {
-                              try {
-                                await supabase.from('waba_connections').upsert({
-                                  pod_id: activePod.id,
-                                  entity_id: activePod.entity_id || activePod.id,
-                                  phone_number: `+91${clinicPhoneInput}`,
-                                  phone_number_id: onboardPhoneNumberId || '105829471928374',
-                                  waba_id: 'waba-act-987654321',
-                                  clinic_display_name: clinicDisplayName.trim(),
-                                  waba_status: 'active',
-                                  is_active: true,
-                                  verified_at: new Date().toISOString()
-                                }, { onConflict: 'pod_id' });
-                              } catch (_dbErr) {
-                                // ignore db error
+                              if (activePod?.id) {
+                                try {
+                                  await supabase.from('waba_connections').upsert({
+                                    pod_id: activePod.id,
+                                    entity_id: activePod.entity_id || activePod.id,
+                                    phone_number: `+91${clinicPhoneInput}`,
+                                    phone_number_id: phoneNumId,
+                                    waba_id: (result as any)?.waba_id || (result as any)?.wabaId || 'waba-live',
+                                    clinic_display_name: clinicDisplayName.trim(),
+                                    waba_status: 'active',
+                                    is_active: true,
+                                    verified_at: new Date().toISOString()
+                                  }, { onConflict: 'pod_id' });
+                                } catch (_dbErr) {
+                                  // ignore db error
+                                }
                               }
+
+                              setOnboardStep(3);
+                              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                detail: {
+                                  title: 'WhatsApp Business API Activated! ⚡',
+                                  message: `Number +91${clinicPhoneInput} linked successfully. Channel activated!`,
+                                  type: 'success'
+                                }
+                              }));
+                              setIsOnboarding(false);
+                              return;
                             }
-
-                            setOnboardStep(3);
-                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                              detail: {
-                                title: 'WhatsApp Business API Activated! ⚡',
-                                message: `Number +91${clinicPhoneInput} linked successfully. Channel activated!`,
-                                type: 'success'
-                              }
-                            }));
-                            setIsOnboarding(false);
-                            return;
                           }
 
-                          // If general backend error, fall back to sandbox OTP flow
-                          setOnboardPhoneNumberId('mock-phone-num-id-12345');
-                          setOnboardStep(2);
-                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                            detail: {
-                              title: 'Verification Code Sent (Sandbox Mode) 💬',
-                              message: `OTP dispatched to +91${clinicPhoneInput} via SMS (Mocked for testing). Enter '123456' to verify.`,
-                              type: 'warning'
-                            }
-                          }));
+                          if (import.meta.env.DEV) {
+                            // Dev mode fallback
+                            setOnboardPhoneNumberId('dev-sandbox-phone-id');
+                            setOnboardStep(2);
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'Verification Code Sent (Dev Sandbox) 💬',
+                                message: `OTP dispatched to +91${clinicPhoneInput} (Sandbox Mode). Enter '123456' to verify.`,
+                                type: 'warning'
+                              }
+                            }));
+                          } else {
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: {
+                                title: 'WhatsApp Onboarding Error ⚠️',
+                                message: result?.error || 'Failed to request verification code from Meta. Please verify the phone number and Meta Business Account.',
+                                type: 'error'
+                              }
+                            }));
+                          }
                           setIsOnboarding(false);
                           return;
                         } else if (result.alreadyVerified && result.connection) {
@@ -1359,7 +1376,8 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                             }
                           }));
                         } else {
-                          setOnboardPhoneNumberId(result.phoneNumberId || 'mock-phone-num-id-12345');
+                          const resolvedPhoneId = result.phoneNumberId || (import.meta.env.DEV ? 'dev-sandbox-phone-id' : '');
+                          setOnboardPhoneNumberId(resolvedPhoneId);
                           setOnboardStep(2);
                           window.dispatchEvent(new CustomEvent('mediflow-toast', {
                             detail: {
@@ -1371,16 +1389,25 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                         }
                       } catch (err: any) {
                         console.warn('[WhatsApp Onboarding] Error during OTP request:', err);
-                        // Resilient fallback
-                        setOnboardPhoneNumberId('mock-phone-num-id-12345');
-                        setOnboardStep(2);
-                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                          detail: {
-                            title: 'Verification Code Sent (Sandbox Mode) 💬',
-                            message: `OTP dispatched to +91${clinicPhoneInput} via SMS. Enter '123456' to verify.`,
-                            type: 'info'
-                          }
-                        }));
+                        if (import.meta.env.DEV) {
+                          setOnboardPhoneNumberId('dev-sandbox-phone-id');
+                          setOnboardStep(2);
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'Verification Code Sent (Dev Sandbox) 💬',
+                              message: `OTP dispatched to +91${clinicPhoneInput} via SMS (Dev Sandbox). Enter '123456' to verify.`,
+                              type: 'info'
+                            }
+                          }));
+                        } else {
+                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                            detail: {
+                              title: 'WhatsApp Verification Error ⚠️',
+                              message: 'Failed to complete OTP request with Meta WABA. Please try again.',
+                              type: 'error'
+                            }
+                          }));
+                        }
                       } finally {
                         clearTimeout(watchdog);
                         setIsOnboarding(false);

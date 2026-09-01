@@ -23,10 +23,14 @@ export const VisitingCardPrintPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'single' | 'sheet'>('single');
   const [sheetMode, setSheetMode] = useState<'duplex' | 'sideBySide'>('duplex');
   const [cardTheme, setCardTheme] = useState<'pearl' | 'dark'>('pearl');
-  const [name, setName] = useState<string>('Vivek Kumar');
-  const [title, setTitle] = useState<string>('Founder & CTO');
-  const [phone, setPhone] = useState<string>('+91 96080 32073');
-  const [email, setEmail] = useState<string>('vivek@vitalsync.in');
+  const cachedProfile = typeof window !== 'undefined' ? (() => {
+    try { return JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}'); } catch { return {}; }
+  })() : {};
+
+  const [name, setName] = useState<string>(cachedProfile?.display_name || cachedProfile?.name || 'Vivek Kumar');
+  const [title, setTitle] = useState<string>(cachedProfile?.role === 'doctor' ? (cachedProfile?.specialization ? `Specialist (${cachedProfile.specialization})` : 'Consulting Physician') : 'Founder & CTO');
+  const [phone, setPhone] = useState<string>(cachedProfile?.phone || '+91 96080 32073');
+  const [email, setEmail] = useState<string>(cachedProfile?.email || 'vivek@vitalsync.in');
   const [websiteUrl, setWebsiteUrl] = useState<string>('https://vitalsync.in');
   const [pitchUrl, setPitchUrl] = useState<string>('https://vitalsync.in/pitch');
   const [copied, setCopied] = useState<boolean>(false);

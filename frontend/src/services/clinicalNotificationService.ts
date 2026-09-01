@@ -348,7 +348,7 @@ export class ClinicalNotificationService {
 
     const resolvedClinic = clinicName || WhatsAppService.getDynamicClinicName();
     const resolvedDoc = doctorName || WhatsAppService.getActiveDoctorName();
-    const effectiveToken = tokenNumber || '#TK-001';
+    const effectiveToken = tokenNumber || 'Active';
 
     let msg = '';
     if (isEmergency) {

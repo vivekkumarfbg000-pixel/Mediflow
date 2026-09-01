@@ -20,12 +20,46 @@ import { supabase } from '../lib/supabaseClient';
 
 // ── Seeded demo fallbacks (single-clinic pilot) ───────────────
 // These UUIDs match the seed migration data. They are ONLY used
-// when the user's real profile hasn't loaded yet.
+// when the user's cached profile is explicitly flagged as demo.
+// For ALL non-demo users, unresolved context uses null-sentinel
+// values to prevent cross-tenant data pollution.
 export const FALLBACK_POD_ID       = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
 export const FALLBACK_ENTITY_ID    = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002';
 export const FALLBACK_LAB_ENTITY   = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317003';
 export const FALLBACK_PHARM_ENTITY = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317004';
 export const FALLBACK_DOCTOR_ID    = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101';
+
+// Sentinel values for unresolved non-demo contexts (never collide with real data)
+const UNRESOLVED_POD    = 'unresolved-pod';
+const UNRESOLVED_ENTITY = 'unresolved-entity';
+const UNRESOLVED_LAB    = 'unresolved-lab';
+const UNRESOLVED_PHARM  = 'unresolved-pharmacy';
+
+/** Returns true if the cached profile is a demo/dev account. */
+export function isDemoMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (import.meta.env.DEV && localStorage.getItem('mediflow_dev_bypass') === 'true') return true;
+    const cached = localStorage.getItem('vitalsync_cached_profile');
+    if (!cached) return false;
+    const parsed = JSON.parse(cached);
+    if (!parsed) return false;
+    const email = String(parsed.email || '').toLowerCase();
+    return Boolean(
+      parsed.isDemo === true ||
+      email === 'demo@mediflow.com' ||
+      email === 'doctor@mediflow.com' ||
+      parsed.id === FALLBACK_DOCTOR_ID
+    );
+  } catch (_e) { return false; }
+}
+
+/** Guard: throws if pod context is not resolved yet. Use before critical DB writes. */
+export function assertPodLoaded(label?: string): void {
+  if (!_ctx.loaded) {
+    console.warn(`[Mediflow PodContext] assertPodLoaded failed${label ? ` (${label})` : ''} — context not resolved yet.`);
+  }
+}
 
 export interface PodContext {
   /** User's Supabase auth UID */
@@ -73,13 +107,14 @@ function getInitialPodContext(): PodContext {
     };
   }
 
+  // Non-demo user: use null-sentinel values to prevent demo data pollution
   return {
     userId,
-    entityId: userId || FALLBACK_ENTITY_ID,
-    podId: userId || FALLBACK_POD_ID,
+    entityId: userId || UNRESOLVED_ENTITY,
+    podId: userId || UNRESOLVED_POD,
     doctorId: userId,
-    labEntityId: userId || FALLBACK_LAB_ENTITY,
-    pharmacyEntityId: userId || FALLBACK_PHARM_ENTITY,
+    labEntityId: userId || UNRESOLVED_LAB,
+    pharmacyEntityId: userId || UNRESOLVED_PHARM,
     loaded: false,
   };
 }
@@ -98,7 +133,7 @@ export function getPodContext(): PodContext {
  * Safe to call multiple times — deduplicates in-flight requests.
  */
 export async function resolvePodContext(): Promise<PodContext> {
-  if (typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+  if (import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
     _ctx = {
       userId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
       entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',

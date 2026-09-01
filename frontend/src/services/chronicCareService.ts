@@ -246,7 +246,7 @@ export class ChronicCareService {
    */
   public static async registerChronicPatient(record: Partial<ChronicCohortRecord>): Promise<boolean> {
     const pod = getPodContext();
-    const podId = pod?.podId || record.podId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+    const podId = pod?.podId || record.podId || '';
     const cleanPhone = (record.patientPhone || '').replace(/\D/g, '').slice(-10);
 
     try {

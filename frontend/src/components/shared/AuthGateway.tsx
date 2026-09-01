@@ -753,6 +753,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   };
 
   const handleDemoBypass = (account: typeof DEMO_ACCOUNTS[0]) => {
+    if (!import.meta.env.DEV) return; // Demo bypass is DEV-only — never accessible in production
     setLoading(true);
     try {
       if (typeof window !== 'undefined') {
@@ -764,7 +765,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           role: account.role,
           display_name: account.name,
           email: account.email,
-          consultation_fee: 450
+          consultation_fee: 500
         };
         
         const demoSession = {

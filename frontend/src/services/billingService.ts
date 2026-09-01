@@ -51,17 +51,7 @@ export class BillingService {
         return true;
       });
     }
-    let modified = false;
-    invoices.forEach(i => {
-      if (i.doctorFee === 450) {
-        i.doctorFee = 500;
-        i.totalAmount = (i.doctorFee || 500) + (i.labFee || 0) + (i.pharmacyFee || 0);
-        modified = true;
-      }
-    });
-    if (modified) {
-      save('unified_invoices', invoices);
-    }
+    // BUG-08 FIX: Removed ₹450→500 auto-mutation — root cause (AuthGateway consultation_fee: 450) is now fixed
     return invoices;
   }
 
@@ -524,7 +514,7 @@ export class BillingService {
       id: apptId,
       podId: ctx.podId,
       patientId,
-      doctorId: ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
+      doctorId: ctx.doctorId || null, // BUG-04 FIX: Dynamic only, no hardcoded demo doctor
       status: 'pending_payment',
       createdAt: new Date().toISOString(),
       source,
@@ -539,7 +529,7 @@ export class BillingService {
     this.saveAppointment(newAppt);
 
     const runInit = async () => {
-      let resolvedDoctorId = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'; // fallback
+      let resolvedDoctorId: string | null = null; // BUG-04 FIX: No hardcoded demo fallback
       try {
         const { data: doctorProfile } = await supabase
           .from('profiles')
@@ -553,7 +543,7 @@ export class BillingService {
           // Update Doctor ID if dynamically resolved
           const appts = this.getAppointments();
           const targetAppt = appts.find(a => a.id === apptId);
-          if (targetAppt) {
+          if (targetAppt && resolvedDoctorId) {
             targetAppt.doctorId = resolvedDoctorId;
             this.saveAppointment(targetAppt);
           }

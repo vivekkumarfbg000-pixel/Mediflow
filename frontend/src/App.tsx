@@ -920,8 +920,8 @@ export default function App() {
   const loadOrHealProfile = async (session: any): Promise<any> => {
     if (!session?.user) return null;
     
-    // Developer bypass for offline testing on localhost
-    if (typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+    // Developer bypass for offline testing on localhost (DEV ONLY — never accessible in production)
+    if (import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
       console.log('[Dev Bypass] Bypassing profile fetch. Loading demo profile.');
       try {
         const cached = localStorage.getItem('vitalsync_cached_profile');
@@ -1054,7 +1054,7 @@ export default function App() {
       if (!active) return;
       
       let currentSession = session;
-      if (!currentSession && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+      if (!currentSession && import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
         console.log('[Dev Bypass] Bypassing session check. Creating mock session.');
         currentSession = {
           user: {

@@ -38,7 +38,13 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
   const [patient, setPatient] = useState<any>(null);
   const [status, setStatus] = useState<'pending' | 'cleared' | 'failed'>('pending');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [tokenNumber, setTokenNumber] = useState<string>('TK-001');
+  const [tokenNumber, setTokenNumber] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('token') || urlParams.get('tokenNumber') || '';
+    }
+    return '';
+  });
   const autoLaunchedRef = useRef<boolean>(false);
 
   // Parse invoiceId from URL or props

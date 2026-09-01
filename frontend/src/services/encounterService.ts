@@ -3,6 +3,8 @@ import { load, save, writeAuditLog } from './apiHelper';
 import { getPodContext, resolvePodContext } from './podContext';
 import { PatientService } from './patientService';
 import { PaymentService } from './paymentService';
+import { BillingService } from './billingService';
+import { MASTER_TEST_CATALOG } from './labService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
 
@@ -122,8 +124,8 @@ export class EncounterService {
       patient_name: newEncounter.patientName,
       patientPhone: newEncounter.patientPhone,
       patient_phone: newEncounter.patientPhone,
-      doctorId: newEncounter.doctorId || ctx.doctorId || 'doc-1',
-      doctor_id: newEncounter.doctorId || ctx.doctorId || 'doc-1',
+      doctorId: newEncounter.doctorId || ctx.doctorId || null,
+      doctor_id: newEncounter.doctorId || ctx.doctorId || null,
       extractedMedicines: newEncounter.medications || [],
       extracted_medicines: newEncounter.medications || [],
       extractedTests: (newEncounter.diagnosticTests || []).map(t => t.loincCode || t.name),
@@ -210,19 +212,27 @@ export class EncounterService {
       
       for (const med of newEncounter.medications) {
         const item = inventory.find(i => (i.name || '').toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
-        const qty = 10; // default quantity for hold
-        const batch = item?.batchNumber || 'MET26A-01';
-        const expiry = item?.expiryDate || new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0];
+        // BUG-10 FIX: Calculate hold quantity from prescription dosage instead of hardcoded 10
+        const dosageStr = (med.dosage || '1-0-0').trim();
+        const doseParts = dosageStr.match(/(\d+)/g);
+        const dosePerDay = doseParts ? doseParts.reduce((sum: number, d: string) => sum + (parseInt(d, 10) || 0), 0) : 1;
+        const durationStr = (med.duration || '').trim();
+        const durationMatch = durationStr.match(/(\d+)/); 
+        const durationDays = durationMatch ? parseInt(durationMatch[1], 10) : 7; // default 7 days if unspecified
+        const qty = Math.max(1, dosePerDay * durationDays);
+        // BUG-11 FIX: Use actual batch from inventory; null if not found (no fake batch)
+        const batch = item?.batchNumber || null;
+        const expiry = item?.expiryDate || null;
         
         const holdId = crypto.randomUUID();
         const newHold = {
           id: holdId,
-          pharmacyId: ctx.pharmacyEntityId && ctx.pharmacyEntityId !== 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002' ? ctx.pharmacyEntityId : 'pharm-dynamic',
+          pharmacyId: ctx.pharmacyEntityId || null,
           patientId: newEncounter.patientId,
           medicineName: med.medicineName,
           dosage: med.dosage || '',
           quantity: qty,
-          holdStatus: 'held',
+          holdStatus: item ? 'held' : 'out_of_stock',
           expiryDate: expiry,
           batchNumber: batch,
           createdAt: new Date().toISOString()
@@ -246,10 +256,29 @@ export class EncounterService {
     const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
                                invoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
 
-    const docFee = alreadyPaidConsult ? 0 : 400;
-    const labFee = (newEncounter.diagnosticTests || []).length * 350;
-    const pharmFee = (newEncounter.medications || []).length * 150;
-    const platFee = Math.max(10, (docFee + labFee + pharmFee) * 0.03);
+    // BUG-05 FIX: Read doctor fee from active SOP config instead of hardcoded ₹400
+    const activeSop = BillingService.getActiveSop();
+    const sopDoctorFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
+    const docFee = alreadyPaidConsult ? 0 : sopDoctorFee;
+
+    // BUG-06 FIX: Look up actual lab test prices from MASTER_TEST_CATALOG
+    let labFee = 0;
+    for (const test of (newEncounter.diagnosticTests || [])) {
+      const catalogEntry = MASTER_TEST_CATALOG.find(t => t.loincCode === test.loincCode || (t.name || '').toLowerCase() === (test.name || '').toLowerCase());
+      labFee += (catalogEntry as any)?.price || 350; // fallback 350 only if test not in catalog
+    }
+
+    // BUG-06 FIX: Look up actual pharmacy prices from inventory
+    const inventoryForPricing = load<any[]>('pharmacy_inventory', []);
+    let pharmFee = 0;
+    for (const med of (newEncounter.medications || [])) {
+      const invItem = inventoryForPricing.find((i: any) => (i.name || '').toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
+      pharmFee += (invItem?.mrp || invItem?.price || 150); // fallback 150 only if not in inventory
+    }
+
+    // BUG-07 FIX: Counter Doctor Consultation Fee Immunity Protocol (Rule 58/103)
+    const isPureCounterConsult = (pharmFee === 0) && (labFee === 0);
+    const platFee = isPureCounterConsult ? 0 : parseFloat(((docFee + labFee + pharmFee) * 0.03).toFixed(2));
     const total = docFee + labFee + pharmFee + platFee;
 
     const dynamicUpiPayload = PaymentService.generateDirectUpiPayload(total, encounterId).upiDeepLink;
@@ -276,7 +305,8 @@ export class EncounterService {
     (async () => {
       try {
         const ctx = await resolvePodContext();
-        const doctorId = newEncounter.doctorId || ctx.doctorId || 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101';
+        // BUG-34 FIX: Resolve dynamically, never fallback to hardcoded demo doctor
+        const doctorId = newEncounter.doctorId || ctx.doctorId || null;
         
         // 1. Insert/Upsert into public.encounters with complete medications and tests
         const { error: encError } = await supabase.from('encounters').upsert({
@@ -360,7 +390,8 @@ export class EncounterService {
     ];
 
     const historyList: HistoricalBiomarker[] = [];
-    if (patientId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401' || patientId === 'p-1') {
+    const isDemo = typeof window !== 'undefined' && (localStorage.getItem('mediflow_dev_bypass') === 'true' || Boolean(JSON.parse(localStorage.getItem('vitalsync_cached_profile') || '{}')?.isDemo));
+    if (isDemo && (patientId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317401' || patientId === 'p-1')) {
       historyList.push(...baseline.map(b => ({ ...b })));
     }
 

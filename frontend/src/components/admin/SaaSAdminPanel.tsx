@@ -335,7 +335,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     let aborted = false;
     try {
       // Dev bypass support for local development / testing
-      if (typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+      if (import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
         setIsAdmin(true);
         setLoadingProfile(false);
         return;
