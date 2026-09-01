@@ -66,6 +66,7 @@ export const SystemHealthCockpit: React.FC = () => {
   const [founderAlerts, setFounderAlerts] = useState<any[]>([]);
   const [expandedAlertLogIdx, setExpandedAlertLogIdx] = useState<number | null>(null);
   const [copiedAlertIdx, setCopiedAlertIdx] = useState<number | null>(null);
+  const [showAllAlerts, setShowAllAlerts] = useState<boolean>(false);
   const [activeAiRepairModalAlert, setActiveAiRepairModalAlert] = useState<any | null>(null);
 
   const safeStringifyAlert = (obj: any) => {
@@ -375,87 +376,99 @@ ${rawTraceback}
 
         {/* ── Founder HITL Escalation Command Card (Fires after 3 auto-heal failures) ─ */}
         {founderAlerts.length > 0 && (
-          <div className="rounded-2xl border-2 border-rose-300 bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50 p-4 space-y-3 shadow-md animate-pulse">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                  <AlertTriangle className="h-5 w-5 animate-bounce" />
+          <div className="rounded-2xl border-2 border-rose-300 dark:border-rose-800/80 bg-gradient-to-r from-rose-50/90 via-amber-50/50 to-rose-50/90 dark:from-rose-950/40 dark:via-amber-950/20 dark:to-rose-950/40 p-3.5 sm:p-4 space-y-3 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 animate-bounce" />
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-rose-900 flex items-center gap-2">
-                    🚨 Founder HITL Escalation Alert ({founderAlerts.length} Active Notice)
-                    <span className="rounded-full bg-rose-600 text-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider">
-                      Action Required
+                <div className="min-w-0">
+                  <h4 className="text-xs font-black text-rose-900 dark:text-rose-200 flex items-center gap-1.5 flex-wrap">
+                    🚨 Founder HITL Escalation Alert
+                    <span className="rounded-full bg-rose-600 text-white px-2 py-0.5 text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider">
+                      {founderAlerts.length} Active Notice{founderAlerts.length > 1 ? 's' : ''}
                     </span>
                   </h4>
-                  <p className="text-[10.5px] text-rose-700 font-medium">
-                    Auto-Healer exhausted 3 remediation attempts — escalated to founder dashboard for review
+                  <p className="text-[10px] sm:text-[10.5px] text-rose-700 dark:text-rose-300 font-medium truncate sm:whitespace-normal">
+                    Auto-Healer exhausted remediation attempts — escalated for review
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.removeItem('founder_alerts');
-                  setFounderAlerts([]);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold transition-all cursor-pointer shadow-xs whitespace-nowrap"
-              >
-                Clear All Alerts
-              </button>
+
+              <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                {founderAlerts.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllAlerts(!showAllAlerts)}
+                    className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[10px] font-black transition-all cursor-pointer shadow-2xs hover:bg-rose-50 dark:hover:bg-slate-700 active:scale-95"
+                  >
+                    {showAllAlerts ? 'Show Top 3' : `View All (${founderAlerts.length})`}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.removeItem('founder_alerts');
+                    setFounderAlerts([]);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold transition-all cursor-pointer shadow-xs whitespace-nowrap active:scale-95"
+                >
+                  Clear All
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              {founderAlerts.map((alert, idx) => {
+            <div className="space-y-2.5">
+              {(showAllAlerts ? founderAlerts : founderAlerts.slice(0, 3)).map((alert, idx) => {
                 const isExpanded = expandedAlertLogIdx === idx;
                 const isCopied = copiedAlertIdx === idx;
                 const rawLog = alert.errorStack || alert.stack || alert.details || alert.rawLog || alert.trace || `Diagnostic Code: ERR_${alert.subsystem || 'SYS'}_EXHAUSTED\nTimestamp: ${alert.createdAt || alert.timestamp || new Date().toISOString()}\nRemediation Attempts: ${alert.attempts || alert.failedAttempts || 3} failed\nRecommended Action: ${alert.actionRequired || 'Manual inspection required'}`;
 
                 return (
-                  <div key={`founder-alert-${alert.id || idx}-${alert.createdAt || alert.timestamp || idx}`} className="p-3.5 rounded-xl bg-white/95 border border-rose-200 shadow-xs space-y-2.5">
+                  <div key={`founder-alert-${alert.id || idx}-${alert.createdAt || alert.timestamp || idx}`} className="p-3 sm:p-3.5 rounded-xl bg-white/95 dark:bg-slate-900/95 border border-rose-200 dark:border-rose-900/50 shadow-2xs space-y-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-300 tracking-wider">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800 tracking-wider">
                             [{alert.subsystem || alert.type || 'SYSTEM'}]
                           </span>
-                          <span className="text-xs font-black text-slate-800">
+                          <span className="text-xs font-black text-slate-850 dark:text-white line-clamp-1 sm:line-clamp-none">
                             {alert.errorSummary || alert.message || 'Operational anomaly requires manual inspection'}
                           </span>
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2 flex-wrap">
-                          <span>Failed attempts: <strong className="text-rose-600 font-black">{alert.attempts || alert.failedAttempts || 3}</strong></span>
+                        <div className="text-[9.5px] sm:text-[10px] text-slate-500 font-mono flex items-center gap-2 flex-wrap">
+                          <span>Attempts: <strong className="text-rose-600 font-black">{alert.attempts || alert.failedAttempts || 3}</strong></span>
                           <span>•</span>
                           <span>{alert.createdAt || alert.timestamp ? new Date(alert.createdAt || alert.timestamp).toLocaleTimeString() : 'Just now'}</span>
                         </div>
                         {alert.actionRequired && (
-                          <div className="text-[10px] text-amber-800 font-semibold italic flex items-center gap-1 mt-0.5">
-                            <span>👉 Recommended:</span> {alert.actionRequired}
+                          <div className="text-[9.5px] sm:text-[10px] text-amber-800 dark:text-amber-300 font-semibold italic flex items-center gap-1 mt-0.5 line-clamp-1 sm:line-clamp-none">
+                            <span>👉 Rec:</span> {alert.actionRequired}
                           </div>
                         )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-2 sm:pt-0 shrink-0">
+                      <div className="grid grid-cols-3 gap-1.5 w-full sm:w-auto sm:flex sm:items-center pt-1.5 sm:pt-0 shrink-0">
                         {/* 1. Copy Error Log Button */}
                         <button
                           type="button"
                           onClick={() => handleCopyAlertErrorLog(alert, idx)}
-                          className={`flex-1 sm:flex-none justify-center px-2 sm:px-2.5 py-1 rounded-lg text-[9.5px] sm:text-[10px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1 ${
+                          className={`flex-1 sm:flex-none justify-center px-2 py-1.5 rounded-lg text-[9.5px] sm:text-[10px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95 ${
                             isCopied
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-xs'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
                           }`}
                           title="Copy raw error log & stack trace to clipboard"
                         >
                           {isCopied ? (
                             <>
                               <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                              Copied Log
+                              <span>Copied</span>
                             </>
                           ) : (
                             <>
-                              <Copy className="h-3 w-3 text-slate-600" />
-                              Copy Log
+                              <Copy className="h-3 w-3 text-slate-600 dark:text-slate-400" />
+                              <span>Copy</span>
                             </>
                           )}
                         </button>
@@ -470,47 +483,47 @@ ${rawTraceback}
                               setActiveAiRepairModalAlert(alert);
                             }
                           }}
-                          className="flex-1 sm:flex-none justify-center px-2 sm:px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 text-[9.5px] sm:text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1"
+                          className="flex-1 sm:flex-none justify-center px-2 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-950 hover:bg-purple-200 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-800 text-[9.5px] sm:text-[10px] font-extrabold transition-all cursor-pointer inline-flex items-center gap-1 active:scale-95"
                         >
-                          <Sparkles className="h-3 w-3 text-purple-600" />
-                          View AI Fix
+                          <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                          <span>AI Fix</span>
                         </button>
 
                         {/* 3. Acknowledge & Resolve */}
                         <button
                           type="button"
                           onClick={() => handleResolveAlert(idx)}
-                          className="flex-1 sm:flex-none justify-center px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9.5px] sm:text-[10px] font-bold transition-all cursor-pointer text-center"
+                          className="flex-1 sm:flex-none justify-center px-2 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[9.5px] sm:text-[10px] font-bold transition-all cursor-pointer text-center active:scale-95"
                         >
-                          ✓ Resolve
+                          ✓ Done
                         </button>
                       </div>
                     </div>
 
                     {/* Toggle Button for Raw Traceback Log */}
-                    <div className="pt-1 border-t border-rose-100">
+                    <div className="pt-1 border-t border-rose-100 dark:border-rose-900/30">
                       <button
                         type="button"
                         onClick={() => setExpandedAlertLogIdx(isExpanded ? null : idx)}
-                        className="text-[10px] font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
+                        className="text-[9.5px] sm:text-[10px] font-bold text-rose-700 dark:text-rose-400 hover:text-rose-900 flex items-center gap-1 cursor-pointer"
                       >
                         {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                        {isExpanded ? 'Hide Raw Exception Traceback' : 'Show Raw Exception Traceback & Diagnostic Log'}
+                        {isExpanded ? 'Hide Raw Exception Traceback' : 'Show Diagnostic Traceback Log'}
                       </button>
 
                       {isExpanded && (
                         <div className="mt-2 space-y-1.5 animate-fade-in">
-                          <div className="flex items-center justify-between text-[9px] text-slate-500 font-mono">
-                            <span>RAW DIAGNOSTIC LOG (CLICK COPY OR SELECT ALL)</span>
+                          <div className="flex items-center justify-between text-[8.5px] sm:text-[9px] text-slate-500 font-mono">
+                            <span>RAW DIAGNOSTIC LOG (SELECT ALL OR COPY)</span>
                             <button
                               type="button"
                               onClick={() => handleCopyAlertErrorLog(alert, idx)}
-                              className="text-indigo-600 hover:underline font-bold"
+                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
                             >
                               Copy Full Block 📋
                             </button>
                           </div>
-                          <pre className="p-3 bg-slate-950 text-rose-300 font-mono text-[10px] rounded-lg border border-slate-800 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed select-all">
+                          <pre className="p-2.5 bg-slate-950 text-rose-300 font-mono text-[9px] sm:text-[10px] rounded-lg border border-slate-800 overflow-x-auto max-h-40 whitespace-pre-wrap leading-relaxed select-all">
                             {rawLog}
                           </pre>
                         </div>
@@ -519,6 +532,19 @@ ${rawTraceback}
                   </div>
                 );
               })}
+
+              {!showAllAlerts && founderAlerts.length > 3 && (
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllAlerts(true)}
+                    className="text-[10.5px] font-black text-rose-700 dark:text-rose-300 hover:text-rose-900 bg-white/90 dark:bg-slate-800 border border-rose-200 dark:border-rose-800 px-3 py-1.5 rounded-xl shadow-2xs cursor-pointer transition-all inline-flex items-center gap-1 active:scale-95"
+                  >
+                    <span>Show {founderAlerts.length - 3} More Active Escalations</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

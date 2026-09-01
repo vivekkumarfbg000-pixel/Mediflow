@@ -91,7 +91,7 @@ import { LegalPoliciesPage } from './pages/LegalPoliciesPage';
 import { DoctorPitchDeckPrintPage } from './pages/DoctorPitchDeckPrintPage';
 import { VisitingCardPrintPage } from './pages/VisitingCardPrintPage';
 import { supabase } from './lib/supabaseClient';
-import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut, Menu } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut, Menu, Settings } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
 import { PendingApprovalScreen } from './components/shared/PendingApprovalScreen';
@@ -160,6 +160,17 @@ function AppContent({
     window.addEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
     return () => window.removeEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
   }, []);
+
+  useEffect(() => {
+    const handleRoleEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<UserRole>;
+      if (customEvent.detail) {
+        handleRoleChange(customEvent.detail);
+      }
+    };
+    window.addEventListener('mediflow-change-role', handleRoleEvent as any);
+    return () => window.removeEventListener('mediflow-change-role', handleRoleEvent as any);
+  }, [handleRoleChange]);
 
   useEffect(() => {
     const handleThemeChange = (e: Event) => {
@@ -236,12 +247,14 @@ function AppContent({
     return items;
   };
 
+  const clinicalStaffRoles = ['doctor', 'ophthalmologist', 'general_physician', 'compounder', 'lab_technician', 'lab', 'pharmacist', 'pharmacy', 'refraction', 'admin', 'platform_admin', 'saas_admin'];
+
   const renderDashboard = () => {
     switch (currentRole) {
       case 'compounder':
         return (
           <ErrorBoundary fallbackTitle="Compounder Dashboard">
-            <RequireRole allowedRoles={['compounder', 'doctor']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={clinicalStaffRoles} role={currentRole} bypass={isBypassMode}>
               <CompounderDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -249,7 +262,7 @@ function AppContent({
       case 'doctor':
         return (
           <ErrorBoundary fallbackTitle="Doctor Consultation Dashboard">
-            <RequireRole allowedRoles={['doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={clinicalStaffRoles} role={currentRole} bypass={isBypassMode}>
               <DoctorDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -257,7 +270,7 @@ function AppContent({
       case 'refraction':
         return (
           <ErrorBoundary fallbackTitle="Refraction Operations Desk">
-            <RequireRole allowedRoles={['refraction', 'doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={clinicalStaffRoles} role={currentRole} bypass={isBypassMode}>
               <RefractionDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -265,7 +278,7 @@ function AppContent({
       case 'lab':
         return (
           <ErrorBoundary fallbackTitle="Laboratory Diagnostic Console">
-            <RequireRole allowedRoles={['lab', 'doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={clinicalStaffRoles} role={currentRole} bypass={isBypassMode}>
               <LabDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -273,7 +286,7 @@ function AppContent({
       case 'pharmacy':
         return (
           <ErrorBoundary fallbackTitle="Pharmacy Inventory & POS Dashboard">
-            <RequireRole allowedRoles={['pharmacy', 'doctor', 'compounder']} role={currentRole} bypass={isBypassMode}>
+            <RequireRole allowedRoles={clinicalStaffRoles} role={currentRole} bypass={isBypassMode}>
               <PharmacyDashboard />
             </RequireRole>
           </ErrorBoundary>
@@ -420,8 +433,36 @@ function AppContent({
               </nav>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[9px] font-bold text-emerald-600 font-mono uppercase tracking-wider">Sync Active</span>
+              {/* Quick Change Password Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'security' } }));
+                }}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-xl text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer active:scale-95 font-mono"
+                title="Change Account Security Password"
+              >
+                <Lock className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Password</span>
+              </button>
+
+              {/* Quick Settings Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'profile' } }));
+                }}
+                className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-xl text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all shadow-xs cursor-pointer flex items-center justify-center shrink-0 active:scale-95"
+                title="Settings & Control Center"
+                aria-label="Settings & Control Center"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
+              <div className="hidden sm:flex items-center gap-1.5 pl-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-bold text-emerald-600 font-mono uppercase tracking-wider">Sync Active</span>
+              </div>
             </div>
           </div>
         )}
@@ -720,6 +761,23 @@ export default function App() {
         console.warn('[Loading Watchdog] Slow initial load detected (>3.5s). Unfreezing loading state for fast rendering...');
         setIsLoadingSession(false);
         setIsOnboarding(false);
+        
+        // Defensive profile synthesis so user is never stranded on empty view
+        if (!activeProfile && session?.user) {
+          const synthesized = {
+            id: session.user.id,
+            role: session.user.app_metadata?.role || session.user.user_metadata?.role || 'doctor',
+            display_name: session.user.user_metadata?.display_name || session.user.email?.split('@')[0] || 'Clinician',
+            email: session.user.email
+          };
+          setActiveProfile(synthesized);
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('vitalsync_cached_profile', JSON.stringify(synthesized));
+            } catch (_e) { /* ignore */ }
+          }
+        }
+
         StateHealingEngine.handleException(new Error('LoadingWatchdogException: Dashboard loading state hung or profiles query blocked'))
           .then(healed => {
             if (healed) {
@@ -741,12 +799,32 @@ export default function App() {
     if (!session || !activeProfile) return;
 
     const authEmail = session.user?.email;
-    const metadataRole = session.user?.user_metadata?.role;
-    const profileRole = activeProfile.role;
+    const metadataRole = (session.user?.user_metadata?.role || '').toLowerCase();
+    const profileRole = (activeProfile.role || '').toLowerCase();
 
-    const isOwner = authEmail === 'owner@mediflow.com';
-    const isOwnerRoleDiscrepancy = isOwner && profileRole !== 'platform_admin';
-    const isGeneralRoleDiscrepancy = !isOwner && metadataRole && profileRole !== metadataRole && !(metadataRole === 'admin' && profileRole === 'platform_admin') && !(metadataRole === 'platform_admin' && profileRole === 'platform_admin');
+    // Canonical role families
+    const doctorFamily = ['doctor', 'general_physician', 'ophthalmologist', 'physician', 'specialist'];
+    const adminFamily = ['admin', 'platform_admin', 'saas_admin', 'owner'];
+    const compounderFamily = ['compounder', 'receptionist', 'staff'];
+    const labFamily = ['lab', 'lab_technician'];
+    const pharmacyFamily = ['pharmacy', 'pharmacist'];
+    const patientFamily = ['patient'];
+
+    const isSameRoleFamily = (r1: string, r2: string) => {
+      if (!r1 || !r2) return true;
+      if (r1 === r2) return true;
+      if (doctorFamily.includes(r1) && doctorFamily.includes(r2)) return true;
+      if (adminFamily.includes(r1) && adminFamily.includes(r2)) return true;
+      if (compounderFamily.includes(r1) && compounderFamily.includes(r2)) return true;
+      if (labFamily.includes(r1) && labFamily.includes(r2)) return true;
+      if (pharmacyFamily.includes(r1) && pharmacyFamily.includes(r2)) return true;
+      if (patientFamily.includes(r1) && patientFamily.includes(r2)) return true;
+      return false;
+    };
+
+    const isOwnerRole = adminFamily.includes(metadataRole) || session?.user?.app_metadata?.role === 'platform_admin';
+    const isOwnerRoleDiscrepancy = isOwnerRole && !adminFamily.includes(profileRole);
+    const isGeneralRoleDiscrepancy = !isOwnerRole && metadataRole && !isSameRoleFamily(metadataRole, profileRole);
 
     if (isOwnerRoleDiscrepancy || isGeneralRoleDiscrepancy) {
       console.warn('[Loading Watchdog] Profile role discrepancy detected:', { authEmail, metadataRole, profileRole });
@@ -887,13 +965,9 @@ export default function App() {
       } catch (_e) { /* ignore */ }
     }
     
-    // Check if it's an admin email but has non-admin role, or is missing
-    const isPlatformAdminEmail = session.user?.email === 'owner@mediflow.com' || session.user?.email === 'vivekkumarfbg000@gmail.com';
-    const isStaleAdminRole = activeProfile && isPlatformAdminEmail && activeProfile.role !== 'platform_admin';
-
-    // 2. If profile is missing or has stale admin role, trigger auto-healing RPC
-    if (!activeProfile || isStaleAdminRole) {
-      console.log('[Profile Loader] Profile missing or stale admin role. Triggering reconcile_profile_role...');
+    // 2. If profile is missing, trigger auto-healing RPC
+    if (!activeProfile) {
+      console.log('[Profile Loader] Profile missing. Triggering reconcile_profile_role...');
       try {
         await supabase.rpc('reconcile_profile_role');
         // Re-query
@@ -1300,12 +1374,22 @@ export default function App() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('vitalsync_active_role', role);
     }
+
+    // Synchronously update api simulated role to prevent 1-render authorization guard race condition
+    let apiRole: string = role;
+    if (role === 'lab') apiRole = 'lab_technician';
+    else if (role === 'pharmacy') apiRole = 'pharmacy';
+    else if (role === 'billing') apiRole = 'admin';
+    else if (role === 'patient') apiRole = 'patient';
+    api.setSimulatedRole(apiRole);
+
     if (!isBypassMode && activeProfile) {
       const allModules: UserRole[] = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
       const allowedRoles: Record<string, UserRole[]> = {
         'doctor': allModules,
         'ophthalmologist': allModules,
         'general_physician': allModules,
+        'physician': allModules,
         'compounder': allModules,
         'receptionist': allModules,
         'staff': allModules,

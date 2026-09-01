@@ -26,7 +26,27 @@ export const RequireRole: React.FC<RequireRoleProps> = ({
   role = api.simulatedRole,
   bypass = false,
 }) => {
-  if (bypass || allowedRoles.includes(role)) {
+  const normRole = (role || '').toLowerCase();
+  
+  // Canonical role families for cross-console alignment
+  const doctorFamily = ['doctor', 'general_physician', 'ophthalmologist', 'physician', 'specialist'];
+  const adminFamily = ['admin', 'platform_admin', 'saas_admin', 'owner'];
+  const compounderFamily = ['compounder', 'receptionist', 'staff'];
+  const labFamily = ['lab', 'lab_technician'];
+  const pharmacyFamily = ['pharmacy', 'pharmacist'];
+
+  const isAllowed = 
+    bypass || 
+    allowedRoles.includes('*') || 
+    allowedRoles.includes(normRole) ||
+    allowedRoles.includes(role) ||
+    (doctorFamily.includes(normRole) && allowedRoles.some(r => doctorFamily.includes(r.toLowerCase()))) ||
+    (adminFamily.includes(normRole) && allowedRoles.some(r => adminFamily.includes(r.toLowerCase()))) ||
+    (compounderFamily.includes(normRole) && allowedRoles.some(r => compounderFamily.includes(r.toLowerCase()))) ||
+    (labFamily.includes(normRole) && allowedRoles.some(r => labFamily.includes(r.toLowerCase()))) ||
+    (pharmacyFamily.includes(normRole) && allowedRoles.some(r => pharmacyFamily.includes(r.toLowerCase())));
+
+  if (isAllowed) {
     return <>{children}</>;
   }
 

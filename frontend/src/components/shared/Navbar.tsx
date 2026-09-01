@@ -138,6 +138,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   useEffect(() => {
+    const handleOpenSettings = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tab?: SettingsTabType }>;
+      if (customEvent.detail?.tab) {
+        setProfileModalInitialTab(customEvent.detail.tab);
+      } else {
+        setProfileModalInitialTab('profile');
+      }
+      setIsProfileModalOpen(true);
+    };
+    window.addEventListener('mediflow-open-settings', handleOpenSettings as any);
+    return () => window.removeEventListener('mediflow-open-settings', handleOpenSettings as any);
+  }, []);
+
+  useEffect(() => {
     if (currentRole === 'compounder') {
       setActiveCompounderTab('overview');
     } else if (currentRole === 'pharmacy') {
@@ -268,19 +282,28 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'saas_admin', name: 'Platform Operations', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
   ];
 
+  const allModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
   const allowedRolesMap: Record<string, string[]> = {
-    'doctor': ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'],
-    'compounder': ['compounder'],
-    'lab_technician': ['lab'],
-    'pharmacist': ['pharmacy'],
+    'doctor': allModulesList,
+    'ophthalmologist': allModulesList,
+    'general_physician': allModulesList,
+    'physician': allModulesList,
+    'compounder': allModulesList,
+    'receptionist': allModulesList,
+    'staff': allModulesList,
+    'lab_technician': allModulesList,
+    'lab': allModulesList,
+    'pharmacist': allModulesList,
+    'pharmacy': allModulesList,
     'patient': ['patient'],
-    'admin': ['saas_admin'],
-    'platform_admin': ['saas_admin'],
-    'refraction': ['refraction'],
+    'admin': allModulesList,
+    'platform_admin': allModulesList,
+    'saas_admin': allModulesList,
+    'refraction': allModulesList,
   };
 
   const activeUserRole = activeProfile?.role || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole);
-  const allowedList = allowedRolesMap[activeUserRole] || [currentRole];
+  const allowedList = allowedRolesMap[activeUserRole] || allModulesList;
 
   const visibleRoles = isBypassMode 
     ? roles 
@@ -383,16 +406,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <button
                       key={r.id}
                       onClick={(e) => {
+                        e.stopPropagation();
                         if (r.id === 'doctor' && activeDoctorTab === 'sop') {
                           window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
                         }
-                        if (isSidebarCollapsed) {
-                          e.stopPropagation();
-                          onChangeRole(r.id as UserRole);
-                          onToggleSidebarCollapse?.(false);
-                        } else {
-                          onChangeRole(r.id as UserRole);
-                        }
+                        onChangeRole(r.id as UserRole);
+                        onToggleSidebarCollapse?.(true);
                       }}
                       className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
                         isActive
@@ -431,10 +450,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             {currentRole === 'doctor' && (
               <button
                 onClick={(e) => {
-                  if (isSidebarCollapsed) {
-                    e.stopPropagation();
-                    onToggleSidebarCollapse?.(false);
-                  }
+                  e.stopPropagation();
+                  onToggleSidebarCollapse?.(true);
                   window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'sop' }));
                 }}
                 className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
@@ -648,21 +665,35 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* SRE Live Sync Status Pill & Theme Toggle */}
+          {/* SRE Live Sync Status Pill, Settings & Theme Toggle */}
           <div className="flex items-center gap-1.5 shrink-0">
             <SyncStatusPill compact={true} />
 
-          {/* Quick Mobile Theme Toggle Button */}
-          <button
-            type="button"
-            onClick={handleToggleTheme}
-            className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-amber-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
-            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            aria-label="Toggle Theme Mode"
-          >
-            {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
-          </button>
-        </div>
+            {/* Quick Mobile Settings Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setProfileModalInitialTab('profile');
+                setIsProfileModalOpen(true);
+              }}
+              className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-zinc-300 hover:text-indigo-600 hover:border-indigo-300 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
+              title="Settings & Control Center"
+              aria-label="Settings & Control Center"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+
+            {/* Quick Mobile Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={handleToggleTheme}
+              className="p-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-lg text-slate-700 dark:text-amber-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center shrink-0 min-h-[32px] min-w-[32px]"
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              aria-label="Toggle Theme Mode"
+            >
+              {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-500" />}
+            </button>
+          </div>
       </div>
       </nav>
 

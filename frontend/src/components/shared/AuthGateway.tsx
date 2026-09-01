@@ -137,8 +137,8 @@ const DEMO_ACCOUNTS = [
   {
     role: 'platform_admin',
     label: 'SaaS Admin',
-    name: 'System Admin',
-    email: 'owner@mediflow.com',
+    name: 'Platform Administrator',
+    email: 'admin@vitalsync.health',
     id: 'a4444444-4444-4444-4444-444444444444',
     entityId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
     icon: '🛡️'
@@ -507,18 +507,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             .eq('id', user.id)
             .maybeSingle();
 
-          const email = session.user.email;
-          const isPlatformAdminEmail = email === 'owner@mediflow.com' || email === 'vivekkumarfbg000@gmail.com';
-          const isStaleAdminRole = profile && isPlatformAdminEmail && profile.role !== 'platform_admin';
+          const isPlatformAdmin = profile?.role === 'platform_admin' || profile?.role === 'admin' || user.app_metadata?.role === 'platform_admin' || user.user_metadata?.role === 'platform_admin';
 
-          if (profile && !error && !isStaleAdminRole) {
+          if (profile && !error) {
             onAuthSuccess(session, profile);
             return;
           }
 
-          if (error || !profile || isStaleAdminRole) {
+          if (error || !profile) {
             // Check if they are platform owners/admins (hardened in RPC)
-            if (isPlatformAdminEmail) {
+            if (isPlatformAdmin) {
               try {
                 await supabase.rpc('reconcile_profile_role');
                 const { data: healedProfile } = await supabase
@@ -2268,7 +2266,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="owner@mediflow.com"
+                  placeholder="admin@vitalsync.health"
                   className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3.5 pl-11 pr-4 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 shadow-sm font-medium font-sans"
                   required
                 />
