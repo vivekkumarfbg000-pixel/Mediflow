@@ -915,7 +915,7 @@ export const CompounderDashboard: React.FC = () => {
             age: Number((a as any).patientAge || (a as any).age || 0) || 0,
             gender: (a as any).patientGender || (a as any).gender || 'Other',
             registeredAt: a.date || a.createdAt || new Date().toISOString(),
-            tokenNumber: a.tokenNumber || (a as any).token_number || 'T-01',
+            tokenNumber: a.tokenNumber || (a as any).token_number || existing?.tokenNumber || (existing as any)?.token_number || api.generateNextTokenNumber(),
             queueStatus: 'awaiting_vitals',
             source: a.source || 'whatsapp'
           } as any);
@@ -1241,7 +1241,7 @@ export const CompounderDashboard: React.FC = () => {
     // Step 4: Lab
     let s4_status: 'completed' | 'active' | 'pending' | 'skipped' = 'pending';
     if (latestEncounter) {
-      if (latestEncounter.diagnosticTests.length === 0 && reqs.length === 0) {
+      if ((latestEncounter.diagnosticTests || []).length === 0 && reqs.length === 0) {
         s4_status = 'skipped';
       } else {
         const allDone = reqs.length > 0 && reqs.every(r => r.status === 'completed' || r.status === 'processed');
@@ -1255,7 +1255,7 @@ export const CompounderDashboard: React.FC = () => {
     // Step 5: Doctor Re-verify (Post-Lab)
     let s5_status: 'completed' | 'active' | 'pending' | 'skipped' = 'pending';
     if (latestEncounter) {
-      if (latestEncounter.diagnosticTests.length === 0 && reqs.length === 0) {
+      if ((latestEncounter.diagnosticTests || []).length === 0 && reqs.length === 0) {
         s5_status = 'skipped';
       } else {
         const allApproved = reports.length > 0 && reports.every(r => r.status === 'approved');
@@ -1460,7 +1460,7 @@ export const CompounderDashboard: React.FC = () => {
       if (apptRes.data && apptRes.data.length > 0) {
         const mapped = apptRes.data.map((a: any) => {
           const patInfo = patMap.get(a.patient_id) || {};
-          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || 'T-01');
+          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || (patInfo.tokenNumber || api.generateNextTokenNumber()));
           const resolvedName = patInfo.name || (a.patient_name && a.patient_name !== 'Patient' ? a.patient_name : 'WhatsApp Patient');
           const resolvedPhone = patInfo.phone || a.patient_phone || '';
           const apptDate = getEffectiveAppointmentDate(a);
@@ -1971,7 +1971,7 @@ export const CompounderDashboard: React.FC = () => {
       return;
     }
 
-    const recordedToken = vitalsPatient.tokenNumber || api.generateNextTokenNumber();
+    const recordedToken = vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || api.generateNextTokenNumber();
 
     api.updatePatientVitalsAndToken(vitalsPatient.id, {
       temperature: tempVal,
@@ -4136,7 +4136,7 @@ export const CompounderDashboard: React.FC = () => {
                               const latestEncounter = patientEncounters[0];
                               const reports = LabService.getFullLabReports().filter(r => r.patientId === patient.id);
                               
-                              const hasPrescription = latestEncounter && (latestEncounter.clinicalNotes || latestEncounter.medications.length > 0);
+                              const hasPrescription = latestEncounter && (latestEncounter.clinicalNotes || (latestEncounter.medications || []).length > 0);
                               const hasLabReport = reports.length > 0 && reports.some(r => r.status === 'approved');
                               const sessionList = api.getWhatsAppSessions();
                               const session = sessionList.find(s => s.patientPhone === patient.phone);
@@ -4346,7 +4346,7 @@ export const CompounderDashboard: React.FC = () => {
                         <div className="space-y-1">
                           <label className="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider font-mono">OPD Token (System Allocated)</label>
                           <div className="w-full py-2 px-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 rounded-lg font-mono font-black text-xs flex items-center justify-between">
-                            <span>{vitalsPatient.tokenNumber || api.generateNextTokenNumber()}</span>
+                            <span>{vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || api.generateNextTokenNumber()}</span>
                             <span className="text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Auto Token</span>
                           </div>
                         </div>
@@ -5377,7 +5377,7 @@ export const CompounderDashboard: React.FC = () => {
                       </div>
                     )}
 
-                    {latestEncounter.medications && latestEncounter.medications.length > 0 ? (
+                    {(latestEncounter.medications || []).length > 0 ? (
                       <div className="space-y-2">
                         <h4 className="font-bold text-slate-700 dark:text-slate-350 uppercase tracking-wider text-[9px] font-mono flex items-center gap-1.5">
                           Prescribed Medications
@@ -5392,7 +5392,7 @@ export const CompounderDashboard: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {latestEncounter.medications.map((med, idx) => {
+                              {(latestEncounter.medications || []).map((med, idx) => {
                                 const bilingual = getBilingualInstruction(med.medicineName, med.dosage);
                                 return (
                                   <tr key={`wf-med-${idx}-${med.medicineName}`} className="border-b border-slate-200 dark:border-slate-800/80 last:border-0">

@@ -140,6 +140,12 @@ export class RealtimeSyncService {
     // SaaS Invoices CDC Normalization (Rule 1 & Rule 33)
     if (record.appointment_id !== undefined) normalized.appointmentId = record.appointment_id;
 
+    // Encounters & Digital Prescriptions CDC Normalization (Rule 1)
+    if (record.diagnostic_tests !== undefined) normalized.diagnosticTests = record.diagnostic_tests;
+    if (record.clinical_notes !== undefined) normalized.clinicalNotes = record.clinical_notes;
+    if (record.extracted_medicines !== undefined) normalized.extractedMedicines = record.extracted_medicines;
+    if (record.extracted_tests !== undefined) normalized.extractedTests = record.extracted_tests;
+
     return normalized;
   }
 

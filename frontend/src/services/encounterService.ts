@@ -62,26 +62,38 @@ export class EncounterService {
 
     // Merge and normalize medications and diagnostic tests from saas_prescriptions if empty
     return Array.from(encMap.values()).map(enc => {
+      const pId = enc.patientId || (enc as any).patient_id;
       let meds = enc.medications || [];
       if (!meds || meds.length === 0) {
-        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
+        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (pId && (p.patientId === pId || p.patient_id === pId) && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
         if (matchSaas) {
           meds = matchSaas.extractedMedicines || matchSaas.extracted_medicines || matchSaas.medications || [];
         } else {
-          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
+          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (pId && (p.patientId === pId || p.patient_id === pId) && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
           if (matchRx) {
             meds = matchRx.medications || matchRx.medicines || [];
           }
         }
       }
 
+      // Ensure each medication has medicineName
+      const normalizedMeds = (meds || []).map((m: any, idx: number) => ({
+        id: m.id || `med-${idx}`,
+        medicineName: m.medicineName || m.name || 'Medicine',
+        name: m.medicineName || m.name || 'Medicine',
+        dosage: m.dosage || '1-0-1',
+        frequency: m.frequency || 'twice daily',
+        duration: m.duration || '5 Days',
+        instructions: m.instructions || ''
+      }));
+
       let tests = enc.diagnosticTests || [];
       if (!tests || tests.length === 0) {
-        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
+        const matchSaas = saasPrescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (pId && (p.patientId === pId || p.patient_id === pId) && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
         if (matchSaas) {
           tests = (matchSaas.extractedTests || matchSaas.extracted_tests || []).map((t: any) => typeof t === 'string' ? { name: t, loincCode: t } : t);
         } else {
-          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (p.patientId === enc.patientId && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
+          const matchRx = prescriptions.find(p => (p.encounterId === enc.id || p.encounter_id === enc.id) || (pId && (p.patientId === pId || p.patient_id === pId) && (p.createdAt || p.created_at)?.slice(0, 10) === (enc.createdAt || '').slice(0, 10)));
           if (matchRx) {
             tests = (matchRx.diagnosticTests || matchRx.diagnostic_tests || []).map((t: any) => typeof t === 'string' ? { name: t, loincCode: t } : t);
           }
@@ -90,7 +102,9 @@ export class EncounterService {
 
       return {
         ...enc,
-        medications: meds,
+        patientId: pId,
+        patient_id: pId,
+        medications: normalizedMeds,
         diagnosticTests: tests
       };
     }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());

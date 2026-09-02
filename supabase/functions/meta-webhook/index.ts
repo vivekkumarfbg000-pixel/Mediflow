@@ -1682,14 +1682,27 @@ async function triggerBotReplyPipeline(ctx: {
             { p_virtual_date: selectedDate, p_pod_id: currentPodId }
           );
           if (!tokenErr && tokenStr) {
-            const seqMatch = String(tokenStr).match(/T-(\d+)/);
-            tokenSeq = seqMatch ? parseInt(seqMatch[1], 10) : 1;
+            const seqMatch = String(tokenStr).match(/\d+/);
+            tokenSeq = seqMatch ? parseInt(seqMatch[0], 10) : 1;
           } else {
             const { data: dateAppts } = await supabase
               .from("appointments")
-              .select("token_number")
-              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%`);
-            tokenSeq = (dateAppts?.length || 0) + 1;
+              .select("token_number, virtual_date, appointment_time, created_at")
+              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%,created_at.gte.${selectedDate}T00:00:00`);
+            
+            let maxSeq = 0;
+            if (dateAppts && dateAppts.length > 0) {
+              dateAppts.forEach((a: any) => {
+                const match = String(a.token_number || '').match(/\d+/);
+                if (match) {
+                  const num = parseInt(match[0], 10);
+                  if (num > maxSeq) maxSeq = num;
+                }
+              });
+              tokenSeq = Math.max(dateAppts.length, maxSeq) + 1;
+            } else {
+              tokenSeq = 1;
+            }
           }
         } catch (_tErr) {
           tokenSeq = 1;
@@ -3307,11 +3320,32 @@ async function triggerBotReplyPipeline(ctx: {
             // Generate SOS token number (Priority #1)
             let sosTokenSeq = 1;
             try {
-              const { count: apptCount } = await supabase
-                .from("appointments")
-                .select("id", { count: "exact", head: true })
-                .eq("virtual_date", todayDate);
-              sosTokenSeq = (apptCount ?? 0) + 1;
+              const { data: tokenStr, error: tokenErr } = await supabase.rpc(
+                'generate_next_token_number',
+                { p_virtual_date: todayDate, p_pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001" }
+              );
+              if (!tokenErr && tokenStr) {
+                const seqMatch = String(tokenStr).match(/\d+/);
+                sosTokenSeq = seqMatch ? parseInt(seqMatch[0], 10) : 1;
+              } else {
+                const { data: apptRows } = await supabase
+                  .from("appointments")
+                  .select("token_number, virtual_date, appointment_time, created_at")
+                  .or(`virtual_date.eq.${todayDate},appointment_time.ilike.${todayDate}%,created_at.gte.${todayDate}T00:00:00`);
+                let maxSeq = 0;
+                if (apptRows && apptRows.length > 0) {
+                  apptRows.forEach((a: any) => {
+                    const match = String(a.token_number || '').match(/\d+/);
+                    if (match) {
+                      const num = parseInt(match[0], 10);
+                      if (num > maxSeq) maxSeq = num;
+                    }
+                  });
+                  sosTokenSeq = Math.max(apptRows.length, maxSeq) + 1;
+                } else {
+                  sosTokenSeq = 1;
+                }
+              }
             } catch (err) { console.warn("[Meta Webhook] Error fetching appointment count for SOS token:", err); }
             const sosTokenNumber = `T-${sosTokenSeq.toString().padStart(2, '0')} E`;
 

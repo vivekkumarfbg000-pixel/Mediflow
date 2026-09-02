@@ -629,8 +629,8 @@ class MediflowApiService {
       // ─── Build role-conditional queries before parallelizing ──────────────
       const encounterFetch = supabaseCircuit.execute<any>(async () => {
             const selectFields = this.simulatedRole === 'pharmacy'
-              ? `id, patient_id, doctor_id, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`
-              : `id, patient_id, doctor_id, clinical_notes, status, created_at, patient:patient_registry(name), encounter_medications(id, medicine_name, dosage, frequency, duration), encounter_diagnostics(loinc_code, test_name)`;
+              ? `id, patient_id, doctor_id, medications, diagnostic_tests, status, created_at, patient:patient_registry(name, phone)`
+              : `id, patient_id, doctor_id, clinical_notes, medications, diagnostic_tests, status, created_at, patient:patient_registry(name, phone)`;
             let query = supabase.from('encounters').select(selectFields);
             if (currentPodId) query = query.eq('pod_id', currentPodId);
             const { data, error } = await query;
@@ -642,20 +642,11 @@ class MediflowApiService {
               patient_id: e.patientId || e.patient_id,
               doctor_id: e.doctorId || e.doctor_id,
               clinical_notes: this.simulatedRole === 'pharmacy' ? '' : (e.clinicalNotes || e.clinical_notes),
+              medications: e.medications || [],
+              diagnostic_tests: e.diagnosticTests || e.diagnostic_tests || [],
               status: e.status,
               created_at: e.createdAt || e.created_at,
-              patient: { name: e.patientName },
-              encounter_medications: (e.medications || e.encounter_medications || []).map((m: any) => ({
-                id: m.id,
-                medicine_name: m.medicineName || m.medicine_name,
-                dosage: m.dosage,
-                frequency: m.frequency,
-                duration: m.duration
-              })),
-              encounter_diagnostics: (e.diagnosticTests || e.encounter_diagnostics || []).map((d: any) => ({
-                loinc_code: d.loincCode || d.loinc_code,
-                test_name: d.name || d.test_name
-              }))
+              patient: { name: e.patientName, phone: e.patientPhone }
             }));
           });
 
@@ -869,33 +860,71 @@ class MediflowApiService {
           this.save('medicine_bills', bills);
         }
 
-        // Encounters
+        // Encounters & Digital Prescriptions Sync
         if (dbEncounters && dbEncounters.length > 0) {
-          const encounters = (dbEncounters as unknown as DBEncounter[]).map((e: DBEncounter) => ({
-            id: e.id, patientId: e.patient_id, patientName: e.patient?.name || 'Unknown',
-            doctorId: e.doctor_id, clinicalNotes: e.clinical_notes || '',
-            medications: (e.encounter_medications || []).map((m: DBEncounterMedication) => ({
-              id: m.id, medicineName: m.medicine_name, dosage: m.dosage, frequency: m.frequency, duration: m.duration
-            })),
-            diagnosticTests: (e.encounter_diagnostics || []).map((d: DBEncounterDiagnostic) => {
-              const master = MASTER_TEST_CATALOG.find(t => t.loincCode === d.loinc_code);
-              return { loincCode: d.loinc_code, name: d.test_name, category: master?.category || 'General', normalRange: master?.normalRange || '', unit: master?.unit || '' };
-            }),
-            status: 'completed' as const,
-            createdAt: e.created_at
-          }));
+          const encounters = (dbEncounters as any[]).map((e: any) => {
+            const rawMeds = Array.isArray(e.medications) && e.medications.length > 0
+              ? e.medications
+              : (Array.isArray(e.encounter_medications) && e.encounter_medications.length > 0
+                ? e.encounter_medications.map((m: any) => ({ id: m.id, medicineName: m.medicine_name, dosage: m.dosage, frequency: m.frequency, duration: m.duration }))
+                : []);
+
+            const rawTests = Array.isArray(e.diagnostic_tests) && e.diagnostic_tests.length > 0
+              ? e.diagnostic_tests.map((d: any) => {
+                  if (typeof d === 'string') {
+                    const master = MASTER_TEST_CATALOG.find(t => t.loincCode === d || (t.name || '').toLowerCase() === d.toLowerCase());
+                    return { loincCode: master?.loincCode || d, name: master?.name || d, category: master?.category || 'General', normalRange: master?.normalRange || '', unit: master?.unit || '' };
+                  }
+                  const master = MASTER_TEST_CATALOG.find(t => t.loincCode === (d.loincCode || d.loinc_code));
+                  return { loincCode: d.loincCode || d.loinc_code || '4544-3', name: d.name || d.test_name || master?.name || 'Test', category: master?.category || 'General', normalRange: master?.normalRange || '', unit: master?.unit || '' };
+                })
+              : (Array.isArray(e.encounter_diagnostics) && e.encounter_diagnostics.length > 0
+                ? e.encounter_diagnostics.map((d: any) => {
+                    const master = MASTER_TEST_CATALOG.find(t => t.loincCode === d.loinc_code);
+                    return { loincCode: d.loinc_code, name: d.test_name || master?.name || 'Test', category: master?.category || 'General', normalRange: master?.normalRange || '', unit: master?.unit || '' };
+                  })
+                : []);
+
+            const patName = Array.isArray(e.patient) ? (e.patient[0]?.name || 'Unknown') : (e.patient?.name || 'Unknown');
+            const patPhone = Array.isArray(e.patient) ? (e.patient[0]?.phone || '') : (e.patient?.phone || '');
+
+            return {
+              id: e.id,
+              patientId: e.patient_id,
+              patient_id: e.patient_id,
+              patientName: patName,
+              patientPhone: patPhone,
+              doctorId: e.doctor_id,
+              doctor_id: e.doctor_id,
+              clinicalNotes: e.clinical_notes || '',
+              medications: rawMeds,
+              diagnosticTests: rawTests,
+              status: 'completed' as const,
+              createdAt: e.created_at
+            };
+          });
           this.save('encounters', encounters);
 
-          // Map to prescriptions so they are available locally
+          // Map to saas_prescriptions with full patient identity and medication structures
           const prescriptions = encounters.map(e => ({
             id: e.id,
+            encounterId: e.id,
+            encounter_id: e.id,
             appointmentId: e.id,
-            extractedMedicines: e.medications.map(m => ({
-              name: m.medicineName,
-              dosage: m.dosage,
-              frequency: m.frequency
+            patientId: e.patientId || e.patient_id,
+            patient_id: e.patientId || e.patient_id,
+            patientName: e.patientName,
+            patientPhone: e.patientPhone,
+            doctorId: e.doctorId || e.doctor_id,
+            extractedMedicines: (e.medications || []).map((m: any) => ({
+              name: m.medicineName || m.name || 'Medicine',
+              medicineName: m.medicineName || m.name || 'Medicine',
+              dosage: m.dosage || '1-0-1',
+              frequency: m.frequency || 'twice daily',
+              duration: m.duration || '5 Days'
             })),
-            extractedTests: e.diagnosticTests.map(d => d.loincCode),
+            extractedTests: (e.diagnosticTests || []).map((d: any) => d.loincCode || d.name),
+            status: 'active',
             createdAt: e.createdAt
           }));
           this.save('saas_prescriptions', prescriptions);

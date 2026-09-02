@@ -350,7 +350,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
 
                     {/* Prescribed Medications */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {cohort.medications.map((m, idx) => (
+                      {(cohort.medications || []).map((m, idx) => (
                         <span
                           key={`med-tag-${idx}-${m.name}`}
                           className="text-[10px] font-medium px-2 py-0.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md text-slate-700 dark:text-slate-300"

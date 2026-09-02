@@ -207,11 +207,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
   const patientMetrics = useMemo(() => {
     const todayPatients = patients.filter(isPatientForToday);
+    const isPatientCompleted = (p: any) => p.queueStatus === 'completed' || p.queue_status === 'completed' || p.queueStatus === 'settled' || p.queueStatus === 'pharmacy' || p.queueStatus === 'lab';
+
     return {
       total: todayPatients.length,
-      awaitingConsultation: todayPatients.filter(p => p.queueStatus === 'awaiting_consultation' || !p.queueStatus).length,
-      inConsultation: todayPatients.filter(p => (p.queueStatus as string) === 'in_consultation').length,
-      completed: todayPatients.filter(p => p.queueStatus === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab').length,
+      awaitingConsultation: todayPatients.filter(p => (p.queueStatus === 'awaiting_consultation' || !p.queueStatus) && !isPatientCompleted(p) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment').length,
+      inConsultation: todayPatients.filter(p => p.queueStatus === 'in_consultation' && !isPatientCompleted(p)).length,
+      completed: todayPatients.filter(isPatientCompleted).length,
     };
   }, [patients, appointments, todayStr]);
 
@@ -248,10 +250,11 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         if (!isPatientForToday(p)) return false;
 
         // Handle metric-specific filters (Enforces vitals intake & payment verification before doctor queue)
-        const isAwaitingConsult = (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) &&
+        const isCompleted = p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab';
+        const isAwaitingConsult = !isCompleted && 
+                                  (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) &&
                                   p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment';
-        const isInConsult = p.queueStatus === 'in_consultation';
-        const isCompleted = p.queueStatus === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab';
+        const isInConsult = !isCompleted && p.queueStatus === 'in_consultation';
 
         if (selectedMetric === 'all') {
           return true;
@@ -262,7 +265,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         } else if (selectedMetric === 'completed') {
           return isCompleted;
         } else {
-          // Default filter: Active Consultation Queue (Only patients whose vitals & payment are verified)
+          // Default filter: Active Consultation Queue (Only active patients whose vitals & payment are verified and care loop NOT completed)
           return isAwaitingConsult || isInConsult;
         }
       })

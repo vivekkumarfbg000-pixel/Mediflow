@@ -376,11 +376,8 @@ export class WhatsAppService {
           replyMessage = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
         } else if (session.currentState === 'AWAITING_APPOINTMENT_TYPE') {
           if (cleaned === '1' || cleaned.includes('physical')) {
-            const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
-            const nextNum = todayAppts.length + 1;
-            const tokenNumber = `#TK-${nextNum.toString().padStart(3, '0')}`;
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
             const apptId = crypto.randomUUID();
             const targetPatId = sessionData.newPatientId || session.patientId || crypto.randomUUID();
             const targetPatName = sessionData.newPatientName || 'Walk-In Patient';
@@ -532,11 +529,8 @@ export class WhatsAppService {
       switch (session.currentState) {
         case 'AWAITING_CONFIRMATION':
           if (cleaned === '1' || cleaned.includes('physical') || cleaned.includes('clinic')) {
-            const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
-            const nextNum = todayAppts.length + 1;
-            const tokenNumber = `#TK-${nextNum.toString().padStart(3, '0')}`;
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
             const apptId = crypto.randomUUID();
             const docName = this.getDynamicDoctorName();
 
@@ -601,10 +595,8 @@ export class WhatsAppService {
             }
           } else if (cleaned === '4' || cleaned === 'sos' || cleaned.includes('emergency') || cleaned.includes('urgent')) {
             nextState = 'COMPLETED';
-            const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
-            const tokenNumber = `T-${(todayAppts.length + 1).toString().padStart(2, '0')} E`;
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
             const apptId = crypto.randomUUID();
             const docName = this.getDynamicDoctorName();
 
@@ -671,11 +663,8 @@ export class WhatsAppService {
 
         case 'AWAITING_APPOINTMENT_TYPE':
           if (cleaned === '1' || cleaned.includes('physical')) {
-            const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
-            const nextNum = todayAppts.length + 1;
-            const tokenNumber = `#TK-${nextNum.toString().padStart(3, '0')}`;
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
             const apptId = crypto.randomUUID();
             const docName = this.getDynamicDoctorName();
 
@@ -1177,10 +1166,8 @@ export class WhatsAppService {
             replyMessage = `Namaste *${patName}*! 🙏 Welcome to *${this.getDynamicClinicName()}*.\n\n🌟 *${this.getDynamicClinicName().toUpperCase()} SERVICES* 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1, 2, 3, 4, 5, ya 6) reply kijiye! 🩺`;
           } else if (cleaned === '4' || cleaned === 'sos' || cleaned.includes('emergency') || cleaned.includes('urgent')) {
             nextState = 'COMPLETED';
-            const existingAppts = BillingService.getAppointments();
             const todayStr = getIstDateString();
-            const todayAppts = existingAppts.filter(a => (a.date === todayStr || getIstDateString(a.createdAt) === todayStr));
-            const tokenNumber = `T-${(todayAppts.length + 1).toString().padStart(2, '0')} E`;
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
             const apptId = crypto.randomUUID();
             const docName = this.getDynamicDoctorName();
             const effectivePat = currentPat || patient;

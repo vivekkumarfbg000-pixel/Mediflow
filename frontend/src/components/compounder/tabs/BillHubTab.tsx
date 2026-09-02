@@ -83,20 +83,21 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isEncounterMatchingPatient = (e: any, pat: Patient | null): boolean => {
-    if (!pat) return false;
-    const encPatId = e.patientId || e.patient_id;
-    const patId = pat.id;
-    const patCode = pat.patientCode || (pat as any).patient_code;
+    if (!pat || !e) return false;
+    const encPatId = String(e.patientId || e.patient_id || '').trim().toLowerCase();
+    const patId = String(pat.id || '').trim().toLowerCase();
+    const patCode = String(pat.patientCode || (pat as any).patient_code || '').trim().toLowerCase();
     const patPhone = (pat.phone || '').replace(/\D/g, '').slice(-10);
     const patName = (pat.name || '').toLowerCase().trim();
 
     const encPhone = (e.patientPhone || e.patient_phone || '').replace(/\D/g, '').slice(-10);
     const encName = (e.patientName || e.patient_name || '').toLowerCase().trim();
 
-    return encPatId === patId ||
-           (patCode && encPatId === patCode) ||
-           (patPhone && encPhone && patPhone.length >= 6 && patPhone === encPhone) ||
-           (patName && encName && patName.length >= 3 && patName === encName);
+    if (encPatId && patId && encPatId === patId) return true;
+    if (patCode && encPatId && encPatId === patCode) return true;
+    if (patPhone && encPhone && patPhone.length >= 6 && patPhone === encPhone) return true;
+    if (patName && encName && patName.length >= 3 && patName === encName) return true;
+    return false;
   };
 
   // Fetch initial list of patients & live state listener
@@ -181,7 +182,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         setSelectedTests({});
       }
     }
-  }, [selectedPatient]);
+  }, [selectedPatient, refreshKey]);
 
   // Catalogs
   const inventory = useMemo(() => PharmacyService.getPharmacyInventory(), []);
@@ -1370,13 +1371,13 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <Pill className="h-3.5 w-3.5 text-indigo-500" />
-                    Prescribed Medicines ({lastScannedResult.medications.length}) ➔ Dispatched to Pharmacy
+                    Prescribed Medicines ({(lastScannedResult?.medications || []).length}) ➔ Dispatched to Pharmacy
                   </h4>
                   <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                    {lastScannedResult.medications.length === 0 ? (
+                    {(lastScannedResult?.medications || []).length === 0 ? (
                       <p className="text-xs text-slate-400 italic">No oral medications detected.</p>
                     ) : (
-                      lastScannedResult.medications.map((m, idx) => (
+                      (lastScannedResult?.medications || []).map((m, idx) => (
                         <div key={`ocr-med-${idx}-${m.medicineName || 'item'}`} className="p-2.5 rounded-xl border border-slate-200/80 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center text-xs">
                           <div>
                             <span className="font-bold text-slate-800 dark:text-white">{m.medicineName}</span>
@@ -1393,13 +1394,13 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 <div>
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <FlaskConical className="h-3.5 w-3.5 text-purple-500" />
-                    Prescribed Diagnostics ({lastScannedResult.diagnosticTests.length}) ➔ Dispatched to Pathology Lab
+                    Prescribed Diagnostics ({(lastScannedResult?.diagnosticTests || []).length}) ➔ Dispatched to Pathology Lab
                   </h4>
                   <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                    {lastScannedResult.diagnosticTests.length === 0 ? (
+                    {(lastScannedResult?.diagnosticTests || []).length === 0 ? (
                       <p className="text-xs text-slate-400 italic">No diagnostic lab tests required.</p>
                     ) : (
-                      lastScannedResult.diagnosticTests.map((t, idx) => (
+                      (lastScannedResult?.diagnosticTests || []).map((t, idx) => (
                         <div key={`ocr-test-${idx}-${t.loincCode || t.name || 'test'}`} className="p-2.5 rounded-xl border border-slate-200/80 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center text-xs">
                           <div>
                             <span className="font-bold text-slate-800 dark:text-white">{t.name}</span>

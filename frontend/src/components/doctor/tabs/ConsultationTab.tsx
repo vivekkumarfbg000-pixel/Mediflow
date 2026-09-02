@@ -400,7 +400,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Clinical Entities Extracted! 🧠',
-          message: `Extracted complaints, ${extracted.medications.length} medicines, and vitals from conversation.`,
+          message: `Extracted complaints, ${(extracted?.medications || []).length} medicines, and vitals from conversation.`,
           type: 'success'
         }
       }));
@@ -418,9 +418,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     setNotes(notes ? `${notes}\n\n${extractedScribeData.soapNotes}` : extractedScribeData.soapNotes);
 
     // 2. Append medications
-    if (extractedScribeData.medications.length > 0) {
+    if ((extractedScribeData.medications || []).length > 0) {
       const existing = new Set(medications.map(m => (m.medicineName || '').toLowerCase()));
-      const toAdd = extractedScribeData.medications
+      const toAdd = (extractedScribeData.medications || [])
         .filter(m => !existing.has(m.medicineName.toLowerCase()))
         .map(m => ({
           medicineName: m.matchedStockName || m.medicineName,
@@ -1705,14 +1705,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 return (pDate === todayStr) && paidPatientIds.has(p.id);
               };
 
-              const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment' && isPatientForToday(p));
-              const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && isPatientForToday(p));
+              const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
+
+              const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && !isCompletedPat(p) && (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment' && isPatientForToday(p));
+              const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && !isCompletedPat(p) && isPatientForToday(p));
               const todayRegList = patients.filter(p => {
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
                 return pDate === todayStr;
               });
-              const completedList = patients.filter(p => (p as any).queueStatus === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled');
+              const completedList = patients.filter(p => isCompletedPat(p) && isPatientForToday(p));
               const upcomingList = patients.filter(p => {
                 const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                 return patAppts.some(a => {
@@ -1828,6 +1830,8 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   return pDate === todayStr && paidPatientIds.has(p.id);
                 };
 
+                const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
+
                 const queuePatients = patients
                   .filter(p => {
                     if (queueFilter === 'upcoming') {
@@ -1840,10 +1844,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     if (queueFilter === 'awaiting') {
                       if (!paidPatientIds.has(p.id)) return false;
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
+                      if (isCompletedPat(p)) return false;
                       return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
                     }
                     if (queueFilter === 'in_consult') {
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
+                      if (isCompletedPat(p)) return false;
                       return p.queueStatus === 'in_consultation';
                     }
                     if (queueFilter === 'today_registered') {
@@ -1851,14 +1857,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     }
                     if (queueFilter === 'completed') {
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
-                      return (
-                        (p as any).queueStatus === 'completed' ||
-                        (p as any).queueStatus === 'pharmacy' ||
-                        (p as any).queueStatus === 'lab' ||
-                        (p as any).queueStatus === 'settled'
-                      );
+                      return isCompletedPat(p);
                     }
-                    return (isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
+                    return (!isCompletedPat(p) && isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
                   })
                   .sort((a, b) => {
                     const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).toUpperCase().includes(' E') || String(a.tokenNumber).toUpperCase().includes('E-') || String(a.tokenNumber).startsWith('#EM-'))));
@@ -2206,11 +2207,11 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         <span className="text-slate-400 font-medium">Provisional Assessment: </span>
                         <span className="text-emerald-300 font-semibold">{extractedScribeData.clinicalAssessment}</span>
                       </div>
-                      {extractedScribeData.medications.length > 0 && (
+                      {(extractedScribeData.medications || []).length > 0 && (
                         <div className="pt-0.5">
-                          <span className="text-slate-400 font-medium block mb-1">Extracted Medications ({extractedScribeData.medications.length}):</span>
+                          <span className="text-slate-400 font-medium block mb-1">Extracted Medications ({(extractedScribeData.medications || []).length}):</span>
                           <div className="flex flex-wrap gap-1">
-                            {extractedScribeData.medications.map((m: any, mi: number) => (
+                            {(extractedScribeData.medications || []).map((m: any, mi: number) => (
                               <span key={`med-ext-${mi}`} className="px-2 py-0.5 bg-indigo-950/80 border border-indigo-500/40 text-indigo-200 rounded-md text-[10px] font-mono">
                                 💊 {m.medicineName} ({m.dosage} - {m.frequency})
                               </span>
