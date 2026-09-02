@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
-  Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus
+  Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { EncounterService } from '../../../services/encounterService';
@@ -19,6 +19,7 @@ import { ClinicalNotificationService } from '../../../services/clinicalNotificat
 import { ForecastService } from '../../../services/forecastService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
+import { save } from '../../../services/apiHelper';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 export interface BillHubTabProps {
@@ -1081,6 +1082,49 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   };
 
+  const [isDispatchingRxWhatsApp, setIsDispatchingRxWhatsApp] = useState(false);
+
+  // 1-Tap WhatsApp Digital Prescription & Dosage Dispatch
+  const handleDispatchPrescriptionWhatsApp = () => {
+    if (!selectedPatient || !billingLedger) return;
+    setIsDispatchingRxWhatsApp(true);
+
+    try {
+      const clinicTitle = activePod?.name || activeProfile?.clinicName || 'VitalSync Smart Clinic';
+      const rawDocName = activePod?.doctor_name || 'Attending Physician';
+      const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
+
+      const medRows = (billingLedger.medicinesList || [])
+        .map((m, idx) => {
+          const freq = (m as any).frequency || (m as any).freq || '1-0-1';
+          const dur = (m as any).duration || (m as any).dur || '5 Days';
+          const instr = (m as any).instructions || (m as any).dosage || 'Take after meals';
+          return `${idx + 1}. 💊 *${m.name}*\n   Dosage: ${freq} (${dur})\n   Instructions: ${instr}`;
+        })
+        .join('\n\n');
+
+      const testRows = (billingLedger.testsList || [])
+        .map((t, idx) => `${idx + 1}. 🔬 *${t.name}* (LOINC: ${t.loincCode})`)
+        .join('\n');
+
+      const msg = `Namaste ${selectedPatient.name} ji 🙏,\n\nHere is your official digital e-prescription & dosage guide from *${clinicTitle}* (${docTitle}):\n\n${medRows ? `📋 *PRESCRIBED MEDICINES:*\n${medRows}\n\n` : ''}${testRows ? `🧪 *ADVISED LAB TESTS:*\n${testRows}\n\n` : ''}🔗 *View Digital Record:* https://app.vitalsync.in/prescriptions/${selectedPatient.id}\n\nIf you have any questions, reply directly to this message. Wishing you a swift recovery! 🏥✨`;
+
+      WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, msg);
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Prescription Dispatched 📲',
+          message: `Sent digital prescription with dosage instructions to +91 ${selectedPatient.phone.replace(/\D/g, '').slice(-10)}.`,
+          type: 'success'
+        }
+      }));
+    } catch (err) {
+      console.error('[BillHubTab] WhatsApp dispatch error:', err);
+    } finally {
+      setIsDispatchingRxWhatsApp(false);
+    }
+  };
+
   // Clear Payment & Sync Inventory
   const handleClearBill = async () => {
     if (!selectedPatient || !billingLedger) return;
@@ -1151,7 +1195,39 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }
       }
 
-      // 1. Premium Club Eligibility Onboarding Check (Any clinic purchase activates loyalty)
+      // 5. Update linked Lab Requisitions to paid/cleared
+      if (billingLedger.labSub > 0) {
+        const reqs = LabService.getLabRequisitions();
+        let reqsUpdated = false;
+        reqs.forEach(r => {
+          if (r.patientId === selectedPatient.id && r.status !== 'completed') {
+            (r as any).isPaid = true;
+            (r as any).paymentStatus = 'cleared';
+            reqsUpdated = true;
+          }
+        });
+        if (reqsUpdated) {
+          LabService.saveLabRequisitions(reqs);
+        }
+      }
+
+      // 6. Update linked Inventory Holds to ready for dispensing / cleared
+      if (billingLedger.pharmacySub > 0) {
+        const holds = PharmacyService.getInventoryHolds();
+        let holdsUpdated = false;
+        holds.forEach(h => {
+          if (h.patientId === selectedPatient.id && h.holdStatus === 'held') {
+            (h as any).isPaid = true;
+            (h as any).paymentStatus = 'cleared';
+            holdsUpdated = true;
+          }
+        });
+        if (holdsUpdated) {
+          save('inventory_holds', holds);
+        }
+      }
+
+      // 7. Premium Club Eligibility Onboarding Check (Any clinic purchase activates loyalty)
       if (!selectedPatient.isPremiumMember || billingLedger.isQualifyingFirstPurchase) {
         PatientService.updatePatientPremiumStatus(selectedPatient.id, true);
         const rawDocName = activePod?.doctor_name || 'our doctor';
@@ -1175,7 +1251,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }));
       }
 
-      // 2. Dispatch Digital Invoice & Medication Advice directly to WhatsApp
+      // 8. Dispatch Digital Invoice & Medication Advice directly to WhatsApp
       const medListText = (billingLedger.medicinesList || [])
         .filter(m => selectedMedicines[(m?.name || '').toLowerCase()]?.selected)
         .map(m => {
@@ -1188,6 +1264,16 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       
       const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://app.vitalsync.in/invoices/${unifiedInvoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
       WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, invoiceMsg);
+
+      // 9. Dispatch state change event for instant 360-degree CDC update across consoles
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', {
+        detail: {
+          entity: 'billing',
+          patientId: selectedPatient.id,
+          invoiceId: unifiedInvoiceId,
+          paymentStatus: 'cleared'
+        }
+      }));
 
       setRefreshKey(prev => prev + 1);
 
@@ -2028,6 +2114,16 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                           <span>Pay via Paytm PG (0% MDR)</span>
                         </button>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={handleDispatchPrescriptionWhatsApp}
+                        disabled={isDispatchingRxWhatsApp}
+                        className="w-full py-2.5 px-3 text-center text-xs font-bold rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm border-0"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        <span>{isDispatchingRxWhatsApp ? 'Dispatching...' : '📲 Dispatch Rx & Dosage to Patient WhatsApp'}</span>
+                      </button>
                     </div>
 
                   </div>

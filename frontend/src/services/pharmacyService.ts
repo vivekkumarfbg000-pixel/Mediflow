@@ -718,6 +718,19 @@ export class PharmacyService {
     }
 
     let holds = load<InventoryHold[]>('inventory_holds', []);
+    const allPatients = PatientService.getPatients();
+    holds = holds.map(h => {
+      const matchP = allPatients.find(p => p.id === h.patientId || (p as any).patient_code === h.patientId);
+      if (matchP) {
+        return {
+          ...h,
+          patientName: (!h.patientName || h.patientName === 'Unknown Patient') ? matchP.name : h.patientName,
+          patientPhone: (h as any).patientPhone || matchP.phone || ''
+        };
+      }
+      return h;
+    });
+
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       holds = holds.filter(h => {

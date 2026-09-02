@@ -202,6 +202,7 @@ export interface LabRequisition {
   encounterId: string;
   patientId: string;
   patientName: string;
+  patientPhone?: string;
   testCode: string;
   testName: string;
   barcode: string;
@@ -212,6 +213,9 @@ export interface LabRequisition {
   revisitScheduledAt?: string;    // ISO datetime compounder scheduled revisit
   revisitNote?: string;           // Compounder's revisit instruction note
   podId?: string;                 // Multi-tenant pod isolation
+  pod_id?: string;
+  isPaid?: boolean;
+  paymentStatus?: string;
   createdAt: string;
 }
 
@@ -219,12 +223,18 @@ export interface InventoryHold {
   id: string;
   pharmacyId: string;
   patientId: string;
+  patientName?: string;
+  patientPhone?: string;
   medicineName: string;
   dosage: string;
   quantity: number;
-  holdStatus: 'held' | 'dispensed' | 'cancelled';
+  holdStatus: 'held' | 'dispensed' | 'cancelled' | 'out_of_stock';
   expiryDate: string;
   batchNumber: string;
+  podId?: string;
+  pod_id?: string;
+  isPaid?: boolean;
+  paymentStatus?: string;
   createdAt: string;
 }
 

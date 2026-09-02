@@ -180,8 +180,9 @@ export class EncounterService {
     // 1. Create local and Supabase lab requisitions for ordered diagnostic tests
     if ((newEncounter.diagnosticTests || []).length > 0) {
       const existingReqs = load<any[]>('lab_requisitions', []);
-      const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
+      const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId || (p as any).patient_code === newEncounter.patientId);
       const dbReqsToInsert: any[] = [];
+      const resolvedPatientName = patient?.name || newEncounter.patientName || 'Patient';
       
       for (const test of newEncounter.diagnosticTests) {
         const reqId = crypto.randomUUID();
@@ -190,11 +191,14 @@ export class EncounterService {
           id: reqId,
           encounterId: encounterId,
           patientId: newEncounter.patientId,
-          patientName: patient?.name || 'Unknown Patient',
+          patientName: resolvedPatientName,
+          patientPhone: patient?.phone || newEncounter.patientPhone || '',
           testCode: test.loincCode,
           testName: test.name,
           barcode: barcode,
           status: 'pending',
+          podId: ctx.podId,
+          pod_id: ctx.podId,
           reagentDeductions: [],
           createdAt: new Date().toISOString()
         };
@@ -224,6 +228,9 @@ export class EncounterService {
     if ((newEncounter.medications || []).length > 0) {
       const inventory = load<any[]>('pharmacy_inventory', []);
       const holds = load<any[]>('inventory_holds', []);
+      const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId || (p as any).patient_code === newEncounter.patientId);
+      const resolvedPatientName = patient?.name || newEncounter.patientName || 'Patient';
+      const resolvedPatientPhone = patient?.phone || newEncounter.patientPhone || '';
       
       for (const med of newEncounter.medications) {
         const item = inventory.find(i => (i.name || '').toLowerCase() === (med.medicineName || '').toLowerCase() || (i.genericName || '').toLowerCase() === (med.medicineName || '').toLowerCase());
@@ -237,19 +244,23 @@ export class EncounterService {
         const qty = Math.max(1, dosePerDay * durationDays);
         // BUG-11 FIX: Use actual batch from inventory; null if not found (no fake batch)
         const batch = item?.batchNumber || null;
-        const expiry = item?.expiryDate || null;
+        const expiry = item?.expiryDate || new Date(Date.now() + 180 * 86400000).toISOString().split('T')[0];
         
         const holdId = crypto.randomUUID();
         const newHold = {
           id: holdId,
           pharmacyId: ctx.pharmacyEntityId || null,
           patientId: newEncounter.patientId,
+          patientName: resolvedPatientName,
+          patientPhone: resolvedPatientPhone,
           medicineName: med.medicineName,
           dosage: med.dosage || '',
           quantity: qty,
           holdStatus: item ? 'held' : 'out_of_stock',
           expiryDate: expiry,
           batchNumber: batch,
+          podId: ctx.podId,
+          pod_id: ctx.podId,
           createdAt: new Date().toISOString()
         };
         holds.push(newHold);
@@ -315,6 +326,10 @@ export class EncounterService {
     };
     invoices.push(newInvoice);
     save('unified_invoices', invoices);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'encounter', encounterId } }));
+    }
 
     // Asynchronously resolve real IDs then insert to Supabase
     (async () => {

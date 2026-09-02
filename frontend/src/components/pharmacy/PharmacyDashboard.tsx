@@ -1159,12 +1159,89 @@ export const PharmacyDashboard: React.FC = () => {
                   const patients = api.getPatients();
                   const prescriptions = api.getPrescriptions();
                   const allInvoices = api.getUnifiedInvoices();
+                  const allEncounters = api.getEncounters();
 
-                  const pendingPharmaInvoices = allInvoices.filter(i => i.pharmacyFee > 0 && i.paymentStatus === 'pending');
-                  const paidPharmaInvoices = allInvoices.filter(i => i.pharmacyFee > 0 && i.paymentStatus === 'cleared');
+                  // Resilient helper to retrieve prescribed medicines from multiple sources
+                  const getMedicinesForInvoice = (invoice: any) => {
+                    const encId = invoice.encounterId;
+                    const pId = invoice.patientId;
+
+                    // 1. Match from saas_prescriptions / prescriptions
+                    const matchRx = prescriptions.find((p: any) =>
+                      (encId && (p.encounterId === encId || p.encounter_id === encId || p.id === encId || p.appointmentId === encId)) ||
+                      (pId && (p.patientId === pId || p.patient_id === pId))
+                    ) as any;
+                    if (matchRx?.extractedMedicines && matchRx.extractedMedicines.length > 0) {
+                      return matchRx.extractedMedicines;
+                    }
+                    if (matchRx?.medications && matchRx.medications.length > 0) {
+                      return matchRx.medications.map((m: any) => ({
+                        name: m.medicineName || m.name || 'Medicine',
+                        dosage: m.dosage || '1-0-1',
+                        frequency: m.frequency || 'twice daily',
+                        duration: m.duration || '5 Days',
+                        instructions: m.instructions || ''
+                      }));
+                    }
+
+                    // 2. Match from encounters
+                    const matchEnc = allEncounters.find(e =>
+                      (encId && e.id === encId) ||
+                      (pId && (e.patientId === pId || (e as any).patient_id === pId))
+                    );
+                    if (matchEnc?.medications && matchEnc.medications.length > 0) {
+                      return matchEnc.medications.map((m: any) => ({
+                        name: m.medicineName || m.name || 'Medicine',
+                        dosage: m.dosage || '1-0-1',
+                        frequency: m.frequency || 'twice daily',
+                        duration: m.duration || '5 Days',
+                        instructions: m.instructions || ''
+                      }));
+                    }
+
+                    // 3. Match from active inventory holds
+                    const matchHolds = holds.filter(h => h.patientId === pId);
+                    if (matchHolds.length > 0) {
+                      return matchHolds.map(h => ({
+                        name: h.medicineName,
+                        dosage: h.dosage || 'Prescribed',
+                        frequency: 'Twice daily',
+                        duration: '5 Days',
+                        instructions: ''
+                      }));
+                    }
+
+                    return [];
+                  };
+
+                  const pendingPharmaInvoices = allInvoices.filter(i => (i.pharmacyFee > 0 || (i as any).pharmacy_fee > 0) && (i.paymentStatus === 'pending' || (i as any).payment_status === 'pending' || (i as any).status === 'unpaid'));
+                  const paidPharmaInvoices = allInvoices.filter(i => (i.pharmacyFee > 0 || (i as any).pharmacy_fee > 0) && (i.paymentStatus === 'cleared' || (i as any).payment_status === 'cleared' || (i as any).status === 'paid'));
                   
+                  // Also synthesize active inventory holds that might not have an explicit invoice yet
+                  holds.filter(h => h.holdStatus === 'held').forEach(hold => {
+                    const alreadyInPending = pendingPharmaInvoices.some(i => i.patientId === hold.patientId);
+                    const alreadyInPaid = paidPharmaInvoices.some(i => i.patientId === hold.patientId);
+                    if (!alreadyInPending && !alreadyInPaid) {
+                      const matchPat = patients.find(p => p.id === hold.patientId);
+                      pendingPharmaInvoices.push({
+                        id: `hold-${hold.id}`,
+                        encounterId: `enc-${hold.id.slice(0, 8)}`,
+                        patientId: hold.patientId,
+                        patientName: (hold as any).patientName || matchPat?.name || 'Patient',
+                        patientPhone: (hold as any).patientPhone || matchPat?.phone || '',
+                        doctorFee: 0,
+                        labFee: 0,
+                        pharmacyFee: 150,
+                        platformFee: 0,
+                        totalAmount: 150,
+                        paymentStatus: 'pending',
+                        createdAt: hold.createdAt || new Date().toISOString()
+                      } as any);
+                    }
+                  });
+
                   const filteredPending = pendingPharmaInvoices.filter(invoice => {
-                    const patient = patients.find(p => p.id === invoice.patientId);
+                    const patient = patients.find(p => p.id === invoice.patientId) || { name: invoice.patientName, phone: invoice.patientPhone };
                     if (!patient) return false;
                     const query = verifySearch.toLowerCase().trim();
                     if (!query) return true;
@@ -1172,7 +1249,7 @@ export const PharmacyDashboard: React.FC = () => {
                   });
 
                   const filteredPaid = paidPharmaInvoices.filter(invoice => {
-                    const patient = patients.find(p => p.id === invoice.patientId);
+                    const patient = patients.find(p => p.id === invoice.patientId) || { name: invoice.patientName, phone: invoice.patientPhone };
                     if (!patient) return false;
                     const query = verifySearch.toLowerCase().trim();
                     if (!query) return true;
@@ -1185,15 +1262,15 @@ export const PharmacyDashboard: React.FC = () => {
                       <div>
                         <h3 className="text-xs font-black text-amber-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                          Pending e-Prescriptions (Awaiting Payment) ({filteredPending.length})
+                          Pending e-Prescriptions (Awaiting Counter Clearance) ({filteredPending.length})
                         </h3>
                         {filteredPending.length === 0 ? (
                           <ZeroQueueState queueType="prescriptions" className="mx-0" />
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPending.map(invoice => {
-                              const patient = patients.find(p => p.id === invoice.patientId);
-                              const prescription = prescriptions.find(p => p.appointmentId === invoice.encounterId);
+                              const patient = patients.find(p => p.id === invoice.patientId) || { name: invoice.patientName, phone: invoice.patientPhone };
+                              const medicines = getMedicinesForInvoice(invoice);
 
                               return (
                                 <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">
@@ -1210,16 +1287,16 @@ export const PharmacyDashboard: React.FC = () => {
                                     </div>
                                   </div>
 
-                                  {prescription && prescription.extractedMedicines && (
+                                  {medicines && medicines.length > 0 && (
                                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-1.5">
                                       <span className="block text-[8px] font-black text-amber-600 tracking-widest uppercase font-mono">
-                                        Prescribed Medicines
+                                        Prescribed Medicines ({medicines.length})
                                       </span>
                                       <div className="space-y-1">
-                                        {prescription.extractedMedicines.map((m, idx) => (
+                                        {medicines.map((m: any, idx: number) => (
                                           <div key={`presc-med-${idx}-${m.name}-${m.dosage}`} className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
                                             <span>💊 {m.name} ({m.dosage})</span>
-                                            <span className="text-[9px] bg-slate-200 px-1 rounded">{m.frequency}</span>
+                                            <span className="text-[9px] bg-slate-200 px-1 rounded">{m.frequency || '1-0-1'}</span>
                                           </div>
                                         ))}
                                       </div>
@@ -1322,8 +1399,9 @@ export const PharmacyDashboard: React.FC = () => {
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {filteredPaid.map(invoice => {
-                              const patient = patients.find(p => p.id === invoice.patientId);
-                              const prescription = prescriptions.find(p => p.appointmentId === invoice.encounterId);
+                              const patient = patients.find(p => p.id === invoice.patientId) || { name: invoice.patientName, phone: invoice.patientPhone };
+                              const prescription = prescriptions.find((p: any) => p.encounterId === invoice.encounterId || p.appointmentId === invoice.encounterId || p.id === invoice.encounterId) as any;
+                              const medicines = getMedicinesForInvoice(invoice);
 
                               return (
                                 <div key={invoice.id} className="p-5 bg-white border border-slate-200 rounded-xl space-y-4 relative overflow-hidden">
@@ -1340,13 +1418,13 @@ export const PharmacyDashboard: React.FC = () => {
                                     </div>
                                   </div>
 
-                                  {prescription && prescription.extractedMedicines && (
+                                  {medicines && medicines.length > 0 && (
                                     <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg space-y-2">
                                       <span className="block text-[8px] font-black text-teal-600 tracking-widest uppercase font-mono">
-                                        Approved Medicines to Dispense
+                                        Approved Medicines to Dispense ({medicines.length})
                                       </span>
                                       <div className="space-y-1.5">
-                                        {prescription.extractedMedicines.map((m, idx) => {
+                                        {medicines.map((m: any, idx: number) => {
                                           const isSpectacles = (m.name || '').startsWith('Spectacles (');
                                           if (isSpectacles) {
                                             // Parse refraction from dosage field!
@@ -1541,7 +1619,7 @@ export const PharmacyDashboard: React.FC = () => {
                                     <button
                                       onClick={() => {
                                         // Build and open printable dispense slip
-                                        const meds = prescription?.extractedMedicines || [];
+                                        const meds = getMedicinesForInvoice(invoice);
                                         const html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><title>Dispense Slip</title>
@@ -1582,7 +1660,7 @@ export const PharmacyDashboard: React.FC = () => {
   <div class="section-title">Dispensed Medicines</div>
   ${meds.length > 0 ? `
   <table><thead><tr><th>#</th><th>Medicine</th><th>Dosage</th><th>Frequency</th></tr></thead>
-  <tbody>${meds.map((m,i) => `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.dosage||'As directed'}</td><td>${m.frequency||'—'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#9ca3af;font-size:11px;">No medicine details on record.</p>'}
+  <tbody>${meds.map((m: any, i: number) => `<tr><td>${i+1}</td><td><b>${m.name}</b></td><td>${m.dosage||'As directed'}</td><td>${m.frequency||'—'}</td></tr>`).join('')}</tbody></table>` : '<p style="color:#9ca3af;font-size:11px;">No medicine details on record.</p>'}
   <div class="total">Total Paid: ₹${invoice.pharmacyFee}</div>
   <div class="footer">Medicines dispensed by verified compounder. Keep this slip for reference. | VitalSync Ecosystem &copy; ${new Date().getFullYear()}</div>
 </div><script>window.onload=function(){window.print()}<\/script></body></html>`;

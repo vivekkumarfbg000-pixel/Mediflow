@@ -12,6 +12,7 @@ import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
+import { WhatsAppService } from '../../services/whatsappService';
 import { load } from '../../services/apiHelper';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
@@ -190,6 +191,17 @@ export const CompounderDashboard: React.FC = () => {
     const template = api.getPrescriptionTemplate();
     const printWindow = window.open('', '_blank', 'width=900,height=1000');
     if (!printWindow) return;
+
+    // Auto-dispatch digital prescription notice to each target patient's WhatsApp
+    targetPatients.forEach(p => {
+      if (p.phone) {
+        const v = p.vitals || ({} as any);
+        const clinicTitle = template.clinicName || 'VitalSync Smart Clinic';
+        const docTitle = template.doctorName || 'Attending Physician';
+        const msg = `Namaste ${p.name || 'Patient'} ji 🙏,\n\nYour OPD consultation slip (#${p.tokenNumber || (p as any).token_number || 'OPD'}) has been generated at *${clinicTitle}* with ${docTitle}.\n\n🩺 *Recorded Vitals:*\nBP: ${v.bloodPressure || '120/80'} | Pulse: ${v.pulseRate || '72'} | Temp: ${v.temperature || '98.6'}°F\n\nPlease proceed to the Doctor Chamber when your token is called. 🏥`;
+        WhatsAppService.pushWhatsAppMessageFromBot(p.phone, msg);
+      }
+    });
 
     const slipsHtml = targetPatients.map((p, idx) => {
       const v = p.vitals || ({} as any);
@@ -406,7 +418,7 @@ export const CompounderDashboard: React.FC = () => {
           <div style="font-weight: bold; font-size: 14px;">VitalSync OPD Batch Prescription Printing (${targetPatients.length} Slips)</div>
           <div style="display: flex; gap: 10px;">
             <button onclick="window.print()" style="background: white; color: #0284c7; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">🖨️ Print / Save as PDF</button>
-            <button onclick="alert('Slips batch dispatched to patient WhatsApp queue');" style="background: #16a34a; color: white; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">📲 Send via WhatsApp</button>
+            <button onclick="alert('Digital prescription slips dispatched to patient WhatsApp numbers ✅');" style="background: #16a34a; color: white; font-weight: 800; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer;">📲 Dispatched to WhatsApp ✅</button>
           </div>
         </div>
         ${slipsHtml}

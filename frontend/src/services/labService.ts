@@ -244,6 +244,21 @@ export class LabService {
     }
 
     let reqs = load<LabRequisition[]>('lab_requisitions', []);
+    const allPatients = PatientService.getPatients();
+    
+    // Dynamically resolve patient names and phones if missing
+    reqs = reqs.map(r => {
+      const matchP = allPatients.find(p => p.id === r.patientId || (p as any).patient_code === r.patientId);
+      if (matchP) {
+        return {
+          ...r,
+          patientName: (!r.patientName || r.patientName === 'Unknown Patient') ? matchP.name : r.patientName,
+          patientPhone: r.patientPhone || matchP.phone || ''
+        };
+      }
+      return r;
+    });
+
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
@@ -251,7 +266,7 @@ export class LabService {
         DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103'
       ]);
-      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'auto test patient']);
       reqs = reqs.filter(r => {
         const pod = (r as any).podId || (r as any).pod_id;
         if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;

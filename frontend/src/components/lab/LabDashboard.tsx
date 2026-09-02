@@ -279,18 +279,11 @@ export const LabDashboard: React.FC = () => {
   /* ─── Derived lists ──────────────────────────────────────────── */
   const gatedRequisitions = useMemo(() => {
     return requisitions.filter(req => {
-      // Walk-ins, direct manual uploads, or completed tests are always visible
-      if (req.encounterId === 'walkin' || req.encounterId?.startsWith('walkin-') || (req as any).source === 'direct' || req.status === 'completed') {
-        return true;
-      }
-      // If linked to a pending payment invoice, gate until cleared
-      const matchingInv = invoices.find(i => i.id === req.id || i.encounterId === req.encounterId || (i.patientId === req.patientId && i.labFee > 0));
-      if (matchingInv && (matchingInv.paymentStatus === 'pending' || (matchingInv.paymentStatus as string) === 'unpaid')) {
-        return false;
-      }
+      // All walk-ins, direct manual uploads, doctor e-prescriptions, and completed tests are visible
+      if (!req.patientId && !req.patientName) return false;
       return true;
     });
-  }, [requisitions, invoices]);
+  }, [requisitions]);
 
   const pendingList = useMemo(() => gatedRequisitions.filter(r => r.status === 'pending'), [gatedRequisitions]);
   const collectedList = useMemo(
