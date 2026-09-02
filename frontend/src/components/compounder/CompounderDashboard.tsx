@@ -495,6 +495,7 @@ export const CompounderDashboard: React.FC = () => {
   const [instantPhone, setInstantPhone] = useState('');
   const [instantAge, setInstantAge] = useState('');
   const [instantGender, setInstantGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [instantPhoneError, setInstantPhoneError] = useState('');
   const [instantFeeStatus, setInstantFeeStatus] = useState<'paid_cash' | 'paid_upi'>('paid_upi');
   const [instantBpSys, setInstantBpSys] = useState('120');
   const [instantBpDia, setInstantBpDia] = useState('80');
@@ -1062,16 +1063,22 @@ export const CompounderDashboard: React.FC = () => {
 
     if (!pName) {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'Name Required', message: 'Please enter patient full name.', type: 'error' }
+        detail: { title: 'Name Required 👤', message: 'Please enter patient full name.', type: 'error' }
       }));
       return;
     }
     if (pPhone.length < 10) {
+      setInstantPhoneError(`10-digit mobile required (${pPhone.length}/10 entered)`);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'Valid Phone Required', message: 'Please enter a 10-digit mobile number.', type: 'error' }
+        detail: { 
+          title: '10-Digit Mobile Required 📱', 
+          message: `Entered ${pPhone.length} digits (${pPhone || 'empty'}). Please enter a valid 10-digit mobile number.`, 
+          type: 'error' 
+        }
       }));
       return;
     }
+    setInstantPhoneError('');
 
     setIsSubmittingInstant(true);
     try {
@@ -6480,18 +6487,50 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
 
                   <div className="sm:col-span-3">
-                    <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1">
-                      10-Digit Mobile *
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                        10-Digit Mobile *
+                      </label>
+                      <span className={`text-[9px] font-mono font-bold ${
+                        instantPhone.length === 10
+                          ? 'text-emerald-500'
+                          : instantPhone.length > 0
+                          ? 'text-amber-500'
+                          : 'text-slate-400'
+                      }`}>
+                        {instantPhone.length}/10 digits
+                      </span>
+                    </div>
                     <input 
                       type="tel"
                       required
                       maxLength={10}
                       value={instantPhone}
-                      onChange={(e) => setInstantPhone(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setInstantPhone(val);
+                        if (val.length === 10) {
+                          setInstantPhoneError('');
+                        } else if (val.length > 0 && val.length < 10) {
+                          setInstantPhoneError(`Requires 10 digits (${val.length}/10)`);
+                        } else {
+                          setInstantPhoneError('');
+                        }
+                      }}
                       placeholder="9876543210"
-                      className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-2xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 transition"
+                      className={`w-full bg-slate-50 dark:bg-slate-800/80 border rounded-2xl px-3.5 py-2.5 text-xs font-mono font-bold text-slate-800 dark:text-white outline-none transition ${
+                        instantPhoneError
+                          ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20'
+                          : instantPhone.length === 10
+                          ? 'border-emerald-500/80 ring-2 ring-emerald-500/10'
+                          : 'border-slate-200 dark:border-white/10 focus:border-indigo-500'
+                      }`}
                     />
+                    {instantPhoneError && (
+                      <span className="block text-[10px] text-rose-500 font-bold mt-1 animate-fade-in">
+                        ⚠️ {instantPhoneError}
+                      </span>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">

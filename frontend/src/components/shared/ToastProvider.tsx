@@ -185,6 +185,8 @@ function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
+import { createPortal } from 'react-dom';
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const lastToastTimeRef = useRef<number>(0);
@@ -266,6 +268,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
+      {toasts.length > 0 && typeof document !== 'undefined' && createPortal(
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[999999] pointer-events-auto flex flex-col items-center gap-2 max-w-[90vw] animate-slide-down">
+          {toasts.map(t => (
+            <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
+          ))}
+        </div>,
+        document.body
+      )}
     </ToastContext.Provider>
   );
 }
