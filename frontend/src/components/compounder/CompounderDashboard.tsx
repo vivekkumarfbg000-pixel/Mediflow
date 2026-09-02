@@ -915,7 +915,7 @@ export const CompounderDashboard: React.FC = () => {
             age: Number((a as any).patientAge || (a as any).age || 0) || 0,
             gender: (a as any).patientGender || (a as any).gender || 'Other',
             registeredAt: a.date || a.createdAt || new Date().toISOString(),
-            tokenNumber: a.tokenNumber || (a as any).token_number || existing?.tokenNumber || (existing as any)?.token_number || api.generateNextTokenNumber(),
+            tokenNumber: a.tokenNumber || (a as any).token_number || api.generateNextTokenNumber(),
             queueStatus: 'awaiting_vitals',
             source: a.source || 'whatsapp'
           } as any);

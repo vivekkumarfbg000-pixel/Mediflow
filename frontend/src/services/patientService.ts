@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
-import { getIstDateString } from '../utils/dateUtils';
+import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { Patient, PatientVitals } from '../types';
 

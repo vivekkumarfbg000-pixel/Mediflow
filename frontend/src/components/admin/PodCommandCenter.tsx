@@ -211,7 +211,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
     return {
       total: todayPatients.length,
-      awaitingConsultation: todayPatients.filter(p => (p.queueStatus === 'awaiting_consultation' || !p.queueStatus) && !isPatientCompleted(p) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment').length,
+      awaitingConsultation: todayPatients.filter(p => (p.queueStatus === 'awaiting_consultation' || !p.queueStatus) && !isPatientCompleted(p)).length,
       inConsultation: todayPatients.filter(p => p.queueStatus === 'in_consultation' && !isPatientCompleted(p)).length,
       completed: todayPatients.filter(isPatientCompleted).length,
     };
