@@ -425,14 +425,30 @@ export class PatientService {
 
     const tokenNums: number[] = [];
 
-    // Helper to extract clean token integer (handling T-01, TK-01, #TK-001, 1, etc.)
+    // Helper to extract clean token integer (strictly handling T-01, TK-01, #01, 1..99)
     const extractTokenNum = (tokenStr?: string | number): number | null => {
       if (!tokenStr) return null;
       const str = String(tokenStr).trim();
-      const match = str.match(/T-?(\d+)/i) || str.match(/TK-?(\d+)/i) || str.match(/^#?(\d+)$/);
+      // Guard against IDs, ISO timestamps, or UUIDs
+      if (
+        str.startsWith('apt-') ||
+        str.startsWith('pat-') ||
+        str.startsWith('PID-') ||
+        str.startsWith('inv-') ||
+        str.startsWith('fc-') ||
+        str.includes(':') ||
+        str.includes('Z') ||
+        str.includes('-202') ||
+        str.length > 10
+      ) {
+        return null;
+      }
+      // Strict regex matching: T-01, TK-01, #01, #TK-1, 1..99
+      const match = str.match(/^(?:#?\s*)?(?:TK|T)[\s-]*0*([1-9]\d{0,2})(?:\s*[A-Z])?$/i) || str.match(/^#?0*([1-9]\d{0,2})$/);
       if (match) {
         const val = parseInt(match[1], 10);
-        if (val > 0 && !isNaN(val)) return val;
+        // Only accept realistic daily clinic OPD token numbers (1 to 99)
+        if (val >= 1 && val <= 99 && !isNaN(val)) return val;
       }
       return null;
     };
@@ -460,8 +476,9 @@ export class PatientService {
       if (num != null) tokenNums.push(num);
     });
 
-    const maxVal = tokenNums.length > 0 ? Math.max(...tokenNums, apptsForDate.length) : apptsForDate.length;
-    const nextVal = Math.max(1, maxVal + 1);
+    const validNums = tokenNums.filter(n => n >= 1 && n <= 99);
+    const maxVal = validNums.length > 0 ? Math.max(...validNums) : apptsForDate.length;
+    const nextVal = Math.min(99, Math.max(1, maxVal + 1));
     const baseToken = `T-${nextVal.toString().padStart(2, '0')}`;
     return isSos ? `${baseToken} E` : baseToken;
   }
