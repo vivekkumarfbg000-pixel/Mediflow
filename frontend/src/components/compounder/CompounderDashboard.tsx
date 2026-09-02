@@ -7,6 +7,7 @@ import { useSpecialization } from '../../context/SpecializationContext';
 import { useClinic } from '../../context/ClinicContext';
 import { VISUAL_ACUITY_OPTIONS } from '../../types/ophthalmic';
 import { EncounterService } from '../../services/encounterService';
+import { PatientService } from '../../services/patientService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
@@ -878,8 +879,25 @@ export const CompounderDashboard: React.FC = () => {
       }
     });
 
-    return Array.from(seenPatients.values());
-  }, [appointments, dataRevision]);
+    const seenTokens = new Set<string>();
+    const resolvedList = Array.from(seenPatients.values()).map((appt, idx) => {
+      let rawToken = appt.tokenNumber || (appt as any).token_number;
+      const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
+      if (!rawToken || seenTokens.has(rawToken)) {
+        rawToken = (p?.tokenNumber && !seenTokens.has(p.tokenNumber)) ? p.tokenNumber : `T-${String(idx + 1).padStart(2, '0')}`;
+      }
+      seenTokens.add(rawToken);
+      return {
+        ...appt,
+        patientName: appt.patientName || (appt as any).patient_name || p?.name || 'Walk-In Patient',
+        patientPhone: appt.patientPhone || (appt as any).patient_phone || p?.phone || '',
+        tokenNumber: rawToken,
+        token_number: rawToken
+      };
+    });
+
+    return resolvedList;
+  }, [appointments, patients, dataRevision]);
 
   const inChamberAppointment = useMemo(() => {
     return appointments.find(a => a.status === 'in_consult');
@@ -1113,11 +1131,20 @@ export const CompounderDashboard: React.FC = () => {
         recordedAt: new Date().toISOString()
       };
 
-      // 1. Update Patient with Vitals and Token
+      // 1. Update Patient with Vitals and Token in registry
       targetPatient.vitals = vitals;
       targetPatient.queueStatus = 'awaiting_consultation';
       targetPatient.tokenNumber = String(assignedToken);
-      api.savePatients([...patients]);
+      
+      const allRegisteredPatients = PatientService.getPatients();
+      const existingPatIdx = allRegisteredPatients.findIndex(p => p.id === targetPatient.id);
+      if (existingPatIdx >= 0) {
+        allRegisteredPatients[existingPatIdx] = targetPatient;
+      } else {
+        allRegisteredPatients.push(targetPatient);
+      }
+      PatientService.savePatients(allRegisteredPatients);
+      setPatients(allRegisteredPatients);
 
       // 2. Create Gate 1 Consultation Invoice and clear payment
       const inv = BillingService.createGate1Consult(targetPatient.id);
@@ -1136,6 +1163,8 @@ export const CompounderDashboard: React.FC = () => {
         existingAppt.status = 'ready_for_consult';
         existingAppt.tokenNumber = String(assignedToken);
         (existingAppt as any).token_number = String(assignedToken);
+        existingAppt.patientName = targetPatient.name;
+        existingAppt.patientPhone = targetPatient.phone;
         BillingService.saveAppointments([...appointments]);
       } else {
         const newAppt: Appointment = {
@@ -1167,7 +1196,7 @@ export const CompounderDashboard: React.FC = () => {
         } catch (_err) { /* ignore */ }
       })();
 
-      // 5. Toast & Voice announcement
+      // 5. Toast notification (No automatic speech audio on registration)
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: `Token #${assignedToken} Confirmed! 🩺`,
@@ -1176,7 +1205,6 @@ export const CompounderDashboard: React.FC = () => {
         }
       }));
 
-      handleCallPatientChamber(targetPatient.name, String(assignedToken));
       setLastIssuedInstantToken({ token: String(assignedToken), name: targetPatient.name });
 
       // Reset form for next continuous booking
@@ -1192,7 +1220,7 @@ export const CompounderDashboard: React.FC = () => {
       setInstantTemp('98.6');
       setInstantSugar('');
       setDataRevision(prev => prev + 1);
-      setPatients(api.getPatients());
+      fetchLiveAppointments();
       fetchLiveAppointments();
     } catch (err) {
       console.error('[InstantBooking] Error:', err);
