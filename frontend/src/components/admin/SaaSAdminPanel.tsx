@@ -1077,7 +1077,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       return;
     }
     const phone = pod.phone;
-    const tutorialMsg = `🎓 *VITALSYNC CLINIC MASTERCLASS & TRAINING* 📽️\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'}!\n\nWelcome to VitalSync Connected Care Network! To help your staff master 1-Tap Prescriptions, Pharmacy Sync, and WhatsApp Patient Booking in under 5 minutes, watch our quick video guide:\n\n▶️ *Interactive Video Guide*: https://mediflow.in/tutorials/doctor-onboarding\n\nOur 24/7 AI Sentry is always active to assist you!`;
+    const tutorialMsg = `🎓 *VITALSYNC CLINIC MASTERCLASS & TRAINING* 📽️\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'}!\n\nWelcome to VitalSync Connected Care Network! To help your staff master 1-Tap Prescriptions, Pharmacy Sync, and WhatsApp Patient Booking in under 5 minutes, watch our quick video guide:\n\n▶️ *Interactive Video Guide*: https://vitalsync.in/tutorials/doctor-onboarding\n\nOur 24/7 AI Sentry is always active to assist you!`;
 
     try {
       api.pushWhatsAppMessageFromBot(phone, tutorialMsg);

@@ -40,7 +40,7 @@ export const WhatsAppTestDispatcherModal: React.FC<Props> = ({
     try {
       let bodyText = '';
       if (testType === 'rx_pdf') {
-        bodyText = `📄 *LIVE TEST PRESCRIPTION DISPATCH*\n\nClinic: ${clinicName}\nDoctor: ${doctorName}\nPatient: Test Patient\n\nPrescribed: Tab Paracetamol 500mg (1-0-1), Tab Amoxicillin 500mg (1-0-1)\n\n🔗 *Download PDF Prescription*: https://mediflow.in/rx/test-pdf-101`;
+        bodyText = `📄 *LIVE TEST PRESCRIPTION DISPATCH*\n\nClinic: ${clinicName}\nDoctor: ${doctorName}\nPatient: Test Patient\n\nPrescribed: Tab Paracetamol 500mg (1-0-1), Tab Amoxicillin 500mg (1-0-1)\n\n🔗 *Download PDF Prescription*: https://app.vitalsync.in/rx/test-pdf-101`;
       } else if (testType === 'token') {
         bodyText = `🎫 *LIVE TEST TOKEN QUEUE CONFIRMATION*\n\nClinic: ${clinicName}\nToken Number: *MF-1088*\nQueue Position: #2 (Est. Wait: 10 mins)\n\nStatus: Verified`;
       } else {
