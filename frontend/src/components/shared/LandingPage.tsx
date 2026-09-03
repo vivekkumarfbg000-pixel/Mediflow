@@ -4,7 +4,7 @@ import { AppInstallBanner } from './AppInstallBanner';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
   X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye, MessageSquare,
-  Stethoscope, Pill, Printer, Smartphone, Send, Check
+  Stethoscope, Pill, Printer, Smartphone, Send, Check, ChevronDown, HelpCircle, Database
 } from 'lucide-react';
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
@@ -118,7 +118,7 @@ const InteractivePlexus3D: React.FC = () => {
         ctx.fillStyle = `rgba(79, 70, 229, ${p.alpha * (scale * 0.4)})`;
         ctx.fill();
 
-        // Connect nodes forming visual mesh network
+        // Connect particles within proximity (Inverted line color: slate-300 / indigo-200)
         for (let j = idx + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const scale2 = 200 / p2.z;
@@ -129,13 +129,12 @@ const InteractivePlexus3D: React.FC = () => {
           const dy = projY - projY2;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 130) {
-            const alpha = ((130 - dist) / 130) * 0.15 * Math.min(scale, scale2);
+          if (dist < 100) {
             ctx.beginPath();
             ctx.moveTo(projX, projY);
             ctx.lineTo(projX2, projY2);
-            ctx.strokeStyle = `rgba(99, 102, 241, ${alpha})`;
-            ctx.lineWidth = 0.6 * Math.min(scale, scale2);
+            ctx.strokeStyle = `rgba(148, 163, 184, ${(1 - dist / 100) * 0.25})`;
+            ctx.lineWidth = 0.75;
             ctx.stroke();
           }
         }
@@ -178,6 +177,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
   const [showBenefitsTour, setShowBenefitsTour] = useState(false);
   const [tourSlide, setTourSlide] = useState(0);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [calcPatients, setCalcPatients] = useState(25);
   const [calcFee, setCalcFee] = useState(500);
   const [calcLabFee, setCalcLabFee] = useState(800);
@@ -514,6 +514,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div>
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Zero App Download — 100% Native WhatsApp</p>
                 <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Patients never download complex apps. Everything runs on 1-Tap native WhatsApp buttons for tokens, digital prescriptions, lab PDF downloads, and 1-click medicine refill orders.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-350 shadow-sm transition-all duration-300">
+              <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-xl shrink-0">
+                <Database className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">All-in-One Standalone EMR (Zero Double-Entry)</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">VitalSync is your complete, ABDM-compliant Cloud EMR (Doctor EMR, CDSS AI Scribe, OPD Queue, Pharmacy POS). Zero separate EMR software and zero manual copy-pasting needed.</p>
               </div>
             </div>
           </div>
@@ -980,6 +990,225 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
+      {/* Comprehensive EMR Architecture Comparison Section */}
+      <section id="emr-comparison" className="py-20 relative z-10 bg-white border-t border-slate-200">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="mb-12 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
+              <Database className="h-3.5 w-3.5 text-indigo-600" />
+              Architecture Comparison
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+              VitalSync vs. Legacy EMRs vs. Standalone Bots
+            </h2>
+            <p className="text-slate-650 text-sm font-semibold max-w-3xl mx-auto leading-relaxed">
+              Why independent clinics are upgrading to VitalSync: a complete, standalone Cloud EMR with native sub-250ms WhatsApp synchronization — eliminating double-entry, manual copy-pasting, and expensive software subscription fees.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-3xl border border-slate-200 shadow-xl bg-white">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="p-5 font-black text-slate-700 uppercase tracking-wider text-[11px] w-[28%]">Architecture Dimension</th>
+                  <th className="p-5 font-black text-teal-800 uppercase tracking-wider text-[11px] bg-teal-50/70 border-x border-teal-200/80 w-[30%]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      VitalSync (All-in-One EMR)
+                    </div>
+                  </th>
+                  <th className="p-5 font-bold text-slate-500 uppercase tracking-wider text-[11px] w-[21%]">Legacy Closed EMRs</th>
+                  <th className="p-5 font-bold text-slate-500 uppercase tracking-wider text-[11px] w-[21%]">Standalone WhatsApp Bots</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {/* Row 1 */}
+                <tr className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">
+                    <div>Doctor EMR Workspace</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">Clinical consultation console, AI scribe &amp; Rx</div>
+                  </td>
+                  <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Native Doctor EMR:</strong> CDSS AI Scribe, Refraction Matrix, Digital Prescriptions, and ABHA ID integration.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">⚠️</span>
+                      <span>Basic EMR, rigid interface, zero AI clinical scribe.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span><strong>None:</strong> Only basic marketing chat; no clinical EMR workspace.</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 2 */}
+                <tr className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">
+                    <div>Data Entry &amp; Double-Handling</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">Sync speed between patient chat and doctor screen</div>
+                  </td>
+                  <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Zero Double-Entry:</strong> Live sub-250ms PostgreSQL CDC synchronizes patient bookings &amp; charts straight to Doctor Console.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">⚠️</span>
+                      <span>Manual OPD counter re-entry required for walk-in and online patients.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span><strong>High Friction:</strong> Staff must manual copy-paste chat summaries into a separate system.</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 3 */}
+                <tr className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">
+                    <div>ABDM &amp; ABHA ID Compliance</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">Ayushman Bharat Digital Mission readiness</div>
+                  </td>
+                  <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Native ABDM Architecture:</strong> ABHA creation, verification, and M1/M2/M3 consent-driven data layers built-in.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">⚠️</span>
+                      <span>Varying; often requires paid enterprise modules.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span><strong>Non-Compliant:</strong> Standard chat bots cannot handle ABDM health data consent.</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 4 */}
+                <tr className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">
+                    <div>Compounder &amp; OPD Token Desk</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">Queue coordination, vitals logging, SOS routing</div>
+                  </td>
+                  <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Dedicated OPD Console:</strong> Live token generation (#TK-001), vitals charting (BP/Sugar/SpO2/BMI), eye dilation timer.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">⚠️</span>
+                      <span>Basic static token list with no automated patient WhatsApp alert notifications.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span><strong>None:</strong> No staff queue or clinical vitals recording tools.</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 5 */}
+                <tr className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">
+                    <div>Pharmacy POS &amp; Day-25 Refills</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">FEFO inventory, split settlements, refill loops</div>
+                  </td>
+                  <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Integrated Care Loop:</strong> FEFO batch POS, 1-Click home delivery, Day-25 chronic refill reminders, and automated doctor split.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span>Prescriptions walk away to unlinked chemists; zero refill automation.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span><strong>None:</strong> No inventory management or fulfillment integration.</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 6 */}
+                <tr className="hover:bg-slate-50/50 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">
+                    <div>Pathology Lab LIS &amp; WhatsApp PDF</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">LOINC test ordering, barcode tracking, auto-dispatch</div>
+                  </td>
+                  <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>Direct LIS Hub:</strong> Barcode sample verification, LOINC requisitions, and automated PDF dispatch directly to patient WhatsApp.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">⚠️</span>
+                      <span>Requires expensive standalone lab LIS software with manual reporting.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span><strong>None:</strong> No diagnostic requisition or lab workflow capabilities.</span>
+                    </div>
+                  </td>
+                </tr>
+
+                {/* Row 7 */}
+                <tr className="hover:bg-slate-50/50 transition-colors bg-teal-50/20">
+                  <td className="p-5 font-bold text-slate-900">
+                    <div>Doctor Adoption &amp; Pricing Model</div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">Software license fees &amp; consultation revenue</div>
+                  </td>
+                  <td className="p-5 bg-teal-100/50 border-x border-teal-300 font-extrabold text-teal-950">
+                    <div className="flex items-start gap-2">
+                      <Award className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <span><strong>₹0 Setup / ₹0 SaaS Fees:</strong> 100% of patient consultation fees go directly to doctor with 0% platform deductions (Rule 58).</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600 font-medium">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span>₹1,500 – ₹5,000 / month / doctor recurring SaaS subscription charges.</span>
+                    </div>
+                  </td>
+                  <td className="p-5 text-slate-600 font-medium">
+                    <div className="flex items-start gap-1.5">
+                      <span className="text-rose-600 font-bold">❌</span>
+                      <span>₹2,500+ / month base platform charge + per-conversation meta fees.</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       {/* Onboarding Steps Section */}
       <section id="onboarding" className="py-20 relative z-10 bg-[#F8F9FA] border-t border-slate-200/60">
         <div className="max-w-6xl mx-auto px-6">
@@ -1159,6 +1388,152 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Frequently Asked Questions (FAQ) & ABDM Architecture Section */}
+      <section id="faq" className="py-20 relative z-10 bg-slate-50/70 border-t border-slate-200">
+        <div id="emr-architecture" className="max-w-4xl mx-auto px-6">
+          <div className="mb-12 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
+              <HelpCircle className="h-3.5 w-3.5 text-teal-600" />
+              Clinical &amp; Architecture FAQ
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-slate-650 text-sm font-semibold max-w-2xl mx-auto">
+              Everything doctors and clinic administrators need to know about VitalSync's standalone EMR capabilities, WhatsApp data sync, ABDM compliance, and security.
+            </p>
+          </div>
+
+          <div className="space-y-4 text-left">
+            {[
+              {
+                id: 0,
+                question: "Do I need a separate or standalone EMR software (like Practo, HealthPlix, or MocDoc) to use VitalSync?",
+                badge: "EMR Architecture",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">No, absolutely not.</strong> VitalSync is a complete, standalone Electronic Medical Record (EMR) system. It natively provides the full <strong>Doctor EMR Console</strong> (with CDSS AI Scribe, Ophthalmic Refraction Grid, and 1-Click Digital Prescriptions), <strong>Compounder OPD Desk</strong>, <strong>Pharmacy POS</strong>, and <strong>Pathology Lab LIS</strong>.
+                    </p>
+                    <p>
+                      Clinics do not need to buy, maintain, or pay subscriptions for any third-party EMR software. VitalSync is your entire clinical operating system.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 1,
+                question: "Do doctors or clinic staff have to manually copy-paste or parallel-enter data between WhatsApp and the EMR?",
+                badge: "Zero Double-Entry",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">Zero manual entry or copy-pasting is required.</strong> WhatsApp functions purely as the friction-free patient interface (for booking, receiving prescriptions, and ordering refills).
+                    </p>
+                    <p>
+                      All interactions sync directly with our high-speed PostgreSQL database via real-time Change Data Capture (CDC) at <strong>sub-250ms latency</strong>. When a patient books an appointment or a doctor issues a digital prescription, tokens and clinical records are automatically populated inside the Doctor EMR, Compounder Desk, and Pharmacy POS in real time.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 2,
+                question: "How does VitalSync comply with the Ayushman Bharat Digital Mission (ABDM) and ABHA IDs?",
+                badge: "ABDM & ABHA Compliant",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">VitalSync is built from the ground up for ABDM compliance.</strong> It features native ABHA ID creation, verification, and Milestone 1, 2, and 3 consent-driven healthcare data exchange.
+                    </p>
+                    <p>
+                      Patient consent is cryptographically verified before any longitudinal record access is authorized, strictly meeting all National Health Authority (NHA) and ABDM standards.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 3,
+                question: "Who owns the clinical patient records, and how is medical data privacy protected?",
+                badge: "DPDP Act & HIPAA",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">You and your clinic retain 100% ownership of your patient records.</strong> In strict compliance with India's <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and HIPAA privacy guidelines, data is partitioned per clinic pod using PostgreSQL Row-Level Security (RLS).
+                    </p>
+                    <p>
+                      All payloads are encrypted in transit using <strong>TLS 1.3</strong> and at rest using <strong>AES-256</strong>. VitalSync never aggregates, sells, or monetizes patient data.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 4,
+                question: "How is VitalSync fundamentally different from generic third-party WhatsApp chatbot plugins?",
+                badge: "Full Ecosystem",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      Third-party WhatsApp bots (like WATI or Interakt) are generic marketing tools that require complex custom API coding or manual copy-pasting into disconnected EMRs.
+                    </p>
+                    <p>
+                      <strong>VitalSync is a unified clinical ecosystem:</strong> the Doctor EMR, Compounder OPD Desk, Pharmacy POS, Pathology Lab LIS, and WhatsApp interact seamlessly on a single shared database with zero integration hassle and zero custom developer fees.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 5,
+                question: "What is the pricing model for doctors adopting VitalSync?",
+                badge: "Rule 58 Immunity",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">VitalSync is 100% free for doctors to adopt.</strong> There are zero software subscription fees, zero onboarding charges, and 0% commission on direct counter doctor consultations (<strong>Doctor Consultation Fee Immunity — Rule 58</strong>).
+                    </p>
+                    <p>
+                      Doctors earn an additional 25%–35% recurring revenue from connected pharmacy and diagnostic lab care coordination splits.
+                    </p>
+                  </div>
+                )
+              }
+            ].map((faq) => {
+              const isOpen = expandedFaq === faq.id;
+              return (
+                <div
+                  key={faq.id}
+                  className={`rounded-2xl border transition-all duration-300 overflow-hidden bg-white ${
+                    isOpen ? 'border-teal-400/80 shadow-md ring-1 ring-teal-400/20' : 'border-slate-200 hover:border-slate-300 shadow-sm'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFaq(isOpen ? null : faq.id)}
+                    className="w-full p-5 text-left flex items-center justify-between gap-4 cursor-pointer focus:outline-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full shrink-0">
+                        {faq.badge}
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">{faq.question}</span>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 text-slate-400 transition-transform duration-300 shrink-0 ${
+                        isOpen ? 'rotate-180 text-teal-600' : ''
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1 border-t border-slate-100 bg-slate-50/40 animate-fade-in">
+                      {faq.answer}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -1506,18 +1881,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="my-auto py-6 space-y-5">
                             {tourSlide === 0 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Friction-Free Administrative Pipelines</h3>
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">All-in-One Cloud EMR (Zero Double-Entry)</h3>
                     <p className="text-xs text-slate-650 leading-relaxed">
-                      Clinical operations require high-precision collaboration across node boundaries. VitalSync eliminates manual handoffs by establishing automated data pipelines between your console, pharmacy POS terminals, and pathology labs.
+                      VitalSync is your full-featured clinical operating system. It natively replaces standalone EMRs by providing a real-time Doctor Console, CDSS AI Scribe, Refraction Matrix, Compounder OPD Desk, Pharmacy POS, and Pathology LIS.
                     </p>
                     <div className="grid grid-cols-2 gap-3 pt-2">
                       <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl">
-                        <span className="text-xs font-bold text-indigo-700 block">Automated Data Streams</span>
-                        <span className="text-[10px] text-slate-500 mt-1 block">Secure, synchronized transmission of prescriptions, lab reports, and billing data.</span>
+                        <span className="text-xs font-bold text-indigo-700 block">Sub-250ms Realtime Sync</span>
+                        <span className="text-[10px] text-slate-500 mt-1 block">Patient WhatsApp bookings, prescriptions, and lab orders synchronize instantly across all terminals with zero manual cut-paste.</span>
                       </div>
-                      <div className="p-3.5 bg-cyan-50/50 border border-cyan-100 rounded-2xl">
-                        <span className="text-xs font-bold text-cyan-700 block">Delegated Console Control</span>
-                        <span className="text-[10px] text-slate-500 mt-1 block">Granular user roles allow clinical staff to manage queue state and data entry under supervisor auditing.</span>
+                      <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                        <span className="text-xs font-bold text-emerald-700 block">Native ABDM Architecture</span>
+                        <span className="text-[10px] text-slate-500 mt-1 block">ABHA ID generation, verification, and M1/M2/M3 consent-driven healthcare data exchange built-in.</span>
                       </div>
                     </div>
                   </div>

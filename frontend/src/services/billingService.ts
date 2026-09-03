@@ -5,7 +5,7 @@ import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
-import { getIstDateString } from '../utils/dateUtils';
+import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
@@ -60,8 +60,46 @@ export class BillingService {
   }
 
   static saveAppointments(appointments: Appointment[]): void {
+    const currentPodId = getPodContext().podId;
     save('saas_appointments', appointments);
     notify();
+    writeAuditLog('APPOINTMENT_BULK_SAVED', { count: appointments.length }, null);
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist bulk appointment mutation to Supabase
+    (async () => {
+      try {
+        const nowISO = new Date().toISOString();
+        const dbAppts: any[] = [];
+        for (const appt of appointments) {
+          const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
+          const pId = appt.patientId || (appt as any).patient_id;
+          if (!pId) continue;
+          dbAppts.push({
+            id: appt.id,
+            patient_id: pId,
+            doctor_id: appt.doctorId || (appt as any).doctor_id || null,
+            status: appt.status || 'scheduled',
+            token_number: String(appt.tokenNumber || (appt as any).token_number || ''),
+            patient_name: appt.patientName || (appt as any).patient_name || null,
+            patient_phone: appt.patientPhone || (appt as any).patient_phone || null,
+            is_virtual: Boolean(appt.isVirtual || (appt as any).is_virtual),
+            virtual_date: (appt as any).virtualDate || (appt as any).virtual_date || apptDate,
+            virtual_time: (appt as any).virtualTime || (appt as any).virtual_time || '10:00 AM',
+            virtual_meeting_url: (appt as any).virtualMeetingUrl || (appt as any).virtual_meeting_url || null,
+            source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
+            appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
+            created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
+            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || FALLBACK_POD_ID
+          });
+        }
+
+        if (dbAppts.length > 0) {
+          await supabase.from('appointments').upsert(dbAppts, { onConflict: 'id' });
+        }
+      } catch (err) {
+        console.warn('[BillingService] Bulk remote appointment dual-write notice:', err);
+      }
+    })();
   }
 
   static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): void {
@@ -71,6 +109,7 @@ export class BillingService {
       invoices[idx].paymentStatus = 'cleared';
       invoices[idx].paymentMethod = paymentMethod;
       save('unified_invoices', invoices);
+      writeAuditLog('INVOICE_PAYMENT_CLEARED', { invoiceId, paymentMethod, amount: invoices[idx].totalAmount }, invoices[idx].patientId);
     } else {
       const saasInvoices = this.getInvoices();
       const saasIdx = saasInvoices.findIndex(i => i.id === invoiceId);
@@ -395,6 +434,43 @@ export class BillingService {
     else appts.push(appt);
     save('saas_appointments', appts);
     notify();
+    writeAuditLog('APPOINTMENT_SAVED', {
+      appointmentId: appt.id,
+      status: appt.status,
+      tokenNumber: appt.tokenNumber,
+      isVirtual: Boolean(appt.isVirtual || (appt as any).is_virtual)
+    }, appt.patientId || (appt as any).patient_id);
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist appointment mutation to Supabase
+    (async () => {
+      try {
+        const podId = (appt as any).podId || (appt as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const nowISO = new Date().toISOString();
+        const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
+        const pId = appt.patientId || (appt as any).patient_id;
+        if (pId) {
+          await supabase.from('appointments').upsert({
+            id: appt.id,
+            patient_id: pId,
+            doctor_id: appt.doctorId || (appt as any).doctor_id || null,
+            status: appt.status || 'scheduled',
+            token_number: String(appt.tokenNumber || (appt as any).token_number || ''),
+            patient_name: appt.patientName || (appt as any).patient_name || null,
+            patient_phone: appt.patientPhone || (appt as any).patient_phone || null,
+            is_virtual: Boolean(appt.isVirtual || (appt as any).is_virtual),
+            virtual_date: (appt as any).virtualDate || (appt as any).virtual_date || apptDate,
+            virtual_time: (appt as any).virtualTime || (appt as any).virtual_time || '10:00 AM',
+            virtual_meeting_url: (appt as any).virtualMeetingUrl || (appt as any).virtual_meeting_url || null,
+            source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
+            appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
+            created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
+            pod_id: podId
+          }, { onConflict: 'id' });
+        }
+      } catch (dbErr) {
+        console.warn('[BillingService] Remote appointment dual-write notice:', dbErr);
+      }
+    })();
   }
 
   static getPatients(): Patient[] {
@@ -457,6 +533,53 @@ export class BillingService {
     else invoices.push(invoice);
     save('saas_invoices', invoices);
     notify();
+    writeAuditLog('INVOICE_SAVED', {
+      invoiceId: invoice.id,
+      amount: invoice.amount,
+      type: invoice.type
+    }, (invoice as any).patientId || (invoice as any).patient_id);
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist invoice mutation to Supabase
+    (async () => {
+      try {
+        const podId = (invoice as any).podId || (invoice as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const nowISO = new Date().toISOString();
+        const pId = (invoice as any).patientId || (invoice as any).patient_id || '';
+        const apptId = (invoice as any).appointmentId || (invoice as any).appointment_id || null;
+        let encId = (invoice as any).encounterId || (invoice as any).encounter_id || null;
+
+        if (!encId && apptId) {
+          const { data: existingEnc } = await supabase
+            .from('encounters')
+            .select('id')
+            .eq('appointment_id', apptId)
+            .maybeSingle();
+          if (existingEnc?.id) {
+            encId = existingEnc.id;
+          }
+        }
+
+        const invPayload: any = {
+          id: invoice.id,
+          patient_id: pId,
+          doctor_fee: invoice.type === 'consult' ? invoice.amount : 0,
+          lab_fee: invoice.type === 'lab' ? invoice.amount : 0,
+          pharmacy_fee: invoice.type === 'pharmacy' ? invoice.amount : 0,
+          platform_fee: (invoice as any).platformFee || (invoice as any).platform_fee || 0,
+          total_amount: invoice.amount || 0,
+          payment_status: invoice.status === 'paid' ? 'cleared' : 'pending',
+          payment_method: invoice.paymentMethod || 'upi',
+          created_at: (invoice as any).createdAt || (invoice as any).created_at || nowISO,
+          pod_id: podId
+        };
+        if (apptId) invPayload.appointment_id = apptId;
+        if (encId) invPayload.encounter_id = encId;
+
+        await supabase.from('unified_invoices').upsert(invPayload, { onConflict: 'id' });
+      } catch (dbErr) {
+        console.warn('[BillingService] Remote invoice dual-write notice:', dbErr);
+      }
+    })();
   }
 
   static getPrescriptions(): Prescription[] {
@@ -474,6 +597,29 @@ export class BillingService {
     else prescriptions.push(rx);
     save('saas_prescriptions', prescriptions);
     notify();
+    writeAuditLog('PRESCRIPTION_SAVED', {
+      prescriptionId: rx.id,
+      medicinesCount: ((rx as any).medications || []).length
+    }, (rx as any).patientId || (rx as any).patient_id);
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist prescription mutation to Supabase
+    (async () => {
+      try {
+        const podId = (rx as any).podId || (rx as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        await supabase.from('saas_prescriptions').upsert({
+          id: rx.id,
+          encounter_id: (rx as any).encounterId || (rx as any).encounter_id || rx.id,
+          patient_id: (rx as any).patientId || (rx as any).patient_id || '',
+          doctor_id: (rx as any).doctorId || (rx as any).doctor_id || null,
+          extracted_medicines: (rx as any).extractedMedicines || (rx as any).extracted_medicines || (rx as any).medications || [],
+          extracted_tests: (rx as any).extractedTests || (rx as any).extracted_tests || ((rx as any).diagnosticTests || []).map((t: any) => t?.loincCode || t?.name || t),
+          status: (rx as any).status || 'active',
+          pod_id: podId
+        }, { onConflict: 'id' });
+      } catch (dbErr) {
+        console.warn('[BillingService] Remote prescription dual-write notice:', dbErr);
+      }
+    })();
   }
 
   static createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Invoice {

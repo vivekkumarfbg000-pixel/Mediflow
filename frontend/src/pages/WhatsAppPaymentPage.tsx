@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { BillingService } from '../services/billingService';
 import { FALLBACK_POD_ID } from '../services/podContext';
+import { writeAuditLog } from '../services/apiHelper';
 import { 
   ShieldCheck, 
   CreditCard, 
@@ -315,6 +316,13 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                 console.warn('[WhatsApp Payment] Financial ledger upsert error:', _fErr);
               }
             }
+
+            writeAuditLog('WHATSAPP_ONLINE_PAYMENT_SUCCESS', {
+              invoiceId,
+              paymentId,
+              amount: amountRupees,
+              method: 'razorpay'
+            }, targetPatId);
           } catch (err) {
             console.warn('[WhatsApp Payment] Background DB sync note:', err);
             // Ensure status remains cleared so patient always sees success screen
@@ -334,6 +342,10 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
           console.error('[WhatsApp Payment] Payment failed event:', resp.error);
           setErrorMessage(resp.error?.description || 'Payment failed. Please try again.');
           setProcessing(false);
+          writeAuditLog('WHATSAPP_ONLINE_PAYMENT_FAILED', {
+            invoiceId,
+            error: resp.error?.description
+          }, patient?.id || invoice?.patient_id);
         });
         rzp.open();
         setProcessing(false);

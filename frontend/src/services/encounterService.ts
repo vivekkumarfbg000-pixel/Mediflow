@@ -352,9 +352,14 @@ export class EncounterService {
         }, { onConflict: 'id' });
         if (encError) {
           console.error('[EncounterService] Error inserting encounter into Supabase:', encError);
-        } else {
-          writeAuditLog('encounter_created', { patientId: newEncounter.patientId }, encounterId);
         }
+        writeAuditLog('CLINICAL_ENCOUNTER_COMPLETED', {
+          encounterId,
+          patientName: newEncounter.patientName,
+          medicinesCount: (newEncounter.medications || []).length,
+          testsCount: (newEncounter.diagnosticTests || []).length,
+          doctorId
+        }, newEncounter.patientId);
 
         // 2. Insert/Upsert into public.saas_prescriptions for 360-degree platform sync
         try {
@@ -372,7 +377,32 @@ export class EncounterService {
           console.warn('[EncounterService] saas_prescriptions upsert notice:', rxErr);
         }
 
-        // 3. Directly update patient_registry.queue_status in Supabase
+        // 3. Insert/Upsert into public.inventory_holds for pharmacy POS realtime sync
+        try {
+          if ((newEncounter.medications || []).length > 0) {
+            const currentHolds = load<any[]>('inventory_holds', []).filter(h => h.encounterId === encounterId);
+            const dbHolds = currentHolds.map(h => ({
+              id: h.id,
+              encounter_id: encounterId,
+              patient_id: newEncounter.patientId,
+              medicine_name: h.medicineName,
+              quantity: h.quantity,
+              unit: h.unit || 'tablets',
+              expiry_date: h.expiryDate || null,
+              batch_number: h.batchNumber || null,
+              status: 'reserved',
+              pod_id: ctx.podId,
+              created_at: h.createdAt || new Date().toISOString()
+            }));
+            if (dbHolds.length > 0) {
+              await supabase.from('inventory_holds').upsert(dbHolds, { onConflict: 'id' });
+            }
+          }
+        } catch (holdErr) {
+          console.warn('[EncounterService] inventory_holds upsert notice:', holdErr);
+        }
+
+        // 4. Directly update patient_registry.queue_status in Supabase
         try {
           await supabase.from('patient_registry')
             .update({ queue_status: 'completed', updated_at: new Date().toISOString() })
@@ -398,6 +428,27 @@ export class EncounterService {
 
         if (rpcError || (rpcResult && rpcResult.success === false)) {
           console.warn('[EncounterService] Care loop RPC fallback notice:', rpcError || rpcResult?.error);
+        }
+
+        // 5. 🌟 ENTERPRISE DUAL-WRITE: Instantly persist unified consultation invoice to Supabase
+        try {
+          await supabase.from('unified_invoices').upsert({
+            id: newInvoice.id,
+            encounter_id: encounterId,
+            patient_id: newEncounter.patientId,
+            doctor_fee: docFee,
+            lab_fee: labFee,
+            pharmacy_fee: pharmFee,
+            platform_fee: platFee,
+            total_amount: total,
+            upi_qr_payload: dynamicUpiPayload,
+            payment_status: newInvoice.paymentStatus,
+            payment_method: 'upi',
+            created_at: newInvoice.createdAt,
+            pod_id: ctx.podId
+          }, { onConflict: 'id' });
+        } catch (invErr) {
+          console.warn('[EncounterService] unified_invoices remote dual-write notice:', invErr);
         }
       } catch (globalErr) {
         console.error('[EncounterService] Background care loop sync caught:', globalErr);

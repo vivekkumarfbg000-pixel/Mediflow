@@ -157,37 +157,50 @@ export async function writeAuditLog(
   entityId: string | null = null
 ): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    // Skip audit log if no authenticated user — RLS blocks anon inserts
-    if (!user?.id) {
-      console.debug('[Mediflow Audit] Skipping audit log (no authenticated user):', actionType);
-      return;
-    }
-
-    // Resolve entity/pod IDs via centralized PodContext (cached after first call,
-    // falls back to seeded demo UUIDs only before auth profile loads)
+    const { data: { user } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
     const ctx = await resolvePodContext();
 
-    const auditId = `audit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const { error } = await supabase.from('activity_logs').upsert({
-      id:          auditId,
-      actor_id:    user.id,
-      action_type: actionType,
-      entity_id:   ctx.entityId,
-      pod_id:      ctx.podId,
-      details: {
-        ...details,
-        record_id:      entityId,
-        simulated_role: state.simulatedRole,
-        timestamp:      new Date().toISOString()
+    let actorId: string | null = null;
+    let actorName = 'System Staff';
+    if (user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)) {
+      actorId = user.id;
+      actorName = user.email || user.id;
+    } else {
+      const cached = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+      if (cached?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cached.id)) {
+        actorId = cached.id;
       }
-    }, { onConflict: 'id' });
+      actorName = cached?.name || cached?.display_name || cached?.email || state.simulatedRole || 'staff-terminal';
+    }
 
-    if (error) {
-      // Log but don't throw — audit failures should not crash clinical workflows
-      console.warn('[Mediflow Audit] Non-fatal audit log error:', error.message);
+    const payloadDetails = {
+      ...details,
+      record_id: entityId,
+      actor_name: actorName,
+      simulated_role: state.simulatedRole,
+      timestamp: new Date().toISOString()
+    };
+
+    // 1. Primary path: RPC call (SECURITY DEFINER ensures zero-drop recording across all staff roles)
+    const { error: rpcErr } = await supabase.rpc('log_activity_event', {
+      p_action_type: actionType,
+      p_details: payloadDetails,
+      p_entity_id: entityId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(entityId) ? entityId : (ctx.entityId || null),
+      p_pod_id: ctx.podId || null,
+      p_actor_id: actorId
+    });
+
+    if (rpcErr) {
+      // 2. Direct insert fallback
+      const auditId = crypto.randomUUID();
+      await supabase.from('activity_logs').insert({
+        id: auditId,
+        action_type: actionType,
+        details: payloadDetails,
+        pod_id: ctx.podId || null
+      });
     }
   } catch (e) {
-    console.warn('[Mediflow DevSecOps] Failed to write audit log (non-fatal):', e);
+    console.warn('[Mediflow Audit] Non-fatal audit log warning:', e);
   }
 }

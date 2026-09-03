@@ -561,6 +561,7 @@ export const CompounderDashboard: React.FC = () => {
 
       // 2. Find and update appointment status to ready_for_consult
       const existingAppt = appointments.find(a => a.patientId === patId || (a as any).patient_id === patId);
+      const apptIdToSync = existingAppt?.id || `apt-${Date.now()}`;
       if (existingAppt) {
         existingAppt.status = 'ready_for_consult';
         existingAppt.tokenNumber = String(assignedToken);
@@ -568,7 +569,7 @@ export const CompounderDashboard: React.FC = () => {
         BillingService.saveAppointments([...appointments]);
       } else {
         const newAppt: Appointment = {
-          id: `apt-${Date.now()}`,
+          id: apptIdToSync,
           patientId: patId,
           doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
           status: 'ready_for_consult',
@@ -581,15 +582,18 @@ export const CompounderDashboard: React.FC = () => {
       }
 
       // 3. Ensure Doctor Consultation invoice & financial ledger are settled
+      let settledInvoiceId: string | null = null;
       try {
         const matchingInvoice = BillingService.getInvoices().find(i => (i.patientId === patId || (i as any).patient_id === patId) && i.type === 'consult');
         if (matchingInvoice) {
+          settledInvoiceId = matchingInvoice.id;
           if (matchingInvoice.status !== 'paid') {
             await BillingService.recordInvoicePayment(matchingInvoice.id, 'upi');
           }
         } else {
           const inv = BillingService.createGate1Consult(patId);
           if (inv) {
+            settledInvoiceId = inv.id;
             await BillingService.recordInvoicePayment(inv.id, 'upi');
           }
         }
@@ -600,23 +604,53 @@ export const CompounderDashboard: React.FC = () => {
       // 4. Remote Postgres Sync (Non-blocking)
       (async () => {
         try {
+          const currentPodId = (activePod as any)?.id || activeProfile?.clinicId || getPodContext().podId || FALLBACK_POD_ID;
+          const currentDoctorId = (activePod as any)?.doctor_id || (activePod as any)?.doctorId || activeProfile?.doctorId || FALLBACK_DOCTOR_ID;
+          const nowISO = new Date().toISOString();
+
           await supabase
             .from('patient_registry')
-            .update({
+            .upsert({
+              id: patId,
+              name: vitalsPatient.name,
+              phone: vitalsPatient.phone,
+              age: vitalsPatient.age || 35,
+              gender: vitalsPatient.gender || 'Male',
               vitals: updatedVitals,
               queue_status: 'awaiting_consultation',
-              token_number: String(assignedToken)
-            })
-            .eq('id', patId);
+              token_number: String(assignedToken),
+              pod_id: currentPodId
+            }, { onConflict: 'id' });
 
-          if (existingAppt?.id) {
-            await supabase
-              .from('appointments')
-              .update({
-                status: 'ready_for_consult',
-                token_number: String(assignedToken)
-              })
-              .eq('id', existingAppt.id);
+          await supabase
+            .from('appointments')
+            .upsert({
+              id: apptIdToSync,
+              patient_id: patId,
+              doctor_id: currentDoctorId,
+              status: 'ready_for_consult',
+              token_number: String(assignedToken),
+              patient_name: vitalsPatient.name,
+              patient_phone: vitalsPatient.phone,
+              appointment_time: nowISO,
+              created_at: nowISO,
+              is_virtual: false,
+              source: 'whatsapp_physical',
+              pod_id: currentPodId
+            }, { onConflict: 'id' });
+
+          if (settledInvoiceId) {
+            await supabase.from('unified_invoices').upsert({
+              id: settledInvoiceId,
+              encounter_id: apptIdToSync,
+              patient_id: patId,
+              doctor_fee: 500,
+              total_amount: 500,
+              payment_status: 'cleared',
+              payment_method: 'upi',
+              created_at: nowISO,
+              pod_id: currentPodId
+            }, { onConflict: 'id' });
           }
         } catch (_dbErr) {
           console.warn('[CompounderDashboard] Supabase DB vitals sync error:', _dbErr);
@@ -840,7 +874,7 @@ export const CompounderDashboard: React.FC = () => {
     try {
       const allPatients = api.getPatients();
       const updatedList = allPatients.map(p => p.id === patient.id ? updatedPatient : p);
-      localStorage.setItem('mediflow_patients', JSON.stringify(updatedList));
+      api.savePatients(updatedList);
     } catch (_e) { /* ignore */ }
 
     setPatients(api.getPatients());
@@ -1171,6 +1205,7 @@ export const CompounderDashboard: React.FC = () => {
         (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr)
       );
 
+      const apptIdToSync = existingAppt?.id || `apt-${Date.now()}`;
       if (existingAppt) {
         existingAppt.status = 'ready_for_consult';
         existingAppt.tokenNumber = String(assignedToken);
@@ -1180,7 +1215,7 @@ export const CompounderDashboard: React.FC = () => {
         BillingService.saveAppointments([...appointments]);
       } else {
         const newAppt: Appointment = {
-          id: `apt-${Date.now()}`,
+          id: apptIdToSync,
           patientId: targetPatient.id,
           doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
           status: 'ready_for_consult',
@@ -1197,15 +1232,70 @@ export const CompounderDashboard: React.FC = () => {
       // 4. Remote Postgres Sync (Non-blocking)
       (async () => {
         try {
+          const currentPodId = (activePod as any)?.id || activeProfile?.clinicId || getPodContext().podId || FALLBACK_POD_ID;
+          const currentDoctorId = (activePod as any)?.doctor_id || (activePod as any)?.doctorId || activeProfile?.doctorId || FALLBACK_DOCTOR_ID;
+          const nowISO = new Date().toISOString();
+
+          // A. Upsert patient in Supabase patient_registry
           await supabase.from('patient_registry').upsert({
             id: targetPatient.id,
             name: targetPatient.name,
             phone: targetPatient.phone,
+            age: targetPatient.age || 35,
+            gender: targetPatient.gender || 'Male',
             vitals: vitals,
             queue_status: 'awaiting_consultation',
-            token_number: String(assignedToken)
-          });
-        } catch (_err) { /* ignore */ }
+            token_number: String(assignedToken),
+            pod_id: currentPodId
+          }, { onConflict: 'id' });
+
+          // B. Upsert appointment in Supabase appointments table (CRITICAL FOR LIVE REALTIME SYNC)
+          await supabase.from('appointments').upsert({
+            id: apptIdToSync,
+            patient_id: targetPatient.id,
+            doctor_id: currentDoctorId,
+            status: 'ready_for_consult',
+            token_number: String(assignedToken),
+            patient_name: targetPatient.name,
+            patient_phone: targetPatient.phone,
+            appointment_time: nowISO,
+            created_at: nowISO,
+            is_virtual: false,
+            source: 'counter',
+            pod_id: currentPodId
+          }, { onConflict: 'id' });
+
+          // C. Upsert unified invoice & financial ledger for active payment clearance gate
+          const consultInvId = inv?.id || `inv-${apptIdToSync}-consult`;
+          await supabase.from('unified_invoices').upsert({
+            id: consultInvId,
+            encounter_id: apptIdToSync,
+            patient_id: targetPatient.id,
+            doctor_fee: currentConsultFee,
+            total_amount: currentConsultFee,
+            payment_status: 'cleared',
+            payment_method: instantFeeStatus === 'paid_cash' ? 'cash' : 'upi',
+            created_at: nowISO,
+            pod_id: currentPodId
+          }, { onConflict: 'id' });
+
+          await supabase.from('financial_ledgers').upsert({
+            id: `fl-${consultInvId}`,
+            invoice_id: consultInvId,
+            appointment_id: apptIdToSync,
+            patient_id: targetPatient.id,
+            doctor_id: currentDoctorId,
+            transaction_type: 'appointment_fee',
+            gross_amount: currentConsultFee,
+            net_payout: currentConsultFee,
+            payment_status: 'cleared',
+            payment_method: instantFeeStatus === 'paid_cash' ? 'cash' : 'upi',
+            created_at: nowISO,
+            pod_id: currentPodId
+          }, { onConflict: 'id' });
+        } catch (_err) {
+          console.warn('[InstantBooking] Remote sync error:', _err);
+        }
       })();
 
       // 5. Toast notification (No automatic speech audio on registration)
@@ -1459,7 +1549,7 @@ export const CompounderDashboard: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (podId && podId !== 'default-pod') {
-        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID}`);
+        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
       }
 
       let patQuery = supabase
@@ -1467,7 +1557,7 @@ export const CompounderDashboard: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (podId && podId !== 'default-pod') {
-        patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID}`);
+        patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
       }
 
       const [apptRes, patRes] = await Promise.all([apptQuery, patQuery]);

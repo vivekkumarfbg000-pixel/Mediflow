@@ -380,10 +380,13 @@ export const DoctorDashboard: React.FC = () => {
 
       let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
       if (targetPodId && targetPodId !== 'default-pod') {
-        apptsQuery = apptsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.${FALLBACK_POD_ID}`);
+        apptsQuery = apptsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
       }
       const ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
-      const patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
+      let patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
+      if (targetPodId && targetPodId !== 'default-pod') {
+        patientsQuery = patientsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+      }
       const sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
 
       Promise.all([
@@ -595,6 +598,14 @@ export const DoctorDashboard: React.FC = () => {
               title: '🚨 EMERGENCY SOS ALERT! 🚨',
               message: 'A patient has paid priority fee on WhatsApp. Immediate attention required at Priority #1!',
               type: 'error'
+            }
+          }));
+        } else if (payload.new?.source === 'counter' || payload.new?.status === 'ready_for_consult') {
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              title: '🩺 Patient Ready for Consult! 🟢',
+              message: `Token #${payload.new?.token_number || ''} (${payload.new?.patient_name || 'Walk-in Patient'}) is ready in OPD Queue.`,
+              type: 'success'
             }
           }));
         } else {
@@ -1201,6 +1212,13 @@ Keep the tone professional, clinical, objective, and precise.`;
     });
     if (hasApptUpdate) {
       api.saveAppointments(currentAppts);
+      // Synchronize appointment completion with Supabase to trigger realtime CDC
+      supabase.from('appointments')
+        .update({ status: 'completed' })
+        .eq('patient_id', selectedPatient.id)
+        .then(({ error }: any) => {
+          if (error) console.warn('[DoctorDashboard] Supabase appointment completion sync note:', error);
+        });
     }
 
     // Dispatch global state change event for instant reactive update across all tabs and consoles

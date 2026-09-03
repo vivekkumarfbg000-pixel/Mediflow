@@ -1,4 +1,6 @@
 import React from 'react';
+import { supabase } from '../../../lib/supabaseClient';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../../services/podContext';
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
 import { EncounterService } from '../../../services/encounterService';
@@ -591,19 +593,26 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                         onClick={() => {
                           const todayStr = getIstDateString();
                           const defaultTimeStr = '10:30 AM';
+                          const podId = activePod?.id || getPodContext().podId || FALLBACK_POD_ID;
+                          const doctorId = (activePod as any)?.doctor_id || (activePod as any)?.doctorId || getPodContext().doctorId || FALLBACK_DOCTOR_ID;
+                          const apptId = `apt-${Date.now()}`;
+                          const meetUrl = `https://meet.jit.si/vitalsync-consult-${apptId}`;
+
                           const newAppt: any = {
-                            id: `apt-${Date.now()}`,
+                            id: apptId,
                             patientId: selectedDirectoryPatient.id,
-                            doctorId: 'doc-vivek',
+                            doctorId: doctorId,
                             isVirtual: true,
                             date: todayStr,
                             time: defaultTimeStr,
                             virtualDate: todayStr,
                             virtualTime: defaultTimeStr,
+                            virtualMeetingUrl: meetUrl,
                             virtualTimeAllocated: false,
-                            status: 'pending',
+                            status: 'scheduled',
                             appointmentBookedAtCounter: false,
-                            discountEligible: false
+                            discountEligible: false,
+                            podId: podId
                           };
                           api.saveAppointment(newAppt);
                           const invId = `inv-dir-${(newAppt.id || '00000000').substring(0, 8)}`;
@@ -621,8 +630,41 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                           BillingService.saveInvoice(newInv);
                           BillingService.createLedgerSplitsForInvoiceFields(invId, newAppt.id, 'consult', 500, 'upi');
                           setRefreshKey(prev => prev + 1);
+
+                          // Asynchronously sync to Supabase appointments and unified_invoices
+                          (async () => {
+                            try {
+                              const nowISO = new Date().toISOString();
+                              await supabase.from('appointments').upsert({
+                                id: apptId,
+                                patient_id: selectedDirectoryPatient.id,
+                                doctor_id: doctorId,
+                                is_virtual: true,
+                                virtual_date: todayStr,
+                                virtual_time: defaultTimeStr,
+                                virtual_meeting_url: meetUrl,
+                                status: 'scheduled',
+                                appointment_time: `${todayStr}T10:30:00.000Z`,
+                                created_at: nowISO,
+                                pod_id: podId
+                              }, { onConflict: 'id' });
+
+                              await supabase.from('unified_invoices').upsert({
+                                id: invId,
+                                encounter_id: apptId,
+                                patient_id: selectedDirectoryPatient.id,
+                                doctor_fee: 500,
+                                total_amount: 500,
+                                payment_status: 'cleared',
+                                payment_method: 'upi',
+                                created_at: nowISO,
+                                pod_id: podId
+                              }, { onConflict: 'id' });
+                            } catch (err) {
+                              console.warn('[PatientsDirectoryTab] Supabase sync error:', err);
+                            }
+                          })();
                           
-                          const meetUrl = newAppt.virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${newAppt.id}`;
                           if (selectedDirectoryPatient.phone) {
                             api.dispatchVirtualConsultMeetingLinkWhatsApp({
                               patientPhone: selectedDirectoryPatient.phone,
@@ -721,6 +763,13 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                           virtualTimeAllocated: true
                         };
                         api.saveAppointment(updatedAppt);
+                        
+                        // Asynchronously update Supabase appointments table
+                        supabase.from('appointments').update({
+                          virtual_date: finalDate,
+                          virtual_time: finalTime,
+                          appointment_time: `${finalDate}T${finalTime.includes('PM') ? '14:00:00' : '10:30:00'}.000Z`
+                        }).eq('id', virtualAppt.id).then(() => {});
                         
                         // Notify patient on WhatsApp
                         const cachedProf = safeGetStorageJSON<any>('vitalsync_cached_profile', {});

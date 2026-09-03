@@ -284,8 +284,37 @@ export class LabService {
   }
 
   static saveLabRequisitions(reqs: LabRequisition[]): void {
+    const currentPodId = getPodContext().podId;
     save('lab_requisitions', reqs);
     notify();
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist bulk lab requisitions to Supabase
+    (async () => {
+      try {
+        const nowISO = new Date().toISOString();
+        const dbReqs: any[] = [];
+        for (const r of reqs) {
+          if (!r.id || !r.patientId) continue;
+          dbReqs.push({
+            id: r.id,
+            encounter_id: r.encounterId || null,
+            patient_id: r.patientId,
+            test_code: r.testCode,
+            test_name: r.testName,
+            barcode: r.barcode || `BAR-${r.id.slice(0, 8)}`,
+            status: r.status || 'pending',
+            pod_id: (r as any).podId || (r as any).pod_id || currentPodId || FALLBACK_POD_ID,
+            created_at: (r as any).createdAt || (r as any).created_at || nowISO
+          });
+        }
+
+        if (dbReqs.length > 0) {
+          await supabase.from('lab_requisitions').upsert(dbReqs, { onConflict: 'id' });
+        }
+      } catch (err) {
+        console.warn('[LabService] Bulk remote lab requisition dual-write notice:', err);
+      }
+    })();
   }
 
   static createRequisition(params: {
@@ -311,6 +340,27 @@ export class LabService {
       createdAt: new Date().toISOString()
     }));
     this.saveLabRequisitions([...newReqs, ...existing]);
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist new requisitions to Supabase
+    (async () => {
+      try {
+        const dbReqs = newReqs.map(r => ({
+          id: r.id,
+          encounter_id: r.encounterId,
+          patient_id: r.patientId,
+          test_code: r.testCode,
+          test_name: r.testName,
+          barcode: r.barcode,
+          status: r.status || 'pending',
+          pod_id: r.podId || currentPodId || FALLBACK_POD_ID,
+          created_at: r.createdAt
+        }));
+        await supabase.from('lab_requisitions').upsert(dbReqs, { onConflict: 'id' });
+      } catch (err) {
+        console.warn('[LabService] Remote lab requisition dual-write notice:', err);
+      }
+    })();
+
     return newReqs;
   }
 

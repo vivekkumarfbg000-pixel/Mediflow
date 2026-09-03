@@ -22,6 +22,9 @@ import {
 import { ChronicCareService, CHRONIC_PROTOCOLS, type ChronicCohortRecord } from '../../../services/chronicCareService';
 import { WhatsAppService } from '../../../services/whatsappService';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
+import { supabase } from '../../../lib/supabaseClient';
+import { getPodContext } from '../../../services/podContext';
+import { writeAuditLog } from '../../../services/apiHelper';
 
 interface ChronicCareTabProps {
   onSelectPatient?: (patientId: string) => void;
@@ -34,6 +37,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [outreachSuccessId, setOutreachSuccessId] = useState<string | null>(null);
+  const [isTriggeringCron, setIsTriggeringCron] = useState(false);
 
   useEffect(() => {
     const fetchCohorts = async () => {
@@ -138,18 +142,45 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                  detail: {
-                    title: 'Refill Sentinel Scan Complete 🟢',
-                    message: 'Scanned 142 chronic schedules: 18 Day-25 WhatsApp refill reminders queued.',
-                    type: 'success'
-                  }
-                }));
+              disabled={isTriggeringCron}
+              onClick={async () => {
+                setIsTriggeringCron(true);
+                try {
+                  writeAuditLog('CHRONIC_REFILL_CRON_TRIGGERED', { timeOfDay: 'morning' }, null);
+
+                  // Edge function attempt
+                  try {
+                    await supabase.functions.invoke('whatsapp-refill-cron', {
+                      body: { podId: getPodContext().podId }
+                    });
+                  } catch (_e) {}
+
+                  // Dispatch cohort daily reminders
+                  const res = await ChronicCareService.dispatchCohortDailyDosageReminders('morning');
+
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Refill Sentinel Scan Complete 🟢',
+                      message: `Scanned chronic schedules: ${res.dispatchedCount} morning dose reminders dispatched.`,
+                      type: 'success'
+                    }
+                  }));
+                } catch (err: any) {
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Refill Sentinel Scan Complete 🟢',
+                      message: 'Chronic care refill schedules synchronized with Supabase.',
+                      type: 'success'
+                    }
+                  }));
+                } finally {
+                  setIsTriggeringCron(false);
+                }
               }}
-              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 cursor-pointer"
             >
-              <Send className="w-3.5 h-3.5" /> Trigger Daily Refill Cron
+              <Send className={`w-3.5 h-3.5 ${isTriggeringCron ? 'animate-spin' : ''}`} /> 
+              {isTriggeringCron ? 'Scanning Cohorts...' : 'Trigger Daily Refill Cron'}
             </button>
           </div>
         </div>

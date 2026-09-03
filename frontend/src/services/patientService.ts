@@ -33,6 +33,37 @@ export class PatientService {
     save('patients', patients);
     save('patient_registry', patients);
     notify();
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist bulk patient registry to Supabase
+    (async () => {
+      try {
+        const dbPatients: any[] = [];
+        for (const p of patients) {
+          if (!p.id || !p.name) continue;
+          dbPatients.push({
+            id: p.id,
+            name: p.name,
+            phone: p.phone || '',
+            age: p.age || null,
+            gender: p.gender || null,
+            allergies: p.allergies || [],
+            chronic_conditions: p.chronicConditions || [],
+            abha_id: p.abhaId || null,
+            token_number: p.tokenNumber ? String(p.tokenNumber) : null,
+            patient_code: p.patientCode || null,
+            vitals: p.vitals || null,
+            queue_status: p.queueStatus || 'registered',
+            pod_id: (p as any).podId || (p as any).pod_id || currentPodId || FALLBACK_POD_ID
+          });
+        }
+
+        if (dbPatients.length > 0) {
+          await supabase.from('patient_registry').upsert(dbPatients, { onConflict: 'id' });
+        }
+      } catch (err) {
+        console.warn('[PatientService] Bulk remote patient dual-write notice:', err);
+      }
+    })();
   }
 
   static savePatient(patient: Patient): void {
@@ -48,6 +79,42 @@ export class PatientService {
       patients.push(patient);
     }
     this.savePatients(patients);
+
+    // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist single patient mutation to Supabase
+    (async () => {
+      try {
+        const podId = (patient as any).podId || (patient as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const cleanPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
+        let targetId = patient.id;
+        if (cleanPhone) {
+          const { data: existing } = await supabase
+            .from('patient_registry')
+            .select('id')
+            .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone}`)
+            .maybeSingle();
+          if (existing?.id) {
+            targetId = existing.id;
+          }
+        }
+        await supabase.from('patient_registry').upsert({
+          id: targetId,
+          name: patient.name,
+          phone: patient.phone || '',
+          age: patient.age || null,
+          gender: patient.gender || null,
+          allergies: patient.allergies || [],
+          chronic_conditions: patient.chronicConditions || [],
+          abha_id: patient.abhaId || null,
+          token_number: patient.tokenNumber ? String(patient.tokenNumber) : null,
+          patient_code: patient.patientCode || null,
+          vitals: patient.vitals || null,
+          queue_status: patient.queueStatus || 'registered',
+          pod_id: podId
+        }, { onConflict: 'id' });
+      } catch (err) {
+        console.warn('[PatientService] Remote patient dual-write notice:', err);
+      }
+    })();
   }
   static getPatients(): Patient[] {
     let rawPatients = load<Patient[]>('patients', []);
@@ -292,6 +359,21 @@ export class PatientService {
     }, patientId);
     
     notify();
+
+    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry in Supabase
+    (async () => {
+      try {
+        await supabase.from('patient_registry').update({
+          vitals: vitals,
+          token_number: token,
+          queue_status: nextStatus,
+          updated_at: new Date().toISOString()
+        }).eq('id', patientId);
+      } catch (err) {
+        console.warn('[PatientService] updatePatientVitalsAndToken direct update notice:', err);
+      }
+    })();
+
     this.processSyncQueue();
   }
 
@@ -351,6 +433,20 @@ export class PatientService {
     }, patientId);
     
     notify();
+
+    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry in Supabase
+    (async () => {
+      try {
+        await supabase.from('patient_registry').update({
+          vitals: updatedVitals,
+          queue_status: 'awaiting_consultation',
+          updated_at: new Date().toISOString()
+        }).eq('id', patientId);
+      } catch (err) {
+        console.warn('[PatientService] saveRefractionDiagnostics direct update notice:', err);
+      }
+    })();
+
     this.processSyncQueue();
   }
 
@@ -391,6 +487,18 @@ export class PatientService {
       attempts: 0
     });
     save('sync_queue', queue);
+
+    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry in Supabase
+    (async () => {
+      try {
+        await supabase.from('patient_registry').update({
+          queue_status: status,
+          updated_at: new Date().toISOString()
+        }).eq('id', patientId);
+      } catch (err) {
+        console.warn('[PatientService] updatePatientQueueStatus direct update notice:', err);
+      }
+    })();
     
     const pat = this.getPatients().find(p => p.id === patientId);
     writeAuditLog('PATIENT_QUEUE_STATUS_UPDATED', {

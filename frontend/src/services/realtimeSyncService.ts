@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
-import { load, save, clearStorageCache } from './apiHelper';
+import { load, save, clearStorageCache, notify } from './apiHelper';
+import { getIstDateString } from '../utils/dateUtils';
 
 export interface RealtimeSubscriptionHandlers {
   onAppointmentChange?: (payload: any) => void;
@@ -62,6 +63,22 @@ export class RealtimeSyncService {
     if (record.virtual_date !== undefined) normalized.virtualDate = record.virtual_date;
     if (record.virtual_time !== undefined) normalized.virtualTime = record.virtual_time;
     if (record.virtual_meeting_url !== undefined) normalized.virtualMeetingUrl = record.virtual_meeting_url;
+    if (record.appointment_time !== undefined) {
+      normalized.appointmentTime = record.appointment_time;
+      normalized.appointment_time = record.appointment_time;
+    }
+    if (record.date !== undefined) {
+      normalized.date = record.date;
+    } else if (record.appointment_time) {
+      normalized.date = getIstDateString(record.appointment_time);
+    } else if (record.virtual_date) {
+      normalized.date = record.virtual_date;
+    }
+    if (record.time !== undefined) {
+      normalized.time = record.time;
+    } else if (record.virtual_time) {
+      normalized.time = record.virtual_time;
+    }
     if (record.token_number !== undefined) normalized.tokenNumber = record.token_number;
     if (record.patient_name !== undefined) normalized.patientName = record.patient_name;
     if (record.patient_phone !== undefined) normalized.patientPhone = record.patient_phone;
@@ -87,6 +104,13 @@ export class RealtimeSyncService {
     if (record.medicine_name !== undefined) normalized.medicineName = record.medicine_name;
     if (record.source !== undefined) normalized.source = record.source;
     if (record.vitals !== undefined) normalized.vitals = record.vitals;
+    if (record.chronic_conditions !== undefined) normalized.chronicConditions = record.chronic_conditions;
+    if (record.subtotal !== undefined) normalized.subtotal = typeof record.subtotal === 'string' ? parseFloat(record.subtotal) : record.subtotal;
+    if (record.gst_amount !== undefined) normalized.gstAmount = typeof record.gst_amount === 'string' ? parseFloat(record.gst_amount) : record.gst_amount;
+    if (record.payment_mode !== undefined) normalized.paymentMode = record.payment_mode;
+    if (record.loyalty_discount_percent !== undefined) normalized.loyaltyDiscountPercent = record.loyalty_discount_percent;
+    if (record.loyalty_discount_amount !== undefined) normalized.loyaltyDiscountAmount = record.loyalty_discount_amount;
+    if (record.item_discount_amount !== undefined) normalized.itemDiscountAmount = record.item_discount_amount;
     if (record.condition !== undefined) normalized.condition = record.condition;
     if (record.tags !== undefined) normalized.tags = record.tags;
     if (record.medical_history !== undefined) normalized.medicalHistory = record.medical_history;
@@ -235,6 +259,7 @@ export class RealtimeSyncService {
         }
 
         // Single event dispatch per table
+        notify();
         window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: tableName } }));
         if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'vitalsync_pool_settlements'].includes(tableName)) {
           window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { table: tableName } }));

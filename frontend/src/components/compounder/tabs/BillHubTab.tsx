@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { supabase } from '../../../lib/supabaseClient';
 import { 
   Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
   Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send
@@ -821,6 +822,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       if (matchedAppt) {
         matchedAppt.status = 'ready_for_consult';
         BillingService.saveAppointments(allAppts);
+        supabase.from('appointments').update({ status: 'ready_for_consult' }).eq('id', matchedAppt.id).then(() => {});
       }
 
       setSelectedPatient(patientObj);
@@ -1169,6 +1171,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           targetAppt.status = 'ready_for_consult';
           targetAppt.payment_status = 'cleared';
           BillingService.saveAppointments(appts);
+          supabase.from('appointments').update({ status: 'ready_for_consult', payment_status: 'cleared' }).eq('id', targetAppt.id).then(() => {});
         }
       }
 

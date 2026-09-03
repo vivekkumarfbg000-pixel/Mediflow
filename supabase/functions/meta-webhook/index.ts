@@ -10,7 +10,7 @@ const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 // Standard default pod & entity UUIDs (Rule 85: Pod-Id Invariant Protocol)
 const DEFAULT_POD_UUID = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
-const DEFAULT_ENTITY_UUID = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
+const DEFAULT_ENTITY_UUID = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
 
 function toValidUuid(id: string | null | undefined, fallback = DEFAULT_POD_UUID): string {
   if (!id || typeof id !== "string") return fallback;

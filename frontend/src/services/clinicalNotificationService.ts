@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { WhatsAppService, normalizeWhatsAppPhone } from './whatsappService';
-import { getPodContext } from './podContext';
+import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { writeAuditLog } from './apiHelper';
 
 export interface LabReportNotificationParams {
@@ -305,6 +305,57 @@ export class ClinicalNotificationService {
       patientName,
       medCount: medications.length
     }, null);
+
+    // Persist daily dosage schedule to Supabase for automated reminders
+    (async () => {
+      try {
+        const podId = getPodContext().podId || FALLBACK_POD_ID;
+        const cleanPhone = (patientPhone || '').replace(/\D/g, '').slice(-10);
+        const { data: pat } = await supabase
+          .from('patient_registry')
+          .select('id')
+          .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone}`)
+          .maybeSingle();
+
+        const scheduleRows: any[] = [];
+        for (const m of medications) {
+          const schedule = this.formatDosageHinglish(m.dosage, m.frequency);
+          const raw = `${m.dosage || ''} ${m.frequency || ''}`.toLowerCase();
+
+          const times: Array<'morning' | 'afternoon' | 'evening' | 'night'> = [];
+          if (raw.includes('1-0-1') || raw.includes('bd') || raw.includes('bid') || raw.includes('twice')) {
+            times.push('morning', 'night');
+          } else if (raw.includes('1-1-1') || raw.includes('tid') || raw.includes('tds') || raw.includes('thrice')) {
+            times.push('morning', 'afternoon', 'night');
+          } else if (raw.includes('0-0-1') || raw.includes('night') || raw.includes('hs')) {
+            times.push('night');
+          } else if (raw.includes('0-1-0') || raw.includes('afternoon')) {
+            times.push('afternoon');
+          } else {
+            times.push('morning');
+          }
+
+          for (const tod of times) {
+            scheduleRows.push({
+              pod_id: podId,
+              patient_id: pat?.id || null,
+              patient_phone: patientPhone,
+              medication_name: m.medicineName,
+              dosage_frequency: m.frequency || m.dosage || 'regular',
+              hinglish_instruction: schedule,
+              time_of_day: tod,
+              is_active: true
+            });
+          }
+        }
+
+        if (scheduleRows.length > 0) {
+          await supabase.from('dosage_schedules').insert(scheduleRows);
+        }
+      } catch (scheduleErr) {
+        console.warn('[ClinicalNotificationService] dosage_schedules sync notice:', scheduleErr);
+      }
+    })();
 
     return msg;
   }
