@@ -374,20 +374,26 @@ export const DoctorDashboard: React.FC = () => {
       setFinancialLedgers(api.getFinancialLedgers());
       setWhatsAppSessions(api.getWhatsAppSessions());
 
-      // Fetch live remote DB records scoped to active tenant pod ID in a single Promise.all batch
-      const currentPodId = activePod?.id || activeDoctorProfile?.pod_id || activeDoctorProfile?.podId || getPodContext().podId;
-      const targetPodId = currentPodId || FALLBACK_POD_ID;
+      // Fetch live remote DB records scoped strictly to active tenant pod ID (no orphan leak)
+      const currentPodId = activePod?.id || null;
 
       let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
-      if (targetPodId && targetPodId !== 'default-pod') {
-        apptsQuery = apptsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
-      }
-      const ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
+      let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
       let patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
-      if (targetPodId && targetPodId !== 'default-pod') {
-        patientsQuery = patientsQuery.or(`pod_id.eq.${targetPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
+
+      if (currentPodId) {
+        apptsQuery = apptsQuery.eq('pod_id', currentPodId);
+        ledgersQuery = ledgersQuery.eq('pod_id', currentPodId);
+        patientsQuery = patientsQuery.eq('pod_id', currentPodId);
+        sessionsQuery = sessionsQuery.eq('pod_id', currentPodId);
+      } else {
+        // Independent doctor with no clinic linked: only show records created without a pod
+        apptsQuery = apptsQuery.is('pod_id', null);
+        ledgersQuery = ledgersQuery.is('pod_id', null);
+        patientsQuery = patientsQuery.is('pod_id', null);
+        sessionsQuery = sessionsQuery.is('pod_id', null);
       }
-      const sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
 
       Promise.all([
         apptsQuery,
@@ -476,53 +482,42 @@ export const DoctorDashboard: React.FC = () => {
           setFinancialLedgers(finalLedgers);
         }
 
-        if (patientsRes.data && patientsRes.data.length > 0) {
-          const localPatients = api.getPatients();
-          const localPatMap = new Map(localPatients.map(lp => [lp.id, lp]));
-
-          const dbPatients: Patient[] = patientsRes.data.map((p: any) => {
-            const localP = localPatMap.get(p.id);
-            return {
+        if (patientsRes.data !== undefined && patientsRes.data !== null) {
+          if (patientsRes.data.length === 0) {
+            setPatients([]);
+            setSelectedPatient(null);
+            api.savePatients([]);
+          } else {
+            const dbPatients: Patient[] = patientsRes.data.map((p: any) => ({
               id: p.id,
               name: p.name,
               phone: p.phone,
-              age: String(p.age || localP?.age || 30),
-              gender: p.gender || localP?.gender || 'Male',
-              referral_code: p.referral_code || (localP as any)?.referral_code,
-              referralCode: p.referral_code || (localP as any)?.referralCode,
-              tokenNumber: p.token_number || p.tokenNumber || localP?.tokenNumber || undefined,
-              token_number: p.token_number || p.tokenNumber || localP?.tokenNumber || undefined,
-              queueStatus: p.queue_status || p.queueStatus || localP?.queueStatus || 'registered',
-              queue_status: p.queue_status || p.queueStatus || localP?.queueStatus || 'registered',
-              allergies: p.allergies || localP?.allergies || [],
-              chronicConditions: p.chronic_conditions || p.chronicConditions || localP?.chronicConditions || [],
-              abhaId: p.abha_id || p.abhaId || localP?.abhaId || undefined,
-              abha_id: p.abha_id || p.abhaId || localP?.abhaId || undefined,
-              vitals: p.vitals || p.patient_vitals || localP?.vitals || undefined,
-              condition: p.condition || (localP as any)?.condition || undefined,
-              tags: p.tags || (localP as any)?.tags || [],
-              medicalHistory: p.medical_history || p.medicalHistory || (localP as any)?.medicalHistory || undefined,
-              eyeDilationStatus: p.eye_dilation_status || p.eyeDilationStatus || (localP as any)?.eyeDilationStatus || undefined,
-              dilationTimestamp: p.dilation_timestamp || p.dilationTimestamp || (localP as any)?.dilationTimestamp || undefined,
-              pastReportsSummary: p.past_reports_summary || p.pastReportsSummary || localP?.pastReportsSummary || undefined,
-              createdAt: p.created_at || localP?.createdAt || new Date().toISOString()
-            } as any;
-          });
+              age: String(p.age || 30),
+              gender: p.gender || 'Male',
+              referral_code: p.referral_code,
+              referralCode: p.referral_code,
+              tokenNumber: p.token_number || undefined,
+              token_number: p.token_number || undefined,
+              queueStatus: p.queue_status || 'registered',
+              queue_status: p.queue_status || 'registered',
+              allergies: p.allergies || [],
+              chronicConditions: p.chronic_conditions || [],
+              abhaId: p.abha_id || undefined,
+              abha_id: p.abha_id || undefined,
+              vitals: p.vitals || undefined,
+              condition: p.condition || undefined,
+              tags: p.tags || [],
+              medicalHistory: p.medical_history || undefined,
+              eyeDilationStatus: p.eye_dilation_status || undefined,
+              dilationTimestamp: p.dilation_timestamp || undefined,
+              pastReportsSummary: p.past_reports_summary || undefined,
+              createdAt: p.created_at || new Date().toISOString()
+            } as any));
 
-          const mergedMap = new Map();
-          localPatients.forEach(lp => mergedMap.set(lp.id, lp));
-          dbPatients.forEach(dp => {
-            const existing = mergedMap.get(dp.id);
-            const dpAny = dp as any;
-            const finalQueueStatus = (existing?.queueStatus === 'completed' && (dp.queueStatus === 'in_consultation' || dpAny.queue_status === 'in_consultation'))
-              ? 'completed'
-              : (dp.queueStatus || dpAny.queue_status || existing?.queueStatus || 'registered');
-            mergedMap.set(dp.id, existing ? { ...existing, ...dp, queueStatus: finalQueueStatus, queue_status: finalQueueStatus, vitals: dp.vitals || existing.vitals } : dp);
-          });
-          const finalPatients = Array.from(mergedMap.values());
-          api.savePatients(finalPatients);
-          setPatients(finalPatients);
-          setSelectedPatient(prev => prev ? (finalPatients.find(p => p.id === prev.id) || prev) : prev);
+            api.savePatients(dbPatients);
+            setPatients(dbPatients);
+            setSelectedPatient(prev => prev ? (dbPatients.find(p => p.id === prev.id) || prev) : prev);
+          }
         }
 
         if (sessionsRes.data && sessionsRes.data.length > 0) {

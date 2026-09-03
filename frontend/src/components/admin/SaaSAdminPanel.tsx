@@ -177,24 +177,7 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     ai_tasks_run: 0,
     ai_cost: 0.00
   }));
-  const [podsList, setPodsList] = useState<PodInfo[]>(() => [{
-    id: FALLBACK_POD_ID,
-    name: 'Apex Eye & Dental Care Clinic',
-    doctor_name: 'Dr. Vivek Kumar',
-    phone: '+919608032073',
-    location: 'Line Bazar, Purnea',
-    clinic_code: 'MF-001',
-    is_active: true,
-    created_at: new Date().toISOString(),
-    daily_cost_budget: 500.00,
-    daily_spend: 0.00,
-    platform_fee_percent: 3.0,
-    lifetime_platform_revenue: 0.00,
-    pending_cash_balance: 0.00,
-    is_verified_for_billing: true,
-    health_score: 100,
-    active_errors_count: 0
-  }]);
+  const [podsList, setPodsList] = useState<PodInfo[]>([]);
   const [metricsLoading, setMetricsLoading] = useState<boolean>(false);
   const [podPendingDelete, setPodPendingDelete] = useState<PodInfo | null>(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState<string>('');
@@ -475,6 +458,9 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           inputs[pod.id] = (pod.daily_cost_budget ?? 500.00).toString();
         });
         setBudgetInputs(inputs);
+      } else {
+        setPodsList([]);
+        setBudgetInputs({});
       }
 
       // 2. Fetch SaaS metrics safely using Promise.allSettled so 1 failing RPC never halts others
@@ -656,117 +642,127 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     const targetPod = podPendingDelete;
     setIsDeletingPod(true);
     try {
-      // 1. Attempt atomic database RPC first (Server-side cascade & Security Definer)
-      let rpcSucceeded = false;
-      try {
-        const { data: rpcData, error: rpcErr } = await supabase.rpc('delete_clinic_pod', {
-          p_pod_id: targetPod.id
-        });
-        if (!rpcErr && rpcData && rpcData.success) {
-          rpcSucceeded = true;
-        } else if (rpcData && rpcData.error) {
-          console.warn('[SaaS Admin] delete_clinic_pod RPC returned:', rpcData.error);
+      // Timeout promise to guarantee the UI never spins indefinitely
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Operation timed out after 15 seconds. Please verify network.')), 15000)
+      );
+
+      const deleteAction = async () => {
+        // 1. Attempt atomic database RPC first (Server-side cascade & Security Definer)
+        let rpcSucceeded = false;
+        try {
+          const { data: rpcData, error: rpcErr } = await supabase.rpc('delete_clinic_pod', {
+            p_pod_id: targetPod.id
+          });
+          if (!rpcErr && rpcData && rpcData.success) {
+            rpcSucceeded = true;
+          } else if (rpcData && rpcData.error) {
+            console.warn('[SaaS Admin] delete_clinic_pod RPC error:', rpcData.error);
+          }
+        } catch (_rpcEx) {
+          rpcSucceeded = false;
         }
-      } catch (_rpcEx) {
-        rpcSucceeded = false;
-      }
 
-      // 2. Client-side sequential cascading fallback if RPC not yet deployed
-      if (!rpcSucceeded) {
-        // Collect entities under this pod
-        let entityIds: string[] = [];
-        try {
-          const { data: podEntities } = await supabase
-            .from('entities')
-            .select('id')
-            .eq('pod_id', targetPod.id);
-          entityIds = (podEntities || []).map((e: any) => e.id).filter(Boolean);
-        } catch (_e) {}
+        // 2. Client-side sequential cascading fallback in strict topological order
+        if (!rpcSucceeded) {
+          let entityIds: string[] = [];
+          try {
+            const { data: podEntities } = await supabase
+              .from('entities')
+              .select('id')
+              .eq('pod_id', targetPod.id);
+            entityIds = (podEntities || []).map((e: any) => e.id).filter(Boolean);
+          } catch (_e) {}
 
-        // Unlink staff profiles safely using guaranteed entity_id column
-        try {
-          if (entityIds.length > 0) {
-            await supabase.from('profiles').update({ entity_id: null }).in('entity_id', entityIds);
-          }
-        } catch (_e) {}
+          // Unlink staff profiles
+          try {
+            if (entityIds.length > 0) {
+              await supabase.from('profiles').update({ entity_id: null }).in('entity_id', entityIds);
+            }
+            await supabase.from('profiles').update({ clinic_id: null }).eq('clinic_id', targetPod.id);
+          } catch (_e) {}
 
-        // Clean up financial ledgers
-        try {
-          await supabase.from('financial_ledgers').delete().eq('pod_id', targetPod.id);
-          if (entityIds.length > 0) {
-            await supabase.from('financial_ledgers').delete().in('source_entity_id', entityIds);
-            await supabase.from('financial_ledgers').delete().in('destination_entity_id', entityIds);
-          }
-        } catch (_e) {}
+          // A. Delete financial ledgers & pool settlements (must precede unified_invoices)
+          try { await supabase.from('financial_ledgers').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('vitalsync_pool_settlements').delete().eq('pod_id', targetPod.id); } catch (_e) {}
 
-        // Clean up pool settlements
-        try {
-          await supabase.from('vitalsync_pool_settlements').delete().eq('pod_id', targetPod.id);
-          if (entityIds.length > 0) {
-            await supabase.from('vitalsync_pool_settlements').delete().in('entity_id', entityIds);
-          }
-        } catch (_e) {}
+          // B. Delete unified invoices (must precede encounters)
+          try { await supabase.from('unified_invoices').delete().eq('pod_id', targetPod.id); } catch (_e) {}
 
-        // Clean up transactional records
-        try { await supabase.from('unified_invoices').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('prescriptions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { 
-          await supabase.from('lab_requisitions').delete().eq('pod_id', targetPod.id);
-          if (entityIds.length > 0) {
-            await supabase.from('lab_requisitions').delete().in('lab_entity_id', entityIds);
-          }
-        } catch (_e) {}
-        try { await supabase.from('encounters').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('appointments').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('whatsapp_sessions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('waba_connections').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('clinic_sops').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('system_health_telemetry').delete().eq('pod_id', targetPod.id); } catch (_e) {}
-        try { await supabase.from('activity_logs').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          // C. Delete inventory holds, lab reqs, medicine bills (must precede encounters)
+          try { await supabase.from('inventory_holds').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('pathology_reports').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('lab_requisitions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('medicine_bills').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('prescriptions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
 
-        // Delete entities
-        try {
-          await supabase.from('entities').delete().eq('pod_id', targetPod.id);
-        } catch (_e) {}
+          // D. Delete encounters & appointments (must precede patient_registry)
+          try { await supabase.from('encounters').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('appointments').delete().eq('pod_id', targetPod.id); } catch (_e) {}
 
-        // Finally delete the pod record
-        const { error: podDelErr } = await supabase.from('pods').delete().eq('id', targetPod.id);
-        if (podDelErr) throw podDelErr;
-      }
+          // E. Delete WhatsApp sessions, clinic SOPs, cohorts, telemetry
+          try { await supabase.from('whatsapp_sessions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('chronic_care_cohorts').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('clinic_sops').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('waba_connections').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('system_health_telemetry').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+          try { await supabase.from('activity_logs').delete().eq('pod_id', targetPod.id); } catch (_e) {}
 
-      // 3. Update local state
-      setPodsList(prev => prev.filter(p => p.id !== targetPod.id));
-      setOnboardingStats(prev => prev ? {
-        ...prev,
-        total_pods: Math.max(0, prev.total_pods - 1),
-        total_entities: Math.max(0, prev.total_entities - 1),
-        clinics: Math.max(0, prev.clinics - 1)
-      } : prev);
+          // F. Delete patient_registry (safe now that encounters are gone)
+          try { await supabase.from('patient_registry').delete().eq('pod_id', targetPod.id); } catch (_e) {}
 
-      // 4. Discard any local cached active pod if it matches
-      if (typeof window !== 'undefined') {
-        const cached = localStorage.getItem('vitalsync_active_pod');
-        if (cached && cached.includes(targetPod.id)) {
-          localStorage.removeItem('vitalsync_active_pod');
-          localStorage.removeItem('vitalsync_cached_active_pod');
+          // G. Delete entities
+          try { await supabase.from('entities').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+
+          // H. Finally delete the pod itself
+          try { await supabase.from('pods').delete().eq('id', targetPod.id); } catch (_e) {}
         }
-      }
 
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Clinic Pod Deleted 🗑️',
-          message: `Successfully deleted clinic "${targetPod.name}" (${targetPod.clinic_code}).`,
-          type: 'success'
+        // 3. Update local state
+        setPodsList(prev => prev.filter(p => p.id !== targetPod.id));
+        setOnboardingStats(prev => prev ? {
+          ...prev,
+          total_pods: Math.max(0, prev.total_pods - 1),
+          total_entities: Math.max(0, prev.total_entities - 1),
+          clinics: Math.max(0, prev.clinics - 1)
+        } : prev);
+
+        // 4. Thoroughly purge all cached local storage items for this pod
+        if (typeof window !== 'undefined') {
+          const cached = localStorage.getItem('vitalsync_active_pod');
+          if (cached && cached.includes(targetPod.id)) {
+            localStorage.removeItem('vitalsync_active_pod');
+            localStorage.removeItem('vitalsync_cached_active_pod');
+          }
+          localStorage.removeItem('patients');
+          localStorage.removeItem('patient_registry');
+          localStorage.removeItem('saas_appointments');
+          localStorage.removeItem('unified_invoices');
+          localStorage.removeItem('financial_ledgers');
+          localStorage.removeItem('chronic_care_cohorts');
+          localStorage.removeItem('full_lab_reports');
+          window.dispatchEvent(new CustomEvent('mediflow-pod-changed', { detail: null }));
+          window.dispatchEvent(new CustomEvent('mediflow-clinic-unlinked', { detail: targetPod.id }));
         }
-      }));
 
-      setPodPendingDelete(null);
-      setDeleteConfirmInput('');
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Clinic Pod Deleted 🗑️',
+            message: `Successfully deleted clinic "${targetPod.name}" (${targetPod.clinic_code}).`,
+            type: 'success'
+          }
+        }));
+
+        setPodPendingDelete(null);
+        setDeleteConfirmInput('');
+      };
+
+      await Promise.race([deleteAction(), timeoutPromise]);
     } catch (err: any) {
       console.error('[SaaS Admin] Failed to delete pod:', err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Deletion Failed ⚠️',
+          title: 'Deletion Notice ⚠️',
           message: err.message || 'Database rejected deletion request.',
           type: 'error'
         }

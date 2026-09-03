@@ -9,6 +9,7 @@ import { WhatsAppService } from '../../services/whatsappService';
 import { LabService } from '../../services/labService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
+import { ChronicCareService, type ChronicCohortRecord } from '../../services/chronicCareService';
 import { PointerGlowCard } from '../ui/PointerGlowCard';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
 import { SkeletonMetric, SkeletonCard, SkeletonRow } from '../ui/SkeletonLoader';
@@ -58,6 +59,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   const [reagents, setReagents] = useState<any[]>([]);
   const [pharmacyInventory, setPharmacyInventory] = useState<any[]>([]);
   const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>([]);
+  const [chronicCohorts, setChronicCohorts] = useState<ChronicCohortRecord[]>([]);
 
   // Lab Report Sign-off Interactive States
   const [signingReportId, setSigningReportId] = useState<string | null>(null);
@@ -97,6 +99,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       setReagents(api.getReagentStocks());
       setPharmacyInventory(api.getPharmacyInventory());
       setPathologyReports(api.getPathologyReports());
+      ChronicCareService.getChronicCohorts().then(c => setChronicCohorts(c || []));
     };
     sync();
 
@@ -1115,80 +1118,98 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
             </div>
 
             {/* KPI Cards: Chronic Pool, Adherence, Due Refills */}
-            <div className="grid grid-cols-3 gap-2.5 mb-4">
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/75 dark:border-white/5 rounded-xl text-center shadow-xs">
-                <div className="text-[8.5px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Chronic Pool</div>
-                <div className="text-sm font-bold font-mono mt-0.5 text-slate-900 dark:text-white">142</div>
-              </div>
-              <div className="p-2.5 bg-teal-50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-800/30 rounded-xl text-center shadow-xs">
-                <div className="text-[8.5px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider">Adherence</div>
-                <div className="text-sm font-bold font-mono mt-0.5 text-teal-700 dark:text-teal-400">88.4%</div>
-              </div>
-              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-center shadow-xs">
-                <div className="text-[8.5px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wider">Due Refills</div>
-                <div className="text-sm font-bold font-mono mt-0.5 text-amber-700 dark:text-amber-450">18</div>
-              </div>
-            </div>
+            {(() => {
+              const poolCount = chronicCohorts.length;
+              const avgAdh = poolCount > 0 
+                ? (chronicCohorts.reduce((s, c) => s + (Number(c.adherenceScore) || 0), 0) / poolCount).toFixed(1) + '%'
+                : '100%';
+              const dueRefills = chronicCohorts.filter(c => {
+                if (!c.nextRefillDate) return false;
+                const d = Math.ceil((new Date(c.nextRefillDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                return d <= 7;
+              }).length;
 
-            {/* Disease Cohort Badges */}
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 mb-3">
-              <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex justify-between">
-                <span>Active Disease Cohorts</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-mono">100% Retest Triggers</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 text-[10px]">
-                <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-medium">🩸 Diabetes (58)</span>
-                <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 font-medium">🫀 HTN (44)</span>
-                <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300 font-medium">🦋 Thyroid (22)</span>
-                <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-300 font-medium">🧪 CKD / Cardio (18)</span>
-              </div>
-            </div>
+              const diaCount = chronicCohorts.filter(c => c.conditionCode === 'DIABETES').length;
+              const htnCount = chronicCohorts.filter(c => c.conditionCode === 'HYPERTENSION').length;
+              const thyCount = chronicCohorts.filter(c => c.conditionCode === 'THYROID').length;
+              const ckdCount = chronicCohorts.filter(c => c.conditionCode === 'CKD' || c.conditionCode === 'CARDIAC').length;
 
-            {/* Refill Defaulter Urgent Alerts */}
-            <div className="p-3 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 rounded-xl space-y-2 mb-4">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" /> Refill Defaulters (Missed &gt;7d)
-                </span>
-                <span className="text-[9px] font-mono font-bold text-rose-600">3 High Risk</span>
-              </div>
-              <div className="text-[10px] text-slate-700 dark:text-slate-200 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="truncate max-w-[140px]">Sunita Devi (HTN - Telmisartan)</span>
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Defaulter Nudge Sent 📱',
-                          message: '1-Tap WhatsApp Refill Nudge sent to Sunita Devi.',
-                          type: 'success'
-                        }
-                      }));
-                    }}
-                    className="px-2 py-0.5 text-[8.5px] font-bold uppercase bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer border-0"
-                  >
-                    1-Tap Nudge
-                  </button>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="truncate max-w-[140px]">Baidyanath P. (Arthritis - Shelcal)</span>
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          title: 'Defaulter Nudge Sent 📱',
-                          message: '1-Tap WhatsApp Refill Nudge sent to Baidyanath Prasad.',
-                          type: 'success'
-                        }
-                      }));
-                    }}
-                    className="px-2 py-0.5 text-[8.5px] font-bold uppercase bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer border-0"
-                  >
-                    1-Tap Nudge
-                  </button>
-                </div>
-              </div>
-            </div>
+              const defaulters = chronicCohorts.filter(c => {
+                if (!c.nextRefillDate) return false;
+                const d = Math.ceil((new Date(c.nextRefillDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                return d < 0;
+              });
+
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-2.5 mb-4">
+                    <div className="p-2.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/75 dark:border-white/5 rounded-xl text-center shadow-xs">
+                      <div className="text-[8.5px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Chronic Pool</div>
+                      <div className="text-sm font-bold font-mono mt-0.5 text-slate-900 dark:text-white">{poolCount}</div>
+                    </div>
+                    <div className="p-2.5 bg-teal-50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-800/30 rounded-xl text-center shadow-xs">
+                      <div className="text-[8.5px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider">Adherence</div>
+                      <div className="text-sm font-bold font-mono mt-0.5 text-teal-700 dark:text-teal-400">{avgAdh}</div>
+                    </div>
+                    <div className="p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/30 rounded-xl text-center shadow-xs">
+                      <div className="text-[8.5px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wider">Due Refills</div>
+                      <div className="text-sm font-bold font-mono mt-0.5 text-amber-700 dark:text-amber-450">{dueRefills}</div>
+                    </div>
+                  </div>
+
+                  {/* Disease Cohort Badges */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 mb-3">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 flex justify-between">
+                      <span>Active Disease Cohorts</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-mono">100% Retest Triggers</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 font-medium">🩸 Diabetes ({diaCount})</span>
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 font-medium">🫀 HTN ({htnCount})</span>
+                      <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300 font-medium">🦋 Thyroid ({thyCount})</span>
+                      <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/50 text-blue-800 dark:text-blue-300 font-medium">🧪 CKD / Cardio ({ckdCount})</span>
+                    </div>
+                  </div>
+
+                  {/* Refill Defaulter Urgent Alerts */}
+                  <div className="p-3 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/30 rounded-xl space-y-2 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold uppercase text-rose-700 dark:text-rose-400 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Refill Defaulters (Missed &gt;7d)
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-rose-600">{defaulters.length} High Risk</span>
+                    </div>
+                    {defaulters.length === 0 ? (
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 py-1 font-medium">
+                        All chronic patients up to date with medicine refills.
+                      </div>
+                    ) : (
+                      <div className="text-[10px] text-slate-700 dark:text-slate-200 space-y-1">
+                        {defaulters.slice(0, 3).map((def) => (
+                          <div key={def.id} className="flex justify-between items-center">
+                            <span className="truncate max-w-[140px]">{def.patientName} ({def.conditionCode})</span>
+                            <button
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                  detail: {
+                                    title: 'Defaulter Nudge Sent 📱',
+                                    message: `1-Tap WhatsApp Refill Nudge sent to ${def.patientName}.`,
+                                    type: 'success'
+                                  }
+                                }));
+                              }}
+                              className="px-2 py-0.5 text-[8.5px] font-bold uppercase bg-rose-600 hover:bg-rose-700 text-white rounded cursor-pointer border-0"
+                            >
+                              1-Tap Nudge
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Direct CTA to full Chronic Care Cockpit */}
             <button
