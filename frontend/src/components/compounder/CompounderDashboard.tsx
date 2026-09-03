@@ -684,40 +684,7 @@ export const CompounderDashboard: React.FC = () => {
     patientName: string;
   } | null>(null);
 
-  // Central Realtime CDC & Ecosystem Event Listener (Sub-250ms Live Sync)
-  useEffect(() => {
-    const syncData = () => {
-      setPatients(api.getPatients());
-      setAppointments(api.getAppointments());
-      setSessions(api.getWhatsAppSessions());
-      setDataRevision(prev => prev + 1);
-    };
 
-    syncData();
-    window.addEventListener('mediflow-state-change', syncData);
-    window.addEventListener('storage', syncData);
-
-    const unsubscribeApi = api.subscribe(syncData);
-    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
-      onPatientChange: () => syncData(),
-      onAppointmentChange: () => syncData(),
-      onUnifiedInvoiceChange: () => syncData(),
-      onMedicineBillChange: () => syncData(),
-      onLabRequisitionChange: () => syncData(),
-      onPathologyReportChange: () => syncData(),
-      onFinancialLedgerChange: () => syncData(),
-      onWhatsAppSessionChange: () => syncData(),
-      onClinicSopChange: () => syncData(),
-      onPoolSettlementChange: () => syncData(),
-    });
-
-    return () => {
-      window.removeEventListener('mediflow-state-change', syncData);
-      window.removeEventListener('storage', syncData);
-      unsubscribeApi();
-      unsubscribeRealtime();
-    };
-  }, []);
 
   // Memoized Smart Prefix & Code Patient Search for Instant Intake Desk
   const instantMatchingPatients = useMemo(() => {
@@ -1860,7 +1827,31 @@ export const CompounderDashboard: React.FC = () => {
 
   useEffect(() => {
     syncData();
-    return api.subscribe(syncData);
+    window.addEventListener('mediflow-state-change', syncData);
+    window.addEventListener('storage', syncData);
+    const unsubscribeApi = api.subscribe(syncData);
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onPatientChange: () => syncData(),
+      onAppointmentChange: () => syncData(),
+      onUnifiedInvoiceChange: () => syncData(),
+      onMedicineBillChange: () => syncData(),
+      onLabRequisitionChange: () => syncData(),
+      onPathologyReportChange: () => syncData(),
+      onFinancialLedgerChange: () => syncData(),
+      onWhatsAppSessionChange: () => syncData(),
+      onClinicSopChange: () => syncData(),
+      onPoolSettlementChange: () => syncData(),
+      onEncounterChange: () => syncData(),
+      onInventoryHoldChange: () => syncData(),
+      onSaaSPrescriptionChange: () => syncData(),
+    });
+
+    return () => {
+      window.removeEventListener('mediflow-state-change', syncData);
+      window.removeEventListener('storage', syncData);
+      unsubscribeApi();
+      unsubscribeRealtime();
+    };
   }, [syncData]);
 
   // Auto-refresh every 60 seconds so the dilation countdown timer ticks down

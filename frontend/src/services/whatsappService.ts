@@ -61,7 +61,8 @@ export class WhatsAppService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
       sessions = sessions.filter(s => {
         const pod = (s as any).podId || (s as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (s as any).podId = currentPodId;
         }

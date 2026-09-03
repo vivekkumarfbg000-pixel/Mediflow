@@ -37,7 +37,8 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (i as any).podId = currentPodId;
         }
@@ -89,7 +90,7 @@ export class BillingService {
             source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
             appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
             created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
-            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || FALLBACK_POD_ID
+            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || null
           });
         }
 
@@ -248,7 +249,8 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       ledgers = ledgers.filter(l => {
         const pod = (l as any).podId || (l as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (l as any).podId = currentPodId;
         }
@@ -405,7 +407,8 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (a as any).podId = currentPodId;
         }
@@ -444,7 +447,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist appointment mutation to Supabase
     (async () => {
       try {
-        const podId = (appt as any).podId || (appt as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const podId = (appt as any).podId || (appt as any).pod_id || currentPodId || null;
         const nowISO = new Date().toISOString();
         const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
         const pId = appt.patientId || (appt as any).patient_id;
@@ -506,7 +509,8 @@ export class BillingService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (i as any).podId = currentPodId;
         }
@@ -542,7 +546,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist invoice mutation to Supabase
     (async () => {
       try {
-        const podId = (invoice as any).podId || (invoice as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const podId = (invoice as any).podId || (invoice as any).pod_id || currentPodId || null;
         const nowISO = new Date().toISOString();
         const pId = (invoice as any).patientId || (invoice as any).patient_id || '';
         const apptId = (invoice as any).appointmentId || (invoice as any).appointment_id || null;

@@ -735,7 +735,8 @@ export class PharmacyService {
       const currentPodId = getPodContext().podId;
       holds = holds.filter(h => {
         const pod = (h as any).podId || (h as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (h as any).podId = currentPodId;
         }
@@ -802,7 +803,8 @@ export class PharmacyService {
       const currentPodId = getPodContext().podId;
       bills = bills.filter(b => {
         const pod = (b as any).podId || (b as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (b as any).podId = currentPodId;
         }

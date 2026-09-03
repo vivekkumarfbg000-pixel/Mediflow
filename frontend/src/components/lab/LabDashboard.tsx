@@ -9,6 +9,7 @@ import {
   LayoutDashboard, UploadCloud, CreditCard, TrendingUp, Zap, AlertCircle, ArrowUpRight
 } from 'lucide-react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
+import { LabService } from '../../services/labService';
 import { PaymentService } from '../../services/paymentService';
 import { BillingService } from '../../services/billingService';
 import { PatientService } from '../../services/patientService';
@@ -208,17 +209,60 @@ export const LabDashboard: React.FC = () => {
 
   /* ─── Main data sync ─────────────────────────────────────────── */
   useEffect(() => {
+    const fetchLiveRequisitions = async () => {
+      try {
+        const activePodId = activePod?.id || null;
+        let query = supabase.from('lab_requisitions').select('*').order('created_at', { ascending: false });
+        if (activePodId) {
+          query = query.eq('pod_id', activePodId);
+        } else {
+          query = query.is('pod_id', null);
+        }
+        const { data, error } = await query;
+        if (!error && data) {
+          if (data.length === 0) {
+            setRequisitions([]);
+            LabService.saveLabRequisitions([]);
+          } else {
+            const mapped: LabRequisition[] = data.map((r: any) => ({
+              id: r.id,
+              encounterId: r.encounter_id,
+              patientId: r.patient_id,
+              patientName: r.patient_name || 'Patient',
+              patientPhone: r.patient_phone || '',
+              testCode: r.loinc_code || r.test_code || 'LOINC-001',
+              testName: r.test_name,
+              barcode: r.barcode || `BAR-${r.id.slice(0, 8)}`,
+              status: r.status || 'pending',
+              podId: r.pod_id,
+              pod_id: r.pod_id,
+              reagentDeductions: r.reagent_deductions || [],
+              createdAt: r.created_at || new Date().toISOString()
+            }));
+            setRequisitions(mapped);
+            LabService.saveLabRequisitions(mapped);
+          }
+        }
+      } catch (err) {
+        console.warn('[LabDashboard] fetchLiveRequisitions notice:', err);
+      }
+    };
+
     const sync = () => {
       setRequisitions(api.getLabRequisitions());
       setInvoices(api.getUnifiedInvoices());
       setPatients(api.getPatients());
     };
     sync();
+    fetchLiveRequisitions();
     window.addEventListener('mediflow-state-change', sync);
 
     const unsubscribeApi = api.subscribe(sync);
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
-      onLabRequisitionChange: () => sync(),
+      onLabRequisitionChange: () => {
+        sync();
+        fetchLiveRequisitions();
+      },
       onPatientChange: () => sync(),
       onUnifiedInvoiceChange: () => sync(),
       onPathologyReportChange: () => sync(),
@@ -231,7 +275,7 @@ export const LabDashboard: React.FC = () => {
       unsubscribeApi();
       unsubscribeRealtime();
     };
-  }, []);
+  }, [activePod?.id]);
 
   /* ─── Set active patient when selecting a requisition ────────── */
   useEffect(() => {

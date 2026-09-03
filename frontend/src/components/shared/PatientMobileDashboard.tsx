@@ -3,6 +3,7 @@ import { api } from '../../services/api';
 import type { Patient, UnifiedInvoice, PathologyReport, Encounter, Invoice } from '../../types';
 import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
+import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { 
   Smartphone, 
   Home, 
@@ -91,8 +92,28 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
     };
 
     syncData();
+    window.addEventListener('mediflow-state-change', syncData);
+    window.addEventListener('storage', syncData);
     const unsubscribe = api.subscribe(syncData);
-    return () => unsubscribe();
+    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onPatientChange: () => syncData(),
+      onAppointmentChange: () => syncData(),
+      onUnifiedInvoiceChange: () => syncData(),
+      onMedicineBillChange: () => syncData(),
+      onLabRequisitionChange: () => syncData(),
+      onPathologyReportChange: () => syncData(),
+      onFinancialLedgerChange: () => syncData(),
+      onWhatsAppSessionChange: () => syncData(),
+      onEncounterChange: () => syncData(),
+      onSaaSPrescriptionChange: () => syncData(),
+    });
+
+    return () => {
+      window.removeEventListener('mediflow-state-change', syncData);
+      window.removeEventListener('storage', syncData);
+      unsubscribe();
+      unsubscribeRealtime();
+    };
   }, [selectedPhone]);
 
   const cleanSelectedPhone = (selectedPhone || '').replace(/\D/g, '').slice(-10);

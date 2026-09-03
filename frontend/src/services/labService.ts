@@ -269,7 +269,8 @@ export class LabService {
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'auto test patient']);
       reqs = reqs.filter(r => {
         const pod = (r as any).podId || (r as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+        if (pod && currentPodId && pod !== currentPodId) return false;
+        if (pod && !currentPodId) return false;
         if (!pod && currentPodId) {
           (r as any).podId = currentPodId;
         }
@@ -303,7 +304,7 @@ export class LabService {
             test_name: r.testName,
             barcode: r.barcode || `BAR-${r.id.slice(0, 8)}`,
             status: r.status || 'pending',
-            pod_id: (r as any).podId || (r as any).pod_id || currentPodId || FALLBACK_POD_ID,
+            pod_id: (r as any).podId || (r as any).pod_id || currentPodId || null,
             created_at: (r as any).createdAt || (r as any).created_at || nowISO
           });
         }
@@ -599,7 +600,8 @@ export class LabService {
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
     reports = reports.filter(r => {
       const pod = (r as any).podId || (r as any).pod_id;
-      if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+      if (pod && currentPodId && pod !== currentPodId) return false;
+      if (pod && !currentPodId) return false;
       if (!pod && currentPodId) {
         (r as any).podId = currentPodId;
       }

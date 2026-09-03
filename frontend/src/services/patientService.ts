@@ -53,7 +53,7 @@ export class PatientService {
             patient_code: p.patientCode || null,
             vitals: p.vitals || null,
             queue_status: p.queueStatus || 'registered',
-            pod_id: (p as any).podId || (p as any).pod_id || currentPodId || FALLBACK_POD_ID
+            pod_id: (p as any).podId || (p as any).pod_id || currentPodId || null
           });
         }
 
@@ -83,7 +83,7 @@ export class PatientService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist single patient mutation to Supabase
     (async () => {
       try {
-        const podId = (patient as any).podId || (patient as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const podId = (patient as any).podId || (patient as any).pod_id || currentPodId || null;
         const cleanPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
         let targetId = patient.id;
         if (cleanPhone) {
@@ -129,7 +129,8 @@ export class PatientService {
     
     rawPatients = rawPatients.filter(p => {
       const pod = (p as any).podId || (p as any).pod_id;
-      if (pod && currentPodId && pod !== currentPodId && pod !== FALLBACK_POD_ID && currentPodId !== FALLBACK_POD_ID) return false;
+      if (pod && currentPodId && pod !== currentPodId) return false;
+      if (pod && !currentPodId) return false;
       if (!pod && currentPodId) {
         (p as any).podId = currentPodId;
       }
