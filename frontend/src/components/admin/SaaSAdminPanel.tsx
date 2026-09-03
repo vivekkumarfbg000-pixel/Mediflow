@@ -607,16 +607,84 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     const targetPod = podPendingDelete;
     setIsDeletingPod(true);
     try {
-      // 1. Safely unlink staff profiles associated with this pod
+      // 1. Attempt atomic database RPC first (Server-side cascade & Security Definer)
+      let rpcSucceeded = false;
       try {
-        await supabase.from('profiles').update({ pod_id: null, entity_id: null }).eq('pod_id', targetPod.id);
-      } catch (_e) {
-        /* non-fatal unlink error */
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('delete_clinic_pod', {
+          p_pod_id: targetPod.id
+        });
+        if (!rpcErr && rpcData && rpcData.success) {
+          rpcSucceeded = true;
+        } else if (rpcData && rpcData.error) {
+          console.warn('[SaaS Admin] delete_clinic_pod RPC returned:', rpcData.error);
+        }
+      } catch (_rpcEx) {
+        rpcSucceeded = false;
       }
 
-      // 2. Delete the pod record from Supabase database
-      const { error } = await supabase.from('pods').delete().eq('id', targetPod.id);
-      if (error) throw error;
+      // 2. Client-side sequential cascading fallback if RPC not yet deployed
+      if (!rpcSucceeded) {
+        // Collect entities under this pod
+        let entityIds: string[] = [];
+        try {
+          const { data: podEntities } = await supabase
+            .from('entities')
+            .select('id')
+            .eq('pod_id', targetPod.id);
+          entityIds = (podEntities || []).map((e: any) => e.id).filter(Boolean);
+        } catch (_e) {}
+
+        // Unlink staff profiles
+        try {
+          await supabase.from('profiles').update({ pod_id: null, entity_id: null, clinic_id: null }).eq('pod_id', targetPod.id);
+          if (entityIds.length > 0) {
+            await supabase.from('profiles').update({ pod_id: null, entity_id: null, clinic_id: null }).in('entity_id', entityIds);
+          }
+        } catch (_e) {}
+
+        // Clean up financial ledgers
+        try {
+          await supabase.from('financial_ledgers').delete().eq('pod_id', targetPod.id);
+          if (entityIds.length > 0) {
+            await supabase.from('financial_ledgers').delete().in('source_entity_id', entityIds);
+            await supabase.from('financial_ledgers').delete().in('destination_entity_id', entityIds);
+          }
+        } catch (_e) {}
+
+        // Clean up pool settlements
+        try {
+          await supabase.from('vitalsync_pool_settlements').delete().eq('pod_id', targetPod.id);
+          if (entityIds.length > 0) {
+            await supabase.from('vitalsync_pool_settlements').delete().in('entity_id', entityIds);
+          }
+        } catch (_e) {}
+
+        // Clean up transactional records
+        try { await supabase.from('unified_invoices').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('prescriptions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { 
+          await supabase.from('lab_requisitions').delete().eq('pod_id', targetPod.id);
+          if (entityIds.length > 0) {
+            await supabase.from('lab_requisitions').delete().in('lab_entity_id', entityIds);
+          }
+        } catch (_e) {}
+        try { await supabase.from('encounters').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('appointments').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('whatsapp_sessions').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('waba_connections').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('clinic_sops').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('system_health_telemetry').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+        try { await supabase.from('activity_logs').delete().eq('pod_id', targetPod.id); } catch (_e) {}
+
+        // Delete entities
+        try {
+          await supabase.from('entities').delete().eq('pod_id', targetPod.id);
+        } catch (_e) {}
+
+        // Finally delete the pod record
+        const { error: podDelErr } = await supabase.from('pods').delete().eq('id', targetPod.id);
+        if (podDelErr) throw podDelErr;
+      }
 
       // 3. Update local state
       setPodsList(prev => prev.filter(p => p.id !== targetPod.id));
