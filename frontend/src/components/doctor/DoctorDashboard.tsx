@@ -2116,19 +2116,32 @@ Keep the tone professional, clinical, objective, and precise.`;
                 {isOphthalmology ? `${headerDoctorTitle}'s Eye Care Console` : `${headerDoctorTitle}'s Care Dashboard`}
               </h1>
               <p className="text-[11px] text-slate-600 flex items-center gap-1.5 mt-0.5">
-                VitalSync Pod Tenant Host
+                {activePod?.name || 'No Clinic Linked'}
                 <span className="text-slate-600">·</span>
                 Clinic Code:
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'clinic' } }));
-                  }}
-                  className="font-mono font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200 px-1.5 py-0.5 rounded text-[10px] transition-all cursor-pointer"
-                  title="Click to view/manage Clinic Pod & Storefront Partners"
-                >
-                  {((activePod?.clinicCode && activePod.clinicCode !== 'VS-V01R') ? activePod.clinicCode : (activeDoctorProfile?.clinic_code && activeDoctorProfile.clinic_code !== 'VS-V01R' ? activeDoctorProfile.clinic_code : (activeDoctorProfile?.clinicCode && activeDoctorProfile.clinicCode !== 'VS-V01R' ? activeDoctorProfile.clinicCode : 'MF-001')))}
-                </button>
+                {activePod?.clinicCode ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'clinic' } }));
+                    }}
+                    className="font-mono font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200 px-1.5 py-0.5 rounded text-[10px] transition-all cursor-pointer"
+                    title="Click to view/manage Clinic Pod & Storefront Partners"
+                  >
+                    {activePod.clinicCode}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'clinic' } }));
+                    }}
+                    className="font-sans font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded text-[10px] transition-all cursor-pointer"
+                    title="No clinic linked in database. Click to link or register a clinic."
+                  >
+                    Unassigned (Link Clinic)
+                  </button>
+                )}
                 <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   {isOnline ? 'Live' : 'Offline'}

@@ -329,7 +329,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
             <div class="subtitle">${activePod?.name || activePod?.doctor_name || 'VitalSync Care Clinic'} — Official Sales Mapping & Financial Payout Ledger</div>
           </div>
           <div style="text-align: right; font-size: 11px; color: #64748b;">
-            <div><strong>Clinic Code:</strong> ${(activePod?.clinicCode && activePod.clinicCode !== 'VS-V01R') ? activePod.clinicCode : 'MF-001'}</div>
+            <div><strong>Clinic Code:</strong> ${activePod?.clinicCode ? activePod.clinicCode : 'Unassigned'}</div>
           </div>
         </div>
 

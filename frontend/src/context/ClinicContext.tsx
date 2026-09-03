@@ -19,20 +19,21 @@ interface ClinicContextType {
 const ClinicContext = createContext<ClinicContextType | undefined>(undefined);
 
 export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile: any }> = ({ children, activeProfile }) => {
-  // Synchronous Frame 0 state hydration to prevent clinic code flicker
+  // Synchronous Frame 0 state hydration
   const [activePod, setActivePod] = useState<Pod | null>(() => {
     if (typeof window !== 'undefined') {
       try {
         const cachedPod = safeGetStorageJSON<any>('vitalsync_cached_active_pod', null);
-        if (cachedPod && cachedPod.clinicCode) return cachedPod;
+        if (cachedPod && cachedPod.clinicCode && cachedPod.clinicCode !== 'VS-V01R') return cachedPod;
 
         const activePodLocal = safeGetStorageJSON<any>('vitalsync_active_pod', null);
-        if (activePodLocal && (activePodLocal.clinic_code || activePodLocal.clinicCode)) {
+        const localCode = activePodLocal?.clinic_code || activePodLocal?.clinicCode;
+        if (activePodLocal && localCode && localCode !== 'VS-V01R') {
           return {
             id: activePodLocal.id || 'demo-pod',
             name: activePodLocal.name || 'Care Pod Clinic',
             location: activePodLocal.location,
-            clinicCode: activePodLocal.clinic_code || activePodLocal.clinicCode,
+            clinicCode: localCode,
             isActive: activePodLocal.is_active ?? true,
             createdAt: activePodLocal.created_at || new Date().toISOString()
           };
@@ -55,32 +56,8 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       setPodEntities([]);
       if (typeof window !== 'undefined') {
         delete (window as any).__mediflow_active_pod_id;
-      }
-      return;
-    }
-
-    // Explicit Demo Account Check
-    const email = String(activeProfile.email || '').toLowerCase();
-    const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === FALLBACK_DOCTOR_ID);
-    if (isDemo) {
-      const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
-      const customName = activeProfile?.clinicName || activeProfile?.clinic_name || localActivePod?.name || 'Apex Eye & Dental Care Clinic';
-      const resolvedClinicCode = (localActivePod?.clinic_code && localActivePod.clinic_code !== 'VS-V01R') 
-        ? localActivePod.clinic_code 
-        : (localActivePod?.clinicCode && localActivePod.clinicCode !== 'VS-V01R' ? localActivePod.clinicCode : 'MF-001');
-      const demoPod: Pod = {
-        id: localActivePod?.id || FALLBACK_POD_ID,
-        name: customName,
-        location: localActivePod?.location || 'Line Bazar, Purnea',
-        clinicCode: resolvedClinicCode,
-        isActive: true,
-        createdAt: '2026-01-01T00:00:00Z'
-      };
-      setActivePod(demoPod);
-      if (typeof window !== 'undefined') {
-        safeSetStorageJSON('vitalsync_cached_active_pod', demoPod);
-        safeSetStorageJSON('vitalsync_active_pod', { ...demoPod, clinic_code: demoPod.clinicCode, platform_fee_percent: 3.0 });
-        (window as any).__mediflow_active_pod_id = demoPod.id;
+        localStorage.removeItem('vitalsync_cached_active_pod');
+        localStorage.removeItem('vitalsync_active_pod');
       }
       return;
     }
@@ -102,99 +79,121 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         }
       }
 
-      if (!entityId) {
-        setIsLoading(false);
-        return;
-      }
+      let podData: any = null;
+      let mappedEntity: Entity | null = null;
 
-      // 1. Fetch user's own entity directly
-      const { data: entityData, error: entityError } = await supabase
-        .from('entities')
-        .select('*')
-        .eq('id', entityId)
-        .maybeSingle();
+      // 1. Try finding pod through user's own entity
+      if (entityId) {
+        const { data: entityData } = await supabase
+          .from('entities')
+          .select('*')
+          .eq('id', entityId)
+          .maybeSingle();
 
-      if (entityError) {
-        console.warn('[ClinicContext] Notice fetching entity:', entityError);
-      }
+        if (entityData) {
+          mappedEntity = {
+            id: entityData.id,
+            podId: entityData.pod_id,
+            entityType: entityData.entity_type as Entity['entityType'],
+            name: entityData.name,
+            address: entityData.address || undefined,
+            phone: entityData.phone || undefined,
+            gstin: entityData.gstin || undefined,
+            subscriptionTier: entityData.subscription_tier || undefined,
+            monthlyFee: entityData.monthly_fee ? parseFloat(entityData.monthly_fee) : undefined,
+            status: entityData.status as Entity['status'],
+            isActive: entityData.is_active ?? true,
+            createdAt: entityData.created_at
+          };
 
-      if (entityData) {
-        const mappedEntity: Entity = {
-          id: entityData.id,
-          podId: entityData.pod_id,
-          entityType: entityData.entity_type as Entity['entityType'],
-          name: entityData.name,
-          address: entityData.address || undefined,
-          phone: entityData.phone || undefined,
-          gstin: entityData.gstin || undefined,
-          subscriptionTier: entityData.subscription_tier || undefined,
-          monthlyFee: entityData.monthly_fee ? parseFloat(entityData.monthly_fee) : undefined,
-          status: entityData.status as Entity['status'],
-          isActive: entityData.is_active ?? true,
-          createdAt: entityData.created_at
-        };
+          setActiveEntity(mappedEntity);
+          setPartnerStatus(mappedEntity.status);
 
-        setActiveEntity(mappedEntity);
-        setPartnerStatus(mappedEntity.status);
+          if (entityData.pod_id) {
+            const { data: p } = await supabase
+              .from('pods')
+              .select('*')
+              .eq('id', entityData.pod_id)
+              .maybeSingle();
 
-        // 2. Fetch Pod metadata and all entities in the same pod
-        if (mappedEntity.podId) {
-          const { data: podData, error: podError } = await supabase
-            .from('pods')
-            .select('*')
-            .eq('id', mappedEntity.podId)
-            .maybeSingle();
-
-          if (!podError && podData) {
-            const mappedPod: Pod = {
-              id: podData.id,
-              name: podData.name,
-              location: podData.location || undefined,
-              clinicCode: podData.clinic_code,
-              isActive: podData.is_active ?? true,
-              createdAt: podData.created_at
-            };
-
-            setActivePod(mappedPod);
-
-            // Persist verified pod to storage to eliminate any future cold-start flicker
-            if (typeof window !== 'undefined') {
-              safeSetStorageJSON('vitalsync_cached_active_pod', mappedPod);
-              safeSetStorageJSON('vitalsync_active_pod', {
-                ...mappedPod,
-                clinic_code: podData.clinic_code,
-                health_score: 100,
-                is_verified_for_billing: true,
-                platform_fee_percent: 3.0
-              });
-              (window as any).__mediflow_active_pod_id = podData.id;
+            if (p && p.is_active !== false) {
+              podData = p;
             }
           }
+        }
+      }
 
-          // Fetch all entities in the same pod to link Doctor <-> Compounder <-> Pharmacy <-> Lab
-          const { data: entitiesData, error: entitiesError } = await supabase
-            .from('entities')
-            .select('*')
-            .eq('pod_id', mappedEntity.podId);
-
-          if (!entitiesError && entitiesData) {
-            setPodEntities(
-              entitiesData.map(e => ({
-                id: e.id,
-                podId: e.pod_id,
-                entityType: e.entity_type as Entity['entityType'],
-                name: e.name,
-                address: e.address || undefined,
-                phone: e.phone || undefined,
-                gstin: e.gstin || undefined,
-                subscriptionTier: e.subscription_tier || undefined,
-                monthlyFee: e.monthly_fee ? parseFloat(e.monthly_fee) : undefined,
-                status: e.status as Entity['status'],
-                isActive: e.is_active ?? true,
-                createdAt: e.created_at
-              }))
-            );
+      // 2. If no pod via entity, query get_all_tenant_pods from Supabase
+      if (!podData) {
+        const { data: allPods } = await supabase.rpc('get_all_tenant_pods');
+        if (allPods && Array.isArray(allPods) && allPods.length > 0) {
+          const activeDbPod = allPods.find((p: any) => p.is_active !== false) || allPods[0];
+          if (activeDbPod) {
+            podData = activeDbPod;
           }
+        }
+      }
+
+      // 3. If a real pod exists in Supabase, set it
+      if (podData) {
+        const mappedPod: Pod = {
+          id: podData.id,
+          name: podData.name,
+          location: podData.location || undefined,
+          clinicCode: podData.clinic_code,
+          isActive: podData.is_active ?? true,
+          createdAt: podData.created_at
+        };
+
+        setActivePod(mappedPod);
+
+        if (typeof window !== 'undefined') {
+          safeSetStorageJSON('vitalsync_cached_active_pod', mappedPod);
+          safeSetStorageJSON('vitalsync_active_pod', {
+            ...mappedPod,
+            clinic_code: podData.clinic_code,
+            health_score: podData.health_score || 100,
+            is_verified_for_billing: true,
+            platform_fee_percent: 3.0
+          });
+          (window as any).__mediflow_active_pod_id = podData.id;
+        }
+
+        // Fetch all entities in the same pod
+        const { data: entitiesData } = await supabase
+          .from('entities')
+          .select('*')
+          .eq('pod_id', podData.id);
+
+        if (entitiesData) {
+          setPodEntities(
+            entitiesData.map(e => ({
+              id: e.id,
+              podId: e.pod_id,
+              entityType: e.entity_type as Entity['entityType'],
+              name: e.name,
+              address: e.address || undefined,
+              phone: e.phone || undefined,
+              gstin: e.gstin || undefined,
+              subscriptionTier: e.subscription_tier || undefined,
+              monthlyFee: e.monthly_fee ? parseFloat(e.monthly_fee) : undefined,
+              status: e.status as Entity['status'],
+              isActive: e.is_active ?? true,
+              createdAt: e.created_at
+            }))
+          );
+        }
+      } else {
+        // ZERO PODS EXIST IN DATABASE (User deleted all clinics, or deleted MF-001)
+        // Strictly clear state and storage — DO NOT invent a fake pod!
+        setActivePod(null);
+        setActiveEntity(null);
+        setPartnerStatus(null);
+        setPodEntities([]);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('vitalsync_cached_active_pod');
+          localStorage.removeItem('vitalsync_active_pod');
+          delete (window as any).__mediflow_active_pod_id;
         }
       }
     } catch (err) {
