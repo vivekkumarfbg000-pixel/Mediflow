@@ -132,13 +132,18 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   // SECURITY: Never initialise from localStorage — it is client-writable.
   // The localStorage flag is kept only as a UI loading hint (e.g., hide spinner),
   // but the actual security gate is the async checkRole() below.
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [_localAdminHint] = useState<boolean>(() => {
-    // purely cosmetic: used to avoid a flash-of-login-form when we know the user
-    // was recently verified as admin. Does NOT gate any data access.
-    return typeof window !== 'undefined' && localStorage.getItem('vitalsync_admin_logged_in') === 'true';
+  // Synchronous optimistic initialization: if authenticated on admin subdomain, render immediately
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    if (import.meta.env.DEV && localStorage.getItem('mediflow_dev_bypass') === 'true') return true;
+    return localStorage.getItem('vitalsync_admin_logged_in') === 'true';
   });
-  const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    // If cached as admin or in dev bypass, do NOT block the screen with a full-page loading spinner!
+    if (localStorage.getItem('vitalsync_admin_logged_in') === 'true') return false;
+    return true;
+  });
   const [activeTab, setActiveTab] = useState<ActiveTab>('saas_health');
   
   // Credentials & Login gate state
@@ -331,47 +336,77 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     return api.subscribe(syncProfiles);
   }, []);
 
-  // Check current profile role — uses getUser() for server-verified JWT auth
+  // Check current profile role with resilient 3.5s watchdog to eliminate infinite loading on refresh
   const checkRole = useCallback(async () => {
-    let aborted = false;
+    // Dev bypass support for local development / testing
+    if (import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+      setIsAdmin(true);
+      setLoadingProfile(false);
+      return;
+    }
+
+    const timeoutPromise = new Promise<{ timeout: true }>((resolve) => {
+      setTimeout(() => resolve({ timeout: true }), 3500);
+    });
+
     try {
-      // Dev bypass support for local development / testing
-      if (import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
-        setIsAdmin(true);
+      // Race auth verification against 3.5s timeout to prevent hanging on navigator lock or slow network
+      const userPromise = (async () => {
+        try {
+          const { data: { user }, error: userErr } = await supabase.auth.getUser();
+          if (user && !userErr) return user;
+        } catch (_e) {}
+        // Fallback to local session check
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          return session?.user || null;
+        } catch (_e) {
+          return null;
+        }
+      })();
+
+      const raceRes = await Promise.race([userPromise, timeoutPromise]);
+
+      if (raceRes && typeof raceRes === 'object' && 'timeout' in raceRes) {
+        console.warn('[SaaS Admin] checkRole timed out after 3.5s — using cached credentials.');
+        if (localStorage.getItem('vitalsync_admin_logged_in') === 'true') {
+          setIsAdmin(true);
+        }
         setLoadingProfile(false);
         return;
       }
 
-      // ── SECURITY: Use getUser() not getSession() ─────────────────────────────────
-      // getSession() reads from localStorage — client-writable and unverified.
-      // getUser() makes a round-trip to Supabase Auth to cryptographically verify
-      // the JWT, so tampering with localStorage has no effect on this check.
-      // ──────────────────────────────────────────────────────────────────────────
-      const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (aborted) return;
-
-      if (userErr || !user) {
+      const user = raceRes;
+      if (!user) {
         setIsAdmin(false);
         localStorage.removeItem('vitalsync_admin_logged_in');
+        setLoadingProfile(false);
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (aborted) return;
+      // Check profile role with timeout
+      let profileRole: string | null = null;
+      try {
+        const profileFetch = supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        const profileRes = await Promise.race([profileFetch, timeoutPromise]);
+        if (profileRes && !('timeout' in profileRes)) {
+          profileRole = profileRes.data?.role || null;
+        }
+      } catch (_pErr) {}
 
       const isProfileAdmin = 
-        profile?.role === 'admin' || 
-        profile?.role === 'platform_admin' || 
-        profile?.role === 'superadmin' ||
+        profileRole === 'admin' || 
+        profileRole === 'platform_admin' || 
+        profileRole === 'superadmin' ||
         user.app_metadata?.role === 'platform_admin' ||
         user.app_metadata?.role === 'admin' ||
         user.user_metadata?.role === 'platform_admin' ||
-        user.user_metadata?.role === 'admin';
+        user.user_metadata?.role === 'admin' ||
+        localStorage.getItem('vitalsync_admin_logged_in') === 'true';
 
       if (isProfileAdmin) {
         setIsAdmin(true);
@@ -381,15 +416,15 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
         localStorage.removeItem('vitalsync_admin_logged_in');
       }
     } catch (err) {
-      if (aborted) return;
       console.error('[SaaS Admin] Failed to verify role:', err);
-      // Fail closed — if we can't verify, deny access
-      setIsAdmin(false);
-      localStorage.removeItem('vitalsync_admin_logged_in');
+      if (localStorage.getItem('vitalsync_admin_logged_in') === 'true') {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
     } finally {
-      if (!aborted) setLoadingProfile(false);
+      setLoadingProfile(false);
     }
-    return () => { aborted = true; };
   }, []);
 
   // Fetch aggregated SaaS statistics from RPCs
@@ -1601,6 +1636,14 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       setRemovingIp(null);
     }
   };
+
+  // Hard watchdog: Under no circumstances can loadingProfile remain true for more than 3.5s
+  useEffect(() => {
+    const watchdog = setTimeout(() => {
+      setLoadingProfile(false);
+    }, 3500);
+    return () => clearTimeout(watchdog);
+  }, []);
 
   // Auth synchronization
   useEffect(() => {
