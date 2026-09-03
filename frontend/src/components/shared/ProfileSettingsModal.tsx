@@ -526,7 +526,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Active Clinic Pod</span>
                   <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[9px] font-black uppercase">
-                    {activePod?.clinicCode || activeProfile?.clinic_code || activeProfile?.clinicCode || 'VS-V01R'}
+                    {(activePod?.clinicCode && activePod.clinicCode !== 'VS-V01R') ? activePod.clinicCode : ((activeProfile?.clinic_code && activeProfile.clinic_code !== 'VS-V01R') ? activeProfile.clinic_code : 'MF-001')}
                   </span>
                 </div>
                 <h4 className="text-sm font-black text-slate-850">{activeEntity?.name || activeProfile?.clinicName || (activeProfile?.display_name ? activeProfile.display_name + "'s Care Clinic" : 'Clinical Practice')}</h4>
@@ -967,7 +967,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
         {/* Modal Footer Section */}
         <div className="border-t border-slate-200 pt-4 mt-4 flex items-center justify-between shrink-0">
           <span className="text-[9.5px] text-slate-600 font-bold uppercase tracking-wider">
-            Connected: {activePod?.clinicCode || activeProfile?.clinic_code || activeProfile?.clinicCode || 'VS-V01R'}
+            Connected: {(activePod?.clinicCode && activePod.clinicCode !== 'VS-V01R') ? activePod.clinicCode : ((activeProfile?.clinic_code && activeProfile.clinic_code !== 'VS-V01R') ? activeProfile.clinic_code : 'MF-001')}
           </span>
           <button 
             onClick={onClose}

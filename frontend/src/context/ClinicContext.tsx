@@ -64,20 +64,22 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     const isDemo = Boolean(activeProfile.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || activeProfile.id === FALLBACK_DOCTOR_ID);
     if (isDemo) {
       const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
-      const cleanStoredPodName = localActivePod?.name && !localActivePod.name.toLowerCase().includes('apex') ? localActivePod.name : null;
-      const customName = activeProfile?.clinicName || activeProfile?.clinic_name || cleanStoredPodName || (activeProfile?.display_name ? `${activeProfile.display_name.startsWith('Dr.') ? activeProfile.display_name : `Dr. ${activeProfile.display_name}`}'s Care Clinic` : 'VitalSync Smart Care Clinic');
+      const customName = activeProfile?.clinicName || activeProfile?.clinic_name || localActivePod?.name || 'Apex Eye & Dental Care Clinic';
+      const resolvedClinicCode = (localActivePod?.clinic_code && localActivePod.clinic_code !== 'VS-V01R') 
+        ? localActivePod.clinic_code 
+        : (localActivePod?.clinicCode && localActivePod.clinicCode !== 'VS-V01R' ? localActivePod.clinicCode : 'MF-001');
       const demoPod: Pod = {
         id: localActivePod?.id || FALLBACK_POD_ID,
         name: customName,
-        location: localActivePod?.location || 'Central Medical Plaza, Tier-2 Clinic Node',
-        clinicCode: localActivePod?.clinic_code || localActivePod?.clinicCode || 'VS-V01R',
+        location: localActivePod?.location || 'Line Bazar, Purnea',
+        clinicCode: resolvedClinicCode,
         isActive: true,
         createdAt: '2026-01-01T00:00:00Z'
       };
       setActivePod(demoPod);
       if (typeof window !== 'undefined') {
         safeSetStorageJSON('vitalsync_cached_active_pod', demoPod);
-        safeSetStorageJSON('vitalsync_active_pod', { ...demoPod, clinic_code: demoPod.clinicCode });
+        safeSetStorageJSON('vitalsync_active_pod', { ...demoPod, clinic_code: demoPod.clinicCode, platform_fee_percent: 3.0 });
         (window as any).__mediflow_active_pod_id = demoPod.id;
       }
       return;
@@ -163,7 +165,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
                 clinic_code: podData.clinic_code,
                 health_score: 100,
                 is_verified_for_billing: true,
-                platform_fee_percent: 2.5
+                platform_fee_percent: 3.0
               });
               (window as any).__mediflow_active_pod_id = podData.id;
             }

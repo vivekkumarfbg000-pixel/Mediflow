@@ -1254,7 +1254,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             <div class="doc-info">
               <strong>${activePod?.doctorName || activePod?.doctor_name || clinicProfile?.display_name || 'Dr. Practitioner'}</strong><br/>
               ${(activePod as any)?.specialization || 'Clinical Care Specialist'}<br/>
-              ${activePod?.name || clinicProfile?.clinicName || 'Care Pod Clinic'} (Code: ${activePod?.clinicCode || 'VS-V01R'})<br/>
+              ${activePod?.name || clinicProfile?.clinicName || 'Care Pod Clinic'} (Code: ${(activePod?.clinicCode && activePod.clinicCode !== 'VS-V01R') ? activePod.clinicCode : 'MF-001'})<br/>
               Date: ${getIstDateDisplay()}
             </div>
           </div>

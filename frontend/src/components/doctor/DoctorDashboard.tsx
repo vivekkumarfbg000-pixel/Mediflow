@@ -2127,7 +2127,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   className="font-mono font-semibold text-slate-700 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200/60 hover:border-indigo-200 px-1.5 py-0.5 rounded text-[10px] transition-all cursor-pointer"
                   title="Click to view/manage Clinic Pod & Storefront Partners"
                 >
-                  {activePod?.clinicCode || activeDoctorProfile?.clinic_code || activeDoctorProfile?.clinicCode || 'VS-V01R'}
+                  {((activePod?.clinicCode && activePod.clinicCode !== 'VS-V01R') ? activePod.clinicCode : (activeDoctorProfile?.clinic_code && activeDoctorProfile.clinic_code !== 'VS-V01R' ? activeDoctorProfile.clinic_code : (activeDoctorProfile?.clinicCode && activeDoctorProfile.clinicCode !== 'VS-V01R' ? activeDoctorProfile.clinicCode : 'MF-001')))}
                 </button>
                 <span className={`flex sm:hidden items-center gap-1 text-[10px] font-semibold pl-1 font-mono ${isOnline ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <span className={`h-1.5 w-1.5 rounded-full animate-pulse inline-block ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'}`} />
