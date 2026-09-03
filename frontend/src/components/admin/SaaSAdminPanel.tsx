@@ -179,16 +179,16 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   }));
   const [podsList, setPodsList] = useState<PodInfo[]>(() => [{
     id: FALLBACK_POD_ID,
-    name: 'Central Medical Pod, Patna',
-    doctor_name: 'Dr. Rohit Sharma',
+    name: 'Apex Eye & Dental Care Clinic',
+    doctor_name: 'Dr. Vivek Kumar',
     phone: '+919608032073',
-    location: 'Patna Central Hub',
-    clinic_code: 'VS-V01R',
+    location: 'Line Bazar, Purnea',
+    clinic_code: 'MF-001',
     is_active: true,
     created_at: new Date().toISOString(),
     daily_cost_budget: 500.00,
     daily_spend: 0.00,
-    platform_fee_percent: 2.5,
+    platform_fee_percent: 3.0,
     lifetime_platform_revenue: 0.00,
     pending_cash_balance: 0.00,
     is_verified_for_billing: true,
@@ -427,55 +427,44 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
     }
   }, []);
 
-  // Fetch aggregated SaaS statistics from RPCs
+  // Fetch aggregated SaaS statistics and tenant pods resiliently (zero cascading failures)
   const fetchSaaSMetrics = useCallback(async () => {
     if (!isAdmin) return;
     setMetricsLoading(true);
     try {
-      const [
-        { data: onboarding }, 
-        { data: revenue }, 
-        { data: costs },
-        { data: pods }
-      ] = await Promise.all([
-        supabase.rpc('get_saas_onboarding_stats'),
-        supabase.rpc('get_saas_revenue_stats'),
-        supabase.rpc('get_saas_cost_stats'),
-        supabase.from('pods').select('*').order('created_at', { ascending: false })
-      ]);
+      // 1. Fetch Pods independently so analytics failures NEVER hide the pods list
+      let fetchedPods: any[] = [];
+      try {
+        const { data: rpcPods, error: rpcErr } = await supabase.rpc('get_all_tenant_pods');
+        if (!rpcErr && Array.isArray(rpcPods) && rpcPods.length > 0) {
+          fetchedPods = rpcPods;
+        }
+      } catch (_e) {}
 
-      setOnboardingStats((onboarding as OnboardingStats) || {
-        total_pods: (pods?.length) || 1,
-        total_entities: 3,
-        clinics: 1,
-        pharmacies: 1,
-        labs: 1,
-        total_profiles: api.getPatients().length
-      });
+      if (fetchedPods.length === 0) {
+        try {
+          const { data: tblPods, error: tblErr } = await supabase
+            .from('pods')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (!tblErr && Array.isArray(tblPods) && tblPods.length > 0) {
+            fetchedPods = tblPods;
+          }
+        } catch (_e) {}
+      }
 
-      const liveInvs = api.getUnifiedInvoices();
-      const realTotalGmv = liveInvs.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0);
-      setRevenueStats((revenue as RevenueStats) || {
-        total_gmv: realTotalGmv,
-        platform_commission: Math.round(realTotalGmv * 0.03),
-        paid_invoices: liveInvs.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length,
-        unpaid_invoices: liveInvs.filter(i => i.paymentStatus === 'pending').length
-      });
-
-      setCostStats((costs as CostStats) || {
-        waba_msgs_sent: 0,
-        waba_cost: 0.00,
-        ai_tasks_run: 0,
-        ai_cost: 0.00
-      });
-      
-      if (pods) {
-        // Enrich pods with cumulative daily spend values
-        const enriched = await Promise.all(pods.map(async (pod: any) => {
-          const { data: spend } = await supabase.rpc('get_pod_daily_spend', { p_pod_id: pod.id });
+      if (fetchedPods.length > 0) {
+        // Enrich pods with cumulative daily spend values safely
+        const enriched = await Promise.all(fetchedPods.map(async (pod: any) => {
+          let spend = 0.00;
+          try {
+            const { data: spendData } = await supabase.rpc('get_pod_daily_spend', { p_pod_id: pod.id });
+            spend = spendData || 0.00;
+          } catch (_e) {}
           return {
             ...pod,
-            daily_spend: spend || 0.00
+            platform_fee_percent: (pod.platform_fee_percent !== undefined && pod.platform_fee_percent !== null) ? Number(pod.platform_fee_percent) : 3.0,
+            daily_spend: spend
           };
         }));
         setPodsList(enriched as PodInfo[]);
@@ -486,25 +475,50 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           inputs[pod.id] = (pod.daily_cost_budget ?? 500.00).toString();
         });
         setBudgetInputs(inputs);
+      }
+
+      // 2. Fetch SaaS metrics safely using Promise.allSettled so 1 failing RPC never halts others
+      const [onboardingRes, revenueRes, costsRes] = await Promise.allSettled([
+        supabase.rpc('get_saas_onboarding_stats'),
+        supabase.rpc('get_saas_revenue_stats'),
+        supabase.rpc('get_saas_cost_stats')
+      ]);
+
+      if (onboardingRes.status === 'fulfilled' && onboardingRes.value.data) {
+        setOnboardingStats(onboardingRes.value.data as OnboardingStats);
       } else {
-        const demoPods: PodInfo[] = [{
-          id: FALLBACK_POD_ID,
-          name: 'Central Medical Pod, Patna',
-          location: 'Clinic Hub',
-          clinic_code: 'VS-V01R',
-          is_active: true,
-          created_at: new Date().toISOString(),
-          daily_cost_budget: 500.00,
-          daily_spend: 0.00,
-          platform_fee_percent: 3.0,
-          lifetime_platform_revenue: 0.00,
-          pending_cash_balance: 0.00,
-          is_verified_for_billing: true,
-          phone: '',
-          doctor_name: 'Chief Ophthalmic Specialist'
-        }];
-        setPodsList(demoPods);
-        setBudgetInputs({ [FALLBACK_POD_ID]: '500' });
+        setOnboardingStats({
+          total_pods: fetchedPods.length || 1,
+          total_entities: (fetchedPods.length * 2) || 3,
+          clinics: fetchedPods.length || 1,
+          pharmacies: 1,
+          labs: 1,
+          total_profiles: api.getPatients().length
+        });
+      }
+
+      const liveInvs = api.getUnifiedInvoices();
+      const realTotalGmv = liveInvs.reduce((acc, i) => acc + (Number(i.totalAmount) || 0), 0);
+      if (revenueRes.status === 'fulfilled' && revenueRes.value.data) {
+        setRevenueStats(revenueRes.value.data as RevenueStats);
+      } else {
+        setRevenueStats({
+          total_gmv: realTotalGmv,
+          platform_commission: Math.round(realTotalGmv * 0.03),
+          paid_invoices: liveInvs.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid').length,
+          unpaid_invoices: liveInvs.filter(i => i.paymentStatus === 'pending').length
+        });
+      }
+
+      if (costsRes.status === 'fulfilled' && costsRes.value.data) {
+        setCostStats(costsRes.value.data as CostStats);
+      } else {
+        setCostStats({
+          waba_msgs_sent: 0,
+          waba_cost: 0.00,
+          ai_tasks_run: 0,
+          ai_cost: 0.00
+        });
       }
     } catch (err) {
       console.error('[SaaS Admin] Failed to fetch metrics aggregates:', err);
@@ -2483,7 +2497,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                             <div>
                               <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Fee %</span>
                               <span className="font-mono font-bold text-slate-700">
-                                {pod.platform_fee_percent !== undefined ? `${pod.platform_fee_percent}%` : '2.5%'}
+                                {pod.platform_fee_percent !== undefined && pod.platform_fee_percent !== null ? `${pod.platform_fee_percent}%` : '3.0%'}
                               </span>
                             </div>
                             <div>
@@ -2573,7 +2587,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                                 </span>
                               </td>
                               <td className="py-3 font-mono font-bold text-slate-700">
-                                {pod.platform_fee_percent !== undefined ? `${pod.platform_fee_percent}%` : '2.5%'}
+                                {pod.platform_fee_percent !== undefined && pod.platform_fee_percent !== null ? `${pod.platform_fee_percent}%` : '3.0%'}
                               </td>
                               <td className="py-3 font-mono font-bold text-emerald-600">
                                 ₹{pod.lifetime_platform_revenue !== undefined ? Number(pod.lifetime_platform_revenue).toFixed(2) : '0.00'}

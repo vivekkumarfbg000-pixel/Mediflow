@@ -898,7 +898,7 @@ export class BillingService {
     if (exists) return;
 
     // Fetch platform_fee_percent for this pod from Supabase
-    let platformFeePercent = 2.50; // Default fallback
+    let platformFeePercent = 3.00; // Standard VitalSync 3% Platform Fee (Rule 58)
     const ctx = getPodContext();
     const podId = ctx.podId;
     try {
@@ -911,7 +911,7 @@ export class BillingService {
         platformFeePercent = parseFloat(podData.platform_fee_percent.toString());
       }
     } catch (e) {
-      console.warn('[BillingService] Failed to load pod fee, using 2.5% default fallback:', e);
+      console.warn('[BillingService] Failed to load pod fee, using 3.0% default fallback:', e);
     }
 
     // Fetch active SOP or use defaults for doctor/lab splits
