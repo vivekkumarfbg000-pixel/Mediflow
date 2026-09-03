@@ -133,7 +133,8 @@ BEGIN
     ),
     '[]'::jsonb
   ) INTO v_pods
-  FROM public.pods p;
+  FROM public.pods p
+  WHERE p.is_active = true;
 
   RETURN v_pods;
 END;
