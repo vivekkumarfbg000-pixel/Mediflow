@@ -1573,11 +1573,10 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
         supabase.from('rate_limits').select('*').order('window_start', { ascending: false }).limit(20)
       ]);
 
-      if (err1) throw err1;
-      if (err2) throw err2;
-
       if (blacklistData) setBlacklistedIps(blacklistData as BlacklistedIp[]);
       if (rateLimitsData) setRateLimits(rateLimitsData as RateLimitRow[]);
+      if (err1 && !blacklistData) console.warn('[SaaS Admin] Blacklist fetch notice:', err1);
+      if (err2 && !rateLimitsData) console.warn('[SaaS Admin] Rate limit fetch notice:', err2);
     } catch (err) {
       console.error('[SaaS Admin] Failed to fetch firewall logs:', err);
     } finally {
