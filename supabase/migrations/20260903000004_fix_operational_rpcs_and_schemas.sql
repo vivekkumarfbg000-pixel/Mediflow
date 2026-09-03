@@ -28,6 +28,13 @@ ALTER TABLE public.vitalsync_pool_settlements
 ALTER TABLE public.vitalsync_pool_settlements 
   ADD COLUMN IF NOT EXISTS retry_count INT DEFAULT 0;
 
+-- D. Ensure public.profiles has pod_id and clinic_id for future schema safety
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS pod_id UUID REFERENCES public.pods(id) ON DELETE SET NULL;
+
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS clinic_id UUID REFERENCES public.entities(id) ON DELETE SET NULL;
+
 
 -- 2. Fix public.get_all_tenant_pods() RPC
 -- Returns all active tenant pods with 3% fee and zero missing column errors
@@ -197,7 +204,6 @@ AS $$
 DECLARE
   v_guidelines JSONB;
 BEGIN
-  -- High-performance static guideline matching based on clinical topic
   IF query_text ILIKE '%diabet%' THEN
     v_guidelines := jsonb_build_array(
       jsonb_build_object(
@@ -241,3 +247,62 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.match_clinical_guidelines(TEXT, INT, FLOAT, JSONB) TO anon, authenticated, service_role;
+
+
+-- 7. Fix public.delete_clinic_pod(UUID) RPC
+-- Safely unlinks staff profiles using guaranteed entity_id column without missing column errors
+CREATE OR REPLACE FUNCTION public.delete_clinic_pod(p_pod_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_entity_ids UUID[];
+BEGIN
+  -- Collect entities under this pod
+  SELECT ARRAY_AGG(id) INTO v_entity_ids
+  FROM public.entities
+  WHERE pod_id = p_pod_id;
+
+  -- 1. Unlink profiles safely using guaranteed entity_id column
+  IF v_entity_ids IS NOT NULL AND array_length(v_entity_ids, 1) > 0 THEN
+    UPDATE public.profiles 
+    SET entity_id = NULL 
+    WHERE entity_id = ANY(v_entity_ids);
+  END IF;
+
+  -- 2. Delete dependent records
+  DELETE FROM public.vitalsync_pool_settlements WHERE pod_id = p_pod_id;
+  DELETE FROM public.financial_ledgers WHERE pod_id = p_pod_id;
+  DELETE FROM public.unified_invoices WHERE pod_id = p_pod_id;
+  DELETE FROM public.appointments WHERE pod_id = p_pod_id;
+  DELETE FROM public.whatsapp_sessions WHERE pod_id = p_pod_id;
+  DELETE FROM public.whatsapp_billing_logs WHERE pod_id = p_pod_id;
+  DELETE FROM public.clinic_sops WHERE pod_id = p_pod_id;
+  DELETE FROM public.inventory_holds WHERE pod_id = p_pod_id;
+  DELETE FROM public.medicine_bills WHERE pod_id = p_pod_id;
+  DELETE FROM public.lab_requisitions WHERE pod_id = p_pod_id;
+  DELETE FROM public.patient_registry WHERE pod_id = p_pod_id;
+  DELETE FROM public.waba_connections WHERE pod_id = p_pod_id;
+  DELETE FROM public.system_health_telemetry WHERE pod_id = p_pod_id;
+
+  -- 3. Delete entities belonging to pod
+  DELETE FROM public.entities WHERE pod_id = p_pod_id;
+
+  -- 4. Delete the pod itself
+  DELETE FROM public.pods WHERE id = p_pod_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'Pod and all associated records successfully purged.'
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'success', false,
+    'error', SQLERRM
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_clinic_pod(UUID) TO authenticated, anon, service_role;

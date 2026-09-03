@@ -683,11 +683,10 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
           entityIds = (podEntities || []).map((e: any) => e.id).filter(Boolean);
         } catch (_e) {}
 
-        // Unlink staff profiles
+        // Unlink staff profiles safely using guaranteed entity_id column
         try {
-          await supabase.from('profiles').update({ pod_id: null, entity_id: null, clinic_id: null }).eq('pod_id', targetPod.id);
           if (entityIds.length > 0) {
-            await supabase.from('profiles').update({ pod_id: null, entity_id: null, clinic_id: null }).in('entity_id', entityIds);
+            await supabase.from('profiles').update({ entity_id: null }).in('entity_id', entityIds);
           }
         } catch (_e) {}
 
