@@ -427,6 +427,7 @@ export class WhatsAppService {
           session.patientName = regName;
           nextState = 'AWAITING_APPOINTMENT_TYPE';
           replyMessage = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
+          }
         } else if (session.currentState === 'AWAITING_APPOINTMENT_TYPE') {
           if (cleaned === '1' || cleaned.includes('physical')) {
             const todayStr = getIstDateString();
