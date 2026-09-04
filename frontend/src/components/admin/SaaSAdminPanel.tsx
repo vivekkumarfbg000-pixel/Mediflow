@@ -154,12 +154,12 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
 
   // SaaS Operations Metrics — Pre-hydrated with synchronous factory defaults to eliminate blank tab flashes
   const [onboardingStats, setOnboardingStats] = useState<OnboardingStats>(() => ({
-    total_pods: 1,
-    total_entities: 3,
-    clinics: 1,
-    pharmacies: 1,
-    labs: 1,
-    total_profiles: api.getPatients().length
+    total_pods: 0,
+    total_entities: 0,
+    clinics: 0,
+    pharmacies: 0,
+    labs: 0,
+    total_profiles: 0
   }));
   const [revenueStats, setRevenueStats] = useState<RevenueStats>(() => {
     const invoices = api.getUnifiedInvoices();
@@ -473,13 +473,14 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       if (onboardingRes.status === 'fulfilled' && onboardingRes.value.data) {
         setOnboardingStats(onboardingRes.value.data as OnboardingStats);
       } else {
+        const pCount = fetchedPods.length;
         setOnboardingStats({
-          total_pods: fetchedPods.length || 1,
-          total_entities: (fetchedPods.length * 2) || 3,
-          clinics: fetchedPods.length || 1,
-          pharmacies: 1,
-          labs: 1,
-          total_profiles: api.getPatients().length
+          total_pods: pCount,
+          total_entities: pCount * 3,
+          clinics: pCount,
+          pharmacies: pCount > 0 ? 1 : 0,
+          labs: pCount > 0 ? 1 : 0,
+          total_profiles: pCount > 0 ? api.getPatients().length : 0
         });
       }
 
@@ -517,6 +518,9 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
   useEffect(() => {
     if (!isAdmin) return;
     
+    // Initial fetch on mount to populate the live tenant pods radar
+    fetchSaaSMetrics();
+
     // Custom debounce to prevent DDoS "Thundering Herd" bottleneck
     let debounceTimer: ReturnType<typeof setTimeout>;
     const debouncedFetch = () => {

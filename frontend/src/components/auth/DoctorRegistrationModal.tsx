@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Building, User, Phone, Stethoscope, ArrowRight, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
+import { FounderNotificationService } from '../../services/founderNotificationService';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 
 interface Props {
@@ -78,6 +79,44 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
         pending_cash_balance: 0,
         platform_fee_percent: 2.5
       };
+
+      // Dual-write pod to Supabase pods table so it's instantly active in cloud & SaaS admin
+      try {
+        await supabase.from('pods').upsert([{
+          id: newPod.id,
+          name: newPod.name,
+          location: newPod.location,
+          clinic_code: newPod.clinic_code,
+          is_active: true,
+          created_at: new Date().toISOString()
+        }], { onConflict: 'id' });
+
+        // If user is authenticated in Supabase, update profile with new pod
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          await supabase.from('profiles').update({
+            pod_id: newPod.id,
+            clinic_id: newPod.id,
+            status: 'approved',
+            updated_at: new Date().toISOString()
+          }).eq('id', authData.user.id);
+        }
+      } catch (cloudErr) {
+        console.warn('[Doctor Registration] Cloud pod upsert non-blocking notice:', cloudErr);
+      }
+
+      // Dispatch automated real-time WhatsApp & webhook alert to Founder (+91-9608032073)
+      FounderNotificationService.notifyOnAccountCreated({
+        doctorName: formData.doctorName,
+        clinicName: formData.clinicName,
+        phone: formData.phone,
+        clinicCode: clinicCode,
+        specialization: formData.specialization,
+        city: (formData as any).location || 'Line Bazar, Purnea',
+        source: 'doctor_registration_modal'
+      }).catch(notifErr => {
+        console.warn('[Doctor Registration] Founder notification dispatch warning:', notifErr);
+      });
 
       // Save pod info & active WABA connection locally
       localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(newPod));

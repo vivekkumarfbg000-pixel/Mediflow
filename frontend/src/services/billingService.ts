@@ -35,17 +35,19 @@ export class BillingService {
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+      const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (pod && !currentPodId) return false;
-        if (!pod && currentPodId) {
-          (i as any).podId = currentPodId;
+        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
+          return false;
+        }
+        if (!pod && effectivePod) {
+          (i as any).podId = effectivePod;
         }
         const id = i.id || '';
         const pName = String(i.patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
-        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
+        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102') || id.includes('rahul') || id.includes('E2E')) return false;
         if (testSyntheticNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
@@ -106,117 +108,80 @@ export class BillingService {
   static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): void {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoiceId);
+    let invoiceAmount = 500;
+    let targetPatientId = '';
+    let targetApptId = '';
+
     if (idx !== -1) {
       invoices[idx].paymentStatus = 'cleared';
       invoices[idx].paymentMethod = paymentMethod;
       save('unified_invoices', invoices);
+      invoiceAmount = invoices[idx].totalAmount || 500;
+      targetPatientId = invoices[idx].patientId || '';
+      targetApptId = invoices[idx].encounterId || '';
       writeAuditLog('INVOICE_PAYMENT_CLEARED', { invoiceId, paymentMethod, amount: invoices[idx].totalAmount }, invoices[idx].patientId);
-    } else {
-      const saasInvoices = this.getInvoices();
-      const saasIdx = saasInvoices.findIndex(i => i.id === invoiceId);
-      if (saasIdx !== -1) {
-        saasInvoices[saasIdx].status = 'paid';
-        saasInvoices[saasIdx].paymentMethod = paymentMethod;
-        save('saas_invoices', saasInvoices);
-        
-        const appts = this.getAppointments();
-        const targetAppt = appts.find(a => a.id === saasInvoices[saasIdx].appointmentId);
-        if (targetAppt) {
-          targetAppt.status = 'confirmed';
-          save('saas_appointments', appts);
-        }
-      }
     }
-    
-    if (idx !== -1) {
 
-      const inv = invoices[idx];
-      const invoiceAmount = inv.totalAmount || 500;
+    const saasInvoices = this.getInvoices();
+    const saasIdx = saasInvoices.findIndex(i => i.id === invoiceId);
+    if (saasIdx !== -1) {
+      saasInvoices[saasIdx].status = 'paid';
+      saasInvoices[saasIdx].paymentMethod = paymentMethod;
+      save('saas_invoices', saasInvoices);
+      invoiceAmount = saasInvoices[saasIdx].amount || invoiceAmount;
+      targetPatientId = saasInvoices[saasIdx].patientId || targetPatientId;
+      targetApptId = saasInvoices[saasIdx].appointmentId || targetApptId;
+    }
 
-      // STEP 1: First split / deduct 3% platform fee into VitalSync
-      // Pillar 6: Counter Doctor Consultation Fee Immunity Protocol
-      const isPureCounterConsult = (inv.pharmacyFee === 0 || !inv.pharmacyFee) &&
-        (inv.labFee === 0 || !inv.labFee) &&
-        String((inv as any).source || '').toLowerCase() !== 'whatsapp' &&
-        String((inv as any).channel || '').toLowerCase() !== 'whatsapp';
+    // Enterprise Dual-Write: Update Unified Invoice in Supabase
+    supabase.from('unified_invoices').update({
+      payment_status: 'cleared',
+      payment_method: paymentMethod
+    }).eq('id', invoiceId).then(({ error }) => {
+      if (error) console.warn('[BillingService] Remote invoice clearance update note:', error.message);
+    });
 
-      const platformAmt = isPureCounterConsult ? 0 : parseFloat((invoiceAmount * 0.03).toFixed(2));
-      const netRemainingForPool = isPureCounterConsult ? 0 : Math.max(0, parseFloat((invoiceAmount - platformAmt).toFixed(2)));
+    // Update appointment status and payment_status across local and remote
+    const appts = this.getAppointments();
+    const targetAppt = appts.find(a => a.id === targetApptId || a.id === invoiceId);
+    if (targetAppt) {
+      targetAppt.status = targetAppt.isVirtual ? 'ready_for_consult' : 'scheduled';
+      targetAppt.payment_status = 'cleared';
+      (targetAppt as any).paymentStatus = 'cleared';
+      this.saveAppointment(targetAppt);
 
-      // Core Invoice Settlement & Financial Ledger Splits (Local IndexedDB)
-      this.recordInvoicePayment(invoiceId, paymentMethod);
-
-      const sessions = load<any[]>('whatsapp_sessions', []);
-      const cleanInvPhone = (inv.patientPhone || '').replace(/\D/g, '').slice(-10);
-      const session = sessions.find(s => (s.patientPhone || '').replace(/\D/g, '').slice(-10) === cleanInvPhone);
-      if (session?.sessionData?.referral) {
-        const ref = session.sessionData.referral;
-        const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
-        
-        const platformAmt = parseFloat((invoiceAmount * 0.03).toFixed(2));
-        
-        const podEntityId = getPodContext().entityId;
-        const referralLedger: FinancialLedgerEntry = {
-          id: `tx-ref-${crypto.randomUUID().substring(0, 8)}`,
-          invoiceId: invoiceId,
-          sourceEntityId: podEntityId,
-          destinationEntityId: podEntityId,
-          transactionType: 'appointment_fee',
-          grossAmount: invoiceAmount,
-          commissionRate: 0.10,
-          netPayout: ref.referralCommissionAmt || parseFloat((invoiceAmount * 0.10).toFixed(2)),
-          paymentStatus: 'cleared',
-          settledAt: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        };
-
-        const platformLedger: FinancialLedgerEntry = {
-          id: `tx-plat-ref-${crypto.randomUUID().substring(0, 8)}`,
-          invoiceId: invoiceId,
-          sourceEntityId: podEntityId,
-          destinationEntityId: podEntityId,
-          transactionType: 'platform_fee',
-          grossAmount: invoiceAmount,
-          commissionRate: 0.03,
-          netPayout: platformAmt,
-          paymentStatus: 'cleared',
-          settledAt: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        };
-
-        ledgerEntries.unshift(referralLedger, platformLedger);
-        save('financial_ledgers', ledgerEntries);
-
-        session.sessionData.referral = null;
-        save('whatsapp_sessions', sessions);
-      }
-
-      // Clear patient inventory holds (Local IndexedDB)
-      if (inv.pharmacyFee > 0) {
-        const holds = load<any[]>('inventory_holds', []);
-        let holdsUpdated = false;
-        holds.forEach(h => {
-          if (h.patientId === inv.patientId && h.holdStatus === 'held') {
-            h.holdStatus = 'dispensed';
-            holdsUpdated = true;
-          }
-        });
-        if (holdsUpdated) {
-          save('inventory_holds', holds);
-        }
-      }
-
-      // Atomic Backend Settlement via Postgres RPC
-      supabase.rpc('process_invoice_settlement', {
-        p_invoice_id: invoiceId,
-        p_payment_method: paymentMethod,
-        p_amount_paid: invoiceAmount
-      }).then(({ error }) => {
-        if (error) console.error('[BillingService] RPC process_invoice_settlement failed:', error);
-        else writeAuditLog('invoice_payment_cleared', { invoiceId, paymentMethod }, invoiceId);
+      supabase.from('appointments').update({
+        status: targetAppt.status,
+        payment_status: 'cleared'
+      }).eq('id', targetAppt.id).then(({ error }) => {
+        if (error) console.warn('[BillingService] Remote appointment payment update note:', error.message);
       });
-
     }
+
+    // Update patient queue status defensively
+    if (targetPatientId) {
+      const nextQueueStatus = targetAppt?.isVirtual ? 'awaiting_consultation' : 'awaiting_vitals';
+      PatientService.updatePatientQueueStatus(targetPatientId, nextQueueStatus);
+      supabase.from('patient_registry').update({
+        queue_status: nextQueueStatus
+      }).eq('id', targetPatientId).then(() => {});
+    }
+
+    // Core Invoice Settlement & Financial Ledger Splits
+    this.recordInvoicePayment(invoiceId, paymentMethod);
+
+    // Atomic Backend Settlement via Postgres RPC
+    supabase.rpc('process_invoice_settlement', {
+      p_invoice_id: invoiceId,
+      p_payment_method: paymentMethod,
+      p_amount_paid: invoiceAmount
+    }).then(({ error }) => {
+      if (error) console.warn('[BillingService] RPC process_invoice_settlement note:', error.message);
+      else writeAuditLog('invoice_payment_cleared', { invoiceId, paymentMethod }, invoiceId);
+    });
+
+    window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+    window.dispatchEvent(new CustomEvent('mediflow-state-change'));
   }
 
 
@@ -247,12 +212,14 @@ export class BillingService {
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+      const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
       ledgers = ledgers.filter(l => {
         const pod = (l as any).podId || (l as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (pod && !currentPodId) return false;
-        if (!pod && currentPodId) {
-          (l as any).podId = currentPodId;
+        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
+          return false;
+        }
+        if (!pod && effectivePod) {
+          (l as any).podId = effectivePod;
         }
         const id = l.id || '';
         const pName = String(l.patientName || '').toLowerCase().trim();
@@ -405,12 +372,14 @@ export class BillingService {
         'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+      const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (pod && !currentPodId) return false;
-        if (!pod && currentPodId) {
-          (a as any).podId = currentPodId;
+        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
+          return false;
+        }
+        if (!pod && effectivePod) {
+          (a as any).podId = effectivePod;
         }
         const id = a.id || '';
         const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase().trim();
@@ -507,17 +476,19 @@ export class BillingService {
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+      const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
       invoices = invoices.filter(i => {
         const pod = (i as any).podId || (i as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (pod && !currentPodId) return false;
-        if (!pod && currentPodId) {
-          (i as any).podId = currentPodId;
+        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
+          return false;
+        }
+        if (!pod && effectivePod) {
+          (i as any).podId = effectivePod;
         }
         const id = i.id || '';
         const pName = String((i as any).patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
-        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102')) return false;
+        if (id.startsWith('inv-demo') || id.startsWith('inv-sample') || id.startsWith('inv-101') || id.startsWith('inv-102') || id.includes('rahul') || id.includes('E2E') || String(i.appointmentId || '').includes('E2E')) return false;
         if (testSyntheticNames.has(pName)) return false;
         if (demoPatientIds.has(pId)) return false;
         return true;
@@ -897,8 +868,9 @@ export class BillingService {
   static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     
-    // Check if splits already exist for this invoiceId
-    const exists = ledgerEntries.some(l => l.invoiceId === invoiceId);
+    // Check if splits already exist for this invoiceId and target transaction type
+    const targetType = type === 'consult' ? 'appointment_fee' : (type === 'lab' ? 'lab_commission' : 'medicine_commission');
+    const exists = ledgerEntries.some(l => l.invoiceId === invoiceId && (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee')));
     if (exists) return;
 
     // Fetch platform_fee_percent for this pod from Supabase
@@ -1314,17 +1286,18 @@ export class BillingService {
     if (uInv) {
       uInv.paymentStatus = 'cleared';
       save('unified_invoices', uInvoices);
-      if (!resolvedInvoice) {
-        resolvedInvoice = uInv;
-        amount = uInv.totalAmount;
-        apptId = uInv.encounterId;
-        if (uInv.doctorFee > 0) type = 'consult';
-        else if (uInv.labFee > 0) type = 'lab';
-        else if (uInv.pharmacyFee > 0) type = 'pharmacy';
-      }
-    }
+      const uApptId = uInv.encounterId || apptId;
 
-    if (resolvedInvoice) {
+      if (uInv.doctorFee > 0) {
+        await this.createLedgerSplitsForInvoiceFields(invoiceId, uApptId, 'consult', uInv.doctorFee, paymentMethod);
+      }
+      if (uInv.pharmacyFee > 0) {
+        await this.createLedgerSplitsForInvoiceFields(invoiceId, uApptId, 'pharmacy', uInv.pharmacyFee, paymentMethod);
+      }
+      if (uInv.labFee > 0) {
+        await this.createLedgerSplitsForInvoiceFields(invoiceId, uApptId, 'lab', uInv.labFee, paymentMethod);
+      }
+    } else if (resolvedInvoice) {
       await this.createLedgerSplitsForInvoiceFields(invoiceId, apptId, type, amount, paymentMethod);
     }
   }
@@ -1591,108 +1564,53 @@ export class BillingService {
   }
 
   static calculateCommissionPoolBalance() {
-    const invoices = this.getInvoices();
-    const paidInvoices = invoices.filter(inv => inv.status === 'paid');
+    // Ground truth: Derive earnings directly from deduplicated financial ledgers
+    const ledgers = this.getFinancialLedgers();
 
     let totalCashCommissionOwed = 0;   // 3% cash sales commission accrued debt (-)
     let totalOnlineOffsetReceived = 0; // Online receipts (+)
     let doctorConsultsEarned = 0;      // 100% doctor consult fee
-    let doctorLabReferralsEarned = 0;   // 50% lab test referral (SOP)
-    let doctorMedicineReferralsEarned = 0; // 20% medicine referral (SOP)
+    let doctorLabReferralsEarned = 0;   // SOP lab test referral
+    let doctorMedicineReferralsEarned = 0; // SOP medicine referral
 
-    const activeSop = this.getActiveSop();
-    const labDoctorSplit = activeSop?.extractedConfig?.splits?.doctor ?? 50; // 50% SOP
-    const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20; // 20% SOP
+    const seenConsultKeys = new Set<string>();
 
-    const allAppointments = this.getAppointments();
+    ledgers.forEach(l => {
+      const type = l.transactionType;
+      const isCleared = l.paymentStatus === 'cleared' || (l as any).payment_status === 'cleared' || (l as any).paymentStatus === 'completed';
+      if (!isCleared) return;
 
-    const countedConsultPatientDates = new Set<string>();
+      const method = String(l.paymentMethod || (l as any).payment_method || '').toLowerCase();
+      const isCash = method === 'cash';
 
-    paidInvoices.forEach(inv => {
-      const amt = inv.amount || 0;
-      const appt = allAppointments.find(a => a.id === inv.appointmentId);
-      const patId = inv.patientId || appt?.patientId || '';
-      const dateStr = getIstDateString(inv.createdAt || (appt?.createdAt));
-      const consultKey = `${patId}_${dateStr}`;
-
-      const isWhatsAppBooking = String((inv as any).source || '').toLowerCase().includes('whatsapp') ||
-        String((inv as any).channel || '').toLowerCase().includes('whatsapp') ||
-        String(appt?.source || '').toLowerCase().includes('whatsapp') ||
-        (appt as any)?.is_virtual === true ||
-        inv.paymentMethod === 'whatsapp' ||
-        inv.paymentMethod === 'upi' ||
-        inv.paymentMethod === 'razorpay' ||
-        inv.paymentMethod === 'phonepe' ||
-        inv.paymentMethod === 'paytm';
-
-      if (inv.type === 'consult') {
-        if (!countedConsultPatientDates.has(consultKey)) {
-          countedConsultPatientDates.add(consultKey);
-          doctorConsultsEarned += amt; // ALWAYS added to Total Doctor Net Earnings!
-          
-          // ONLY WhatsApp bookings add to Commission Pool Balance (Online Receipts)!
-          if (isWhatsAppBooking) {
-            totalOnlineOffsetReceived += amt;
+      if (type === 'appointment_fee' || (type as any) === 'doctor_consultation_fee') {
+        const key = `${l.invoiceId || l.id}_${(l as any).patientId || l.patientName || ''}`;
+        if (!seenConsultKeys.has(key)) {
+          seenConsultKeys.add(key);
+          const fee = Number(l.grossAmount || l.netPayout || 500);
+          doctorConsultsEarned += fee;
+          if (!isCash) {
+            totalOnlineOffsetReceived += fee;
           }
         }
-        // Compounder / Counter appointments add ₹0 debt and ₹0 to Commission Pool balance!
-      } else if (inv.type === 'lab' || (inv as any).type === 'pathology') {
-        const docFee = Math.round(amt * (labDoctorSplit / 100));
-        doctorLabReferralsEarned += docFee;
-        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee deducted on lab sales
-        totalCashCommissionOwed += platFee;
-      } else if (inv.type === 'pharmacy' || (inv as any).type === 'medicine') {
-        const docFee = Math.round(amt * (medDoctorSplit / 100));
-        doctorMedicineReferralsEarned += docFee;
-        const platFee = Math.round(amt * 0.03); // 3% VitalSync platform fee deducted on medicine sales
-        totalCashCommissionOwed += platFee;
-      }
-    });
-
-    // Also process cleared Unified Invoices to ensure real-time consistency
-    const uInvoices = this.getUnifiedInvoices();
-    uInvoices.forEach(uInv => {
-      if (uInv.paymentStatus === 'cleared') {
-        const appt = allAppointments.find(a => a.id === uInv.encounterId);
-        const patId = uInv.patientId || (uInv as any).patient_id || appt?.patientId || '';
-        const dateStr = getIstDateString(uInv.createdAt || (uInv as any).created_at);
-        const consultKey = `${patId}_${dateStr}`;
-
-        const isWhatsAppBooking = String((uInv as any).source || '').toLowerCase().includes('whatsapp') ||
-          String(appt?.source || '').toLowerCase().includes('whatsapp') ||
-          (appt as any)?.is_virtual === true ||
-          (uInv as any).paymentMethod === 'whatsapp' ||
-          (uInv as any).paymentMethod === 'upi' ||
-          (uInv as any).paymentMethod === 'razorpay' ||
-          (uInv as any).paymentMethod === 'phonepe' ||
-          (uInv as any).paymentMethod === 'paytm';
-
-        if (uInv.doctorFee > 0 && !countedConsultPatientDates.has(consultKey)) {
-          countedConsultPatientDates.add(consultKey);
-          doctorConsultsEarned += uInv.doctorFee;
-          if (isWhatsAppBooking) {
-            totalOnlineOffsetReceived += uInv.doctorFee;
-          }
+      } else if (type === 'medicine_commission') {
+        doctorMedicineReferralsEarned += Number(l.netPayout || 0);
+        if (isCash) {
+          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.03);
+          totalCashCommissionOwed += plat;
         }
-        if (uInv.labFee > 0 && paidInvoices.every(i => i.id !== uInv.id && i.appointmentId !== uInv.encounterId)) {
-          const docFee = Math.round(uInv.labFee * (labDoctorSplit / 100));
-          doctorLabReferralsEarned += docFee;
-          const platFee = Math.round(uInv.labFee * 0.03);
-          totalCashCommissionOwed += platFee;
+      } else if (type === 'lab_commission') {
+        doctorLabReferralsEarned += Number(l.netPayout || 0);
+        if (isCash) {
+          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.03);
+          totalCashCommissionOwed += plat;
         }
-        if (uInv.pharmacyFee > 0 && paidInvoices.every(i => i.id !== uInv.id && i.appointmentId !== uInv.encounterId)) {
-          const docFee = Math.round(uInv.pharmacyFee * (medDoctorSplit / 100));
-          doctorMedicineReferralsEarned += docFee;
-          const platFee = Math.round(uInv.pharmacyFee * 0.03);
-          totalCashCommissionOwed += platFee;
+      } else if (type === 'platform_fee') {
+        if (isCash) {
+          totalCashCommissionOwed += Number(l.netPayout || 0);
         }
       }
     });
-
-    // If there are no lab or pharmacy sales recorded, accrued cash debt must be 0 (preventing legacy OPD debt leakage)
-    if (doctorLabReferralsEarned === 0 && doctorMedicineReferralsEarned === 0) {
-      totalCashCommissionOwed = 0;
-    }
 
     // Check manual settlement adjustments & auto-heal legacy seed entries (> 5000 or < -5000)
     let settlements = load<any[]>('vitalsync_pool_settlements', []);
@@ -1764,4 +1682,16 @@ export class BillingService {
       if (error) console.error('[BillingService] Unified invoice sync failed:', error);
     });
   }
+
+  static saveUnifiedInvoices(invoices: UnifiedInvoice[]): void {
+    save('unified_invoices', invoices);
+    notify();
+  }
+
+  static saveInvoices(invoices: Invoice[]): void {
+    save('saas_invoices', invoices);
+    notify();
+  }
 }
+
+

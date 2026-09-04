@@ -894,15 +894,21 @@ export const CompounderDashboard: React.FC = () => {
 
     const seenTokens = new Set<string>();
     const resolvedList = Array.from(seenPatients.values()).map((appt, idx) => {
-      let rawToken = appt.tokenNumber || (appt as any).token_number;
       const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
-      if (!rawToken || seenTokens.has(rawToken)) {
-        rawToken = (p?.tokenNumber && !seenTokens.has(p.tokenNumber)) ? p.tokenNumber : `T-${String(idx + 1).padStart(2, '0')}`;
+      let rawToken = appt.tokenNumber || (appt as any).token_number || p?.tokenNumber || (p as any)?.token_number;
+      if (!rawToken) {
+        rawToken = `T-${String(idx + 1).padStart(2, '0')}`;
       }
       seenTokens.add(rawToken);
+      const patDisplayName = (appt.patientName && appt.patientName !== 'WhatsApp Patient' && appt.patientName !== 'Patient')
+        ? appt.patientName
+        : (p?.name && p.name !== 'WhatsApp Patient')
+        ? p.name
+        : ((appt as any).patient_name || p?.name || 'Walk-In Patient');
+
       return {
         ...appt,
-        patientName: appt.patientName || (appt as any).patient_name || p?.name || 'Walk-In Patient',
+        patientName: patDisplayName,
         patientPhone: appt.patientPhone || (appt as any).patient_phone || p?.phone || '',
         tokenNumber: rawToken,
         token_number: rawToken
@@ -942,7 +948,7 @@ export const CompounderDashboard: React.FC = () => {
           seenPatientIds.add(pid);
           list.push(existing || {
             id: pid,
-            name: a.patientName || (a as any).patient_name || 'WhatsApp Patient',
+            name: (a.patientName && a.patientName !== 'WhatsApp Patient' && a.patientName !== 'Patient') ? a.patientName : ((a as any).patient_name || 'Patient'),
             phone: a.patientPhone || (a as any).patient_phone || '9999000000',
             age: Number((a as any).patientAge || (a as any).age || 0) || 0,
             gender: (a as any).patientGender || (a as any).gender || 'Other',
@@ -2811,7 +2817,12 @@ export const CompounderDashboard: React.FC = () => {
                     const src = String(a.source || (p as any)?.source || '').toLowerCase();
                     const isSOS = a.id === sosEmergencyAppointment?.id;
                     const isInConsult = a.status === 'in_consult';
-                    const pid = p?.patientCode || (p as any)?.patient_code || ('PID-' + (p?.id || a.id).slice(0, 6).toUpperCase());
+                    const pid = (p?.patientCode && p.patientCode !== 'W1') ? p.patientCode : ((p as any)?.patient_code && (p as any)?.patient_code !== 'W1' ? (p as any).patient_code : ('PID-' + (p?.id || a.id).slice(0, 6).toUpperCase()));
+                    const rawTok = a.tokenNumber || (a as any).token_number || p?.tokenNumber || (p as any)?.token_number || '01';
+                    const tokNum = String(rawTok).replace(/\D/g, '').slice(-2) || '01';
+                    const displayName = (a.patientName && a.patientName !== 'WhatsApp Patient' && a.patientName !== 'Patient') 
+                      ? a.patientName 
+                      : (p?.name && p.name !== 'WhatsApp Patient' ? p.name : ((a as any).patient_name || 'Walk-In Patient'));
 
                     return (
                       <div
@@ -2836,12 +2847,12 @@ export const CompounderDashboard: React.FC = () => {
                               : 'bg-amber-500'
                           }`}>
                             <span className="text-[7.5px] font-bold uppercase opacity-80">TOKEN</span>
-                            <span className="text-xs font-black -mt-0.5">#{String(a.tokenNumber || (a as any).token_number || p?.tokenNumber || 'TK').replace(/\D/g, '').slice(-2) || '01'}</span>
+                            <span className="text-xs font-black -mt-0.5">#{tokNum}</span>
                           </div>
 
                           <div className="min-w-0">
                             <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
-                              <span className="truncate capitalize">{a.patientName || (a as any).patient_name || p?.name || 'Walk-In Patient'}</span>
+                              <span className="truncate capitalize">{displayName}</span>
                               {src.includes('whatsapp') && <span className="text-[8.5px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-bold">🟢 WA</span>}
                               {src.includes('qr') && <span className="text-[8.5px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.2 rounded font-bold">📲 QR</span>}
                               {isSOS && <span className="text-[8.5px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1.5 py-0.2 rounded font-bold">🚨 SOS</span>}

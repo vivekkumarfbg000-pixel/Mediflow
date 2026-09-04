@@ -127,17 +127,19 @@ export class PatientService {
     const demoIds = new Set([DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
     
+    const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
     rawPatients = rawPatients.filter(p => {
       const pod = (p as any).podId || (p as any).pod_id;
-      if (pod && currentPodId && pod !== currentPodId) return false;
-      if (pod && !currentPodId) return false;
-      if (!pod && currentPodId) {
-        (p as any).podId = currentPodId;
+      if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
+        return false;
+      }
+      if (!pod && effectivePod) {
+        (p as any).podId = effectivePod;
       }
       const cleanName = String(p.name || '').toLowerCase().trim();
       if (demoIds.has(p.id)) return false;
       if (testSyntheticNames.has(cleanName)) return false;
-      if (cleanName.includes('test patient') || cleanName.includes('auto test patient')) return false;
+      if (cleanName.includes('test patient') || cleanName.includes('auto test patient') || cleanName.includes('rahul kumar test')) return false;
       return true;
     });
 
@@ -527,7 +529,16 @@ export class PatientService {
 
     const dateStr = targetDate || getIstDateString();
 
+    const currentPodId = getPodContext().podId;
+    const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
+    const isMatchingPod = (item: any) => {
+      const p = item.podId || item.pod_id;
+      if (!p) return true;
+      return p === effectivePod || p === FALLBACK_POD_ID || effectivePod === FALLBACK_POD_ID;
+    };
+
     const apptsForDate = allAppts.filter(a => {
+      if (!isMatchingPod(a)) return false;
       const apptDate = getEffectiveAppointmentDate(a) || getIstDateString(a.createdAt || a.created_at);
       return apptDate === dateStr || String(apptDate).startsWith(dateStr);
     });
@@ -570,6 +581,7 @@ export class PatientService {
 
     // 2. Collect all token numbers from today's patient registry
     allPatients.forEach(p => {
+      if (!isMatchingPod(p)) return;
       const pDate = getIstDateString(p.registeredAt || p.createdAt || p.created_at);
       const isToday = pDate === dateStr || !p.registeredAt;
       if (isToday) {
@@ -618,7 +630,7 @@ export class PatientService {
     const currentPodId = getPodContext().podId;
     const patients = this.getPatients();
     const newId = (patientData.id && this.isUUID(patientData.id)) ? patientData.id : crypto.randomUUID();
-    const customPatientId = patientData.patientCode || `PID-${newId.slice(0, 6).toUpperCase()}`;
+    const customPatientId = patientData.patientCode || this.generateSmartPatientId(patientData.name, patients);
     const nextToken = patientData.tokenNumber || this.generateNextTokenNumber(undefined, false);
 
     const newPatient: Patient = {

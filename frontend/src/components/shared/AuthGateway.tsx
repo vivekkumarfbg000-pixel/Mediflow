@@ -12,6 +12,7 @@ import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
 import { isStrongPassword, getPasswordValidationError } from '../../utils/passwordPolicy';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import { FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
+import { FounderNotificationService } from '../../services/founderNotificationService';
 
 interface LoginAttempt {
   email: string;
@@ -1257,6 +1258,20 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
       }
+
+      // Dispatch automated real-time WhatsApp & webhook alert to Founder (+91-9608032073)
+      FounderNotificationService.notifyOnAccountCreated({
+        doctorName: finalDisplayName,
+        clinicName: clinicName.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        clinicCode: finalCode,
+        specialization: specialization,
+        city: address.trim() || 'Line Bazar, Purnea',
+        source: 'auth_gateway_signup'
+      }).catch(err => {
+        console.warn('[AuthGateway] Founder notification dispatch notice:', err);
+      });
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {

@@ -375,32 +375,30 @@ export const DoctorDashboard: React.FC = () => {
       setWhatsAppSessions(api.getWhatsAppSessions());
 
       // Fetch live remote DB records scoped strictly to active tenant pod ID (no orphan leak)
-      const currentPodId = activePod?.id || null;
+      // Fetch live remote DB records scoped strictly to active tenant pod ID (no orphan leak)
+      const podId = activePod?.id || getPodContext().podId || FALLBACK_POD_ID;
 
       let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
       let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
       let patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
       let sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
+      let invoicesQuery = supabase.from('unified_invoices').select('*').order('created_at', { ascending: false });
 
-      if (currentPodId) {
-        apptsQuery = apptsQuery.eq('pod_id', currentPodId);
-        ledgersQuery = ledgersQuery.eq('pod_id', currentPodId);
-        patientsQuery = patientsQuery.eq('pod_id', currentPodId);
-        sessionsQuery = sessionsQuery.eq('pod_id', currentPodId);
-      } else {
-        // Independent doctor with no clinic linked: only show records created without a pod
-        apptsQuery = apptsQuery.is('pod_id', null);
-        ledgersQuery = ledgersQuery.is('pod_id', null);
-        patientsQuery = patientsQuery.is('pod_id', null);
-        sessionsQuery = sessionsQuery.is('pod_id', null);
+      if (podId && podId !== 'default-pod') {
+        apptsQuery = apptsQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+        ledgersQuery = ledgersQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+        patientsQuery = patientsQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+        sessionsQuery = sessionsQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+        invoicesQuery = invoicesQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
       }
 
       Promise.all([
         apptsQuery,
         ledgersQuery,
         patientsQuery,
-        sessionsQuery
-      ]).then(([apptsRes, ledgersRes, patientsRes, sessionsRes]) => {
+        sessionsQuery,
+        invoicesQuery
+      ]).then(([apptsRes, ledgersRes, patientsRes, sessionsRes, invoicesRes]) => {
         const existingPats = api.getPatients();
         const patNameMap = new Map(existingPats.map(p => [p.id, p.name]));
         if (patientsRes.data) {
@@ -411,75 +409,86 @@ export const DoctorDashboard: React.FC = () => {
 
         if (apptsRes.data && apptsRes.data.length > 0) {
           const dbAppts: Appointment[] = apptsRes.data.map((a: any) => {
-            const resolvedName = (a.patient_name && a.patient_name !== 'Patient') ? a.patient_name : (patNameMap.get(a.patient_id) || 'WhatsApp Patient');
+            const resolvedName = (a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') 
+              ? a.patient_name 
+              : (patNameMap.get(a.patient_id) || patNameMap.get(a.patientId) || 'Patient');
             const apptDate = getEffectiveAppointmentDate(a);
-            return {
-              id: a.id,
-              patientId: a.patient_id,
-              patient_id: a.patient_id,
-              patientName: resolvedName,
-              patient_name: resolvedName,
-              doctorId: a.doctor_id,
-              doctor_id: a.doctor_id,
-              status: a.status || 'scheduled',
-              tokenNumber: String(a.token_number || (a as any).tokenNumber || PatientService.generateNextTokenNumber()),
-              token_number: String(a.token_number || (a as any).tokenNumber || PatientService.generateNextTokenNumber()),
-              date: apptDate,
-              createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
-              is_virtual: Boolean(a.is_virtual),
-              isVirtual: Boolean(a.is_virtual),
-              virtualDate: a.virtual_date || apptDate,
-              virtual_date: a.virtual_date || apptDate,
-              virtualTime: a.virtual_time || '10:00 AM',
-              virtual_time: a.virtual_time || '10:00 AM',
-              virtual_meeting_url: a.virtual_meeting_url,
-              source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
-            } as any;
-          });
+              return {
+                id: a.id,
+                patientId: a.patient_id,
+                patient_id: a.patient_id,
+                patientName: resolvedName,
+                patient_name: resolvedName,
+                doctorId: a.doctor_id,
+                doctor_id: a.doctor_id,
+                status: a.status || 'scheduled',
+                tokenNumber: String(a.token_number || (a as any).tokenNumber || PatientService.generateNextTokenNumber()),
+                token_number: String(a.token_number || (a as any).tokenNumber || PatientService.generateNextTokenNumber()),
+                date: apptDate,
+                createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
+                is_virtual: Boolean(a.is_virtual),
+                isVirtual: Boolean(a.is_virtual),
+                virtualDate: a.virtual_date || apptDate,
+                virtual_date: a.virtual_date || apptDate,
+                virtualTime: a.virtual_time || '10:00 AM',
+                virtual_time: a.virtual_time || '10:00 AM',
+                virtual_meeting_url: a.virtual_meeting_url,
+                source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
+              } as any;
+            });
 
-          const localAppts = api.getAppointments();
-          const mergedMap = new Map();
-          localAppts.forEach(la => mergedMap.set(la.id, la));
-          dbAppts.forEach(da => mergedMap.set(da.id, da));
-          const finalAppts = Array.from(mergedMap.values());
-          BillingService.saveAppointments(finalAppts);
-          setAppointments(finalAppts);
+            const currentLocal = BillingService.getAppointments();
+            const merged = [...dbAppts];
+            currentLocal.forEach(loc => {
+              if (!merged.some(m => m.id === loc.id)) merged.push(loc);
+            });
+            BillingService.saveAppointments(merged);
+            setAppointments(merged);
         }
 
-        if (ledgersRes.data && ledgersRes.data.length > 0) {
-          const dbLedgers: FinancialLedgerEntry[] = ledgersRes.data.map((fl: any) => {
-            const resolvedPatName = (fl.patient_name && fl.patient_name !== 'Patient') ? fl.patient_name : (patNameMap.get(fl.patient_id) || 'WhatsApp Patient');
-            return {
-              id: fl.id,
-              invoiceId: fl.invoice_id,
-              appointmentId: fl.appointment_id,
-              patientId: fl.patient_id,
-              doctorId: fl.doctor_id,
-              transactionType: fl.transaction_type || fl.entry_type || 'appointment_fee',
-              entryType: fl.transaction_type || fl.entry_type || 'appointment_fee',
-              grossAmount: Number(fl.gross_amount) || 500,
-              commissionRate: Number(fl.commission_rate) || 0,
-              platformFee: Number(fl.platform_fee || fl.platform_fee_deducted) || 0,
-              netPayout: Number(fl.net_payout || fl.net_doctor_payout) || 500,
-              netDoctorPayout: Number(fl.net_payout || fl.net_doctor_payout) || 500,
-              paymentStatus: fl.payment_status || fl.settlement_status || 'cleared',
-              settlementStatus: fl.payment_status || fl.settlement_status || 'cleared',
-              paymentMethod: fl.payment_method || 'upi',
-              podId: fl.pod_id,
-              pod_id: fl.pod_id,
-              patientName: resolvedPatName,
-              patient_name: resolvedPatName,
-              createdAt: fl.created_at || new Date().toISOString()
-            } as any;
-          });
+        if (ledgersRes.data !== undefined && ledgersRes.data !== null) {
+          if (ledgersRes.data.length === 0) {
+            BillingService.saveFinancialLedgers([]);
+            setFinancialLedgers([]);
+          } else {
+            const dbLedgers: FinancialLedgerEntry[] = ledgersRes.data.map((fl: any) => {
+              const resolvedPatName = (fl.patient_name && fl.patient_name !== 'Patient' && fl.patient_name !== 'WhatsApp Patient') ? fl.patient_name : (patNameMap.get(fl.patient_id) || patNameMap.get(fl.patientId) || 'Patient');
+              return {
+                id: fl.id,
+                invoiceId: fl.invoice_id,
+                appointmentId: fl.appointment_id,
+                patientId: fl.patient_id,
+                doctorId: fl.doctor_id,
+                transactionType: fl.transaction_type || fl.entry_type || 'appointment_fee',
+                entryType: fl.transaction_type || fl.entry_type || 'appointment_fee',
+                grossAmount: Number(fl.gross_amount) || 500,
+                commissionRate: Number(fl.commission_rate) || 0,
+                platformFee: Number(fl.platform_fee || fl.platform_fee_deducted) || 0,
+                netPayout: Number(fl.net_payout || fl.net_doctor_payout) || 500,
+                netDoctorPayout: Number(fl.net_payout || fl.net_doctor_payout) || 500,
+                paymentStatus: fl.payment_status || fl.settlement_status || 'cleared',
+                settlementStatus: fl.payment_status || fl.settlement_status || 'cleared',
+                paymentMethod: fl.payment_method || 'upi',
+                podId: fl.pod_id,
+                pod_id: fl.pod_id,
+                patientName: resolvedPatName,
+                patient_name: resolvedPatName,
+                createdAt: fl.created_at || new Date().toISOString()
+              } as any;
+            });
 
-          const localLedgers = api.getFinancialLedgers();
-          const mergedMap = new Map();
-          localLedgers.forEach(ll => mergedMap.set(ll.id, ll));
-          dbLedgers.forEach(dl => mergedMap.set(dl.id, dl));
-          const finalLedgers = Array.from(mergedMap.values());
-          BillingService.saveFinancialLedgers(finalLedgers);
-          setFinancialLedgers(finalLedgers);
+            BillingService.saveFinancialLedgers(dbLedgers);
+            setFinancialLedgers(dbLedgers);
+          }
+        }
+
+        if (invoicesRes.data !== undefined && invoicesRes.data !== null) {
+          if (invoicesRes.data.length === 0) {
+            BillingService.saveUnifiedInvoices([]);
+            BillingService.saveInvoices([]);
+          } else {
+            BillingService.saveUnifiedInvoices(invoicesRes.data);
+          }
         }
 
         if (patientsRes.data !== undefined && patientsRes.data !== null) {
@@ -520,20 +529,25 @@ export const DoctorDashboard: React.FC = () => {
           }
         }
 
-        if (sessionsRes.data && sessionsRes.data.length > 0) {
-          const formattedList = sessionsRes.data.map((dbSession: any) => ({
-            id: dbSession.id,
-            patientPhone: dbSession.patient_phone,
-            patient_phone: dbSession.patient_phone,
-            phone: dbSession.patient_phone,
-            patientId: dbSession.patient_id,
-            currentState: dbSession.current_state,
-            lastInteraction: dbSession.last_interaction,
-            sessionData: dbSession.session_data || {},
-            session_data: dbSession.session_data || {}
-          }));
-          WhatsAppService.saveWhatsAppSessions(formattedList);
-          setWhatsAppSessions(formattedList);
+        if (sessionsRes.data !== undefined && sessionsRes.data !== null) {
+          if (sessionsRes.data.length === 0) {
+            WhatsAppService.saveWhatsAppSessions([]);
+            setWhatsAppSessions([]);
+          } else {
+            const formattedList = sessionsRes.data.map((dbSession: any) => ({
+              id: dbSession.id,
+              patientPhone: dbSession.patient_phone,
+              patient_phone: dbSession.patient_phone,
+              phone: dbSession.patient_phone,
+              patientId: dbSession.patient_id,
+              currentState: dbSession.current_state,
+              lastInteraction: dbSession.last_interaction,
+              sessionData: dbSession.session_data || {},
+              session_data: dbSession.session_data || {}
+            }));
+            WhatsAppService.saveWhatsAppSessions(formattedList);
+            setWhatsAppSessions(formattedList);
+          }
         }
       }).catch(err => {
         console.warn('[DoctorDashboard] Background sync notice:', err);

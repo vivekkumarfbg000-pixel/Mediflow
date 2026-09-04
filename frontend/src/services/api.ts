@@ -355,7 +355,7 @@ class MediflowApiService {
 
     setInterval(() => {
       this.syncFromSupabase().catch(err => console.error('[Mediflow API] Background sync interval failed:', err));
-    }, 15000);
+    }, 10000);
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
@@ -742,21 +742,21 @@ class MediflowApiService {
         // 8. reagent_inventory
         Promise.resolve(supabase.from('reagent_inventory').select('*')).then(r => r.data).catch(() => null),
         // 9. inventory_holds
-        Promise.resolve(supabase.from('inventory_holds').select('*').eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('inventory_holds').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
         // 10. unified_invoices
         Promise.resolve(supabase.from('unified_invoices').select(`
           id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
           platform_fee, total_amount, upi_qr_payload, payment_status, payment_method, pod_id, source, created_at,
           patient:patient_registry(name, phone)
-        `).eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
+        `).or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
         // 11. seasonal_demand_forecasts
         Promise.resolve(supabase.from('seasonal_demand_forecasts').select('*')).then(r => r.data).catch(() => null),
         // 12. clinic_staff
-        Promise.resolve(currentPodId ? supabase.from('clinic_staff').select('*').eq('pod_id', currentPodId) : supabase.from('clinic_staff').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('clinic_staff').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
         // 13. financial_ledgers
-        Promise.resolve(supabase.from('financial_ledgers').select('*').eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('financial_ledgers').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
         // 14. appointments
-        Promise.resolve(supabase.from('appointments').select('*').eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('appointments').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
       ]);
 
       // ─── Process consent IDs (needed to filter patients) ─────────────────
@@ -1067,18 +1067,39 @@ class MediflowApiService {
 
         // Appointments
         if (dbAppointments && dbAppointments.length > 0) {
-          const incomingAppts: Appointment[] = (dbAppointments as any[]).map(a => ({
-            id: a.id,
-            patientId: a.patient_id,
-            doctorId: a.doctor_id,
-            status: a.status,
-            isVirtual: a.is_virtual ?? false,
-            virtualDate: a.virtual_date || '',
-            virtualTime: a.virtual_time || '',
-            virtualMeetingUrl: a.virtual_meeting_url || '',
-            createdAt: a.created_at,
-            source: a.is_virtual ? 'whatsapp' : 'counter'
-          }));
+          const existingPats = this.getPatients();
+          const patMap = new Map(existingPats.map(p => [p.id, p.name]));
+          const incomingAppts: Appointment[] = (dbAppointments as any[]).map(a => {
+            const patName = (a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient')
+              ? a.patient_name
+              : (patMap.get(a.patient_id) || 'Patient');
+            return {
+              id: a.id,
+              patientId: a.patient_id,
+              patient_id: a.patient_id,
+              patientName: patName,
+              patient_name: patName,
+              doctorId: a.doctor_id,
+              doctor_id: a.doctor_id,
+              status: a.status || 'scheduled',
+              paymentStatus: a.payment_status || 'cleared',
+              payment_status: a.payment_status || 'cleared',
+              tokenNumber: String(a.token_number || ''),
+              token_number: String(a.token_number || ''),
+              isVirtual: Boolean(a.is_virtual),
+              is_virtual: Boolean(a.is_virtual),
+              virtualDate: a.virtual_date || '',
+              virtual_date: a.virtual_date || '',
+              virtualTime: a.virtual_time || '10:00 AM',
+              virtual_time: a.virtual_time || '10:00 AM',
+              virtualMeetingUrl: a.virtual_meeting_url || '',
+              virtual_meeting_url: a.virtual_meeting_url || '',
+              createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
+              source: a.source || (a.is_virtual ? 'whatsapp' : 'counter'),
+              podId: a.pod_id,
+              pod_id: a.pod_id
+            } as any;
+          });
           let isDemoAccount = false;
           if (typeof window !== 'undefined') {
             try {
@@ -1679,6 +1700,17 @@ class MediflowApiService {
     BillingService.saveUnifiedInvoice(invoice);
     this.notify();
   }
+
+  saveUnifiedInvoices(invoices: UnifiedInvoice[]): void {
+    BillingService.saveUnifiedInvoices(invoices);
+    this.notify();
+  }
+
+  saveInvoices(invoices: Invoice[]): void {
+    BillingService.saveInvoices(invoices);
+    this.notify();
+  }
+
 
   getFinancialLedgers(invoiceId?: string): FinancialLedgerEntry[] {
     return BillingService.getFinancialLedgers(invoiceId);

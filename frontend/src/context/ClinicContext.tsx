@@ -24,15 +24,15 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     if (typeof window !== 'undefined') {
       try {
         const cachedPod = safeGetStorageJSON<any>('vitalsync_cached_active_pod', null);
-        if (cachedPod && cachedPod.clinicCode && cachedPod.clinicCode !== 'VS-V01R') return cachedPod;
+        if (cachedPod && (cachedPod.clinicCode || cachedPod.clinic_code)) return cachedPod;
 
         const activePodLocal = safeGetStorageJSON<any>('vitalsync_active_pod', null);
         const localCode = activePodLocal?.clinic_code || activePodLocal?.clinicCode;
-        if (activePodLocal && localCode && localCode !== 'VS-V01R') {
+        if (activePodLocal && localCode) {
           return {
-            id: activePodLocal.id || 'demo-pod',
-            name: activePodLocal.name || 'Care Pod Clinic',
-            location: activePodLocal.location,
+            id: activePodLocal.id || FALLBACK_POD_ID,
+            name: activePodLocal.name || 'Medical Pod Clinic',
+            location: activePodLocal.location || 'Line Bazar, Purnea, Bihar',
             clinicCode: localCode,
             isActive: activePodLocal.is_active ?? true,
             createdAt: activePodLocal.created_at || new Date().toISOString()
@@ -50,33 +50,38 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
 
   const refreshClinic = useCallback(async () => {
     if (!activeProfile?.id) {
+      const cached = safeGetStorageJSON<any>('vitalsync_active_pod', null) || safeGetStorageJSON<any>('vitalsync_cached_active_pod', null);
+      if (cached?.clinicCode || cached?.clinic_code) {
+        return;
+      }
       setActivePod(null);
       setActiveEntity(null);
       setPartnerStatus(null);
       setPodEntities([]);
-      if (typeof window !== 'undefined') {
-        delete (window as any).__mediflow_active_pod_id;
-        localStorage.removeItem('vitalsync_cached_active_pod');
-        localStorage.removeItem('vitalsync_active_pod');
-      }
       return;
     }
 
     setIsLoading(true);
     try {
       let entityId = activeProfile.entity_id;
+      let profileClinicId: string | null = activeProfile.clinic_id || activeProfile.clinicId || null;
+      let profilePodId: string | null = activeProfile.pod_id || activeProfile.podId || null;
 
-      // If entity_id is not present in in-memory profile, query DB profile to resolve it
-      if (!entityId) {
-        const { data: dbProfile } = await supabase
-          .from('profiles')
-          .select('entity_id, role')
-          .eq('id', activeProfile.id)
-          .maybeSingle();
+      // If entity_id / clinic_id / pod_id is not present in in-memory profile, query DB profile
+      if (!entityId || !profileClinicId || !profilePodId) {
+        try {
+          const { data: dbProfile } = await supabase
+            .from('profiles')
+            .select('entity_id, clinic_id, pod_id, role')
+            .eq('id', activeProfile.id)
+            .maybeSingle();
 
-        if (dbProfile?.entity_id) {
-          entityId = dbProfile.entity_id;
-        }
+          if (dbProfile) {
+            if (dbProfile.entity_id) entityId = dbProfile.entity_id;
+            if (dbProfile.clinic_id) profileClinicId = dbProfile.clinic_id;
+            if (dbProfile.pod_id) profilePodId = dbProfile.pod_id;
+          }
+        } catch (_pErr) {}
       }
 
       let podData: any = null;
@@ -123,11 +128,47 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         }
       }
 
-      // 2. If no pod via entity, query get_all_tenant_pods from Supabase
+      // 2. Try finding pod through user profile's direct clinic_id or pod_id
+      if (!podData && (profilePodId || profileClinicId)) {
+        const targetPodId = profilePodId || profileClinicId;
+        try {
+          const { data: p } = await supabase
+            .from('pods')
+            .select('*')
+            .eq('id', targetPodId)
+            .maybeSingle();
+          if (p && p.is_active !== false) {
+            podData = p;
+          }
+        } catch (_podErr) {}
+      }
+
+      // 3. Try finding pod through cached doctor registration
+      if (!podData && typeof window !== 'undefined') {
+        const localPod = safeGetStorageJSON<any>('vitalsync_active_pod', null) || safeGetStorageJSON<any>('vitalsync_cached_active_pod', null);
+        if (localPod?.id || localPod?.clinic_code || localPod?.clinicCode) {
+          try {
+            const { data: allPods } = await supabase.rpc('get_all_tenant_pods');
+            if (allPods && Array.isArray(allPods) && allPods.length > 0) {
+              const matched = allPods.find((p: any) => 
+                (localPod.id && p.id === localPod.id) ||
+                (localPod.clinic_code && p.clinic_code === localPod.clinic_code) ||
+                (localPod.clinicCode && p.clinic_code === localPod.clinicCode)
+              );
+              if (matched && matched.is_active !== false) {
+                podData = matched;
+              }
+            }
+          } catch (_rpcErr) {}
+        }
+      }
+
+      // 4. Fallback: If no pod via entity or profile, query get_all_tenant_pods from Supabase
       if (!podData) {
         const { data: allPods } = await supabase.rpc('get_all_tenant_pods');
         if (allPods && Array.isArray(allPods) && allPods.length > 0) {
-          const activeDbPod = allPods.find((p: any) => p.is_active !== false) || allPods[0];
+          const v01rPod = allPods.find((p: any) => p.clinic_code === 'VS-V01R' || p.id === FALLBACK_POD_ID);
+          const activeDbPod = v01rPod || allPods.find((p: any) => p.is_active !== false) || allPods[0];
           if (activeDbPod) {
             podData = activeDbPod;
           }

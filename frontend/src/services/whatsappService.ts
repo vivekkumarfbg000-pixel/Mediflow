@@ -1286,7 +1286,7 @@ export class WhatsAppService {
             const draftBill = {
               id: billId,
               patientId: currentPat?.id || 'pat-demo',
-              patientName: currentPat?.name || 'WhatsApp Patient',
+              patientName: currentPat?.name || `Patient (+91 ${phone.slice(-4)})`,
               patientPhone: phone,
               items: [billItem],
               subtotal: itemTotal,
@@ -1368,7 +1368,7 @@ export class WhatsAppService {
               const newPatId = crypto.randomUUID();
               currentPat = {
                 id: newPatId,
-                name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || `WhatsApp Patient (+91 ${phone.slice(-4)})`,
+                name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || sessionData.waProfileName || `Patient (+91 ${phone.slice(-4)})`,
                 phone: phone,
                 age: Number(sessionData.familyDetails?.age || sessionData.tempNewPatientAge || sessionData.age || 0) || 0,
                 gender: sessionData.familyDetails?.gender || sessionData.tempNewPatientGender || sessionData.gender || 'Other',

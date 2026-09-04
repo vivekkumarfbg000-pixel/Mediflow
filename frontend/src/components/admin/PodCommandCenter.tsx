@@ -214,7 +214,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
     return {
       total: todayPatients.length,
-      awaitingConsultation: todayPatients.filter(p => (p.queueStatus === 'awaiting_consultation' || !p.queueStatus) && !isPatientCompleted(p)).length,
+      awaitingConsultation: todayPatients.filter(p => {
+        if (isPatientCompleted(p)) return false;
+        if (p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || (p.queueStatus as any) === 'pending_payment') return false;
+        const isVirtual = Boolean((p as any).isVirtual || (p as any).is_virtual);
+        const hasVitals = Boolean(p.vitals && p.vitals.bloodPressure && p.vitals.bloodPressure.trim().length > 0);
+        return p.queueStatus === 'awaiting_consultation' && (hasVitals || isVirtual);
+      }).length,
       inConsultation: todayPatients.filter(p => p.queueStatus === 'in_consultation' && !isPatientCompleted(p)).length,
       completed: todayPatients.filter(isPatientCompleted).length,
     };
@@ -254,9 +260,20 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
         // Handle metric-specific filters (Enforces vitals intake & payment verification before doctor queue)
         const isCompleted = p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'settled' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab';
+        const isVirtual = Boolean((p as any).isVirtual || (p as any).is_virtual || (p as any).consultationType === 'virtual');
+        const hasVitals = Boolean(p.vitals && p.vitals.bloodPressure && p.vitals.bloodPressure.trim().length > 0);
+        
+        // Doctor Consultation Queue strictly requires:
+        // 1. Not completed
+        // 2. Not awaiting_vitals at Compounder desk (unless virtual)
+        // 3. Not pending_payment
+        // 4. Queue status must be awaiting_consultation and have vitals recorded (or virtual)
         const isAwaitingConsult = !isCompleted && 
-                                  (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) &&
-                                  p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment';
+                                  (p.queueStatus === 'awaiting_consultation' || (isVirtual && (p.queueStatus as any) !== 'awaiting_vitals' && (p.queueStatus as any) !== 'pending_payment')) &&
+                                  (hasVitals || isVirtual) &&
+                                  (p.queueStatus as any) !== 'awaiting_vitals' && 
+                                  p.queueStatus !== 'registered' && 
+                                  (p.queueStatus as any) !== 'pending_payment';
         const isInConsult = !isCompleted && p.queueStatus === 'in_consultation';
 
         if (selectedMetric === 'all') {
@@ -857,10 +874,12 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                           className={`px-3 py-1.5 bg-gradient-to-r ${
                             p.queueStatus === 'completed' 
                               ? 'from-emerald-500 to-emerald-600 dark:from-emerald-600 dark:to-emerald-700 hover:from-emerald-600 hover:to-emerald-700 text-white' 
+                              : p.queueStatus === 'awaiting_vitals'
+                              ? 'from-amber-500 to-amber-600 dark:from-amber-600 dark:to-amber-700 hover:from-amber-600 hover:to-amber-700 text-white'
                               : 'from-indigo-500 to-indigo-600 dark:from-indigo-600 dark:to-indigo-700 hover:from-indigo-600 hover:to-indigo-700 dark:hover:from-indigo-555 dark:hover:to-indigo-650 text-white'
                           } rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer border-0 shadow-[0_2px_4px_rgba(79,70,229,0.15)] whitespace-nowrap`}
                         >
-                          {p.queueStatus === 'completed' ? 'Review' : 'Consult'}
+                          {p.queueStatus === 'completed' ? 'Review' : (p.queueStatus === 'awaiting_vitals' ? 'At Compounder' : 'Consult')}
                         </button>
                       )}
                     </div>

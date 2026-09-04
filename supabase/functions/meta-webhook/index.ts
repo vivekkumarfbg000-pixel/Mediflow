@@ -796,6 +796,7 @@ if (!isManualRelay) {
 
       const message = value.messages[0];
       const patientPhone = message.from;
+      const waContactName = (value.contacts?.[0]?.profile?.name || "").trim();
       
       let messageText = "";
       let replyId: string | undefined = undefined;
@@ -1072,7 +1073,8 @@ if (!isManualRelay) {
         replyId,
         isScreenshotProcessing,
         messageRaw: message,
-        connection
+        connection,
+        waContactName
       });
 
       return new Response("Success", { status: 200 });
@@ -1141,8 +1143,9 @@ async function triggerBotReplyPipeline(ctx: {
   isScreenshotProcessing?: boolean;
   messageRaw?: any;
   connection?: any;
+  waContactName?: string;
 }) {
-  const { session, incomingText, decryptedToken, phoneId, replyId, isScreenshotProcessing = false, messageRaw, connection } = ctx;
+  const { session, incomingText, decryptedToken, phoneId, replyId, isScreenshotProcessing = false, messageRaw, connection, waContactName = "" } = ctx;
   const patientPhone = session.patient_phone;
   const podId = toValidUuid(connection?.pod_id || session.pod_id);
   const entityId = toValidUuid(connection?.entity_id || session.entity_id, podId);
@@ -1215,6 +1218,49 @@ async function triggerBotReplyPipeline(ctx: {
     }
   } catch (pErr) {
     console.warn("[Meta Webhook] Parallel startup fetch warning:", pErr);
+  }
+
+  // Resolve real patient name from Meta WhatsApp profile, session, or registry (Eliminates "WhatsApp Patient" fallback)
+  if (waContactName && !sessionData.waProfileName) {
+    sessionData.waProfileName = waContactName;
+  }
+  const effectivePatName = (
+    sessionData.familyDetails?.name ||
+    sessionData.tempNewPatientName ||
+    patient?.name ||
+    waContactName ||
+    sessionData.waProfileName ||
+    `Patient (+91 ${String(patientPhone).replace(/\D/g, "").slice(-4)})`
+  ).trim();
+  const patientName = effectivePatName;
+
+  // Auto-provision patient in patient_registry if new to clinic
+  if (!patient?.id) {
+    const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10);
+    const candidateName = (effectivePatName || "").trim();
+    if (candidateName && !candidateName.toLowerCase().startsWith("patient (+91")) {
+      try {
+        const currentPodId = toValidUuid(connection?.pod_id || session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
+        const newPatId = crypto.randomUUID();
+        const pCode = `${(candidateName.substring(0, 1) || 'P').toUpperCase()}1`;
+        const { data: newPat, error: npErr } = await supabase.from("patient_registry").insert({
+          id: newPatId,
+          name: candidateName,
+          phone: cleanPhone10,
+          pod_id: currentPodId,
+          patient_code: pCode,
+          referral_code: `REF-${cleanPhone10.slice(-4)}`,
+          queue_status: "registered"
+        }).select().single();
+        if (!npErr && newPat) {
+          patient = newPat;
+          session.patient_id = newPat.id;
+          sessionData.bookingPatientId = newPat.id;
+        }
+      } catch (_autoRegErr) {
+        console.warn("[Meta Webhook] Auto-provisioning patient from Meta Profile failed:", _autoRegErr);
+      }
+    }
   }
 
   // devsecops consent check: check patient_consents for explicit revocation
@@ -1673,7 +1719,7 @@ async function triggerBotReplyPipeline(ctx: {
       if (cleaned === "1" || cleaned.includes("physical") || replyId === "btn_physical" || replyId === "menu_physical") {
         sessionData.consultationType = "physical";
         const selectedDate = getIstDateString();
-        const currentPodId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
+        const currentPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
 
         let tokenSeq = 1;
         try {
@@ -1685,24 +1731,34 @@ async function triggerBotReplyPipeline(ctx: {
             const seqMatch = String(tokenStr).match(/\d+/);
             tokenSeq = seqMatch ? parseInt(seqMatch[0], 10) : 1;
           } else {
-            const { data: dateAppts } = await supabase
-              .from("appointments")
-              .select("token_number, virtual_date, appointment_time, created_at")
-              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%,created_at.gte.${selectedDate}T00:00:00`);
+            const [{ data: dateAppts }, { data: regPats }] = await Promise.all([
+              supabase
+                .from("appointments")
+                .select("token_number, virtual_date, appointment_time, created_at")
+                .eq("pod_id", currentPodId)
+                .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%,created_at.gte.${selectedDate}T00:00:00`),
+              supabase
+                .from("patient_registry")
+                .select("token_number")
+                .eq("pod_id", currentPodId)
+            ]);
             
             let maxSeq = 0;
-            if (dateAppts && dateAppts.length > 0) {
-              dateAppts.forEach((a: any) => {
-                const match = String(a.token_number || '').match(/\d+/);
-                if (match) {
-                  const num = parseInt(match[0], 10);
-                  if (num > maxSeq) maxSeq = num;
-                }
-              });
-              tokenSeq = Math.max(dateAppts.length, maxSeq) + 1;
-            } else {
-              tokenSeq = 1;
-            }
+            (dateAppts || []).forEach((a: any) => {
+              const match = String(a.token_number || '').match(/\d+/);
+              if (match) {
+                const num = parseInt(match[0], 10);
+                if (num > maxSeq) maxSeq = num;
+              }
+            });
+            (regPats || []).forEach((p: any) => {
+              const match = String(p.token_number || '').match(/\d+/);
+              if (match) {
+                const num = parseInt(match[0], 10);
+                if (num > maxSeq) maxSeq = num;
+              }
+            });
+            tokenSeq = Math.max((dateAppts?.length || 0), maxSeq) + 1;
           }
         } catch (_tErr) {
           tokenSeq = 1;
@@ -1711,7 +1767,14 @@ async function triggerBotReplyPipeline(ctx: {
         const tokenNumber = `T-${tokenSeq.toString().padStart(2, '0')}`;
         const apptId = crypto.randomUUID();
         const targetPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
-        const patName = patient?.name || sessionData.tempNewPatientName || regName || "Patient";
+        const patName = effectivePatName || patient?.name || sessionData.tempNewPatientName || regName || "Patient";
+
+        if (targetPatId) {
+          await supabase.from("patient_registry").update({
+            token_number: tokenNumber,
+            queue_status: "awaiting_vitals"
+          }).eq("id", targetPatId);
+        }
 
         let docId = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
         try {
@@ -2258,6 +2321,8 @@ async function triggerBotReplyPipeline(ctx: {
         const selectedDate = resolvedDate || defaultDate;
         const selectedDisplay = resolvedDisplay || defaultDisplay;
         
+        const currentPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
+        
         // Resolve Doctor's ID dynamically scoped to active pod
         let doctorId = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002"; // Fallback ID
         try {
@@ -2281,7 +2346,6 @@ async function triggerBotReplyPipeline(ctx: {
         // Generate OPD Token Number via atomic Postgres RPC (prevents TOCTOU race condition)
         // Scoped to pod_id to prevent cross-tenant token pollution in multi-tenant deployments
         let tokenSeq = 1;
-        const currentPodId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
         try {
           const { data: tokenStr, error: tokenErr } = await supabase.rpc(
             'generate_next_token_number',
@@ -2292,26 +2356,36 @@ async function triggerBotReplyPipeline(ctx: {
             const seqMatch = (tokenStr as string).match(/T-(\d+)/);
             tokenSeq = seqMatch ? parseInt(seqMatch[1], 10) : 1;
           } else {
-            // Military-Grade Fallback: query all appointments for date and find max token sequence
+            // Military-Grade Fallback: query appointments and patient_registry for date and pod
             console.warn("[Meta Webhook] Token RPC unavailable, calculating via max sequence:", tokenErr);
-            const { data: dateAppts } = await supabase
-              .from("appointments")
-              .select("token_number, virtual_date, appointment_time")
-              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%`);
+            const [{ data: dateAppts }, { data: regPats }] = await Promise.all([
+              supabase
+                .from("appointments")
+                .select("token_number, virtual_date, appointment_time")
+                .eq("pod_id", currentPodId)
+                .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%`),
+              supabase
+                .from("patient_registry")
+                .select("token_number")
+                .eq("pod_id", currentPodId)
+            ]);
             
             let maxSeq = 0;
-            if (dateAppts && dateAppts.length > 0) {
-              dateAppts.forEach((a: any) => {
-                const match = String(a.token_number || '').match(/\d+/);
-                if (match) {
-                  const num = parseInt(match[0], 10);
-                  if (num > maxSeq) maxSeq = num;
-                }
-              });
-              tokenSeq = Math.max(dateAppts.length + 1, maxSeq + 1);
-            } else {
-              tokenSeq = 1;
-            }
+            (dateAppts || []).forEach((a: any) => {
+              const match = String(a.token_number || '').match(/\d+/);
+              if (match) {
+                const num = parseInt(match[0], 10);
+                if (num > maxSeq) maxSeq = num;
+              }
+            });
+            (regPats || []).forEach((p: any) => {
+              const match = String(p.token_number || '').match(/\d+/);
+              if (match) {
+                const num = parseInt(match[0], 10);
+                if (num > maxSeq) maxSeq = num;
+              }
+            });
+            tokenSeq = Math.max((dateAppts?.length || 0), maxSeq) + 1;
           }
         } catch (err) {
           console.warn("[Meta Webhook] Error generating token number:", err);
@@ -2419,10 +2493,11 @@ async function triggerBotReplyPipeline(ctx: {
           let newApptId = crypto.randomUUID();
           try {
             if (bookingPatId) {
-              const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
+              const targetPatName = (sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || effectivePatName || "Patient").trim();
               await supabase.from("appointments").insert({
                 id: newApptId,
                 patient_id: bookingPatId,
+                patient_name: targetPatName,
                 doctor_id: doctorId,
                 status: "ready_for_consult",
                 appointment_time: apptTimestamp,
@@ -2431,7 +2506,8 @@ async function triggerBotReplyPipeline(ctx: {
                 virtual_time: slotText,
                 virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${newApptId}`,
                 pod_id: currentPodId,
-                entity_id: null
+                entity_id: null,
+                token_number: String(tokenNumber)
               });
             }
           } catch (err) {
@@ -2470,7 +2546,7 @@ async function triggerBotReplyPipeline(ctx: {
           let paymentGatewayUrl = "";
           const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
           const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
-          const targetPatName = sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || "WhatsApp Patient";
+          const targetPatName = (sessionData.familyDetails?.name || sessionData.tempNewPatientName || patient?.name || effectivePatName || "Patient").trim();
           const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10) || "9608032073";
           const patientEmail = patient?.email || `patient_${cleanPhone10}@vitalsync.in`;
 
@@ -2556,6 +2632,7 @@ async function triggerBotReplyPipeline(ctx: {
           }
 
           // Auto-provision patient in patient_registry if not yet registered
+          const pCode = `${(targetPatName.substring(0, 1) || 'P').toUpperCase()}1`;
           if (!bookingPatId) {
             bookingPatId = crypto.randomUUID();
             try {
@@ -2565,6 +2642,8 @@ async function triggerBotReplyPipeline(ctx: {
                 phone: cleanPhone10,
                 pod_id: safePodId,
                 registered_at_entity: safeEntityId,
+                patient_code: pCode,
+                referral_code: `REF-${cleanPhone10.slice(-4)}`,
                 token_number: String(tokenNumber),
                 queue_status: isVirtualSlot ? "awaiting_consultation" : "awaiting_vitals"
               });
@@ -2577,6 +2656,15 @@ async function triggerBotReplyPipeline(ctx: {
             } catch (pRegErr) {
               console.error("[Meta Webhook] Auto-register patient exception:", pRegErr);
             }
+          } else {
+            try {
+              await supabase.from("patient_registry").update({
+                name: targetPatName,
+                patient_code: pCode,
+                token_number: String(tokenNumber),
+                queue_status: isVirtualSlot ? "awaiting_consultation" : "awaiting_vitals"
+              }).eq("id", bookingPatId);
+            } catch (_uErr) {}
           }
 
           // Insert Appointment Row matching Postgres schema
@@ -2584,6 +2672,7 @@ async function triggerBotReplyPipeline(ctx: {
             const { error: apptErr } = await supabase.from("appointments").insert({
               id: newApptId,
               patient_id: bookingPatId,
+              patient_name: targetPatName,
               doctor_id: doctorId,
               status: "pending_payment",
               appointment_time: apptTimestamp,
@@ -3319,32 +3408,43 @@ async function triggerBotReplyPipeline(ctx: {
           if (sosPatId) {
             // Generate SOS token number (Priority #1)
             let sosTokenSeq = 1;
+            const sosPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
             try {
               const { data: tokenStr, error: tokenErr } = await supabase.rpc(
                 'generate_next_token_number',
-                { p_virtual_date: todayDate, p_pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001" }
+                { p_virtual_date: todayDate, p_pod_id: sosPodId }
               );
               if (!tokenErr && tokenStr) {
                 const seqMatch = String(tokenStr).match(/\d+/);
                 sosTokenSeq = seqMatch ? parseInt(seqMatch[0], 10) : 1;
               } else {
-                const { data: apptRows } = await supabase
-                  .from("appointments")
-                  .select("token_number, virtual_date, appointment_time, created_at")
-                  .or(`virtual_date.eq.${todayDate},appointment_time.ilike.${todayDate}%,created_at.gte.${todayDate}T00:00:00`);
+                const [{ data: apptRows }, { data: regPats }] = await Promise.all([
+                  supabase
+                    .from("appointments")
+                    .select("token_number, virtual_date, appointment_time, created_at")
+                    .eq("pod_id", sosPodId)
+                    .or(`virtual_date.eq.${todayDate},appointment_time.ilike.${todayDate}%,created_at.gte.${todayDate}T00:00:00`),
+                  supabase
+                    .from("patient_registry")
+                    .select("token_number")
+                    .eq("pod_id", sosPodId)
+                ]);
                 let maxSeq = 0;
-                if (apptRows && apptRows.length > 0) {
-                  apptRows.forEach((a: any) => {
-                    const match = String(a.token_number || '').match(/\d+/);
-                    if (match) {
-                      const num = parseInt(match[0], 10);
-                      if (num > maxSeq) maxSeq = num;
-                    }
-                  });
-                  sosTokenSeq = Math.max(apptRows.length, maxSeq) + 1;
-                } else {
-                  sosTokenSeq = 1;
-                }
+                (apptRows || []).forEach((a: any) => {
+                  const match = String(a.token_number || '').match(/\d+/);
+                  if (match) {
+                    const num = parseInt(match[0], 10);
+                    if (num > maxSeq) maxSeq = num;
+                  }
+                });
+                (regPats || []).forEach((p: any) => {
+                  const match = String(p.token_number || '').match(/\d+/);
+                  if (match) {
+                    const num = parseInt(match[0], 10);
+                    if (num > maxSeq) maxSeq = num;
+                  }
+                });
+                sosTokenSeq = Math.max((apptRows?.length || 0), maxSeq) + 1;
               }
             } catch (err) { console.warn("[Meta Webhook] Error fetching appointment count for SOS token:", err); }
             const sosTokenNumber = `T-${sosTokenSeq.toString().padStart(2, '0')} E`;
@@ -3354,18 +3454,22 @@ async function triggerBotReplyPipeline(ctx: {
               .update({ token_number: sosTokenNumber })
               .eq("id", sosPatId);
 
+            const sosPatName = (patient?.name || effectivePatName || "Emergency Patient").trim();
+
             // Insert appointment with pending_payment status matching Postgres schema
             await supabase.from("appointments").insert({
               id: sosApptId,
               patient_id: sosPatId,
+              patient_name: sosPatName,
               doctor_id: doctorIdSos,
               status: "pending_payment",
               appointment_time: new Date().toISOString(),
               is_virtual: false,
               virtual_date: todayDate,
               virtual_time: "EMERGENCY (Priority #1)",
-              pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
-              entity_id: null
+              pod_id: sosPodId,
+              entity_id: null,
+              token_number: sosTokenNumber
             });
 
             // Insert invoice with dynamic SOS fee

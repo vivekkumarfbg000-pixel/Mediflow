@@ -39,13 +39,28 @@ export class RealtimeSyncService {
     const normalized: any = { ...record };
 
     // Map Postgres CDC snake_case fields to camelCase expected by frontend models
-    if (record.patient_id !== undefined) normalized.patientId = record.patient_id;
-    if (record.doctor_id !== undefined) normalized.doctorId = record.doctor_id;
-    if (record.pod_id !== undefined) normalized.podId = record.pod_id;
-    if (record.encounter_id !== undefined) normalized.encounterId = record.encounter_id;
-    if (record.patient_code !== undefined) normalized.patientCode = record.patient_code;
-    if (record.token_number !== undefined) normalized.tokenNumber = record.token_number;
-    if (record.queue_status !== undefined) normalized.queueStatus = record.queue_status;
+    if (record.patient_id !== undefined) { normalized.patientId = record.patient_id; normalized.patient_id = record.patient_id; }
+    if (record.patientId !== undefined) { normalized.patient_id = record.patientId; normalized.patientId = record.patientId; }
+    if (record.doctor_id !== undefined) { normalized.doctorId = record.doctor_id; normalized.doctor_id = record.doctor_id; }
+    if (record.doctorId !== undefined) { normalized.doctor_id = record.doctorId; normalized.doctorId = record.doctorId; }
+    const sovereignPod = record.pod_id || record.podId || record.clinic_id || record.clinicId || record.entity_id || record.entityId;
+    if (sovereignPod !== undefined) {
+      normalized.podId = sovereignPod;
+      normalized.pod_id = sovereignPod;
+      normalized.clinicId = sovereignPod;
+      normalized.clinic_id = sovereignPod;
+    }
+    if (record.encounter_id !== undefined) { normalized.encounterId = record.encounter_id; normalized.encounter_id = record.encounter_id; }
+    if (record.encounterId !== undefined) { normalized.encounter_id = record.encounterId; normalized.encounterId = record.encounterId; }
+    if (record.patient_code !== undefined) { normalized.patientCode = record.patient_code; normalized.patient_code = record.patient_code; }
+    if (record.patientCode !== undefined) { normalized.patient_code = record.patientCode; normalized.patientCode = record.patientCode; }
+    if (record.token_number !== undefined) { normalized.tokenNumber = record.token_number; normalized.token_number = record.token_number; }
+    if (record.tokenNumber !== undefined) { normalized.token_number = record.tokenNumber; normalized.tokenNumber = record.tokenNumber; }
+    if (record.queue_status !== undefined) { normalized.queueStatus = record.queue_status; normalized.queue_status = record.queue_status; }
+    if (record.queueStatus !== undefined) { normalized.queue_status = record.queueStatus; normalized.queueStatus = record.queueStatus; }
+    if (record.patient_name !== undefined) { normalized.patientName = record.patient_name; normalized.patient_name = record.patient_name; }
+    if (record.patientName !== undefined) { normalized.patient_name = record.patientName; normalized.patientName = record.patientName; }
+    if (record.name !== undefined) { normalized.name = record.name; if (!normalized.patientName) normalized.patientName = record.name; }
     if (record.abha_id !== undefined) normalized.abhaId = record.abha_id;
     if (record.created_at !== undefined) normalized.createdAt = record.created_at;
     if (record.updated_at !== undefined) normalized.updatedAt = record.updated_at;
@@ -79,10 +94,7 @@ export class RealtimeSyncService {
     } else if (record.virtual_time) {
       normalized.time = record.virtual_time;
     }
-    if (record.token_number !== undefined) normalized.tokenNumber = record.token_number;
-    if (record.patient_name !== undefined) normalized.patientName = record.patient_name;
     if (record.patient_phone !== undefined) normalized.patientPhone = record.patient_phone;
-    if (record.queue_status !== undefined) normalized.queueStatus = record.queue_status;
     if (record.biomarker_json !== undefined) normalized.biomarkerJson = record.biomarker_json;
     if (record.report_file_url !== undefined) normalized.reportFileUrl = record.report_file_url;
     if (record.test_code !== undefined) normalized.testCode = record.test_code;

@@ -75,7 +75,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                  entryDate.getDate() === d.getDate();
         });
 
-        const clinic = dayLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const clinic = dayLedgers.filter(e => e.transactionType === 'appointment_fee' || (e.transactionType as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + e.grossAmount, 0);
         const pharmacy = dayLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
         const lab = dayLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
 
@@ -99,7 +99,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           return entryDate >= startDate && entryDate <= endDate;
         });
 
-        const clinic = bucketLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const clinic = bucketLedgers.filter(e => e.transactionType === 'appointment_fee' || (e.transactionType as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + e.grossAmount, 0);
         const pharmacy = bucketLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
         const lab = bucketLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
 
@@ -119,7 +119,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                  entryDate.getMonth() === d.getMonth();
         });
 
-        const clinic = monthLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const clinic = monthLedgers.filter(e => e.transactionType === 'appointment_fee' || (e.transactionType as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + e.grossAmount, 0);
         const pharmacy = monthLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
         const lab = monthLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
 
@@ -138,7 +138,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                  entryDate.getMonth() === d.getMonth();
         });
 
-        const clinic = monthLedgers.filter(e => e.transactionType === 'appointment_fee').reduce((acc, e) => acc + e.grossAmount, 0);
+        const clinic = monthLedgers.filter(e => e.transactionType === 'appointment_fee' || (e.transactionType as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + e.grossAmount, 0);
         const pharmacy = monthLedgers.filter(e => e.transactionType === 'medicine_commission').reduce((acc, e) => acc + e.netPayout, 0);
         const lab = monthLedgers.filter(e => e.transactionType === 'lab_commission').reduce((acc, e) => acc + e.netPayout, 0);
 
@@ -270,7 +270,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   }, [invoices, appointments]);
 
   const filteredLedgers = useMemo(() => {
-    const activeLedgers = BillingService.getFinancialLedgers();
+    const activeLedgers = (financialLedgers && financialLedgers.length > 0) ? financialLedgers : BillingService.getFinancialLedgers();
 
     return activeLedgers
       .filter(entry => {

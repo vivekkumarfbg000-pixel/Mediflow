@@ -1083,8 +1083,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                             .filter(inv => inv.patientId === newPat.id && inv.status === 'unpaid' && inv.type === 'consult')
                             .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
                           if (createdInv) {
-                            // Map Invoice → UnifiedInvoice shape for UPI modal
-                            handleTriggerUpiSheet({
+                            const uInvShape: UnifiedInvoice = {
                               id: createdInv.id,
                               encounterId: createdInv.appointmentId,
                               patientId: newPat.id,
@@ -1098,7 +1097,9 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                               upiQrPayload: '',
                               paymentStatus: 'pending',
                               createdAt: createdInv.createdAt,
-                            } as UnifiedInvoice);
+                            } as UnifiedInvoice;
+                            BillingService.saveUnifiedInvoice(uInvShape);
+                            handleTriggerUpiSheet(uInvShape);
                           }
                         } catch (error) {
                           console.error('[Patient Mobile] Booking failed:', error);

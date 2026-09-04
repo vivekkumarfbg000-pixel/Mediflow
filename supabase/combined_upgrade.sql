@@ -4378,7 +4378,770 @@ $$;
 GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO authenticated, service_role, anon;
 
 -- =============================================================================
+-- Migration: Restore Recent Doctor Accounts and Reconcile Clinic Pod Associations
+-- Migration ID: 20260903000013_restore_recent_doctor_accounts
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.restore_recent_doctor_accounts()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+  v_count INT := 0;
+  v_rec RECORD;
+  v_pod_id UUID;
+BEGIN
+  -- Iterate through users created in auth.users in the last 7 days
+  FOR v_rec IN 
+    SELECT u.id, u.email, u.raw_user_meta_data, u.created_at
+    FROM auth.users u
+    WHERE u.created_at >= NOW() - INTERVAL '7 days'
+  LOOP
+    -- Look up if there is an existing active pod for this user
+    SELECT id INTO v_pod_id
+    FROM public.pods
+    WHERE name ILIKE '%' || COALESCE(v_rec.raw_user_meta_data->>'name', v_rec.raw_user_meta_data->>'clinicName', '') || '%'
+       OR clinic_code = COALESCE(v_rec.raw_user_meta_data->>'clinicCode', v_rec.raw_user_meta_data->>'clinic_code')
+    LIMIT 1;
+
+    -- Ensure profile exists in public.profiles with approved status
+    INSERT INTO public.profiles (
+      id, email, name, display_name, role, status, 
+      clinic_id, pod_id, created_at, updated_at
+    )
+    VALUES (
+      v_rec.id,
+      v_rec.email,
+      COALESCE(v_rec.raw_user_meta_data->>'name', v_rec.raw_user_meta_data->>'display_name', split_part(v_rec.email, '@', 1)),
+      COALESCE(v_rec.raw_user_meta_data->>'display_name', v_rec.raw_user_meta_data->>'name', split_part(v_rec.email, '@', 1)),
+      COALESCE(v_rec.raw_user_meta_data->>'role', 'doctor'),
+      'approved',
+      v_pod_id,
+      v_pod_id,
+      v_rec.created_at,
+      NOW()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET status = 'approved',
+        clinic_id = COALESCE(public.profiles.clinic_id, EXCLUDED.clinic_id),
+        pod_id = COALESCE(public.profiles.pod_id, EXCLUDED.pod_id),
+        updated_at = NOW();
+
+    v_count := v_count + 1;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'restored_users_count', v_count,
+    'message', 'All recent accounts from the last 7 days restored and approved.'
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.restore_recent_doctor_accounts() TO authenticated, anon, service_role;
+
+CREATE OR REPLACE FUNCTION public.reconcile_tenant_pod_association()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_profile RECORD;
+  v_target_pod_id UUID;
+  v_target_entity_id UUID;
+  v_reconciled BOOLEAN := FALSE;
+  v_reconciled_count INTEGER := 0;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    SELECT id INTO v_target_pod_id
+    FROM public.pods
+    WHERE is_active != false
+    ORDER BY created_at DESC
+    LIMIT 1;
+
+    IF v_target_pod_id IS NOT NULL THEN
+      SELECT id INTO v_target_entity_id
+      FROM public.entities
+      WHERE pod_id = v_target_pod_id
+      LIMIT 1;
+
+      UPDATE public.profiles
+      SET pod_id = v_target_pod_id,
+          clinic_id = v_target_pod_id,
+          entity_id = COALESCE(entity_id, v_target_entity_id),
+          status = 'approved',
+          updated_at = NOW()
+      WHERE 
+        (role IN ('doctor', 'general_physician', 'ophthalmologist') OR role IS NULL)
+        AND (pod_id IS NULL OR clinic_id IS NULL);
+      
+      GET DIAGNOSTICS v_reconciled_count = ROW_COUNT;
+      v_reconciled := (v_reconciled_count > 0);
+    END IF;
+
+    RETURN jsonb_build_object(
+      'success', true, 
+      'reconciled', v_reconciled, 
+      'reconciled_count', v_reconciled_count, 
+      'pod_id', v_target_pod_id,
+      'mode', 'global_unlinked_reconciliation'
+    );
+  END IF;
+
+  SELECT * INTO v_profile
+  FROM public.profiles
+  WHERE id = v_user_id;
+
+  -- If profile already has an existing valid active pod, retain it
+  IF v_profile.pod_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.pods WHERE id = v_profile.pod_id AND is_active != false) THEN
+    v_target_pod_id := v_profile.pod_id;
+  ELSIF v_profile.clinic_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.pods WHERE id = v_profile.clinic_id AND is_active != false) THEN
+    v_target_pod_id := v_profile.clinic_id;
+  ELSIF v_profile.entity_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.entities WHERE id = v_profile.entity_id) THEN
+    SELECT pod_id INTO v_target_pod_id FROM public.entities WHERE id = v_profile.entity_id;
+  END IF;
+
+  -- If still unassigned, assign the doctor's own registered pod or the latest active pod
+  IF v_target_pod_id IS NULL THEN
+    SELECT id INTO v_target_pod_id
+    FROM public.pods
+    WHERE is_active != false
+    ORDER BY created_at DESC
+    LIMIT 1;
+
+    IF v_target_pod_id IS NOT NULL THEN
+      SELECT id INTO v_target_entity_id
+      FROM public.entities
+      WHERE pod_id = v_target_pod_id
+      LIMIT 1;
+
+      UPDATE public.profiles
+      SET pod_id = v_target_pod_id,
+          clinic_id = v_target_pod_id,
+          entity_id = COALESCE(entity_id, v_target_entity_id),
+          status = 'approved',
+          updated_at = NOW()
+      WHERE id = v_user_id;
+      v_reconciled := TRUE;
+      v_reconciled_count := 1;
+    END IF;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true, 
+    'reconciled', v_reconciled, 
+    'reconciled_count', v_reconciled_count, 
+    'user_id', v_user_id, 
+    'pod_id', v_target_pod_id
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.reconcile_tenant_pod_association() TO authenticated, anon, service_role;
+
+-- =============================================================================
+-- Migration 14: Founder Real-Time Lead Radar & Account Creation Notification
+-- Target Founder: Vivek Kumar (WhatsApp: +91-9608032073, Email: vivek@vitalsync.in)
+-- =============================================================================
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'approved';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pod_id UUID;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS clinic_id UUID;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_clinic_id_fkey;
+
+DROP FUNCTION IF EXISTS public.reconcile_tenant_pod_association(uuid);
+DROP FUNCTION IF EXISTS public.reconcile_tenant_pod_association();
+
+CREATE OR REPLACE FUNCTION public.fn_notify_founder_on_new_pod()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.system_health_telemetry (
+    id,
+    subsystem,
+    severity,
+    error_code,
+    error_stack,
+    healing_attempts,
+    status,
+    created_at,
+    pod_id
+  )
+  VALUES (
+    gen_random_uuid(),
+    'founder_lead_radar',
+    'info',
+    'NEW_CLINIC_POD_ONBOARDED',
+    jsonb_build_object(
+      'founder_target_phone', '919608032073',
+      'founder_target_email', 'vivek@vitalsync.in',
+      'clinic_name', NEW.name,
+      'clinic_code', NEW.clinic_code,
+      'location', NEW.location,
+      'pod_id', NEW.id,
+      'created_at', NEW.created_at
+    )::text,
+    0,
+    'alerted',
+    NOW(),
+    NEW.id
+  );
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_notify_founder_on_new_pod ON public.pods;
+CREATE TRIGGER trg_notify_founder_on_new_pod
+AFTER INSERT ON public.pods
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_notify_founder_on_new_pod();
+
+-- =============================================================================
+-- Migration 15: Single Tenant ID Unification, Purge Dummy Pods & Test Accounts
+-- Target Clinic / Pod ID: dfb2a1a8-8e68-4f8a-929e-4a6c8e317001 (VS-V01R)
+-- Target Doctor: Dr. Vivek Kumar (Founder & Lead Clinician)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.delete_clinic_pod(p_pod_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_entity_ids UUID[];
+BEGIN
+  -- Collect entities under this pod
+  SELECT ARRAY_AGG(id) INTO v_entity_ids
+  FROM public.entities
+  WHERE pod_id::text = p_pod_id::text;
+
+  -- 1. Unlink profiles
+  IF v_entity_ids IS NOT NULL AND array_length(v_entity_ids, 1) > 0 THEN
+    UPDATE public.profiles 
+    SET entity_id = NULL 
+    WHERE entity_id::text = ANY(v_entity_ids::text[]);
+  END IF;
+
+  UPDATE public.profiles 
+  SET clinic_id = NULL, pod_id = NULL
+  WHERE clinic_id::text = p_pod_id::text OR pod_id::text = p_pod_id::text;
+
+  -- 2. Delete child records safely with text-cast comparisons
+  DELETE FROM public.financial_ledgers WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.vitalsync_pool_settlements WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.unified_invoices WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.inventory_holds WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.pathology_reports WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.lab_requisitions WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.medicine_bills WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.saas_prescriptions WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.encounters WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.appointments WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.whatsapp_sessions WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.whatsapp_billing_logs WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.chronic_adherence_logs WHERE cohort_id::text IN (SELECT id::text FROM public.chronic_care_cohorts WHERE pod_id::text = p_pod_id::text);
+  DELETE FROM public.chronic_care_cohorts WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.clinic_sops WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.waba_connections WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.system_health_telemetry WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.activity_logs WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.patient_registry WHERE pod_id::text = p_pod_id::text;
+  DELETE FROM public.entities WHERE pod_id::text = p_pod_id::text;
+
+  -- 3. Delete the pod
+  DELETE FROM public.pods WHERE id::text = p_pod_id::text;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'Pod successfully purged.'
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object(
+    'success', false,
+    'error', SQLERRM
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_clinic_pod(UUID) TO authenticated, anon, service_role;
+
+INSERT INTO public.pods (
+  id,
+  name,
+  location,
+  clinic_code,
+  is_active,
+  health_score,
+  is_verified_for_billing,
+  platform_fee_percent,
+  created_at
+)
+VALUES (
+  'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+  'Kankarbagh Medical Pod, Patna',
+  'Kankarbagh, Patna, Bihar',
+  'VS-V01R',
+  true,
+  100,
+  true,
+  3.00,
+  NOW()
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = 'Kankarbagh Medical Pod, Patna',
+  location = 'Kankarbagh, Patna, Bihar',
+  clinic_code = 'VS-V01R',
+  is_active = true,
+  health_score = 100,
+  is_verified_for_billing = true;
+
+INSERT INTO public.entities (
+  id,
+  pod_id,
+  name,
+  entity_type,
+  status,
+  is_active,
+  created_at
+)
+VALUES (
+  'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+  'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+  'Dr. Vivek Kumar Clinic OPD',
+  'clinic',
+  'approved',
+  true,
+  NOW()
+)
+ON CONFLICT (id) DO UPDATE SET
+  pod_id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+  name = 'Dr. Vivek Kumar Clinic OPD',
+  entity_type = 'clinic',
+  status = 'approved',
+  is_active = true;
+
+DELETE FROM public.profiles
+WHERE 
+  email LIKE 'test_%@test.com'
+  OR email LIKE 'test_%'
+  OR email LIKE '%puppeteer%'
+  OR name ILIKE '%Puppeteer%'
+  OR name ILIKE '%Test Integration%'
+  OR name ILIKE '%Test Partner%';
+
+UPDATE public.profiles
+SET pod_id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    clinic_id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
+    entity_id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002',
+    status = 'approved',
+    updated_at = NOW();
+
+DO $$
+DECLARE
+  v_pod RECORD;
+  v_res JSONB;
+BEGIN
+  FOR v_pod IN 
+    SELECT id FROM public.pods 
+    WHERE id::text != 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'
+  LOOP
+    SELECT public.delete_clinic_pod(v_pod.id) INTO v_res;
+  END LOOP;
+END $$;
+
+DELETE FROM public.pods WHERE id::text != 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+
+CREATE OR REPLACE FUNCTION public.reconcile_tenant_pod_association()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_target_pod_id UUID := 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid;
+  v_target_entity_id UUID := 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317002'::uuid;
+BEGIN
+  v_user_id := auth.uid();
+  IF v_user_id IS NOT NULL THEN
+    UPDATE public.profiles
+    SET pod_id = v_target_pod_id,
+        clinic_id = v_target_pod_id,
+        entity_id = COALESCE(entity_id, v_target_entity_id),
+        status = 'approved',
+        updated_at = NOW()
+    WHERE id = v_user_id;
+  ELSE
+    UPDATE public.profiles
+    SET pod_id = v_target_pod_id,
+        clinic_id = v_target_pod_id,
+        entity_id = COALESCE(entity_id, v_target_entity_id),
+        status = 'approved',
+        updated_at = NOW()
+    WHERE pod_id IS NULL OR clinic_id IS NULL OR pod_id != v_target_pod_id;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true, 
+    'reconciled', true, 
+    'clinic_code', 'VS-V01R',
+    'pod_id', v_target_pod_id,
+    'clinic_name', 'Kankarbagh Medical Pod, Patna'
+  );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', SQLERRM);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.reconcile_tenant_pod_association() TO authenticated, anon, service_role;
+
+-- =============================================================================
+-- Migration: 20260904000001_fix_whatsapp_patient_sync_and_tokens.sql
+-- 1. Unify atomic monotonic token allocation across appointments & patient_registry
+-- 2. Configure REPLICA IDENTITY FULL and supabase_realtime publication for 360° CDC sync
+-- =============================================================================
+
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, DATE);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(TEXT, UUID);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(TEXT);
+DROP FUNCTION IF EXISTS public.generate_next_token_number();
+
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+    p_pod_id UUID DEFAULT NULL,
+    p_virtual_date TEXT DEFAULT NULL
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_date TEXT := COALESCE(NULLIF(TRIM(p_virtual_date), ''), TO_CHAR(NOW() AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD'));
+    v_pod UUID := COALESCE(p_pod_id, 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::UUID);
+    v_max_token INTEGER := 0;
+    v_max_appt INTEGER := 0;
+    v_max_pat INTEGER := 0;
+    v_next_token TEXT;
+BEGIN
+    SELECT COALESCE(MAX(
+        CASE
+            WHEN token_number ~* '^#?T-?[0-9]+' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+            WHEN token_number ~* '^#?TK-?[0-9]+' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+            WHEN token_number ~ '^[0-9]+$' THEN token_number::INTEGER
+            ELSE 0
+        END
+    ), 0) INTO v_max_appt
+    FROM public.appointments
+    WHERE (virtual_date = v_date OR appointment_date = v_date OR TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date)
+      AND (pod_id = v_pod OR pod_id IS NULL);
+
+    SELECT COALESCE(MAX(
+        CASE
+            WHEN token_number ~* '^#?T-?[0-9]+' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+            WHEN token_number ~* '^#?TK-?[0-9]+' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+            WHEN token_number ~ '^[0-9]+$' THEN token_number::INTEGER
+            ELSE 0
+        END
+    ), 0) INTO v_max_pat
+    FROM public.patient_registry
+    WHERE (TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date OR TO_CHAR(registered_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date)
+      AND (pod_id = v_pod OR pod_id IS NULL);
+
+    v_max_token := GREATEST(v_max_appt, v_max_pat);
+    v_next_token := 'T-' || LPAD((v_max_token + 1)::TEXT, 2, '0');
+    RETURN v_next_token;
+EXCEPTION WHEN OTHERS THEN
+    RETURN 'T-01';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+    p_virtual_date TEXT,
+    p_pod_id UUID
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+    RETURN public.generate_next_token_number(p_pod_id, p_virtual_date);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO anon, authenticated, service_role;
+
+DO $$
+DECLARE
+    tbls TEXT[] := ARRAY[
+        'appointments',
+        'patient_registry',
+        'unified_invoices',
+        'financial_ledgers',
+        'medicine_bills',
+        'lab_requisitions',
+        'whatsapp_sessions',
+        'vitalsync_pool_settlements',
+        'clinic_sops',
+        'inventory_holds',
+        'pathology_reports',
+        'saas_invoices',
+        'saas_prescriptions',
+        'encounters',
+        'chronic_care_cohorts'
+    ];
+    t TEXT;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+        CREATE PUBLICATION supabase_realtime;
+    END IF;
+
+    FOREACH t IN ARRAY tbls LOOP
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = t) THEN
+            EXECUTE format('ALTER TABLE public.%I REPLICA IDENTITY FULL;', t);
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_publication_tables 
+                WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = t
+            ) THEN
+                EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I;', t);
+            END IF;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+-- =============================================================================
 -- END OF SCRIPT
 -- =============================================================================
 
 
+-- =============================================================================
+-- Migration: 20260904000002_enhance_realtime_sync_and_settlement.sql
+-- 1. Upgrades process_invoice_settlement to support all split types (appointment_fee, medicine_commission, lab_commission, platform_fee)
+-- 2. Standardizes transaction_type to 'appointment_fee' so frontend charts and ledgers align seamlessly
+-- 3. Ensures strict REPLICA IDENTITY FULL on core financial and clinical tables
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.process_invoice_settlement(
+    p_invoice_id TEXT,
+    p_payment_method TEXT,
+    p_amount_paid NUMERIC DEFAULT NULL,
+    p_gateway_reference_id TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_invoice RECORD;
+    v_doctor_fee NUMERIC := 0;
+    v_pharmacy_fee NUMERIC := 0;
+    v_lab_fee NUMERIC := 0;
+    v_platform_fee NUMERIC := 0;
+    v_gateway_fee NUMERIC := 0;
+    v_net_profit NUMERIC := 0;
+    v_amount NUMERIC := 0;
+    v_pod_id UUID;
+    v_dest_platform_id UUID;
+    v_patient_name TEXT := 'Patient';
+    v_ref_id TEXT;
+BEGIN
+    -- 1. Lock invoice row to prevent concurrent race conditions
+    SELECT * INTO v_invoice 
+    FROM public.unified_invoices 
+    WHERE id::text = p_invoice_id::text OR id::text LIKE p_invoice_id || '%'
+    LIMIT 1
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invoice not found');
+    END IF;
+
+    -- Resolve patient name if available
+    IF v_invoice.patient_id IS NOT NULL THEN
+        SELECT COALESCE(name, 'Patient') INTO v_patient_name
+        FROM public.patient_registry
+        WHERE id = v_invoice.patient_id;
+    END IF;
+
+    v_amount := COALESCE(p_amount_paid, v_invoice.total_amount, 0);
+    v_doctor_fee := COALESCE(v_invoice.doctor_fee, 0);
+    v_pharmacy_fee := COALESCE(v_invoice.pharmacy_fee, 0);
+    v_lab_fee := COALESCE(v_invoice.lab_fee, 0);
+    v_platform_fee := COALESCE(v_invoice.platform_fee, 0);
+    v_pod_id := COALESCE(v_invoice.pod_id, 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid);
+    v_dest_platform_id := v_pod_id;
+    v_ref_id := COALESCE(p_gateway_reference_id, 'tx-' || p_payment_method || '-' || SUBSTRING(v_invoice.id::TEXT, 1, 8));
+
+    -- Gateway fees (0% MDR for cash & direct UPI)
+    IF p_payment_method IN ('razorpay', 'phonepe', 'paytm', 'card') THEN
+        v_gateway_fee := ROUND(v_amount * 0.02, 2);
+    ELSE
+        v_gateway_fee := 0;
+    END IF;
+
+    -- Counter Doctor Consultation Fee Immunity Protocol (Rule 58 & 103)
+    IF v_pharmacy_fee = 0 AND v_lab_fee = 0 AND p_payment_method IN ('cash', 'upi') AND COALESCE(v_invoice.source, '') != 'whatsapp' THEN
+        v_platform_fee := 0;
+        v_doctor_fee := v_amount;
+    END IF;
+
+    IF v_doctor_fee = 0 AND v_pharmacy_fee = 0 AND v_lab_fee = 0 THEN
+        v_doctor_fee := v_amount;
+    END IF;
+
+    v_net_profit := GREATEST(0, v_platform_fee - v_gateway_fee);
+
+    -- 2. Mark Invoice as Cleared
+    UPDATE public.unified_invoices
+    SET payment_status = 'cleared',
+        payment_method = p_payment_method,
+        updated_at = NOW()
+    WHERE id = v_invoice.id;
+
+    -- 3. Record Financial Ledger Entries (Doctor Fee / Appointment Fee)
+    IF v_doctor_fee > 0 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, source_entity_id, destination_entity_id,
+            transaction_type, gross_amount, commission_rate, net_payout,
+            payment_status, reference_id, created_at, pod_id, patient_id
+        )
+        VALUES (
+            'tx-doc-' || SUBSTRING(v_invoice.id::TEXT, 1, 8),
+            v_invoice.id, v_dest_platform_id, v_dest_platform_id,
+            'appointment_fee', v_doctor_fee, 0.00, v_doctor_fee,
+            'cleared', v_ref_id,
+            NOW(), v_pod_id, v_invoice.patient_id
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET payment_status = 'cleared',
+            net_payout = EXCLUDED.net_payout,
+            gross_amount = EXCLUDED.gross_amount;
+    END IF;
+
+    -- 4. Record Pharmacy Commission if present
+    IF v_pharmacy_fee > 0 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, source_entity_id, destination_entity_id,
+            transaction_type, gross_amount, commission_rate, net_payout,
+            payment_status, reference_id, created_at, pod_id, patient_id
+        )
+        VALUES (
+            'tx-pharma-' || SUBSTRING(v_invoice.id::TEXT, 1, 8),
+            v_invoice.id, v_dest_platform_id, v_dest_platform_id,
+            'medicine_commission', v_pharmacy_fee, 0.20, ROUND(v_pharmacy_fee * 0.20, 2),
+            'cleared', v_ref_id,
+            NOW(), v_pod_id, v_invoice.patient_id
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET payment_status = 'cleared',
+            net_payout = EXCLUDED.net_payout;
+    END IF;
+
+    -- 5. Record Lab Commission if present
+    IF v_lab_fee > 0 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, source_entity_id, destination_entity_id,
+            transaction_type, gross_amount, commission_rate, net_payout,
+            payment_status, reference_id, created_at, pod_id, patient_id
+        )
+        VALUES (
+            'tx-lab-' || SUBSTRING(v_invoice.id::TEXT, 1, 8),
+            v_invoice.id, v_dest_platform_id, v_dest_platform_id,
+            'lab_commission', v_lab_fee, 0.40, ROUND(v_lab_fee * 0.40, 2),
+            'cleared', v_ref_id,
+            NOW(), v_pod_id, v_invoice.patient_id
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET payment_status = 'cleared',
+            net_payout = EXCLUDED.net_payout;
+    END IF;
+
+    -- 6. Record Platform Fee if present
+    IF v_platform_fee > 0 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, source_entity_id, destination_entity_id,
+            transaction_type, gross_amount, commission_rate, net_payout,
+            payment_status, reference_id, created_at, pod_id, patient_id
+        )
+        VALUES (
+            'tx-plat-' || SUBSTRING(v_invoice.id::TEXT, 1, 8),
+            v_invoice.id, v_dest_platform_id, v_dest_platform_id,
+            'platform_fee', v_platform_fee, 0.03, v_net_profit,
+            'cleared', v_ref_id,
+            NOW(), v_pod_id, v_invoice.patient_id
+        )
+        ON CONFLICT (id) DO UPDATE
+        SET payment_status = 'cleared',
+            net_payout = EXCLUDED.net_payout;
+    END IF;
+
+    -- 7. Atomically sync linked Appointment(s) to 'ready_for_consult' & payment_status = 'cleared'
+    IF v_invoice.appointment_id IS NOT NULL THEN
+        UPDATE public.appointments
+        SET status = 'ready_for_consult',
+            payment_status = 'cleared',
+            updated_at = NOW()
+        WHERE id = v_invoice.appointment_id;
+    END IF;
+
+    IF v_invoice.encounter_id IS NOT NULL THEN
+        UPDATE public.appointments
+        SET status = 'ready_for_consult',
+            payment_status = 'cleared',
+            updated_at = NOW()
+        WHERE id = v_invoice.encounter_id OR encounter_id = v_invoice.encounter_id;
+    END IF;
+
+    IF v_invoice.patient_id IS NOT NULL THEN
+        UPDATE public.appointments
+        SET status = 'ready_for_consult',
+            payment_status = 'cleared',
+            updated_at = NOW()
+        WHERE patient_id = v_invoice.patient_id AND (status = 'pending_payment' OR payment_status != 'cleared');
+
+        -- Update patient_registry queue status
+        UPDATE public.patient_registry
+        SET queue_status = 'awaiting_consultation',
+            updated_at = NOW()
+        WHERE id = v_invoice.patient_id AND (queue_status IS NULL OR queue_status IN ('registered', 'awaiting_vitals'));
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'invoice_id', v_invoice.id,
+        'amount_paid', v_amount,
+        'payment_method', p_payment_method,
+        'doctor_fee', v_doctor_fee,
+        'pharmacy_fee', v_pharmacy_fee,
+        'lab_fee', v_lab_fee,
+        'platform_fee', v_platform_fee,
+        'gateway_fee', v_gateway_fee,
+        'net_profit', v_net_profit
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO authenticated, service_role, anon;
