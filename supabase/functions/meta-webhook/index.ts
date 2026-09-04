@@ -194,6 +194,7 @@ async function callWithCircuitBreaker<T>(key: string, fn: () => Promise<T>): Pro
 const LLM_TIMEOUT_MS = 8000;
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   const url = new URL(req.url);
 
   if (req.method === "OPTIONS") {
@@ -1933,19 +1934,19 @@ async function triggerBotReplyPipeline(ctx: {
       }
 
       let referralMsg = "";
-      const targetPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
+      const referralPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
 
-      if (referrerPat && targetPatId) {
+      if (referrerPat && referralPatId) {
         try {
           // Link referred_by_patient_id
           await supabase
             .from("patient_registry")
             .update({ referred_by_patient_id: referrerPat.id })
-            .eq("id", targetPatId);
+            .eq("id", referralPatId);
 
           // 1. Reward for New Patient (10% OFF)
           await supabase.from("patient_referral_rewards").insert({
-            patient_id: targetPatId,
+            patient_id: referralPatId,
             referred_patient_id: referrerPat.id,
             discount_percent: 10.00,
             status: "active"
@@ -1954,7 +1955,7 @@ async function triggerBotReplyPipeline(ctx: {
           // 2. Reward for Referrer Patient (10% OFF)
           await supabase.from("patient_referral_rewards").insert({
             patient_id: referrerPat.id,
-            referred_patient_id: targetPatId,
+            referred_patient_id: referralPatId,
             discount_percent: 10.00,
             status: "active"
           });
