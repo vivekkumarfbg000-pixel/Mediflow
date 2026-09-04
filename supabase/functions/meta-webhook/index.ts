@@ -1133,6 +1133,15 @@ function generateBookingDateOptions(isSos: boolean = false): { dates: string[], 
   return { dates, displayDates, isTodayAvailable };
 }
 
+function isUnregisteredOrIncompletePatient(pat: any): boolean {
+  if (!pat || !pat.id) return true;
+  const name = String(pat.name || '').trim();
+  if (!name || name === 'WhatsApp Patient' || name === 'Patient' || name === 'Walk-In Patient' || name === 'VD' || name === 'User') return true;
+  if (name.toLowerCase().startsWith('patient (+91') || name.toLowerCase().startsWith('patient (')) return true;
+  if (name.length < 2) return true;
+  return false;
+}
+
 // Mock helper pipeline that invokes multi-LLM capabilities and pushes response back via Meta Graph API
 async function triggerBotReplyPipeline(ctx: {
   session: any;
@@ -1221,47 +1230,18 @@ async function triggerBotReplyPipeline(ctx: {
   }
 
   // Resolve real patient name from Meta WhatsApp profile, session, or registry (Eliminates "WhatsApp Patient" fallback)
-  if (waContactName && !sessionData.waProfileName) {
+  if (waContactName && !sessionData.waProfileName && !["VD", "WhatsApp", "User", "Patient"].includes(waContactName)) {
     sessionData.waProfileName = waContactName;
   }
   const effectivePatName = (
     sessionData.familyDetails?.name ||
     sessionData.tempNewPatientName ||
-    patient?.name ||
-    waContactName ||
+    sessionData.registeredPatientName ||
+    (!isUnregisteredOrIncompletePatient(patient) ? patient?.name : "") ||
     sessionData.waProfileName ||
-    `Patient (+91 ${String(patientPhone).replace(/\D/g, "").slice(-4)})`
+    ""
   ).trim();
-  const patientName = effectivePatName;
-
-  // Auto-provision patient in patient_registry if new to clinic
-  if (!patient?.id) {
-    const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10);
-    const candidateName = (effectivePatName || "").trim();
-    if (candidateName && !candidateName.toLowerCase().startsWith("patient (+91")) {
-      try {
-        const currentPodId = toValidUuid(connection?.pod_id || session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
-        const newPatId = crypto.randomUUID();
-        const pCode = `${(candidateName.substring(0, 1) || 'P').toUpperCase()}1`;
-        const { data: newPat, error: npErr } = await supabase.from("patient_registry").insert({
-          id: newPatId,
-          name: candidateName,
-          phone: cleanPhone10,
-          pod_id: currentPodId,
-          patient_code: pCode,
-          referral_code: `REF-${cleanPhone10.slice(-4)}`,
-          queue_status: "registered"
-        }).select().single();
-        if (!npErr && newPat) {
-          patient = newPat;
-          session.patient_id = newPat.id;
-          sessionData.bookingPatientId = newPat.id;
-        }
-      } catch (_autoRegErr) {
-        console.warn("[Meta Webhook] Auto-provisioning patient from Meta Profile failed:", _autoRegErr);
-      }
-    }
-  }
+  const patientName = effectivePatName || "Patient";
 
   // devsecops consent check: check patient_consents for explicit revocation
   if (patient?.id) {
@@ -1321,10 +1301,11 @@ async function triggerBotReplyPipeline(ctx: {
   
   const isMenuButton = typeof replyId === "string" && (replyId.startsWith("menu_") || replyId === "btn_main_menu" || replyId === "btn_stop");
   const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book" || cleaned === "0" || cleaned === "cancel" || cleaned === "reset";
+  const isNewOrIncomplete = isUnregisteredOrIncompletePatient(patient);
 
   if (globalGreetings.includes(cleaned) || cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart" || state === "COMPLETED") {
     // Check if patient profile is present in clinic database (Rule: Onboard new patient, reply normally to existing)
-    const newState = (!patient && globalGreetings.includes(cleaned)) ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+    const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     try {
       await supabase
         .from("whatsapp_sessions")
@@ -1335,7 +1316,7 @@ async function triggerBotReplyPipeline(ctx: {
     sessionData.pendingInvoiceId = null;
     sessionData.pendingApptId = null;
   } else if (isPrimaryNavigation) {
-    state = "AWAITING_CONFIRMATION";
+    state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     sessionData.pendingInvoiceId = null;
     sessionData.pendingApptId = null;
   }
@@ -1363,14 +1344,14 @@ async function triggerBotReplyPipeline(ctx: {
   // Conversational state machine router logic
   switch (state) {
     case "AWAITING_WELCOME":
-      if (!patient) {
+      if (isUnregisteredOrIncompletePatient(patient)) {
         nextState = "AWAITING_REGISTRATION_DETAILS";
-        replyText = `Namaste! ${resolvedClinicName} mein aapka swagat hai. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment create karne ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        replyText = `Namaste! Welcome to ${resolvedClinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
       } else {
         const welcomeGreetings = ["hi", "hello", "hey", "namaste", "pranam", "hola", "halo", "hlo", "yo", "greetings"];
         if (welcomeGreetings.includes(cleaned)) {
           nextState = "AWAITING_CONFIRMATION";
-          replyText = "Aapka clinical consent active hai! 🟢 Batayein main aapki kya help karoon?";
+          replyText = `Namaste ${patient?.name || patientName}! Aapka clinical consent active hai! 🟢 Batayein main aapki kya help karoon?`;
         } else if (["1", "grant access", "yes", "approve", "grant"].includes(cleaned)) {
           sessionData.consentGranted = true;
           sessionData.consentTime = new Date().toISOString();
@@ -1469,6 +1450,12 @@ async function triggerBotReplyPipeline(ctx: {
       } else if (
         (((cleaned === "1" || cleaned === "physical" || cleaned.includes("physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
       ) {
+        if (isUnregisteredOrIncompletePatient(patient)) {
+          sessionData.pendingConsultationType = "physical";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          break;
+        }
         sessionData.consultationType = "physical";
         const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
@@ -1480,6 +1467,12 @@ async function triggerBotReplyPipeline(ctx: {
       } else if (
         (((cleaned === "2" || cleaned === "virtual" || cleaned.includes("virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
       ) {
+        if (isUnregisteredOrIncompletePatient(patient)) {
+          sessionData.pendingConsultationType = "virtual";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          break;
+        }
         sessionData.consultationType = "virtual";
         const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
@@ -1654,65 +1647,139 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     case "AWAITING_REGISTRATION_DETAILS":
-      // Parse new patient registration details: Name, Age, Gender
-      let regName = incomingText.trim();
+      // Robust multi-format parsing for new patient registration details: Name, Age, Gender
+      const rawInput = incomingText.trim();
+      let regName = rawInput;
       let regAge = 30;
       let regGender = "Male";
-      try {
-        const parts = incomingText.split(",");
-        if (parts.length >= 1 && parts[0].trim()) regName = parts[0].trim();
+
+      if (rawInput.includes(",")) {
+        const parts = rawInput.split(",").map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 1 && parts[0]) regName = parts[0];
         if (parts.length >= 2) {
-          const parsedA = parseInt(parts[1].trim());
+          const parsedA = parseInt(parts[1]);
           if (!isNaN(parsedA)) regAge = parsedA;
         }
         if (parts.length >= 3) {
-          const g = parts[2].trim().toLowerCase();
-          if (g.includes("fem") || g.startsWith("f")) regGender = "Female";
+          const g = parts[2].toLowerCase();
+          if (g.includes("fem") || g.startsWith("f") || g.includes("mahila") || g.includes("aurat")) regGender = "Female";
           else if (g.includes("oth")) regGender = "Other";
         }
-      } catch (e) { /* fallback */ }
+      } else {
+        const ageMatch = rawInput.match(/\b(\d{1,3})\s*(?:y(?:rs?|ears?|o)?|saal)?\b/i);
+        if (ageMatch) regAge = parseInt(ageMatch[1]);
 
-      const newPatId = crypto.randomUUID();
-      const ownReferralCode = `REF-${patientPhone.slice(-4)}`;
-      try {
-        const { data: newPat, error: regErr } = await supabase
-          .from("patient_registry")
-          .insert({
-            id: newPatId,
-            name: regName,
-            phone: patientPhone,
-            age: regAge,
-            gender: regGender,
-            referral_code: ownReferralCode,
-            registered_at_entity: session.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001",
-            pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
-          })
-          .select()
-          .single();
-
-        if (regErr) {
-          console.error("[Meta Webhook] Error registering new patient:", regErr);
-        } else if (newPat) {
-          patient = newPat;
-          session.patient_id = newPat.id;
+        const genderMatch = rawInput.match(/\b(male|female|other|purush|mahila|m\b|f\b)\b/i);
+        if (genderMatch) {
+          const g = genderMatch[1].toLowerCase();
+          if (g === "female" || g === "f" || g === "mahila") regGender = "Female";
+          else if (g === "other") regGender = "Other";
         }
 
-        // Auto-register consent for new patient
-        await supabase.from("patient_consents").insert({
-          patient_id: newPatId,
-          data_sharing_consent: "data_processing",
-          consented_at: new Date().toISOString(),
-          granted_by_role: "patient"
-        });
+        const nameCandidate = rawInput
+          .replace(/\b\d{1,3}\s*(?:y(?:rs?|ears?|o)?|saal)?\b/gi, "")
+          .replace(/\b(male|female|other|purush|mahila|m\b|f\b)\b/gi, "")
+          .replace(/[,\-:|]/g, " ")
+          .trim();
+        if (nameCandidate.length >= 2) {
+          regName = nameCandidate.replace(/\s+/g, " ");
+        }
+      }
+
+      regName = regName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") || "Patient";
+
+      const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10);
+      let targetPatId = patient?.id;
+      const ownReferralCode = `REF-${cleanPhone10.slice(-4)}`;
+      const currentPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
+      const currentEntityId = toValidUuid(session.entity_id || connection?.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002", currentPodId);
+      const pCode = `${(regName.substring(0, 1) || 'P').toUpperCase()}1`;
+
+      try {
+        if (targetPatId) {
+          // Update existing incomplete/placeholder record
+          const { data: updatedPat, error: uErr } = await supabase
+            .from("patient_registry")
+            .update({
+              name: regName,
+              age: regAge,
+              gender: regGender,
+              patient_code: pCode,
+              queue_status: "awaiting_vitals"
+            })
+            .eq("id", targetPatId)
+            .select()
+            .single();
+          if (!uErr && updatedPat) {
+            patient = updatedPat;
+          }
+        } else {
+          // Insert new patient record
+          targetPatId = crypto.randomUUID();
+          const { data: newPat, error: regErr } = await supabase
+            .from("patient_registry")
+            .insert({
+              id: targetPatId,
+              name: regName,
+              phone: cleanPhone10,
+              age: regAge,
+              gender: regGender,
+              patient_code: pCode,
+              referral_code: ownReferralCode,
+              registered_at_entity: currentEntityId,
+              pod_id: currentPodId,
+              queue_status: "awaiting_vitals"
+            })
+            .select()
+            .single();
+          if (!regErr && newPat) {
+            patient = newPat;
+            session.patient_id = newPat.id;
+          }
+        }
+
+        // Auto-register consent for patient
+        if (targetPatId) {
+          await supabase.from("patient_consents").insert({
+            patient_id: targetPatId,
+            data_sharing_consent: "data_processing",
+            consented_at: new Date().toISOString(),
+            granted_by_role: "patient"
+          });
+        }
       } catch (err) {
         console.error("[Meta Webhook] Exception during patient registration:", err);
       }
 
       sessionData.consentGranted = true;
-      sessionData.bookingPatientId = newPatId;
+      sessionData.bookingPatientId = targetPatId;
       sessionData.tempNewPatientName = regName;
-      nextState = "AWAITING_APPOINTMENT_TYPE";
-      replyText = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
+      sessionData.registeredPatientName = regName;
+      sessionData.waProfileName = regName;
+
+      // Check if user previously intended physical or virtual booking
+      if (sessionData.pendingConsultationType === "physical") {
+        sessionData.consultationType = "physical";
+        sessionData.pendingConsultationType = null;
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
+        sessionData.dateOptions = dates;
+        sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
+        nextState = "AWAITING_DATE_SELECTION";
+        replyText = `✅ *Profile Created for ${regName}!* 🟢\n\n${resolvedDoctorName} ke Physical OPD checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+      } else if (sessionData.pendingConsultationType === "virtual") {
+        sessionData.consultationType = "virtual";
+        sessionData.pendingConsultationType = null;
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
+        sessionData.dateOptions = dates;
+        sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
+        nextState = "AWAITING_DATE_SELECTION";
+        replyText = `✅ *Profile Created for ${regName}!* 🟢\n\n${resolvedDoctorName} ke Virtual Video checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+      } else {
+        nextState = "AWAITING_APPOINTMENT_TYPE";
+        replyText = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
+      }
       break;
 
     case "AWAITING_APPOINTMENT_TYPE":
@@ -1767,7 +1834,7 @@ async function triggerBotReplyPipeline(ctx: {
         const tokenNumber = `T-${tokenSeq.toString().padStart(2, '0')}`;
         const apptId = crypto.randomUUID();
         const targetPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
-        const patName = effectivePatName || patient?.name || sessionData.tempNewPatientName || regName || "Patient";
+        const patName = sessionData.tempNewPatientName || sessionData.registeredPatientName || patient?.name || effectivePatName || "Patient";
 
         if (targetPatId) {
           await supabase.from("patient_registry").update({
@@ -1787,19 +1854,47 @@ async function triggerBotReplyPipeline(ctx: {
           }
         } catch (_dErr) {}
 
+        const nowISO = new Date().toISOString();
+        const consultInvId = `inv-${apptId}-consult`;
         try {
           await supabase.from("appointments").insert({
             id: apptId,
             patient_id: targetPatId,
             patient_name: patName,
+            patient_phone: patientPhone,
             doctor_id: docId,
-            status: "scheduled",
+            status: "ready_for_consult",
             source: "whatsapp",
             is_virtual: false,
             token_number: tokenNumber,
             virtual_date: selectedDate,
-            appointment_time: new Date().toISOString(),
-            created_at: new Date().toISOString(),
+            appointment_time: nowISO,
+            created_at: nowISO,
+            pod_id: currentPodId
+          });
+
+          await supabase.from("unified_invoices").insert({
+            id: consultInvId,
+            encounter_id: apptId,
+            patient_id: targetPatId,
+            doctor_fee: resolvedConsultationFee || 500,
+            total_amount: resolvedConsultationFee || 500,
+            payment_status: "cleared",
+            payment_method: "counter",
+            created_at: nowISO,
+            pod_id: currentPodId
+          });
+
+          await supabase.from("financial_ledgers").insert({
+            id: `fl-${consultInvId}`,
+            invoice_id: consultInvId,
+            appointment_id: apptId,
+            patient_id: targetPatId,
+            doctor_id: docId,
+            amount: resolvedConsultationFee || 500,
+            transaction_type: "consultation",
+            payment_mode: "counter",
+            created_at: nowISO,
             pod_id: currentPodId
           });
         } catch (insErr) {

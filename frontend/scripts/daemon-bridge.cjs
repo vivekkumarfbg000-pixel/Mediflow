@@ -172,7 +172,7 @@ const server = http.createServer((req, res) => {
       activeSovereignPod: {
         id: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001',
         clinicCode: 'VS-V01R',
-        name: 'Apex Care Pod & PolyClinic',
+        name: 'VitalSync Smart PolyClinic',
         location: 'Line Bazar, Purnea, Bihar',
         status: 'active',
         isSovereignPod: true

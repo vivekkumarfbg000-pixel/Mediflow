@@ -285,11 +285,20 @@ export class WhatsAppService {
       
       // Check if patient exists in registry (flexible 10-digit matching)
       const incomingLast10 = (phone || '').replace(/\D/g, '').slice(-10);
-      const patient = PatientService.getPatients().find(p => {
+      let patient = PatientService.getPatients().find(p => {
         const pDigits = (p.phone || '').replace(/\D/g, '').slice(-10);
         return pDigits === incomingLast10;
       });
-      if (!patient) {
+
+      const isUnregistered = !patient || 
+        !patient.name || 
+        patient.name === 'WhatsApp Patient' || 
+        patient.name === 'Patient' || 
+        patient.name === 'Walk-In Patient' ||
+        patient.name.toLowerCase().startsWith('patient (+91') ||
+        patient.name.toLowerCase().startsWith('patient (');
+
+      if (isUnregistered) {
         // Unregistered walk-in patient: Initiate conversational onboarding
         let sessionIndex = sessions.findIndex(s => {
           const sDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
@@ -326,26 +335,51 @@ export class WhatsAppService {
 
         if (greetings.includes(cleaned) || session.currentState === 'AWAITING_WELCOME' || !session.currentState) {
           nextState = 'AWAITING_REGISTRATION_DETAILS';
-          replyMessage = `Namaste! Welcome to ${clinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment create karne ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          replyMessage = `Namaste! Welcome to ${clinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
         } else if (session.currentState === 'AWAITING_REGISTRATION_DETAILS') {
-          const parts = text.split(',');
-          let regName = text.trim();
+          const rawInput = text.trim();
+          let regName = rawInput;
           let regAge = 30;
           let regGender: 'Male' | 'Female' | 'Other' = 'Male';
-          if (parts.length >= 1 && parts[0].trim()) regName = parts[0].trim();
-          if (parts.length >= 2) {
-            const parsedA = parseInt(parts[1].trim(), 10);
-            if (!isNaN(parsedA)) regAge = parsedA;
-          }
-          if (parts.length >= 3) {
-            const g = parts[2].trim().toLowerCase();
-            if (g.startsWith('f')) regGender = 'Female';
-            else if (g.startsWith('o')) regGender = 'Other';
+
+          if (rawInput.includes(',')) {
+            const parts = rawInput.split(',').map(p => p.trim()).filter(Boolean);
+            if (parts.length >= 1 && parts[0]) regName = parts[0];
+            if (parts.length >= 2) {
+              const ageMatch = parts[1].match(/\d+/);
+              if (ageMatch) regAge = parseInt(ageMatch[0], 10);
+            }
+            if (parts.length >= 3) {
+              const g = parts[2].toLowerCase();
+              if (g.startsWith('f') || g.includes('female') || g.includes('mahila') || g.includes('aurat')) regGender = 'Female';
+              else if (g.startsWith('o') || g.includes('other')) regGender = 'Other';
+            }
+          } else {
+            const ageMatch = rawInput.match(/\b(\d{1,3})\s*(?:y(?:rs?|ears?|o)?|saal)?\b/i);
+            if (ageMatch) regAge = parseInt(ageMatch[1], 10);
+
+            const genderMatch = rawInput.match(/\b(male|female|other|purush|mahila|m\b|f\b)\b/i);
+            if (genderMatch) {
+              const g = genderMatch[1].toLowerCase();
+              if (g === 'female' || g === 'f' || g === 'mahila') regGender = 'Female';
+              else if (g === 'other') regGender = 'Other';
+            }
+
+            const nameCandidate = rawInput
+              .replace(/\b\d{1,3}\s*(?:y(?:rs?|ears?|o)?|saal)?\b/gi, '')
+              .replace(/\b(male|female|other|purush|mahila|m\b|f\b)\b/gi, '')
+              .replace(/[,\-:|]/g, ' ')
+              .trim();
+            if (nameCandidate.length >= 2) {
+              regName = nameCandidate.replace(/\s+/g, ' ');
+            }
           }
 
-          const newPatId = crypto.randomUUID();
-          const newPat = PatientService.registerPatient({
-            id: newPatId,
+          regName = regName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') || 'Patient';
+
+          const targetPatId = patient?.id || crypto.randomUUID();
+          PatientService.registerPatient({
+            id: targetPatId,
             name: regName,
             phone: phone,
             age: regAge,
@@ -355,23 +389,24 @@ export class WhatsAppService {
             chronicConditions: []
           });
 
+          const podCtx = getPodContext();
+          const targetPodId = podCtx.podId || FALLBACK_POD_ID;
           try {
-            const podCtx = getPodContext();
             supabase.from('patient_registry').upsert({
-              id: newPatId,
+              id: targetPatId,
               name: regName,
               phone: phone,
               age: regAge,
               gender: regGender,
               queue_status: 'awaiting_vitals',
               registered_at: now,
-              pod_id: podCtx.podId || FALLBACK_POD_ID
+              pod_id: targetPodId
             }, { onConflict: 'id' }).then(() => {});
           } catch (_e) { /* ignore */ }
 
-          sessionData.newPatientId = newPatId;
+          sessionData.newPatientId = targetPatId;
           sessionData.newPatientName = regName;
-          session.patientId = newPatId;
+          session.patientId = targetPatId;
           session.patientName = regName;
           nextState = 'AWAITING_APPOINTMENT_TYPE';
           replyMessage = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
@@ -381,40 +416,71 @@ export class WhatsAppService {
             const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
             const apptId = crypto.randomUUID();
             const targetPatId = sessionData.newPatientId || session.patientId || crypto.randomUUID();
-            const targetPatName = sessionData.newPatientName || 'Walk-In Patient';
+            const targetPatName = sessionData.newPatientName || session.patientName || 'Walk-In Patient';
             const docName = this.getDynamicDoctorName();
+            const podCtx = getPodContext();
+            const targetPodId = podCtx.podId || FALLBACK_POD_ID;
+            const targetDocId = (podCtx as any)?.doctorId || FALLBACK_DOCTOR_ID;
 
             const newAppt: Appointment = {
               id: apptId,
               patientId: targetPatId,
               patientName: targetPatName,
               patientPhone: phone,
-              doctorId: '',
+              doctorId: targetDocId,
               date: todayStr,
               appointmentTime: new Date().toISOString(),
-              status: 'scheduled',
+              status: 'ready_for_consult',
               source: 'whatsapp',
               tokenNumber: tokenNumber,
               createdAt: now
             };
             BillingService.saveAppointment(newAppt);
 
+            const consultInvId = `inv-${apptId}-consult`;
             try {
-              const podCtx = getPodContext();
               supabase.from('appointments').upsert({
                 id: apptId,
                 patient_id: targetPatId,
                 patient_name: targetPatName,
-                status: 'scheduled',
+                patient_phone: phone,
+                doctor_id: targetDocId,
+                status: 'ready_for_consult',
                 source: 'whatsapp',
                 token_number: tokenNumber,
                 appointment_time: new Date().toISOString(),
                 created_at: now,
-                pod_id: podCtx.podId || FALLBACK_POD_ID
+                pod_id: targetPodId
+              }, { onConflict: 'id' }).then(() => {});
+
+              supabase.from('unified_invoices').upsert({
+                id: consultInvId,
+                encounter_id: apptId,
+                patient_id: targetPatId,
+                doctor_fee: 500,
+                total_amount: 500,
+                payment_status: 'cleared',
+                payment_method: 'counter',
+                created_at: now,
+                pod_id: targetPodId
+              }, { onConflict: 'id' }).then(() => {});
+
+              supabase.from('financial_ledgers').upsert({
+                id: `fl-${consultInvId}`,
+                invoice_id: consultInvId,
+                appointment_id: apptId,
+                patient_id: targetPatId,
+                doctor_id: targetDocId,
+                amount: 500,
+                transaction_type: 'consultation',
+                payment_mode: 'counter',
+                created_at: now,
+                pod_id: targetPodId
               }, { onConflict: 'id' }).then(() => {});
             } catch (_e) { /* ignore */ }
 
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
             nextState = 'COMPLETED';
             replyMessage = `🎫 *OPD TOKEN ISSUED SUCCESSFULLY!* 🟢\n\nNamaste *${targetPatName}*!\n• Token Number: *${tokenNumber}*\n• Clinic: *${clinicName}*\n• Doctor: *${docName}*\n• Mode: *Physical OPD Visit* 🏥\n• Status: *Active in Clinic Queue*\n\nAapka appointment live sync ho gaya hai. Vitals (BP, Pulse, SpO2) check karane ke liye clinic counter par ye token number show kijiye! 🩺`;
           } else if (cleaned === '2' || cleaned.includes('virtual')) {

@@ -42,7 +42,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   onToggleDarkMode
 }) => {
   useBodyScrollLock(isOpen);
-  const { podEntities, activeEntity, activePod, refreshClinic, isLoading: isClinicLoading } = useClinic();
+  const { podEntities, activeEntity, activePod, refreshClinic, updatePodDetails, isLoading: isClinicLoading } = useClinic();
   const [activeTab, setActiveTab] = useState<SettingsTabType>(initialTab);
   const [activeProfile, setActiveProfile] = useState<any>(null);
   
@@ -58,6 +58,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   const [doctorQualification, setDoctorQualification] = useState('MBBS, MS (Ophthal)');
   const [vernacularLanguage, setVernacularLanguage] = useState<'hindi' | 'bhojpuri' | 'english'>('hindi');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  
+  // Clinic Pod State
+  const [clinicName, setClinicName] = useState('');
+  const [clinicLocation, setClinicLocation] = useState('');
+  const [clinicUpiVpa, setClinicUpiVpa] = useState('');
+  const [clinicGstin, setClinicGstin] = useState('');
+  const [isSavingClinic, setIsSavingClinic] = useState(false);
   
   // Security State
   const [password, setPassword] = useState('');
@@ -83,6 +90,15 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     if (isOpen) {
       setErrorMsg(null);
       setSuccessMsg(null);
+
+      // Hydrate Clinic Pod fields
+      if (activePod) {
+        setClinicName(activePod.name || '');
+        setClinicLocation(activePod.location || '');
+        setClinicUpiVpa(activePod.upiVpa || 'vitalsync@axl');
+        setClinicGstin(activePod.gstin || '10AAAAA0000A1Z5');
+      }
+
       // Fetch fresh session/profile
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
@@ -95,12 +111,15 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               if (profile && !error) {
                 setActiveProfile(profile);
                 setDisplayName(profile.display_name || '');
+                if (!activePod?.name && profile.clinic_name) {
+                  setClinicName(profile.clinic_name);
+                }
               }
             });
         }
       });
     }
-  }, [isOpen]);
+  }, [isOpen, activePod]);
 
   if (!isOpen) return null;
 
@@ -144,6 +163,42 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       showToast('Profile Update Failed', err.message || 'Failed to update profile.', 'error');
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleSaveClinicPod = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clinicName.trim()) {
+      setErrorMsg('Clinic name cannot be empty.');
+      return;
+    }
+
+    setIsSavingClinic(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await updatePodDetails({
+        name: clinicName.trim(),
+        location: clinicLocation.trim(),
+        upiVpa: clinicUpiVpa.trim(),
+        gstin: clinicGstin.trim(),
+        doctorName: displayName.trim() || activeProfile?.display_name
+      });
+
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to update clinic pod details');
+      }
+
+      setSuccessMsg('Clinic pod identity updated successfully!');
+      showToast('Clinic Updated', 'Your clinic identity and billing details have been updated across all consoles.', 'success');
+      await refreshClinic();
+    } catch (err: any) {
+      console.error('[ProfileSettingsModal] Save clinic failed:', err);
+      setErrorMsg(err.message || 'Failed to update clinic pod.');
+      showToast('Update Failed', err.message || 'Failed to update clinic pod.', 'error');
+    } finally {
+      setIsSavingClinic(false);
     }
   };
 
@@ -521,42 +576,120 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
           {/* CLINIC POD TAB */}
           {activeTab === 'clinic' && (
-            <div className="space-y-4 animate-fade-in">
-              <div className="p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl space-y-2">
+            <form onSubmit={handleSaveClinicPod} className="space-y-4 animate-fade-in">
+              <div className="p-4 bg-gradient-to-br from-indigo-50/80 to-purple-50/40 border border-indigo-100/80 rounded-2xl space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Active Clinic Pod</span>
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[9px] font-black uppercase">
-                    {activePod?.clinicCode || 'Unassigned'}
+                  <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-indigo-600" />
+                    Sovereign Clinic Pod Identity
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono text-[9px] font-black uppercase tracking-wider">
+                    {activePod?.clinicCode || 'VS-V01R'}
                   </span>
                 </div>
-                <h4 className="text-sm font-black text-slate-850">{activeEntity?.name || activeProfile?.clinicName || (activeProfile?.display_name ? activeProfile.display_name + "'s Care Clinic" : 'Clinical Practice')}</h4>
-                <p className="text-xs text-slate-600 font-medium">{activeEntity?.address || activeProfile?.clinicAddress || 'Main Branch, India'}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs text-slate-500 font-medium">Pod ID:</span>
+                  <span className="text-xs font-mono text-slate-700 select-all font-semibold">{activePod?.id || 'Default Pod'}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                  Clinic / Hospital Brand Name
+                </label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-3 h-4 w-4 text-slate-600" />
+                  <input
+                    type="text"
+                    required
+                    value={clinicName}
+                    onChange={(e) => setClinicName(e.target.value)}
+                    placeholder="e.g. VitalSync Smart PolyClinic"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-600 mt-1 block">
+                  Displayed on OPD slips, Doctor EMR, Pharmacy POS, Lab bills, and patient WhatsApp receipts.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                  Clinic Location & Address
+                </label>
+                <input
+                  type="text"
+                  value={clinicLocation}
+                  onChange={(e) => setClinicLocation(e.target.value)}
+                  placeholder="e.g. Line Bazar, Purnea, Bihar - 854301"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">GSTIN / Tax ID</span>
-                  <span className="text-xs font-mono font-bold text-slate-800">10AAAAA0000A1Z5</span>
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                    Direct Clinic UPI ID (0% MDR QR)
+                  </label>
+                  <input
+                    type="text"
+                    value={clinicUpiVpa}
+                    onChange={(e) => setClinicUpiVpa(e.target.value)}
+                    placeholder="e.g. vitalsync@axl or doctor@upi"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                  />
+                  <span className="text-[9.5px] text-slate-600 mt-0.5 block">
+                    Zero-fee dynamic UPI payment QR at Compounder Desk & Pharmacy.
+                  </span>
                 </div>
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Default Currency</span>
-                  <span className="text-xs font-bold text-slate-800">₹ INR (Indian Rupee)</span>
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wide mb-1.5">
+                    GSTIN / Registration No.
+                  </label>
+                  <input
+                    type="text"
+                    value={clinicGstin}
+                    onChange={(e) => setClinicGstin(e.target.value)}
+                    placeholder="e.g. 10AAAAA0000A1Z5"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                  />
+                  <span className="text-[9.5px] text-slate-600 mt-0.5 block">
+                    Included in printed pharmacy tax invoices.
+                  </span>
                 </div>
               </div>
 
-              <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
-                    <CheckCircle2 className="h-5 w-5" />
+              <div className="p-3.5 bg-emerald-50/60 border border-emerald-200 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0">
+                    <CheckCircle2 className="h-4 w-4" />
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-emerald-950">Cashfree Easy Split Active</h5>
-                    <p className="text-[10px] text-emerald-700 font-medium">Automatic doctor & pharmacy revenue settlements linked</p>
+                    <h5 className="text-xs font-bold text-emerald-950">360° Realtime CDC Synchronization Active</h5>
+                    <p className="text-[10px] text-emerald-700 font-medium">Updates are instantly synchronized across all 5 consoles.</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-mono text-[9px] font-black uppercase">Verified</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-mono text-[9px] font-black uppercase">Live</span>
               </div>
-            </div>
+
+              <button
+                type="submit"
+                disabled={isSavingClinic || isClinicLoading}
+                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500/50 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10"
+              >
+                {isSavingClinic ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Saving Clinic Pod Settings...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-3.5 w-3.5" />
+                    Save Clinic Pod Settings
+                  </>
+                )}
+              </button>
+            </form>
           )}
 
           {/* PREFERENCES & THEME TAB */}

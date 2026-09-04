@@ -12,6 +12,7 @@ interface ClinicContextType {
   podEntities: Entity[];
   isLoading: boolean;
   refreshClinic: () => Promise<void>;
+  updatePodDetails: (updates: { name?: string; location?: string; upiVpa?: string; gstin?: string; doctorName?: string }) => Promise<{ success: boolean; pod?: Pod; error?: string }>;
   registerClinic: (name: string, phone: string, address: string, specialization: string) => Promise<any>;
   joinClinic: (code: string, type: 'pharmacy' | 'lab' | 'compounder', name: string, phone: string, address: string) => Promise<any>;
 }
@@ -183,6 +184,11 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           location: podData.location || undefined,
           clinicCode: podData.clinic_code,
           isActive: podData.is_active ?? true,
+          upiVpa: podData.upi_vpa || podData.upiVpa || 'vitalsync@axl',
+          gstin: podData.gstin || undefined,
+          doctorName: podData.doctor_name || podData.doctorName || undefined,
+          phone: podData.phone || undefined,
+          specialization: podData.specialization || undefined,
           createdAt: podData.created_at
         };
 
@@ -369,6 +375,97 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     }
   };
 
+  const updatePodDetails = async (updates: { name?: string; location?: string; upiVpa?: string; gstin?: string; doctorName?: string }) => {
+    setIsLoading(true);
+    try {
+      const targetPodId = activePod?.id || FALLBACK_POD_ID;
+      const cleanName = updates.name?.trim();
+      const cleanLocation = updates.location?.trim();
+      const cleanUpi = updates.upiVpa?.trim();
+      const cleanGstin = updates.gstin?.trim();
+      const cleanDoctorName = updates.doctorName?.trim();
+
+      const podUpdatePayload: any = { updated_at: new Date().toISOString() };
+      if (cleanName) podUpdatePayload.name = cleanName;
+      if (cleanLocation) podUpdatePayload.location = cleanLocation;
+      if (cleanUpi) podUpdatePayload.upi_vpa = cleanUpi;
+      if (cleanGstin) podUpdatePayload.gstin = cleanGstin;
+      if (cleanDoctorName) podUpdatePayload.doctor_name = cleanDoctorName;
+
+      // 1. Update public.pods in Supabase
+      const { error: podErr } = await supabase
+        .from('pods')
+        .update(podUpdatePayload)
+        .eq('id', targetPodId);
+
+      if (podErr) {
+        console.warn('[ClinicContext] Direct pod update warning:', podErr.message);
+      }
+
+      // 2. Update public.entities for primary clinic entity if name / location changed
+      if (cleanName || cleanLocation || cleanGstin) {
+        const entityUpdate: any = {};
+        if (cleanName) entityUpdate.name = cleanName;
+        if (cleanLocation) entityUpdate.address = cleanLocation;
+        if (cleanGstin) entityUpdate.gstin = cleanGstin;
+
+        await supabase
+          .from('entities')
+          .update(entityUpdate)
+          .eq('pod_id', targetPodId)
+          .eq('entity_type', 'clinic');
+      }
+
+      // 3. Update public.profiles clinic_name if user is logged in
+      if (cleanName && activeProfile?.id) {
+        await supabase
+          .from('profiles')
+          .update({ clinic_name: cleanName })
+          .eq('id', activeProfile.id);
+      }
+
+      // 4. Update local state & localStorage caches
+      const updatedPod: Pod = {
+        id: targetPodId,
+        name: cleanName || activePod?.name || 'VitalSync Smart Clinic',
+        location: cleanLocation || activePod?.location || 'Line Bazar, Purnea, Bihar',
+        clinicCode: activePod?.clinicCode || 'VS-V01R',
+        isActive: activePod?.isActive ?? true,
+        upiVpa: cleanUpi || activePod?.upiVpa || 'vitalsync@axl',
+        gstin: cleanGstin || activePod?.gstin,
+        doctorName: cleanDoctorName || activePod?.doctorName || activeProfile?.display_name,
+        phone: activePod?.phone,
+        specialization: activePod?.specialization,
+        createdAt: activePod?.createdAt || new Date().toISOString()
+      };
+
+      setActivePod(updatedPod);
+
+      if (typeof window !== 'undefined') {
+        safeSetStorageJSON('vitalsync_cached_active_pod', updatedPod);
+        safeSetStorageJSON('vitalsync_active_pod', {
+          ...updatedPod,
+          clinic_code: updatedPod.clinicCode,
+          health_score: 100,
+          is_verified_for_billing: true,
+          platform_fee_percent: 3.0
+        });
+        (window as any).__mediflow_active_pod_id = updatedPod.id;
+
+        // Broadcast to all open consoles and windows
+        window.dispatchEvent(new CustomEvent('mediflow-pod-change', { detail: updatedPod }));
+        window.dispatchEvent(new CustomEvent('mediflow-profile-updated', { detail: { clinicName: cleanName } }));
+      }
+
+      return { success: true, pod: updatedPod };
+    } catch (err: any) {
+      console.error('[ClinicContext] updatePodDetails failed:', err);
+      return { success: false, error: err.message || 'Failed to update clinic pod details' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <ClinicContext.Provider value={{
       activePod,
@@ -378,6 +475,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       podEntities,
       isLoading,
       refreshClinic,
+      updatePodDetails,
       registerClinic,
       joinClinic
     }}>

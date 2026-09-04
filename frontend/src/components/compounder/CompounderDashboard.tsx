@@ -1185,6 +1185,8 @@ export const CompounderDashboard: React.FC = () => {
         (existingAppt as any).token_number = String(assignedToken);
         existingAppt.patientName = targetPatient.name;
         existingAppt.patientPhone = targetPatient.phone;
+        existingAppt.vitals = vitals;
+        (existingAppt as any).patient_vitals = vitals;
         BillingService.saveAppointments([...appointments]);
       } else {
         const newAppt: Appointment = {
@@ -1197,8 +1199,10 @@ export const CompounderDashboard: React.FC = () => {
           patientName: targetPatient.name,
           patientPhone: targetPatient.phone,
           isVirtual: false,
-          source: 'counter'
+          source: 'counter',
+          vitals: vitals
         } as any;
+        (newAppt as any).patient_vitals = vitals;
         BillingService.saveAppointments([newAppt, ...appointments]);
       }
 
@@ -1235,7 +1239,8 @@ export const CompounderDashboard: React.FC = () => {
             created_at: nowISO,
             is_virtual: false,
             source: 'counter',
-            pod_id: currentPodId
+            pod_id: currentPodId,
+            patient_vitals: vitals
           }, { onConflict: 'id' });
 
           // C. Upsert unified invoice & financial ledger for active payment clearance gate
@@ -1258,16 +1263,14 @@ export const CompounderDashboard: React.FC = () => {
             appointment_id: apptIdToSync,
             patient_id: targetPatient.id,
             doctor_id: currentDoctorId,
-            transaction_type: 'appointment_fee',
-            gross_amount: currentConsultFee,
-            net_payout: currentConsultFee,
-            payment_status: 'cleared',
-            payment_method: instantFeeStatus === 'paid_cash' ? 'cash' : 'upi',
+            amount: currentConsultFee,
+            transaction_type: 'consultation',
+            payment_mode: instantFeeStatus === 'paid_cash' ? 'cash' : 'upi',
             created_at: nowISO,
             pod_id: currentPodId
           }, { onConflict: 'id' });
-        } catch (_err) {
-          console.warn('[InstantBooking] Remote sync error:', _err);
+        } catch (_dbErr) {
+          console.warn('[CompounderDashboard] Remote Postgres sync error on instant OPD:', _dbErr);
         }
       })();
 
@@ -1294,9 +1297,9 @@ export const CompounderDashboard: React.FC = () => {
       setInstantSpO2('99');
       setInstantTemp('98.6');
       setInstantSugar('');
+      setAppointments(BillingService.getAppointments());
+      setPatients(PatientService.getPatients());
       setDataRevision(prev => prev + 1);
-      fetchLiveAppointments();
-      fetchLiveAppointments();
     } catch (err) {
       console.error('[InstantBooking] Error:', err);
     } finally {
@@ -1568,10 +1571,12 @@ export const CompounderDashboard: React.FC = () => {
       }
 
       if (apptRes.data && apptRes.data.length > 0) {
-        const mapped = apptRes.data.map((a: any) => {
+        const mapped = apptRes.data.map((a: any, idx: number) => {
           const patInfo = patMap.get(a.patient_id) || {};
-          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || (patInfo.tokenNumber || api.generateNextTokenNumber()));
-          const resolvedName = patInfo.name || (a.patient_name && a.patient_name !== 'Patient' ? a.patient_name : 'WhatsApp Patient');
+          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || patInfo.tokenNumber || ('T-' + String(idx + 1).padStart(2, '0')));
+          const resolvedName = (patInfo.name && patInfo.name !== 'WhatsApp Patient' && patInfo.name !== 'Patient')
+            ? patInfo.name
+            : ((a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') ? a.patient_name : (patInfo.name || 'WhatsApp Patient'));
           const resolvedPhone = patInfo.phone || a.patient_phone || '';
           const apptDate = getEffectiveAppointmentDate(a);
           return {
@@ -2812,8 +2817,24 @@ export const CompounderDashboard: React.FC = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {activeOpdAppointments.slice(0, 6).map((a) => {
-                    const p = patients.find(pt => pt.id === a.patientId || pt.id === (a as any).patient_id);
-                    const hasVitals = !!p?.vitals;
+                    const p = patients.find(pt => 
+                      pt.id === a.patientId || 
+                      pt.id === (a as any).patient_id || 
+                      (pt.phone && a.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(a.patientPhone).replace(/\D/g, '').slice(-10))
+                    );
+                    const vitalsObj = p?.vitals || (a as any).vitals || (a as any)?.patient_vitals;
+                    const hasVitals = Boolean(
+                      (vitalsObj && (vitalsObj.bloodPressure || vitalsObj.pulseRate || vitalsObj.temperature || vitalsObj.spO2 || vitalsObj.sugarLevel || Object.keys(vitalsObj).length > 0)) ||
+                      a.status === 'ready_for_consult' ||
+                      a.status === 'in_consult' ||
+                      a.status === 'completed' ||
+                      p?.queueStatus === 'awaiting_consultation' ||
+                      p?.queueStatus === 'in_consult'
+                    );
+                    const bpText = vitalsObj?.bloodPressure ? `BP: ${vitalsObj.bloodPressure}` : '';
+                    const pulseText = vitalsObj?.pulseRate ? `P: ${vitalsObj.pulseRate}` : '';
+                    const vitalsSummary = [bpText, pulseText].filter(Boolean).join(' · ') || (hasVitals ? 'Vitals Recorded' : '');
+
                     const src = String(a.source || (p as any)?.source || '').toLowerCase();
                     const isSOS = a.id === sosEmergencyAppointment?.id;
                     const isInConsult = a.status === 'in_consult';
@@ -2875,10 +2896,15 @@ export const CompounderDashboard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (p) {
-                                  setVitalsPatient(p);
-                                  setShowVitalsBottomSheet(true);
-                                }
+                                const targetPat = p || {
+                                  id: a.patientId || (a as any).patient_id || `pat-${Date.now()}`,
+                                  name: a.patientName || (a as any).patient_name || 'Walk-In Patient',
+                                  phone: a.patientPhone || (a as any).patient_phone || '',
+                                  age: (a as any).patientAge || 35,
+                                  gender: (a as any).patientGender || 'Male'
+                                };
+                                setVitalsPatient(targetPat as any);
+                                setShowVitalsBottomSheet(true);
                               }}
                               className="py-1.5 px-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
                             >
@@ -2891,14 +2917,21 @@ export const CompounderDashboard: React.FC = () => {
                               In Chamber 🩺
                             </span>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
-                              className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
-                            >
-                              <Volume2 className="w-3 h-3" />
-                              <span>Call Token</span>
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              {vitalsSummary && (
+                                <span className="hidden sm:inline-flex text-[9.5px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 rounded-lg">
+                                  🩺 {vitalsSummary}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
+                                className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
+                              >
+                                <Volume2 className="w-3 h-3" />
+                                <span>Call Token</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -4160,13 +4193,23 @@ export const CompounderDashboard: React.FC = () => {
                     }
                     return confirmedAppts.map((appt, idx) => {
                       const patId = appt.patientId || (appt as any).patient_id;
-                      const patient: any = patients.find(p => p.id === patId) || {
+                      const apptPhone = appt.patientPhone || (appt as any).patient_phone || '';
+                      const matchedPatient = patients.find(p => 
+                        p.id === patId || 
+                        (p.phone && apptPhone && p.phone.replace(/\D/g, '').slice(-10) === String(apptPhone).replace(/\D/g, '').slice(-10))
+                      );
+                      const apptVitals = (appt as any).vitals || (appt as any).patient_vitals;
+                      const patient: any = matchedPatient ? {
+                        ...matchedPatient,
+                        vitals: matchedPatient.vitals || apptVitals
+                      } : {
                         id: patId,
                         name: (appt as any).patientName || (appt as any).patient_name || 'WhatsApp Patient',
-                        phone: (appt as any).patientPhone || (appt as any).patient_phone || 'N/A',
+                        phone: apptPhone || 'N/A',
                         age: (appt as any).patientAge || (appt as any).patient_age || 30,
                         gender: (appt as any).patientGender || (appt as any).patient_gender || 'Male',
-                        queueStatus: 'awaiting_vitals',
+                        vitals: apptVitals,
+                        queueStatus: (apptVitals || appt.status === 'ready_for_consult') ? 'awaiting_consultation' : 'awaiting_vitals',
                         allergies: [],
                         chronicConditions: [],
                         createdAt: new Date().toISOString()
@@ -4175,8 +4218,18 @@ export const CompounderDashboard: React.FC = () => {
                       // Find matching consult invoice
                       const invoice = api.getInvoices().find(i => i.appointmentId === appt.id && i.type === 'consult');
 
-                      const isAwaitingVitals = patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus;
-                      const isAwaitingConsult = patient.queueStatus === 'awaiting_consultation';
+                      const hasVitalsRecorded = Boolean(
+                        (patient.vitals && (patient.vitals.bloodPressure || patient.vitals.pulseRate || patient.vitals.temperature || patient.vitals.spO2 || Object.keys(patient.vitals).length > 0)) ||
+                        (apptVitals && (apptVitals.bloodPressure || apptVitals.pulseRate || apptVitals.temperature || apptVitals.spO2 || Object.keys(apptVitals).length > 0)) ||
+                        patient.queueStatus === 'awaiting_consultation' ||
+                        patient.queueStatus === 'in_consult' ||
+                        patient.queueStatus === 'completed' ||
+                        appt.status === 'ready_for_consult' ||
+                        appt.status === 'in_consult' ||
+                        appt.status === 'completed'
+                      );
+                      const isAwaitingVitals = !hasVitalsRecorded && (patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus);
+                      const isAwaitingConsult = hasVitalsRecorded || patient.queueStatus === 'awaiting_consultation';
                       const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || String(appt.source || '').toLowerCase().includes('sos') || String(appt.source || '').toLowerCase().includes('emergency') || String(appt.tokenNumber || '').toUpperCase().includes('SOS') || String(appt.tokenNumber || '').startsWith('#EM-'));
                       const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
                       const tokenDisplay = String(rawToken || `TK-${String(idx + 1).padStart(2, '0')}`);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
-import type { Patient, UnifiedInvoice, PathologyReport, Encounter, Invoice } from '../../types';
+import type { Patient, UnifiedInvoice, PathologyReport, Encounter, Invoice, Appointment } from '../../types';
 import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
@@ -50,6 +50,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
   const [reports, setReports] = useState<PathologyReport[]>([]);
   const [encounters, setEncounters] = useState<Encounter[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   
   // Book Appointment Tab States
   const [bookName, setBookName] = useState('');
@@ -86,6 +87,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
       setInvoices(api.getUnifiedInvoices());
       setReports(api.getPathologyReports());
       setEncounters(api.getEncounters());
+      setAppointments(api.getAppointments());
       if (!selectedPhone && allPatients.length > 0) {
         setSelectedPhone(allPatients[0].phone || '');
       }
@@ -121,6 +123,17 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
   const activeInvoices = invoices.filter(i => (i.patientId || (i as any).patient_id) === activePatient?.id);
   const activeReports = reports.filter(r => (r.patientId || (r as any).patient_id) === activePatient?.id);
   const activeEncounters = encounters.filter(e => (e.patientId || (e as any).patient_id) === activePatient?.id);
+  const activeAppointments = appointments.filter(a => {
+    const pId = a.patientId || (a as any).patient_id;
+    return pId === activePatient?.id || (cleanSelectedPhone && ((a as any).phone || (a as any).patientPhone || (a as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanSelectedPhone);
+  });
+  const currentLiveAppointment = activeAppointments.find(a => 
+    a.status === 'in_consultation' || 
+    a.status === 'scheduled' || 
+    a.status === 'ready_for_consult' || 
+    a.status === 'pending_payment' || 
+    a.status === 'completed'
+  ) || activeAppointments[0];
 
   const pendingInvoice = activeInvoices.find(i => i.paymentStatus === 'pending' || (i as any).payment_status === 'pending');
 
@@ -444,6 +457,88 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                       {(activePatient?.name || 'MF').substring(0, 2).toUpperCase()}
                     </div>
                   </div>
+
+                  {/* Live OPD Token & Chamber Queue Status Card */}
+                  {currentLiveAppointment ? (
+                    <div className="p-3.5 bg-gradient-to-br from-cyan-950/40 via-zinc-900 to-indigo-950/40 border border-cyan-500/30 rounded-2xl relative overflow-hidden shadow-lg">
+                      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-400 via-emerald-400 to-indigo-500" />
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-[8px] font-bold text-cyan-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                            Live OPD Consultation Token
+                          </span>
+                          <div className="flex items-baseline gap-2 mt-1">
+                            <h4 className="text-xl font-black text-white font-mono tracking-tight">
+                              #{String(currentLiveAppointment.tokenNumber || (currentLiveAppointment as any).token_number || 'T-01')}
+                            </h4>
+                            <span className={`text-[8.5px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider font-mono ${
+                              currentLiveAppointment.status === 'in_consultation'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse'
+                                : currentLiveAppointment.status === 'ready_for_consult' || currentLiveAppointment.status === 'scheduled'
+                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                : currentLiveAppointment.status === 'pending_payment'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                                : 'bg-zinc-800 text-zinc-400 border border-white/10'
+                            }`}>
+                              {currentLiveAppointment.status === 'in_consultation' 
+                                ? '👨‍⚕️ In Chamber' 
+                                : currentLiveAppointment.status === 'ready_for_consult' 
+                                ? '⏳ Ready for Doctor' 
+                                : currentLiveAppointment.status === 'scheduled' 
+                                ? '📋 In OPD Queue' 
+                                : currentLiveAppointment.status === 'pending_payment'
+                                ? '💳 Payment Pending'
+                                : '✅ Completed'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[8px] text-zinc-400 font-mono block">Slot Time</span>
+                          <span className="text-[10px] font-bold text-zinc-200 font-mono">
+                            {(currentLiveAppointment as any).virtualTime || (currentLiveAppointment as any).virtual_time || '10:00 AM - 12:00 PM'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[9px] text-zinc-400">
+                        <div className="flex items-center gap-1">
+                          <span>👨‍⚕️ {activePod?.doctorName || 'Attending Physician'}</span>
+                        </div>
+                        {currentLiveAppointment.status === 'pending_payment' && pendingInvoice ? (
+                          <button
+                            type="button"
+                            onClick={() => handleTriggerUpiSheet(pendingInvoice)}
+                            className="px-2.5 py-1 bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white rounded-lg font-bold text-[8.5px] uppercase tracking-wider shadow flex items-center gap-1 cursor-pointer"
+                          >
+                            <CreditCard className="w-3 h-3" />
+                            Pay OPD Fee (₹500)
+                          </button>
+                        ) : (
+                          <span className="text-[8px] text-emerald-400 font-mono font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            Token Confirmed
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => setActiveTab('book_appointment')}
+                      className="p-3.5 bg-zinc-900 hover:bg-zinc-850 border border-white/10 hover:border-cyan-500/30 rounded-2xl flex items-center justify-between cursor-pointer transition-all shadow-md group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-[11px] font-bold text-white group-hover:text-cyan-300 transition-colors">Book Instant OPD Token</h4>
+                          <p className="text-[8.5px] text-zinc-400 mt-0.5">1-Tap appointment with live chamber queue</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
+                    </div>
+                  )}
 
                   {/* Above-the-fold Telehealth Alerts (Datadog Style) */}
                   {pendingInvoice ? (

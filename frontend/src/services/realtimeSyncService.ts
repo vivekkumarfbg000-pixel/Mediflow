@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, clearStorageCache, notify } from './apiHelper';
 import { getIstDateString } from '../utils/dateUtils';
+import { getPodContext, FALLBACK_POD_ID } from './podContext';
 
 export interface RealtimeSubscriptionHandlers {
   onAppointmentChange?: (payload: any) => void;
@@ -291,11 +292,92 @@ export class RealtimeSyncService {
     // Legacy implementation kept for reference
   }
 
+  // ── 360° Realtime Cloud-First Boot & Data Hydration Engine ────────────────
+  static async fetchInitialCloudData(forcedPodId?: string): Promise<void> {
+    try {
+      const podCtx = getPodContext();
+      const currentPodId = forcedPodId || podCtx.podId || FALLBACK_POD_ID;
+      const isFiltered = currentPodId && currentPodId !== 'unresolved-pod';
+
+      const buildQuery = (tableName: string) => {
+        let q = supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(150);
+        if (isFiltered && currentPodId !== FALLBACK_POD_ID) {
+          q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+        }
+        return q;
+      };
+
+      const [
+        apptsRes,
+        patsRes,
+        invoicesRes,
+        ledgersRes,
+        sessionsRes,
+        medBillsRes,
+        labReqsRes,
+        reportsRes,
+        poolRes,
+        sopsRes,
+        chronicRes
+      ] = await Promise.allSettled([
+        buildQuery('appointments'),
+        buildQuery('patient_registry'),
+        buildQuery('unified_invoices'),
+        buildQuery('financial_ledgers'),
+        buildQuery('whatsapp_sessions'),
+        buildQuery('medicine_bills'),
+        buildQuery('lab_requisitions'),
+        buildQuery('pathology_reports'),
+        buildQuery('vitalsync_pool_settlements'),
+        buildQuery('clinic_sops'),
+        buildQuery('chronic_care_cohorts')
+      ]);
+
+      const handleTableSync = (res: PromiseSettledResult<any>, tableName: string, storageKeys: string[]) => {
+        if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data) && res.value.data.length > 0) {
+          const normalized = res.value.data.map((r: any) => this.normalizeRecord(r));
+          for (const key of storageKeys) {
+            clearStorageCache(key);
+            const current = load<any[]>(key, []);
+            const merged = [...normalized];
+            current.forEach(item => {
+              if (item && item.id && !merged.some(m => m.id === item.id)) {
+                merged.push(item);
+              }
+            });
+            save(key, merged);
+          }
+        }
+      };
+
+      handleTableSync(apptsRes, 'appointments', ['saas_appointments', 'appointments']);
+      handleTableSync(patsRes, 'patient_registry', ['patients', 'patient_registry']);
+      handleTableSync(invoicesRes, 'unified_invoices', ['unified_invoices', 'saas_invoices']);
+      handleTableSync(ledgersRes, 'financial_ledgers', ['financial_ledgers']);
+      handleTableSync(sessionsRes, 'whatsapp_sessions', ['whatsapp_sessions']);
+      handleTableSync(medBillsRes, 'medicine_bills', ['medicine_bills']);
+      handleTableSync(labReqsRes, 'lab_requisitions', ['lab_requisitions']);
+      handleTableSync(reportsRes, 'pathology_reports', ['pathology_reports', 'full_lab_reports']);
+      handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements']);
+      handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops']);
+      handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts']);
+
+      notify();
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { source: 'cloud_hydration' } }));
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { source: 'cloud_hydration' } }));
+    } catch (err) {
+      console.warn('[RealtimeSync] Cloud hydration non-blocking warning:', err);
+    }
+  }
+
   static subscribeToLiveClinicUpdates(handlers: RealtimeSubscriptionHandlers) {
     this.subscribers.add(handlers);
     
     // Notify immediate current status
     handlers.onStatusChange?.(this.currentStatus);
+
+    // Initial non-blocking cloud hydration
+    this.fetchInitialCloudData().catch(() => {});
 
     if (!this.activeChannel) {
       this.initGlobalChannel();
@@ -472,6 +554,7 @@ export class RealtimeSyncService {
           this.reconnectAttempts = 0;
           this.updateStatus('connected');
           this.startHeartbeatWatchdog();
+          this.fetchInitialCloudData().catch(() => {});
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           this.updateStatus('reconnecting');
           this.scheduleAutoReconnect();

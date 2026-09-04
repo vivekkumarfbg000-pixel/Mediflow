@@ -300,6 +300,7 @@ export interface Pod {
   upi_vpa?: string;
   phone?: string;
   specialization?: string;
+  gstin?: string;
 }
 
 export interface Entity {

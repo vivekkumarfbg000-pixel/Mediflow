@@ -545,9 +545,10 @@ export class PatientService {
 
     const tokenNums: number[] = [];
 
-    // Helper to extract clean token integer (strictly handling T-01, TK-01, #01, 1..99)
+    // Helper to extract clean token integer (strictly handling T-01, TK-01, #01, 1..999)
     const extractTokenNum = (tokenStr?: string | number): number | null => {
-      if (!tokenStr) return null;
+      if (tokenStr === undefined || tokenStr === null || tokenStr === '') return null;
+      if (typeof tokenStr === 'number' && tokenStr >= 1 && tokenStr <= 999) return tokenStr;
       const str = String(tokenStr).trim();
       // Guard against IDs, ISO timestamps, or UUIDs
       if (
@@ -555,20 +556,19 @@ export class PatientService {
         str.startsWith('pat-') ||
         str.startsWith('PID-') ||
         str.startsWith('inv-') ||
+        str.startsWith('fl-') ||
         str.startsWith('fc-') ||
         str.includes(':') ||
         str.includes('Z') ||
         str.includes('-202') ||
-        str.length > 10
+        str.length > 12
       ) {
         return null;
       }
-      // Strict regex matching: T-01, TK-01, #01, #TK-1, 1..99
-      const match = str.match(/^(?:#?\s*)?(?:TK|T)[\s-]*0*([1-9]\d{0,2})(?:\s*[A-Z])?$/i) || str.match(/^#?0*([1-9]\d{0,2})$/);
-      if (match) {
-        const val = parseInt(match[1], 10);
-        // Only accept realistic daily clinic OPD token numbers (1 to 99)
-        if (val >= 1 && val <= 99 && !isNaN(val)) return val;
+      const digitsMatch = str.match(/\d+/);
+      if (digitsMatch) {
+        const val = parseInt(digitsMatch[0], 10);
+        if (val >= 1 && val <= 999 && !isNaN(val)) return val;
       }
       return null;
     };
@@ -597,9 +597,9 @@ export class PatientService {
       if (num != null) tokenNums.push(num);
     });
 
-    const validNums = tokenNums.filter(n => n >= 1 && n <= 99);
+    const validNums = tokenNums.filter(n => n >= 1 && n <= 999);
     const maxVal = validNums.length > 0 ? Math.max(...validNums) : apptsForDate.length;
-    const nextVal = Math.min(99, Math.max(1, maxVal + 1));
+    const nextVal = Math.max(1, maxVal + 1);
     const baseToken = `T-${nextVal.toString().padStart(2, '0')}`;
     return isSos ? `${baseToken} E` : baseToken;
   }

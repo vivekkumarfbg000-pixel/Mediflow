@@ -629,10 +629,16 @@ export class BillingService {
     // SYNCHRONOUSLY save initial appointment so recordInvoicePayment never race-conditions with undefined appt
     const effectiveDate = scheduledDate || getIstDateString();
     const effectiveTime = scheduledTime || '10:00 AM - 12:00 PM';
+    const pat = PatientService.getPatients().find(p => p.id === patientId);
+    const tokenNumber = pat?.tokenNumber || (pat as any)?.token_number || PatientService.generateNextTokenNumber(effectiveDate, false);
+
     const newAppt: Appointment = {
       id: apptId,
       podId: ctx.podId,
       patientId,
+      patientName: pat?.name || 'Patient',
+      patientPhone: pat?.phone || '',
+      tokenNumber: tokenNumber,
       doctorId: ctx.doctorId || null, // BUG-04 FIX: Dynamic only, no hardcoded demo doctor
       status: 'pending_payment',
       createdAt: new Date().toISOString(),
@@ -645,6 +651,9 @@ export class BillingService {
       appointmentTime: `${effectiveDate}T10:00:00.000Z`,
       appointment_time: `${effectiveDate}T10:00:00.000Z`
     } as any;
+    (newAppt as any).token_number = tokenNumber;
+    (newAppt as any).patient_name = pat?.name || 'Patient';
+    (newAppt as any).patient_phone = pat?.phone || '';
     this.saveAppointment(newAppt);
 
     const runInit = async () => {
