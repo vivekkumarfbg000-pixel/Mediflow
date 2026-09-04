@@ -506,6 +506,8 @@ export interface Appointment {
   entityId?: string;
   clinic_id?: string;
   isEmergency?: boolean;
+  vitals?: PatientVitals;
+  patient_vitals?: PatientVitals;
 }
 
 export interface EveningSlot {

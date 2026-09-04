@@ -6,7 +6,7 @@ import { PharmacyService } from './pharmacyService';
 import { LabService } from './labService';
 import { BillingService } from './billingService';
 import { PaymentService } from './paymentService';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from './podContext';
 import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getIstOffsetDateDisplay } from '../utils/dateUtils';
 import type { 
   WhatsAppSession, 

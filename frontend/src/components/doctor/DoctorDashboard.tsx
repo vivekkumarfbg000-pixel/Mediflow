@@ -408,7 +408,7 @@ export const DoctorDashboard: React.FC = () => {
         }
 
         if (apptsRes.data && apptsRes.data.length > 0) {
-          const dbAppts: Appointment[] = apptsRes.data.map((a: any) => {
+          const dbAppts: Appointment[] = apptsRes.data.map((a: any, idx: number) => {
             const resolvedName = (a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') 
               ? a.patient_name 
               : (patNameMap.get(a.patient_id) || patNameMap.get(a.patientId) || 'Patient');

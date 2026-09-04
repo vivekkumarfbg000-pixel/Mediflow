@@ -2829,7 +2829,8 @@ export const CompounderDashboard: React.FC = () => {
                       a.status === 'in_consult' ||
                       a.status === 'completed' ||
                       p?.queueStatus === 'awaiting_consultation' ||
-                      p?.queueStatus === 'in_consult'
+                      p?.queueStatus === 'in_consultation' ||
+                      (p?.queueStatus as any) === 'in_consult'
                     );
                     const bpText = vitalsObj?.bloodPressure ? `BP: ${vitalsObj.bloodPressure}` : '';
                     const pulseText = vitalsObj?.pulseRate ? `P: ${vitalsObj.pulseRate}` : '';
