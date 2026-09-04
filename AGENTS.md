@@ -14,9 +14,9 @@ Even when the user provides brief, informal, conversational, or underspecified p
    - Deeply trace the issue through runtime logs, state machines, call stacks, or database schemas.
    - Understand *why* it failed, not just *where* it failed. Isolate the systemic root cause before planning any solution.
 
-2. **STEP 2: Live DOM & Daemon Bridge Grounding**:
-   - For all UI, layout, component, or visual tasks, the FIRST tool call MUST query `http://localhost:9000/context` to extract the live DOM tree, active selectors, and exact component mappings without guessing.
-   - If the Daemon Bridge is offline, immediately emit an alert: *"⚠️ Daemon Bridge offline on port 9000 — please start it for live DOM anchoring."*
+2. **STEP 2: Live DOM & Daemon Bridge Grounding & Autonomous Start**:
+   - For all UI, layout, component, visual, or architectural tasks, the AI agent MUST query `http://localhost:9000/context` to extract the live DOM tree, active selectors, and sovereign pod context without guessing.
+   - **Autonomous Daemon Bridge Launch Protocol**: If the Daemon Bridge is offline or unreachable on port 9000, the AI agent MUST NOT halt; instead, it MUST immediately start the daemon bridge in the background (`node frontend/scripts/daemon-bridge.cjs` with `IsDaemon: true`), verify `http://localhost:9000/context` is online and healthy, and only then proceed to formulate the implementation plan.
 
 3. **STEP 3: CTO Taskforce Implementation Plan (`implementation_plan.md`)**:
    - Formulate a comprehensive Google/Meta-grade engineering plan detailing:
