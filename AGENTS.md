@@ -10,9 +10,15 @@
 ## 👑 Autonomous Big Tech Engineering Taskforce Protocol (Mandatory Non-Negotiable Standard)
 Even when the user provides brief, informal, conversational, or underspecified prompts (e.g. "fix this button", "change color", "add a field", "solve this bug"), the AI agent **MUST NEVER** take shortcuts, guess blindly, or apply haphazard edits. The AI agent MUST unconditionally execute in this exact sequence:
 
-1. **STEP 1: Root Cause Analysis (RCA)**:
-   - Deeply trace the issue through runtime logs, state machines, call stacks, or database schemas.
-   - Understand *why* it failed, not just *where* it failed. Isolate the systemic root cause before planning any solution.
+1. **STEP 1: Full-Lifecycle Cross-Domain & Cross-Subdomain Root Cause Analysis (RCA)**:
+   - The AI agent MUST NOT treat any bug as an isolated 1-file or UI-only symptom.
+   - The AI agent MUST unconditionally execute a **360° Full-Lifecycle Trace** across all 5 architectural domains:
+     1. **Entrypoint & Channel Domain**: WhatsApp Chatbot, QR code scan, Mobile App, or Walk-in counter input.
+     2. **Edge Function & Gateway Domain**: Deno serverless edge functions (`meta-webhook`, `phonepe-order`, `whatsapp-onboard`, etc.).
+     3. **Database & CDC Domain**: Postgres tables, foreign keys, triggers, RPCs, and `supabase_realtime` publications.
+     4. **State & Normalization Domain**: `RealtimeSyncService.ts`, `patientService.ts`, `billingService.ts`, `podContext.ts`, and local caches.
+     5. **Consuming Consoles Domain**: Cross-check all 5 active consoles (*Doctor EMR, Compounder Desk, Pharmacy POS, Pathology Lab, SaaS Admin*) to verify how each console receives and renders the data.
+   - Understand *why* it failed systemically, not just *where* it appeared on screen. Isolate the systemic root cause before planning any permanent solution.
 
 2. **STEP 2: Live DOM & Daemon Bridge Grounding & Autonomous Start**:
    - For all UI, layout, component, visual, or architectural tasks, the AI agent MUST query `http://localhost:9000/context` to extract the live DOM tree, active selectors, and sovereign pod context without guessing.
