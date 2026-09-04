@@ -334,9 +334,26 @@ export class WhatsAppService {
         let replyMessage = '';
 
         if (greetings.includes(cleaned) || session.currentState === 'AWAITING_WELCOME' || !session.currentState) {
-          nextState = 'AWAITING_REGISTRATION_DETAILS';
-          replyMessage = `Namaste! Welcome to ${clinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          if (cleaned.includes('physical') || text.includes('Physical Visit')) {
+            sessionData.pendingConsultationType = 'physical';
+            nextState = 'AWAITING_REGISTRATION_DETAILS';
+            replyMessage = `Namaste! ${clinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          } else if (cleaned.includes('virtual') || text.includes('Virtual Call')) {
+            sessionData.pendingConsultationType = 'virtual';
+            nextState = 'AWAITING_REGISTRATION_DETAILS';
+            replyMessage = `Namaste! ${clinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          } else {
+            nextState = 'AWAITING_REGISTRATION_DETAILS';
+            replyMessage = `Namaste! Welcome to ${clinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          }
         } else if (session.currentState === 'AWAITING_REGISTRATION_DETAILS') {
+          if ((cleaned.includes('physical') || text.includes('Physical Visit')) && !text.includes(',')) {
+            sessionData.pendingConsultationType = 'physical';
+            replyMessage = `Namaste! ${clinicName} mein Physical OPD Visit book karne ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          } else if ((cleaned.includes('virtual') || text.includes('Virtual Call')) && !text.includes(',')) {
+            sessionData.pendingConsultationType = 'virtual';
+            replyMessage = `Namaste! ${clinicName} mein Virtual Video Call book karne ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          } else {
           const rawInput = text.trim();
           let regName = rawInput;
           let regAge = 30;

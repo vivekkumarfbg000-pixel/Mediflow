@@ -1301,11 +1301,11 @@ async function triggerBotReplyPipeline(ctx: {
   ];
   
   const isMenuButton = typeof replyId === "string" && (replyId.startsWith("menu_") || replyId === "btn_main_menu" || replyId === "btn_stop");
-  const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book" || cleaned === "0" || cleaned === "cancel" || cleaned === "reset";
+  const isExplicitReset = cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart";
+  const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book" || isExplicitReset;
   const isNewOrIncomplete = isUnregisteredOrIncompletePatient(patient);
 
-  if (globalGreetings.includes(cleaned) || cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart" || state === "COMPLETED") {
-    // Check if patient profile is present in clinic database (Rule: Onboard new patient, reply normally to existing)
+  if (isExplicitReset || state === "COMPLETED") {
     const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     try {
       await supabase
@@ -1316,7 +1316,12 @@ async function triggerBotReplyPipeline(ctx: {
     state = newState;
     sessionData.pendingInvoiceId = null;
     sessionData.pendingApptId = null;
-  } else if (isPrimaryNavigation) {
+  } else if (globalGreetings.includes(cleaned)) {
+    const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+    state = newState;
+    sessionData.pendingInvoiceId = null;
+    sessionData.pendingApptId = null;
+  } else if (isPrimaryNavigation && state !== "AWAITING_REGISTRATION_DETAILS") {
     state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     sessionData.pendingInvoiceId = null;
     sessionData.pendingApptId = null;
@@ -1332,11 +1337,15 @@ async function triggerBotReplyPipeline(ctx: {
     } else if (replyId === "btn_pay" || replyId === "btn_paid") {
       state = "AWAITING_PAYMENT";
     } else if (replyId === "menu_physical" || replyId === "btn_physical") {
-      if (state !== "AWAITING_WELCOME") {
+      if (isNewOrIncomplete) {
+        state = "AWAITING_WELCOME";
+      } else if (state !== "AWAITING_WELCOME") {
         state = "AWAITING_CONFIRMATION";
       }
     } else if (replyId === "menu_virtual" || replyId === "btn_virtual") {
-      if (state !== "AWAITING_WELCOME") {
+      if (isNewOrIncomplete) {
+        state = "AWAITING_WELCOME";
+      } else if (state !== "AWAITING_WELCOME") {
         state = "AWAITING_CONFIRMATION";
       }
     }
@@ -1346,8 +1355,18 @@ async function triggerBotReplyPipeline(ctx: {
   switch (state) {
     case "AWAITING_WELCOME":
       if (isUnregisteredOrIncompletePatient(patient)) {
-        nextState = "AWAITING_REGISTRATION_DETAILS";
-        replyText = `Namaste! Welcome to ${resolvedClinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        if (cleaned === "physical" || cleaned.includes("physical") || replyId === "menu_physical" || replyId === "btn_physical" || cleaned === "1") {
+          sessionData.pendingConsultationType = "physical";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "virtual" || cleaned.includes("virtual") || replyId === "menu_virtual" || replyId === "btn_virtual" || cleaned === "2") {
+          sessionData.pendingConsultationType = "virtual";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else {
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! Welcome to ${resolvedClinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        }
       } else {
         const welcomeGreetings = ["hi", "hello", "hey", "namaste", "pranam", "hola", "halo", "hlo", "yo", "greetings"];
         if (welcomeGreetings.includes(cleaned)) {
@@ -4106,11 +4125,18 @@ CLINICAL GUIDELINES:
           ]
         }
       };
-    } else if (replyText.includes("kis tarah help") || replyText.includes("Welcome to") || replyText.includes("main menu") || replyText.includes("kya help karoon") || replyText.includes("Namaste!")) {
+    } else if (
+      !replyText.includes("Name, Age, Gender") &&
+      !replyText.includes("registered nahi hai") &&
+      !replyText.includes("details reply kijiye") &&
+      nextState !== "AWAITING_REGISTRATION_DETAILS" &&
+      state !== "AWAITING_REGISTRATION_DETAILS" &&
+      (replyText.includes("kis tarah help") || (replyText.includes("Welcome to") && !replyText.includes("registered nahi hai")) || replyText.includes("main menu") || replyText.includes("kya help karoon") || (replyText.includes("Namaste!") && !replyText.includes("Name, Age, Gender")))
+    ) {
       payloadBody.type = "interactive";
       payloadBody.interactive = {
         type: "button",
-        body: { text: `Namaste! 🙏 Welcome to ${resolvedClinicName}.\n\nAapki health aur convenient care hamari sabse badi priority hai. Batayein aaj hum aapki kis tarah help kar sakte hain? Niche button daba kar service select kijiye:` },
+        body: { text: replyText },
         action: {
           buttons: [
             { type: "reply", reply: { id: "menu_physical", title: "Physical Visit 🏥" } },
@@ -4289,7 +4315,10 @@ CLINICAL GUIDELINES:
       if (
         payloadBody.type === "interactive" &&
         payloadBody.interactive.type === "button" &&
-        (payloadBody.interactive.body.text.includes("Welcome to VitalSync") || payloadBody.interactive.body.text.includes("Namaste!") || payloadBody.interactive.body.text.includes("main menu"))
+        !replyText.includes("Name, Age, Gender") &&
+        !replyText.includes("registered nahi hai") &&
+        nextState !== "AWAITING_REGISTRATION_DETAILS" &&
+        (payloadBody.interactive.body.text.includes("Welcome to") || payloadBody.interactive.body.text.includes("Namaste!") || payloadBody.interactive.body.text.includes("main menu"))
       ) {
         const listPayload = {
           messaging_product: "whatsapp",
