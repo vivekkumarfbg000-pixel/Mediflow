@@ -21,7 +21,8 @@ import {
   Clock
 } from 'lucide-react';
 import type { Entity } from '../../types';
-import { isStrongPassword, getPasswordValidationError } from '../../utils/passwordPolicy';
+import { isStrongPassword, getPasswordValidationError, timingSafeDummyHash } from '../../utils/passwordPolicy';
+import { checkRateLimit, recordRateLimitAttempt } from '../../utils/rateLimiter';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 
 export type SettingsTabType = 'profile' | 'clinic' | 'preferences' | 'security' | 'partners';
@@ -216,6 +217,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       setErrorMsg('Passwords do not match.');
       return;
     }
+
+    // Pre-flight rate limiting check on password changes
+    const rateCheck = checkRateLimit('password_change', activeProfile?.email || 'current_user');
+    if (!rateCheck.allowed) {
+      setErrorMsg(rateCheck.message || 'Too many password update attempts. Please wait a few minutes.');
+      return;
+    }
     
     setIsUpdatingPassword(true);
     setErrorMsg(null);
@@ -223,8 +231,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     
     try {
       const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      if (error) {
+        await timingSafeDummyHash(password, 200);
+        recordRateLimitAttempt('password_change', activeProfile?.email || 'current_user', false);
+        throw error;
+      }
       
+      recordRateLimitAttempt('password_change', activeProfile?.email || 'current_user', true);
       setSuccessMsg('Password updated successfully!');
       showToast('Security Updated', 'Your password has been changed successfully.', 'success');
       setPassword('');

@@ -9,10 +9,11 @@ import {
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
-import { isStrongPassword, getPasswordValidationError } from '../../utils/passwordPolicy';
+import { isStrongPassword, getPasswordValidationError, timingSafeDummyHash } from '../../utils/passwordPolicy';
 import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import { FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { FounderNotificationService } from '../../services/founderNotificationService';
+import { checkRateLimit, recordRateLimitAttempt, verifyAuthActionAllowed } from '../../utils/rateLimiter';
 
 interface LoginAttempt {
   email: string;
@@ -32,33 +33,33 @@ interface ErrorDetails {
 const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
   ERR_INVALID_CREDENTIALS: {
     code: 'ERR_INVALID_CREDENTIALS',
-    message: 'Invalid Email or Password',
-    description: 'The email address or security password entered does not match any registered account. If you are new to VitalSync, please click "Doctor Signup" above to create your clinic profile.',
-    diagnostic: 'Double-check email spelling, or click the "Doctor Signup" tab to register a fresh account.'
+    message: 'Invalid Credentials',
+    description: 'Invalid email or password. Please verify your credentials or register a new account.',
+    diagnostic: 'Double-check email spelling and password.'
   },
   invalid_credentials: {
     code: 'ERR_INVALID_CREDENTIALS',
     message: 'Invalid Credentials',
-    description: 'The email address or security password entered does not match any clinician account.',
-    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+    description: 'Invalid email or password. Please verify your credentials or register a new account.',
+    diagnostic: 'Double-check email spelling and password.'
   },
   invalid_grant: {
     code: 'ERR_INVALID_CREDENTIALS',
     message: 'Invalid Credentials',
-    description: 'The email address or security password entered does not match any clinician account.',
-    diagnostic: 'Double-check email spelling or request a password reset from your system administrator.'
+    description: 'Invalid email or password. Please verify your credentials or register a new account.',
+    diagnostic: 'Double-check email spelling and password.'
   },
   ERR_RATE_LIMIT_EXCEEDED: {
     code: 'ERR_RATE_LIMIT_EXCEEDED',
     message: 'Rate Limit Exceeded',
-    description: 'Too many login attempts. Please try again in 1 minute.',
-    diagnostic: 'A maximum of 5 login attempts within a 1-minute time frame is allowed.'
+    description: 'Too many authentication attempts. Please wait a few moments before trying again.',
+    diagnostic: 'Rate limit protection is active on this account.'
   },
   ERR_ACCOUNT_LOCKED: {
     code: 'ERR_ACCOUNT_LOCKED',
     message: 'Account Lockout Active',
-    description: 'This clinician node is temporarily locked due to 5 consecutive failed login attempts. Locked for 30 minutes.',
-    diagnostic: 'Wait 30 minutes before trying again, or contact support to manually unlock the account.'
+    description: 'This clinician node is temporarily locked due to consecutive failed attempts. Security cooldown active.',
+    diagnostic: 'Wait for the cooldown period to expire before trying again.'
   },
   ERR_NETWORK_FAILURE: {
     code: 'ERR_NETWORK_FAILURE',
@@ -76,14 +77,14 @@ const ERROR_DICTIONARY: Record<string, ErrorDetails> = {
   ERR_AUTH_INVALID_CREDENTIALS: {
     code: 'ERR_AUTH_INVALID_CREDENTIALS',
     message: 'Invalid Credentials',
-    description: 'The email address or security password entered does not match any clinician account.',
-    diagnostic: 'Double-check email spelling or request a password reset.'
+    description: 'Invalid email or password. Please verify your credentials.',
+    diagnostic: 'Double-check email spelling and password.'
   },
   ERR_AUTH_ACCOUNT_LOCKOUT: {
     code: 'ERR_AUTH_ACCOUNT_LOCKOUT',
     message: 'Account Lockout Active',
-    description: 'This clinician node is temporarily locked due to 5 consecutive failed login attempts.',
-    diagnostic: 'Wait 60 seconds before trying again.'
+    description: 'This clinician node is temporarily locked due to consecutive failed attempts.',
+    diagnostic: 'Wait for the security cooldown to expire.'
   },
   ERR_AUTH_NETWORK_OFFLINE: {
     code: 'ERR_AUTH_NETWORK_OFFLINE',
@@ -826,9 +827,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setErrorMsg(null);
     setActiveErrorCode(null);
 
-    // Global 20-second watchdog: if ANY part of this handler hangs (network freeze,
-    // sentry RPC timeout, Supabase auth slow response), force the spinner off so the
-    // user isn't stuck with an infinite loader.
+    // Watchdog to prevent hanging loaders
     const handlerTimeout = setTimeout(() => {
       setLoading(false);
       setErrorMsg('Login is taking longer than expected. Please check your internet connection and try again.');
@@ -836,32 +835,19 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }, 20000);
 
     try {
-      // Clean TSX syntax verification - force Vite transform cache invalidation
-      // 1. Verify lockout and rate limit via database sentry (with 5s timeout fallback)
-      let check: { allowed: boolean; errorCode?: string; msg?: string } = { allowed: true };
-      try {
-        const sentryTimeout = new Promise<{ allowed: boolean }>((resolve) => {
-          setTimeout(() => resolve({ allowed: true }), 5000);
-        });
-        check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
-      } catch (_err) {
-        // If sentry check fails entirely, allow login to proceed (don't block on infra issue)
-        check = { allowed: true };
-      }
-
-      if (!check.allowed) {
-        setErrorMsg(check.msg || 'Login is temporarily blocked.');
-        if (check.errorCode) {
-          setActiveErrorCode(check.errorCode);
-          await logAttemptToDatabase(email, false, check.errorCode);
-        }
+      // 1. Enforce strict sliding-window rate limit & account lockout protection
+      const rateCheck = await verifyAuthActionAllowed('login', cleanEmail);
+      if (!rateCheck.allowed) {
+        setErrorMsg(rateCheck.message || 'Too many login attempts. Security cooldown active.');
+        setActiveErrorCode('ERR_ACCOUNT_LOCKED');
+        await logAttemptToDatabase(cleanEmail, false, 'ERR_ACCOUNT_LOCKED');
         setLoading(false);
         return;
       }
 
-      // 2. Perform authentication with a 25s timeout to prevent premature network failure
+      // 2. Perform authentication with timeout
       const signInPromise = supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: cleanEmail,
         password,
       });
       const signInTimeout = new Promise<never>((_, reject) =>
@@ -871,7 +857,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const { data, error } = await Promise.race([signInPromise, signInTimeout]) as any;
 
       if (error) {
-        const authErr = new Error('Invalid email or password. If you are new to VitalSync, please click "Doctor Signup" to create your clinic profile.');
+        // Run dummy cryptographic hash calculation to defeat timing analysis between existing vs non-existing users
+        await timingSafeDummyHash(password, 250);
+        recordRateLimitAttempt('login', cleanEmail, false);
+
+        const authErr = new Error('Invalid email or password. Please verify your credentials or register a new account.');
         (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw authErr;
       }
@@ -904,11 +894,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const validRoles = ['doctor', 'ophthalmologist', 'general_physician', 'compounder', 'pharmacist', 'pharmacy', 'lab_technician', 'lab', 'receptionist', 'staff', 'admin', 'platform_admin', 'saas_admin', 'patient'];
       if (!validRoles.includes(profile.role)) {
         console.warn('[Mediflow Auth] Unrecognized role alias:', profile.role);
-        // Normalize or accept baseline profile
       }
 
-      // Cross-origin guard: admin accounts must ONLY authenticate on admin.vitalsync.in in production.
-      // On localhost / 127.0.0.1 / Vercel preview environments, allow all roles directly.
+      // Cross-origin guard for admin accounts in production
       const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost') || hostname.includes('vercel.app') || hostname.endsWith('.app');
       if (!isLocalDevHost && (profile?.role === 'admin' || profile?.role === 'platform_admin')) {
         const isSingleDomain = getIsSingleDomain(hostname);
@@ -922,10 +910,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
 
-      // Record successful attempt
-      recordAttempt(email, true, { user_id: data.user.id });
+      // Record successful attempt & clear rate limit failure bucket
+      recordRateLimitAttempt('login', cleanEmail, true);
+      recordAttempt(cleanEmail, true, { user_id: data.user.id });
       
-      // Notify root App component of successful authentication and profile resolution
       onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
@@ -945,7 +933,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
 
-      recordAttempt(email, false, { ...err, code: mappedCode });
+      recordAttempt(cleanEmail, false, { ...err, code: mappedCode });
 
       if (mappedCode && ERROR_DICTIONARY[mappedCode]) {
         setErrorMsg(ERROR_DICTIONARY[mappedCode].description);
@@ -964,7 +952,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
   const handlePartnerSignIn = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!email || !email.trim()) {
+    const cleanEmail = (email || '').trim();
+    if (!cleanEmail) {
       setErrorMsg('Please enter your registered email address.');
       setActiveErrorCode('ERR_INVALID_CREDENTIALS');
       return;
@@ -979,7 +968,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setErrorMsg(null);
     setActiveErrorCode(null);
 
-    // Global 20-second watchdog for partner sign-in
     const handlerTimeout = setTimeout(() => {
       setLoading(false);
       setErrorMsg('Login is taking longer than expected. Please check your internet connection and try again.');
@@ -987,30 +975,19 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }, 20000);
 
     try {
-      // 1. Verify lockout and rate limit via database sentry (with 5s timeout fallback)
-      let check: { allowed: boolean; errorCode?: string; msg?: string } = { allowed: true };
-      try {
-        const sentryTimeout = new Promise<{ allowed: boolean }>((resolve) =>
-          setTimeout(() => resolve({ allowed: true }), 5000)
-        );
-        check = await Promise.race([verifyLoginAllowed(email), sentryTimeout]);
-      } catch (_err) {
-        check = { allowed: true };
-      }
-
-      if (!check.allowed) {
-        setErrorMsg(check.msg || 'Login is temporarily blocked.');
-        if (check.errorCode) {
-          setActiveErrorCode(check.errorCode);
-          await logAttemptToDatabase(email, false, check.errorCode);
-        }
+      // 1. Sliding-window rate limit check
+      const rateCheck = await verifyAuthActionAllowed('login', cleanEmail);
+      if (!rateCheck.allowed) {
+        setErrorMsg(rateCheck.message || 'Too many login attempts. Security cooldown active.');
+        setActiveErrorCode('ERR_ACCOUNT_LOCKED');
+        await logAttemptToDatabase(cleanEmail, false, 'ERR_ACCOUNT_LOCKED');
         setLoading(false);
         return;
       }
 
-      // 2. Perform authentication with 15s timeout
+      // 2. Perform authentication with timeout
       const signInPromise = supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: cleanEmail,
         password,
       });
       const signInTimeout = new Promise<never>((_, reject) =>
@@ -1020,12 +997,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const { data, error } = await Promise.race([signInPromise, signInTimeout]) as any;
 
       if (error) {
-        if (error.message?.includes('Invalid login credentials')) {
-          const authErr = new Error('Invalid email or password.');
-          (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
-          throw authErr;
-        }
-        throw error;
+        await timingSafeDummyHash(password, 250);
+        recordRateLimitAttempt('login', cleanEmail, false);
+
+        const authErr = new Error('Invalid email or password. Please verify your credentials or register a new account.');
+        (authErr as any).code = 'ERR_INVALID_CREDENTIALS';
+        throw authErr;
       }
 
       if (!data?.session) {
@@ -1058,9 +1035,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         console.warn('[Mediflow Auth] Partner login role check warning for role:', profile.role);
       }
 
-      recordAttempt(email, true, { user_id: data.user.id });
+      recordRateLimitAttempt('login', cleanEmail, true);
+      recordAttempt(cleanEmail, true, { user_id: data.user.id });
       
-      // Notify root App component of successful partner authentication and profile resolution
       onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
@@ -1076,7 +1053,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
 
-      recordAttempt(email, false, { ...err, code: mappedCode });
+      recordAttempt(cleanEmail, false, { ...err, code: mappedCode });
 
       if (mappedCode && ERROR_DICTIONARY[mappedCode]) {
         setErrorMsg(ERROR_DICTIONARY[mappedCode].description);
@@ -1169,12 +1146,22 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       (window as any).__mediflow_registering = true;
     }
 
+    const cleanEmail = email.trim();
     const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
 
     try {
+      // Pre-flight registration rate limit check
+      const rateCheck = await verifyAuthActionAllowed('signup', cleanEmail);
+      if (!rateCheck.allowed) {
+        setErrorMsg(rateCheck.message || 'Too many signup attempts. Please try again later.');
+        setActiveErrorCode('ERR_RATE_LIMIT_EXCEEDED');
+        setLoading(false);
+        return;
+      }
+
       // 1. Perform auth signUp with timeout protection
       const signUpPromise = supabase.auth.signUp({
-        email: email.trim(),
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -1196,14 +1183,20 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const { data: authData, error: authError } = await Promise.race([signUpPromise, timeoutPromise]) as any;
 
       if (authError) {
+        await timingSafeDummyHash(password, 250);
+        recordRateLimitAttempt('signup', cleanEmail, false);
+
         if (authError.message?.toLowerCase().includes('already registered') || authError.message?.toLowerCase().includes('use')) {
-          throw new Error('This email address is already in use. If you already have an account, please sign in.');
+          // Anti-enumeration: Uniform message preventing attacker from probing existing emails
+          throw new Error('If an account already exists for this email, please sign in. Otherwise, please check your inbox for verification.');
         }
         throw authError;
       }
       if (!authData?.user) {
         throw new Error('SignUp failed to initialize user record. Please try again.');
       }
+
+      recordRateLimitAttempt('signup', cleanEmail, true);
 
       // Purge demo patients cache from localStorage for new user
       if (typeof localStorage !== 'undefined') {
@@ -1379,14 +1372,24 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       (window as any).__mediflow_registering = true;
     }
 
+    const cleanEmail = email.trim();
     const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
 
     try {
+      // Pre-flight partner registration rate limit check
+      const rateCheck = await verifyAuthActionAllowed('signup', cleanEmail);
+      if (!rateCheck.allowed) {
+        setErrorMsg(rateCheck.message || 'Too many join requests. Please try again later.');
+        setActiveErrorCode('ERR_RATE_LIMIT_EXCEEDED');
+        setLoading(false);
+        return;
+      }
+
       // 1. Perform auth signUp with timeout
       const userRole = partnerType === 'pharmacy' ? 'pharmacist' : partnerType === 'lab' ? 'lab_technician' : 'compounder';
       
       const signUpPromise = supabase.auth.signUp({
-        email: email.trim(),
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -1408,14 +1411,19 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const { data: authData, error: authError } = await Promise.race([signUpPromise, timeoutPromise]) as any;
 
       if (authError) {
+        await timingSafeDummyHash(password, 250);
+        recordRateLimitAttempt('signup', cleanEmail, false);
+
         if (authError.message?.toLowerCase().includes('already registered') || authError.message?.toLowerCase().includes('use')) {
-          throw new Error('This email address is already in use. If you already have an account, please sign in.');
+          throw new Error('If an account already exists for this email, please sign in. Otherwise, please check your inbox for verification.');
         }
         throw authError;
       }
       if (!authData?.user) {
         throw new Error('SignUp failed to initialize user record. Please try again.');
       }
+
+      recordRateLimitAttempt('signup', cleanEmail, true);
 
       let activeSession = authData.session;
       if (!activeSession) {
@@ -1645,11 +1653,21 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    const cleanEmail = (email || '').trim();
+    if (!cleanEmail) return;
 
     setLoading(true);
     setErrorMsg(null);
     try {
+      // 1. Enforce strict sliding-window rate limit on forgot-password requests
+      const rateCheck = await verifyAuthActionAllowed('forgot_password', cleanEmail);
+      if (!rateCheck.allowed) {
+        setErrorMsg(rateCheck.message || 'Too many password reset requests. Please try again later.');
+        setActiveErrorCode('ERR_RATE_LIMIT_EXCEEDED');
+        setLoading(false);
+        return;
+      }
+
       const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
       const isSingleDomain = getIsSingleDomain(hostname);
       const redirectUrl = isSingleDomain
@@ -1658,24 +1676,40 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           ? `http://app.localhost:${window.location.port || '5173'}`
           : 'https://app.vitalsync.in');
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      // 2. Dispatch password reset request with redirect URL
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: `${redirectUrl}?recovery=true`
       });
 
-      if (error) throw error;
+      // Execute constant-time dummy calculation to defeat timing analysis on email existence
+      await timingSafeDummyHash('', 250);
 
+      // Record rate limit attempt
+      recordRateLimitAttempt('forgot_password', cleanEmail, true);
+
+      // Uniform Anti-Enumeration Response: Regardless of whether email exists or not,
+      // present identical confirmation so attackers cannot harvest registered user lists.
       setResetSent(true);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Reset Link Sent! ✉️',
-          message: `Check your email inbox at ${email} to reset your password.`,
-          type: 'success'
+          title: 'Request Received! ✉️',
+          message: `If an account is associated with ${cleanEmail}, a secure password reset link has been dispatched to your inbox.`,
+          type: 'info'
         }
       }));
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Password reset request failed:', err);
-      setErrorMsg(err.message || 'Failed to send password reset email.');
+      // Even on caught error, run timing padding and return generic message
+      await timingSafeDummyHash('', 250);
+      setResetSent(true);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Request Received! ✉️',
+          message: `If an account is associated with ${cleanEmail}, a secure password reset link has been dispatched to your inbox.`,
+          type: 'info'
+        }
+      }));
     } finally {
       setLoading(false);
     }

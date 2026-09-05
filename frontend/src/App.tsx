@@ -5,9 +5,19 @@ import { api } from './services/api';
 import { StateHealingEngine, ProactiveHealthMonitor, BackendAgent } from './services/autoHealerAgent';
 import { PwaSyncManager } from './pwa';
 import { MessageSquare } from 'lucide-react';
-import { isStrongPassword, getPasswordValidationError } from './utils/passwordPolicy';
+import { isStrongPassword, getPasswordValidationError, timingSafeDummyHash } from './utils/passwordPolicy';
 import { PasswordStrengthMeter } from './components/shared/PasswordStrengthMeter';
+import { EmailVerificationModal } from './components/shared/EmailVerificationModal';
+import { checkRateLimit, recordRateLimitAttempt } from './utils/rateLimiter';
 import { FALLBACK_DOCTOR_ID, FALLBACK_ENTITY_ID } from './services/podContext';
+
+const DEMO_EMAILS = [
+  'doctor@mediflow.com',
+  'compounder@mediflow.com',
+  'pharmacy@mediflow.com',
+  'labtech@mediflow.com',
+  'admin@vitalsync.health'
+];
 
 function lazyWithRetry<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -631,41 +641,53 @@ export default function App() {
     return true;
   });
   const [initialSignupTab, setInitialSignupTab] = useState<'signin' | 'register' | 'join'>('signin');
+  const [emailVerifiedOverride, setEmailVerifiedOverride] = useState(false);
   const watchdogTriggered = useRef(false);
   const [isRecoveryMode, setIsRecoveryMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search).get('recovery') === 'true';
+      return new URLSearchParams(window.location.search).get('recovery') === 'true' || window.location.hash.includes('type=recovery');
     }
     return false;
   });
 
-
-
   useEffect(() => {
-    // Eagerly redirect to app subdomain if cross-subdomain session cookie is active
-    // Disabled to prevent stale cookie redirection traps (e.g. redirecting to login page when session expires)
-    // const curHostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    // const isLandingPage = curHostname === 'vitalsync.in' || curHostname === 'www.vitalsync.in' || curHostname === 'localhost' || curHostname === '127.0.0.1';
-    
-    // if (isLandingPage && typeof window !== 'undefined') {
-    //   const isSessionActive = document.cookie.includes('vitalsync_session_active=true');
-    //   if (isSessionActive) {
-    //     console.log('[VitalSync Auth] Active cookie session detected on landing page. Eagerly redirecting to app subdomain...');
-    //     const isLocal = getIsLocal(curHostname);
-    //     const redirectUrl = isLocal
-    //       ? `http://app.localhost:${window.location.port || '5173'}`
-    //       : 'https://app.vitalsync.in';
-    //     window.location.replace(redirectUrl);
-    //     return;
-    //   }
-    // }
+    // 🔒 Immediate Token & Sensitive URL Query Sanitization (Anti-Leakage Guard)
+    // Strips access_token, refresh_token, recovery tokens, and hash fragments from browser address bar
+    // to prevent leakage via Referer headers to external assets or browser history.
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      const isRecovery = url.searchParams.get('recovery') === 'true' || window.location.hash.includes('type=recovery');
+      if (isRecovery) {
+        setIsRecoveryMode(true);
+      }
+
+      const hasSensitiveParams = 
+        url.searchParams.has('recovery') || 
+        url.searchParams.has('access_token') || 
+        url.searchParams.has('refresh_token') || 
+        url.searchParams.has('token') || 
+        url.searchParams.has('type') ||
+        window.location.hash.includes('access_token=') ||
+        window.location.hash.includes('type=');
+
+      if (hasSensitiveParams) {
+        // Keep non-sensitive tab / console params while scrubbing tokens
+        const preservedParams = new URLSearchParams();
+        if (url.searchParams.has('console')) preservedParams.set('console', url.searchParams.get('console')!);
+        if (url.searchParams.has('tab')) preservedParams.set('tab', url.searchParams.get('tab')!);
+        if (url.searchParams.has('landing')) preservedParams.set('landing', url.searchParams.get('landing')!);
+
+        const queryString = preservedParams.toString() ? `?${preservedParams.toString()}` : '';
+        const cleanPath = `${window.location.pathname}${queryString}`;
+        window.history.replaceState({}, document.title, cleanPath);
+      }
+    }
 
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
     if (tabParam === 'register' || tabParam === 'join') {
       setInitialSignupTab(tabParam);
     }
-
   }, []);
 
   useEffect(() => {
@@ -1515,6 +1537,23 @@ export default function App() {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
+  // 1b. Email Verification Gate for Active Sessions (Requires Verified Ownership before EHR Access)
+  const isDemoUser = DEMO_EMAILS.includes((session?.user?.email || '').toLowerCase()) || isBypassMode;
+  const isEmailVerified = emailVerifiedOverride || isDemoUser || Boolean(session?.user?.email_confirmed_at || (session?.user as any)?.confirmed_at);
+
+  if (session && !isEmailVerified) {
+    return (
+      <ToastProvider>
+        <EmailVerificationModal
+          isOpen={true}
+          email={session.user.email || ''}
+          onVerified={() => setEmailVerifiedOverride(true)}
+          onSignOut={handleSignOut}
+        />
+      </ToastProvider>
+    );
+  }
+
   // 2. Landing Page & Local Single-Domain Routing
   // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
@@ -1808,11 +1847,25 @@ function ResetPasswordForm({ onSuccess }: ResetPasswordFormProps) {
     setLoading(true);
     setErrorMsg(null);
     try {
+      // Sliding-window rate limit protection on password updates
+      const rateCheck = checkRateLimit('password_change', 'active_user');
+      if (!rateCheck.allowed) {
+        setErrorMsg(rateCheck.message || 'Too many password update attempts. Please try again later.');
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword
       });
 
-      if (error) throw error;
+      if (error) {
+        await timingSafeDummyHash(newPassword, 200);
+        recordRateLimitAttempt('password_change', 'active_user', false);
+        throw error;
+      }
+
+      recordRateLimitAttempt('password_change', 'active_user', true);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
