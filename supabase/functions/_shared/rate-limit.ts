@@ -9,10 +9,12 @@ export async function isRateLimited(
   maxRequests = 15, 
   windowSeconds = 60
 ): Promise<boolean> {
-  // Capture client IP address from standard load-balancer / CDN headers
+  // Capture client IP address from standard load-balancer / CDN headers (first hop is client)
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  const firstForwardedIp = forwardedFor ? forwardedFor.split(",")[0]?.trim() : null;
   const ip = req.headers.get("cf-connecting-ip") || 
              req.headers.get("x-real-ip") || 
-             req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() || 
+             firstForwardedIp || 
              "unknown";
 
   if (ip === "unknown") {

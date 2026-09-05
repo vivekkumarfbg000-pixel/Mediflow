@@ -5346,3 +5346,22 @@ GRANT EXECUTE ON FUNCTION public.check_login_sentry(TEXT, TEXT) TO anon, authent
 GRANT EXECUTE ON FUNCTION public.log_login_attempt(TEXT, BOOLEAN, TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.log_login_attempt(TEXT, BOOLEAN, TEXT) TO anon, authenticated, service_role;
 
+-- =============================================================================
+-- STEP 56: Revoke Dangerous Anonymous Execution Grants (20260905000002)
+-- =============================================================================
+REVOKE EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.accumulate_platform_revenue(UUID, NUMERIC, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.accumulate_platform_revenue(UUID, NUMERIC, BOOLEAN) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.process_chronic_refill_assertion(UUID, TEXT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.pop_pending_broadcast_batch(TEXT, UUID, INT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.pop_pending_broadcast_batch(TEXT, UUID, INT) TO authenticated, service_role;
+
+REVOKE EXECUTE ON FUNCTION public.trigger_devsecops_auto_heal() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.trigger_devsecops_auto_heal() TO authenticated, service_role;
+
+

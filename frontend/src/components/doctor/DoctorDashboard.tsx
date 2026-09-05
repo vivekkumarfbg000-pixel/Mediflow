@@ -2267,7 +2267,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       <DoctorRegistrationModal
         isOpen={isRegistrationOpen}
         onClose={() => setIsRegistrationOpen(false)}
-        onSuccess={(data) => {
+        onSuccess={(data: any) => {
           console.log('[Onboarding Success] Clinic Pod Created:', data);
           const reloadKey = 'vitalsync_onboarding_reloaded';
           if (!sessionStorage.getItem(reloadKey)) {

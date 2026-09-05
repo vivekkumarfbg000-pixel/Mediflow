@@ -207,20 +207,14 @@ serve(async (req) => {
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge");
 
-    // Retrieve global webhook verification token
-    const systemVerifyToken = Deno.env.get("META_VERIFY_TOKEN");
-    const validTokens = [
-      systemVerifyToken,
-      "mediflow_verify_2026",
-      "mediflow_webhook_verify_token",
-      "mediflow_handshake_secret"
-    ].filter(Boolean);
+    // Retrieve global webhook verification token strictly from Vault
+    const systemVerifyToken = Deno.env.get("META_VERIFY_TOKEN") || Deno.env.get("WABA_VERIFY_TOKEN");
 
-    if (mode === "subscribe" && token && validTokens.includes(token)) {
-      console.log("[Meta Webhook] GET Handshake Verification Succeeded with token:", token);
+    if (mode === "subscribe" && token && systemVerifyToken && token === systemVerifyToken) {
+      console.log("[Meta Webhook] GET Handshake Verification Succeeded.");
       return new Response(challenge, { status: 200 });
     }
-    console.warn("[Meta Webhook] GET Handshake Verification Failed: Token Mismatch. Received:", token);
+    console.warn("[Meta Webhook] GET Handshake Verification Failed: Token Mismatch or Missing META_VERIFY_TOKEN.");
     return new Response("Forbidden", { status: 403 });
   }
 

@@ -5,14 +5,14 @@ import { api } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
 import { FounderNotificationService } from '../../services/founderNotificationService';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
+import { checkRateLimit, recordRateLimitAttempt } from '../../utils/rateLimiter';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (clinicData: { name: string; doctorName: string; clinicCode: string }) => void;
 }
-
-import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
   useBodyScrollLock(isOpen);
@@ -22,13 +22,28 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
     phone: '',
     specialization: 'General Medicine'
   });
+  const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.clinicName || !formData.doctorName || !formData.phone) return;
+    setFormError(null);
+    if (!formData.clinicName.trim() || !formData.doctorName.trim() || !formData.phone.trim()) return;
+
+    const cleanPhone = formData.phone.trim().replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length < 10) {
+      setFormError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    // Sliding-window rate limit protection on clinic creation
+    const rateCheck = checkRateLimit('signup', cleanPhone);
+    if (!rateCheck.allowed) {
+      setFormError(rateCheck.message || 'Too many attempts. Please try again later.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -39,7 +54,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
       try {
         const { data: rpcRes, error: rpcErr } = await supabase.rpc('register_clinic_network', {
           p_clinic_name: formData.clinicName.trim(),
-          p_clinic_phone: formData.phone.trim(),
+          p_clinic_phone: cleanPhone,
           p_clinic_address: (formData as any).location || 'Clinic Location',
           p_specialization: formData.specialization
         });
@@ -49,6 +64,8 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
       } catch (_rpcE) {
         /* ignore */
       }
+
+      recordRateLimitAttempt('signup', cleanPhone, true);
 
       if (!clinicCode) {
         const existingPod = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('vitalsync_cached_active_pod');

@@ -344,7 +344,7 @@ export class WhatsAppService {
             replyMessage = `Namaste! ${clinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           } else {
             nextState = 'AWAITING_REGISTRATION_DETAILS';
-            replyMessage = `Namaste! Welcome to ${clinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+            replyMessage = `Namaste! Welcome to ${clinicName}. 🏥\n\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           }
         } else if (session.currentState === 'AWAITING_REGISTRATION_DETAILS') {
           if ((cleaned.includes('physical') || text.includes('Physical Visit')) && !text.includes(',')) {
