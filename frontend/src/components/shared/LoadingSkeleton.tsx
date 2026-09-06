@@ -2,7 +2,7 @@
 // Contextual shimmer skeletons for each dashboard type
 // Replaces spinner-only Suspense fallback with professional progressive loading UI
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrandMark } from './BrandMark';
 
 interface SkeletonProps {
@@ -180,13 +180,35 @@ export function PharmacyDashboardSkeleton() {
   );
 }
 
-// Full-page loading spinner (for initial auth check)
-export function FullPageLoader({ message = 'Loading VitalSync...' }: { message?: string }) {
+// Full-page loading spinner (for initial auth check and major transitions)
+// Includes a 250ms debounce threshold so fast connections (<250ms) experience zero flash
+export function FullPageLoader({ 
+  message = 'Loading VitalSync...', 
+  delayMs = 250 
+}: { 
+  message?: string; 
+  delayMs?: number;
+}) {
+  const [shouldShow, setShouldShow] = useState(delayMs <= 0);
+
+  useEffect(() => {
+    if (delayMs <= 0) return;
+    const timer = setTimeout(() => {
+      setShouldShow(true);
+    }, delayMs);
+    return () => clearTimeout(timer);
+  }, [delayMs]);
+
+  if (!shouldShow) {
+    // Neutral canvas container during the first 250ms to prevent visual flash/jitter
+    return <div className="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors" />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-6 animate-fade-in transition-opacity duration-300">
       {/* Animated VitalSync logo mark */}
       <div className="relative">
-        <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-lg shadow-indigo-500/20 ring-1 ring-slate-200/70">
+        <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-900 p-1 shadow-lg shadow-indigo-500/20 ring-1 ring-slate-200/70 dark:ring-slate-800">
           <BrandMark size={56} title="VitalSync loading mark" />
         </div>
         {/* Orbiting pulse ring */}
@@ -194,7 +216,7 @@ export function FullPageLoader({ message = 'Loading VitalSync...' }: { message?:
       </div>
 
       <div className="text-center space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-center">
           <div className="flex gap-1">
             {[0, 1, 2].map(i => (
               <div
@@ -205,7 +227,7 @@ export function FullPageLoader({ message = 'Loading VitalSync...' }: { message?:
             ))}
           </div>
         </div>
-        <p className="text-sm font-medium text-slate-500 tracking-wide">{message}</p>
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 tracking-wide">{message}</p>
       </div>
     </div>
   );
