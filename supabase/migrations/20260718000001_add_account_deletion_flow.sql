@@ -1,6 +1,19 @@
 -- Migration: Add account deletion flow
 -- Creates a SECURITY DEFINER function to permit authenticated users to delete their own account.
 
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT oid::regprocedure AS func_signature 
+        FROM pg_proc 
+        WHERE proname = 'delete_own_account' AND pronamespace = 'public'::regnamespace
+    ) LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.delete_own_account()
 RETURNS void
 LANGUAGE plpgsql

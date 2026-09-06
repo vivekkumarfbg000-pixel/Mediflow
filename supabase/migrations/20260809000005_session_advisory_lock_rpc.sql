@@ -45,9 +45,9 @@ GRANT EXECUTE ON FUNCTION public.release_session_lock(BIGINT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.try_acquire_session_lock(BIGINT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.release_session_lock(BIGINT) TO authenticated;
 
-COMMENT ON FUNCTION public.try_acquire_session_lock IS
+COMMENT ON FUNCTION public.try_acquire_session_lock(BIGINT) IS
   'Acquires a session-scoped advisory lock. Returns TRUE if acquired, FALSE if already held. '
   'Must be explicitly released via release_session_lock() or auto-releases on session close.';
 
-COMMENT ON FUNCTION public.release_session_lock IS
+COMMENT ON FUNCTION public.release_session_lock(BIGINT) IS
   'Releases a previously acquired session-scoped advisory lock.';

@@ -102,6 +102,21 @@ CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_created_at ON public.login_atte
 CREATE INDEX IF NOT EXISTS idx_account_lockouts_locked_until ON public.account_lockouts(locked_until);
 
 -- 4. Function: Check rate limiting and lockout state
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT oid::regprocedure AS func_signature 
+        FROM pg_proc 
+        WHERE proname IN ('check_login_sentry', 'log_login_attempt') 
+          AND pronamespace = 'public'::regnamespace
+    ) LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.check_login_sentry(
     p_email TEXT,
     p_ip TEXT DEFAULT NULL

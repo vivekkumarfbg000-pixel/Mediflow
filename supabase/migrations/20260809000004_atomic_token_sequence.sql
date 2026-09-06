@@ -40,6 +40,6 @@ $$;
 GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO service_role;
 
-COMMENT ON FUNCTION public.generate_next_token_number IS
+COMMENT ON FUNCTION public.generate_next_token_number(TEXT, UUID) IS
   'Atomically generates the next OPD token number for a given date and pod. '
   'Scoped to pod_id to prevent cross-tenant token pollution in multi-tenant deployments.';

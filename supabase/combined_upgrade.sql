@@ -3073,17 +3073,16 @@ DROP FUNCTION IF EXISTS public.generate_next_token_number(TEXT, UUID);
 DROP FUNCTION IF EXISTS public.generate_next_token_number;
 
 CREATE OR REPLACE FUNCTION public.generate_next_token_number(
-    p_pod_id UUID DEFAULT NULL,
-    p_virtual_date TEXT DEFAULT NULL
+    p_virtual_date TEXT,
+    p_pod_id UUID DEFAULT NULL
 )
 RETURNS TEXT
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    v_date TEXT := COALESCE(p_virtual_date, TO_CHAR(NOW() AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD'));
+    v_date TEXT := COALESCE(NULLIF(TRIM(p_virtual_date), ''), TO_CHAR(NOW() AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD'));
     v_max_token INTEGER := 0;
-    v_appt_val INTEGER;
     v_next_token TEXT;
 BEGIN
     SELECT COALESCE(MAX(
@@ -3095,8 +3094,14 @@ BEGIN
         END
     ), 0) INTO v_max_token
     FROM public.appointments
-    WHERE (virtual_date = v_date OR appointment_date = v_date OR TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date)
-      AND (p_pod_id IS NULL OR pod_id = p_pod_id);
+    WHERE (
+        virtual_date = v_date 
+        OR TO_CHAR(appointment_time AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+        OR TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+        OR appointment_time::text LIKE (v_date || '%')
+    )
+      AND (status IS NULL OR status != 'cancelled')
+      AND (p_pod_id IS NULL OR pod_id = p_pod_id OR pod_id = '00000000-0000-0000-0000-000000000001'::uuid OR pod_id IS NULL);
 
     v_next_token := 'T-' || LPAD((v_max_token + 1)::TEXT, 2, '0');
     RETURN v_next_token;
@@ -3105,7 +3110,47 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, TEXT) TO anon, authenticated, service_role;
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+    p_pod_id UUID DEFAULT NULL,
+    p_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_date TEXT := TO_CHAR(COALESCE(p_date, CURRENT_DATE), 'YYYY-MM-DD');
+    v_max_token INTEGER := 0;
+    v_next_token TEXT;
+BEGIN
+    SELECT COALESCE(MAX(
+        CASE
+            WHEN token_number ~* '^#?T-?[0-9]+' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+            WHEN token_number ~* '^#?TK-?[0-9]+' THEN SUBSTRING(token_number FROM '[0-9]+')::INTEGER
+            WHEN token_number ~ '^[0-9]+$' THEN token_number::INTEGER
+            ELSE 0
+        END
+    ), 0) INTO v_max_token
+    FROM public.appointments
+    WHERE (
+        virtual_date = v_date 
+        OR TO_CHAR(appointment_time AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+        OR TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+        OR appointment_time::text LIKE (v_date || '%')
+    )
+      AND (status IS NULL OR status != 'cancelled')
+      AND (p_pod_id IS NULL OR pod_id = p_pod_id OR pod_id = '00000000-0000-0000-0000-000000000001'::uuid OR pod_id IS NULL);
+
+    v_next_token := 'T-' || LPAD((v_max_token + 1)::TEXT, 2, '0');
+    RETURN v_next_token;
+EXCEPTION WHEN OTHERS THEN
+    RETURN 'T-01';
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, DATE) TO anon, authenticated, service_role;
+
 
 -- =============================================================================
 -- Enterprise Audit & Clinical Event Logging Engine
@@ -5363,5 +5408,87 @@ GRANT EXECUTE ON FUNCTION public.pop_pending_broadcast_batch(TEXT, UUID, INT) TO
 
 REVOKE EXECUTE ON FUNCTION public.trigger_devsecops_auto_heal() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.trigger_devsecops_auto_heal() TO authenticated, service_role;
+
+-- =============================================================================
+-- STEP 57: Fix generate_next_token_number Overloads & Date-Scoped Sequences (20260906000001)
+-- =============================================================================
+
+-- Signature 1: Called with (p_virtual_date TEXT, p_pod_id UUID)
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+  p_virtual_date TEXT,
+  p_pod_id UUID DEFAULT NULL
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_next_val INT;
+  v_token TEXT;
+  v_date TEXT := COALESCE(NULLIF(TRIM(p_virtual_date), ''), TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'));
+BEGIN
+  SELECT COALESCE(MAX(
+    CASE 
+      WHEN token_number ~ '^T-[0-9]+' THEN CAST(SUBSTRING(token_number FROM 3 FOR 4) AS INT)
+      WHEN token_number ~ '^[0-9]+$' THEN CAST(token_number AS INT)
+      ELSE 0
+    END
+  ), 0) + 1
+  INTO v_next_val
+  FROM public.appointments
+  WHERE (p_pod_id IS NULL OR pod_id = p_pod_id OR pod_id = '00000000-0000-0000-0000-000000000001'::uuid OR pod_id IS NULL)
+    AND (
+      virtual_date = v_date
+      OR TO_CHAR(appointment_time AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+      OR TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+      OR appointment_time::text LIKE (v_date || '%')
+    )
+    AND (status IS NULL OR status != 'cancelled');
+
+  v_token := 'T-' || LPAD(COALESCE(v_next_val, 1)::TEXT, 2, '0');
+  RETURN v_token;
+END;
+$$;
+
+-- Signature 2: Called with (p_pod_id UUID, p_date DATE)
+CREATE OR REPLACE FUNCTION public.generate_next_token_number(
+  p_pod_id UUID DEFAULT NULL,
+  p_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_next_val INT;
+  v_token TEXT;
+  v_date TEXT := TO_CHAR(COALESCE(p_date, CURRENT_DATE), 'YYYY-MM-DD');
+BEGIN
+  SELECT COALESCE(MAX(
+    CASE 
+      WHEN token_number ~ '^T-[0-9]+' THEN CAST(SUBSTRING(token_number FROM 3 FOR 4) AS INT)
+      WHEN token_number ~ '^[0-9]+$' THEN CAST(token_number AS INT)
+      ELSE 0
+    END
+  ), 0) + 1
+  INTO v_next_val
+  FROM public.appointments
+  WHERE (p_pod_id IS NULL OR pod_id = p_pod_id OR pod_id = '00000000-0000-0000-0000-000000000001'::uuid OR pod_id IS NULL)
+    AND (
+      virtual_date = v_date
+      OR TO_CHAR(appointment_time AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+      OR TO_CHAR(created_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') = v_date
+      OR appointment_time::text LIKE (v_date || '%')
+    )
+    AND (status IS NULL OR status != 'cancelled');
+
+  v_token := 'T-' || LPAD(COALESCE(v_next_val, 1)::TEXT, 2, '0');
+  RETURN v_token;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, DATE) TO anon, authenticated, service_role;
+
 
 

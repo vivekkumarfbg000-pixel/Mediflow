@@ -2,6 +2,19 @@
 -- Atomically fetches and transitions pending broadcast messages to 'processing'
 -- using FOR UPDATE SKIP LOCKED to prevent multiple workers from processing the same messages.
 
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT oid::regprocedure AS func_signature 
+        FROM pg_proc 
+        WHERE proname = 'pop_pending_broadcast_batch' AND pronamespace = 'public'::regnamespace
+    ) LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.pop_pending_broadcast_batch(
     p_campaign_id TEXT,
     p_pod_id UUID,

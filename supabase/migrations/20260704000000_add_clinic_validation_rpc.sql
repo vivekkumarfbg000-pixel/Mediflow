@@ -2,6 +2,19 @@
 -- Creates a security definer function allowing guests (anon) to validate a clinic code
 -- without exposing all clinic codes via public table SELECT privileges.
 
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT oid::regprocedure AS func_signature 
+        FROM pg_proc 
+        WHERE proname = 'validate_clinic_code' AND pronamespace = 'public'::regnamespace
+    ) LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.validate_clinic_code(p_code TEXT)
 RETURNS TEXT AS $$
 DECLARE

@@ -24,6 +24,9 @@ ALTER TABLE IF EXISTS public.patient_consents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow all authenticated access to patient_consents" ON public.patient_consents;
 DROP POLICY IF EXISTS "Users view patient_consents" ON public.patient_consents;
 DROP POLICY IF EXISTS "Users insert patient_consents" ON public.patient_consents;
+DROP POLICY IF EXISTS "pod_isolation_patient_consents_select" ON public.patient_consents;
+DROP POLICY IF EXISTS "pod_isolation_patient_consents_insert" ON public.patient_consents;
+DROP POLICY IF EXISTS "pod_isolation_patient_consents_update" ON public.patient_consents;
 
 -- SELECT: only allow reads for patients within the same clinical pod
 CREATE POLICY "pod_isolation_patient_consents_select" ON public.patient_consents

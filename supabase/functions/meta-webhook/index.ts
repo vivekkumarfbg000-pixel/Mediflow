@@ -2456,29 +2456,43 @@ async function triggerBotReplyPipeline(ctx: {
         // Scoped to pod_id to prevent cross-tenant token pollution in multi-tenant deployments
         let tokenSeq = 1;
         try {
-          const { data: tokenStr, error: tokenErr } = await supabase.rpc(
+          let tokenStr: string | null = null;
+          // Attempt signature 1: (p_pod_id, p_date) matching user's active Supabase schema
+          const rpcRes1 = await supabase.rpc(
             'generate_next_token_number',
-            { p_virtual_date: selectedDate, p_pod_id: currentPodId }
+            { p_pod_id: currentPodId, p_date: selectedDate }
           );
-          if (!tokenErr && tokenStr) {
-            // RPC returns 'T-06' format directly; extract sequence for approxTime calc
-            const seqMatch = (tokenStr as string).match(/T-(\d+)/);
+          if (!rpcRes1.error && rpcRes1.data) {
+            tokenStr = rpcRes1.data as string;
+          } else {
+            // Attempt signature 2: (p_virtual_date, p_pod_id)
+            const rpcRes2 = await supabase.rpc(
+              'generate_next_token_number',
+              { p_virtual_date: selectedDate, p_pod_id: currentPodId }
+            );
+            if (!rpcRes2.error && rpcRes2.data) {
+              tokenStr = rpcRes2.data as string;
+            }
+          }
+
+          if (tokenStr) {
+            const seqMatch = tokenStr.match(/T-(\d+)/);
             tokenSeq = seqMatch ? parseInt(seqMatch[1], 10) : 1;
           } else {
-            // Military-Grade Fallback: query appointments and patient_registry for date and pod
-            console.warn("[Meta Webhook] Token RPC unavailable, calculating via max sequence:", tokenErr);
-            const [{ data: dateAppts }, { data: regPats }] = await Promise.all([
-              supabase
-                .from("appointments")
-                .select("token_number, virtual_date, appointment_time")
-                .eq("pod_id", currentPodId)
-                .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%`),
-              supabase
-                .from("patient_registry")
-                .select("token_number")
-                .eq("pod_id", currentPodId)
-            ]);
-            
+            // High-Speed Fallback: query appointments for this specific date
+            console.warn("[Meta Webhook] Token RPC unavailable, calculating via today's max sequence");
+            let fallbackQuery = supabase
+              .from("appointments")
+              .select("token_number, virtual_date, appointment_time, created_at, status")
+              .neq("status", "cancelled")
+              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%,created_at.gte.${selectedDate}T00:00:00.000Z`);
+
+            if (currentPodId && currentPodId !== "00000000-0000-0000-0000-000000000001") {
+              fallbackQuery = fallbackQuery.or(`pod_id.eq.${currentPodId},pod_id.eq.00000000-0000-0000-0000-000000000001,pod_id.is.null`);
+            }
+
+            const { data: dateAppts } = await fallbackQuery;
+
             let maxSeq = 0;
             (dateAppts || []).forEach((a: any) => {
               const match = String(a.token_number || '').match(/\d+/);
@@ -2487,14 +2501,7 @@ async function triggerBotReplyPipeline(ctx: {
                 if (num > maxSeq) maxSeq = num;
               }
             });
-            (regPats || []).forEach((p: any) => {
-              const match = String(p.token_number || '').match(/\d+/);
-              if (match) {
-                const num = parseInt(match[0], 10);
-                if (num > maxSeq) maxSeq = num;
-              }
-            });
-            tokenSeq = Math.max((dateAppts?.length || 0), maxSeq) + 1;
+            tokenSeq = maxSeq + 1;
           }
         } catch (err) {
           console.warn("[Meta Webhook] Error generating token number:", err);
@@ -2782,6 +2789,7 @@ async function triggerBotReplyPipeline(ctx: {
               id: newApptId,
               patient_id: bookingPatId,
               patient_name: targetPatName,
+              patient_phone: cleanPhone10,
               doctor_id: doctorId,
               status: "pending_payment",
               appointment_time: apptTimestamp,
@@ -2791,7 +2799,8 @@ async function triggerBotReplyPipeline(ctx: {
               virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
               pod_id: safePodId,
               entity_id: safeEntityId,
-              token_number: String(tokenNumber)
+              token_number: String(tokenNumber),
+              source: isVirtualSlot ? "whatsapp_virtual" : "whatsapp"
             });
             if (apptErr) console.error("[Meta Webhook] Database Appointment Insert Error:", apptErr);
           } catch (err) {

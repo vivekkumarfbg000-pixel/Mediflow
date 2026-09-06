@@ -871,7 +871,12 @@ export const CompounderDashboard: React.FC = () => {
     const todayStr = getIstDateString();
     const rawList = appointments.filter(a => {
       const aDate = getEffectiveAppointmentDate(a);
-      return (aDate === todayStr || getIstDateString(a.createdAt) === todayStr) && a.status !== 'cancelled';
+      const isToday = aDate === todayStr || 
+        getIstDateString(a.createdAt) === todayStr || 
+        getIstDateString((a as any).created_at) === todayStr ||
+        getIstDateString(a.appointmentTime) === todayStr ||
+        getIstDateString((a as any).appointment_time) === todayStr;
+      return isToday && a.status !== 'cancelled';
     });
 
     // Deduplicate by patient ID so each patient has exactly one active appointment card in today's queue
@@ -883,10 +888,18 @@ export const CompounderDashboard: React.FC = () => {
       } else {
         // Keep whichever appointment is in active progress or more recently updated
         const existing = seenPatients.get(pKey)!;
-        const statusPriority: Record<string, number> = { in_consult: 4, vitals_completed: 3, checked_in: 2, scheduled: 1, completed: 0 };
+        const statusPriority: Record<string, number> = { 
+          in_consult: 6, 
+          ready_for_consult: 5, 
+          vitals_completed: 4, 
+          awaiting_vitals: 3, 
+          scheduled: 3, 
+          checked_in: 2, 
+          completed: 1 
+        };
         const curScore = statusPriority[appt.status] ?? 1;
         const existScore = statusPriority[existing.status] ?? 1;
-        if (curScore > existScore || (curScore === existScore && new Date(appt.createdAt || 0).getTime() > new Date(existing.createdAt || 0).getTime())) {
+        if (curScore > existScore || (curScore === existScore && new Date(appt.createdAt || (appt as any).created_at || 0).getTime() > new Date(existing.createdAt || (existing as any).created_at || 0).getTime())) {
           seenPatients.set(pKey, appt);
         }
       }
@@ -913,6 +926,19 @@ export const CompounderDashboard: React.FC = () => {
         tokenNumber: rawToken,
         token_number: rawToken
       };
+    });
+
+    // Sort by token sequence number ascending (e.g. T-01, T-02, T-03...)
+    resolvedList.sort((a, b) => {
+      const parseTokenNum = (tok?: string) => {
+        if (!tok) return 9999;
+        const match = tok.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 9999;
+      };
+      const tokA = parseTokenNum(a.tokenNumber);
+      const tokB = parseTokenNum(b.tokenNumber);
+      if (tokA !== tokB) return tokA - tokB;
+      return new Date(a.createdAt || (a as any).created_at || 0).getTime() - new Date(b.createdAt || (b as any).created_at || 0).getTime();
     });
 
     return resolvedList;
@@ -1620,6 +1646,7 @@ export const CompounderDashboard: React.FC = () => {
         setAppointments(mergedApptsList as any);
         BillingService.saveAppointments(mergedApptsList as any);
       }
+      setDataRevision(prev => prev + 1);
     } catch (err) {
       console.warn('[CompounderDashboard] Error fetching live appointments:', err);
     }
@@ -1680,7 +1707,12 @@ export const CompounderDashboard: React.FC = () => {
       onChronicCohortChange: () => fetchLiveAppointments()
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleFocus);
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, [fetchLiveAppointments]);
   
   // Real-time Network Resilience State

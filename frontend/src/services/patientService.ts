@@ -178,42 +178,89 @@ export class PatientService {
     const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     const premiumMap = load<Record<string, boolean>>('premium_map', {});
     const appts = load<any[]>('saas_appointments', []);
+    const todayStr = getIstDateString();
+    const todayAppts = appts.filter(a => {
+      const aDate = getEffectiveAppointmentDate(a);
+      return (aDate === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr) && a.status !== 'cancelled';
+    });
     
-    // Ensure all patients have unique monotonic tokens without duplicate fallback collisions
-    let tokenModified = false;
-    let nextAvailableTokenIndex = 1;
-    
-    // Find highest existing token number among patients
-    rawPatients.forEach(p => {
-      const existingToken = tokensMap[p.id] || p.tokenNumber || (p as any).token_number;
-      if (existingToken) {
-        const match = String(existingToken).match(/T-?(\d+)/i) || String(existingToken).match(/TK-?(\d+)/i) || String(existingToken).match(/^(\d+)$/);
-        if (match) {
-          const num = parseInt(match[1], 10);
-          if (num >= nextAvailableTokenIndex) nextAvailableTokenIndex = num + 1;
+    // 🌟 ENTERPRISE STRICT SEQUENTIAL TOKEN NORMALIZATION (T-01, T-02, ...):
+    // Identify all patients active in today's clinical OPD queue
+    const todayPatients = rawPatients.filter(p => {
+      const matchedAppt = todayAppts.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
+      const pRegDate = getIstDateString(p.registeredAt || p.createdAt || (p as any).created_at || (p as any).registered_at);
+      return Boolean(matchedAppt || pRegDate === todayStr);
+    });
+
+    // Deterministically sort today's cohort in chronological order of booking/arrival
+    todayPatients.sort((a, b) => {
+      const matchedApptA = todayAppts.find(x => x.patientId === a.id || (x as any).patient_id === a.id);
+      const matchedApptB = todayAppts.find(x => x.patientId === b.id || (x as any).patient_id === b.id);
+      
+      const timeA = new Date(
+        matchedApptA?.appointmentTime || matchedApptA?.createdAt || (matchedApptA as any)?.created_at || 
+        a.registeredAt || a.createdAt || (a as any).created_at || (a as any).registered_at || 0
+      ).getTime();
+      
+      const timeB = new Date(
+        matchedApptB?.appointmentTime || matchedApptB?.createdAt || (matchedApptB as any)?.created_at || 
+        b.registeredAt || b.createdAt || (b as any).created_at || (b as any).registered_at || 0
+      ).getTime();
+
+      if (timeA !== timeB && !isNaN(timeA) && !isNaN(timeB) && timeA > 0 && timeB > 0) {
+        return timeA - timeB;
+      }
+
+      // Secondary sort: extract existing token numeric order to maintain stable relative positions
+      const parseTokenNum = (pObj: any, aObj: any) => {
+        const raw = aObj?.tokenNumber || (aObj as any)?.token_number || pObj?.tokenNumber || (pObj as any)?.token_number || '';
+        const m = String(raw).match(/\d+/);
+        return m ? parseInt(m[0], 10) : 9999;
+      };
+      return parseTokenNum(a, matchedApptA) - parseTokenNum(b, matchedApptB);
+    });
+
+    // Map each today's patient to strictly sequential canonical token: T-01, T-02, ...
+    let tokensChanged = false;
+    todayPatients.forEach((p, idx) => {
+      const canonicalToken = `T-${(idx + 1).toString().padStart(2, '0')}`;
+      if (p.tokenNumber !== canonicalToken || tokensMap[p.id] !== canonicalToken || (p as any).token_number !== canonicalToken) {
+        p.tokenNumber = canonicalToken;
+        (p as any).token_number = canonicalToken;
+        tokensMap[p.id] = canonicalToken;
+        tokensChanged = true;
+
+        const matchedAppt = todayAppts.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
+        if (matchedAppt) {
+          matchedAppt.tokenNumber = canonicalToken;
+          (matchedAppt as any).token_number = canonicalToken;
         }
       }
     });
 
-    return rawPatients.map(p => {
-      let resolvedToken = tokensMap[p.id] || p.tokenNumber || (p as any).token_number;
-      
-      // If token not on patient, search active appointments
-      if (!resolvedToken) {
-        const matchedAppt = appts.find(a => a.patientId === p.id || a.patient_id === p.id);
-        if (matchedAppt?.tokenNumber || (matchedAppt as any)?.token_number) {
-          resolvedToken = String(matchedAppt.tokenNumber || (matchedAppt as any).token_number);
-        }
-      }
+    if (tokensChanged) {
+      save('tokens_map', tokensMap);
+      save('patients', rawPatients);
+      save('saas_appointments', appts);
+      save('appointments', appts);
 
-      // If still no token, assign unique sequential token
-      if (!resolvedToken) {
-        resolvedToken = `T-${nextAvailableTokenIndex.toString().padStart(2, '0')}`;
-        nextAvailableTokenIndex++;
-        tokensMap[p.id] = resolvedToken;
-        p.tokenNumber = resolvedToken;
-        tokenModified = true;
-      }
+      (async () => {
+        try {
+          for (const p of todayPatients) {
+            if (p.id && p.tokenNumber) {
+              await Promise.all([
+                supabase.from('patient_registry').update({ token_number: p.tokenNumber }).eq('id', p.id),
+                supabase.from('appointments').update({ token_number: p.tokenNumber }).eq('patient_id', p.id)
+              ]);
+            }
+          }
+        } catch (_err) { /* ignore non-blocking remote sync */ }
+      })();
+    }
+
+    return rawPatients.map(p => {
+      const matchedAppt = todayAppts.find(a => a.patientId === p.id || a.patient_id === p.id);
+      const resolvedToken = tokensMap[p.id] || p.tokenNumber || (p as any).token_number || matchedAppt?.tokenNumber || (matchedAppt as any)?.token_number;
 
       return {
         ...p,
@@ -520,12 +567,9 @@ export class PatientService {
     const localAppts = safeGetStorageJSON<any[]>('mediflow_appointments', []);
     const allAppts = [...appointments, ...directAppts, ...localAppts];
 
-    const patients = load<any[]>('saas_patients', []);
-    const directPatients = safeGetStorageJSON<any[]>('patients', []);
+    const patients = load<any[]>('patients', []);
     const registryPatients = safeGetStorageJSON<any[]>('patient_registry', []);
-    const localPatients = safeGetStorageJSON<any[]>('mediflow_patients', []);
-    const allPatients = [...patients, ...directPatients, ...registryPatients, ...localPatients];
-    const tokensMap = load<Record<string, string>>('tokens_map', {});
+    const allPatients = [...patients, ...registryPatients];
 
     const dateStr = targetDate || getIstDateString();
 
@@ -537,8 +581,10 @@ export class PatientService {
       return p === effectivePod || p === FALLBACK_POD_ID || effectivePod === FALLBACK_POD_ID;
     };
 
+    // Filter appointments strictly to this date and non-cancelled
     const apptsForDate = allAppts.filter(a => {
       if (!isMatchingPod(a)) return false;
+      if (a.status === 'cancelled') return false;
       const apptDate = getEffectiveAppointmentDate(a) || getIstDateString(a.createdAt || a.created_at);
       return apptDate === dateStr || String(apptDate).startsWith(dateStr);
     });
@@ -579,27 +625,19 @@ export class PatientService {
       if (num != null) tokenNums.push(num);
     });
 
-    // 2. Collect all token numbers from today's patient registry
+    // 2. Collect all token numbers from patients registered strictly on target date
     allPatients.forEach(p => {
       if (!isMatchingPod(p)) return;
-      const pDate = getIstDateString(p.registeredAt || p.createdAt || p.created_at);
-      const isToday = pDate === dateStr || !p.registeredAt;
-      if (isToday) {
-        const tokenVal = tokensMap[p.id] || p.tokenNumber || (p as any).token_number;
-        const num = extractTokenNum(tokenVal);
+      const pRegDate = getIstDateString(p.registeredAt || p.createdAt || p.created_at);
+      if (pRegDate === dateStr) {
+        const num = extractTokenNum(p.tokenNumber || (p as any).token_number);
         if (num != null) tokenNums.push(num);
       }
     });
 
-    // 3. Collect from tokens_map values directly
-    Object.values(tokensMap).forEach(t => {
-      const num = extractTokenNum(t);
-      if (num != null) tokenNums.push(num);
-    });
-
     const validNums = tokenNums.filter(n => n >= 1 && n <= 999);
-    const maxVal = validNums.length > 0 ? Math.max(...validNums) : apptsForDate.length;
-    const nextVal = Math.max(1, maxVal + 1);
+    const maxVal = validNums.length > 0 ? Math.max(...validNums) : 0;
+    const nextVal = maxVal + 1;
     const baseToken = `T-${nextVal.toString().padStart(2, '0')}`;
     return isSos ? `${baseToken} E` : baseToken;
   }

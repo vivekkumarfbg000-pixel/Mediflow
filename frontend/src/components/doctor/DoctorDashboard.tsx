@@ -487,7 +487,65 @@ export const DoctorDashboard: React.FC = () => {
             BillingService.saveUnifiedInvoices([]);
             BillingService.saveInvoices([]);
           } else {
-            BillingService.saveUnifiedInvoices(invoicesRes.data);
+            const normalizedInvoices: UnifiedInvoice[] = invoicesRes.data.map((i: any) => {
+              const patName = (Array.isArray(i.patient) ? i.patient[0]?.name : i.patient?.name) ||
+                              (patNameMap.get(i.patient_id) || patNameMap.get(i.patientId) || 'Patient');
+              const patPhone = (Array.isArray(i.patient) ? i.patient[0]?.phone : i.patient?.phone) || '';
+              const docFee = Number(i.doctor_fee ?? i.doctorFee ?? 0);
+              const labFee = Number(i.lab_fee ?? i.labFee ?? 0);
+              const pharmFee = Number(i.pharmacy_fee ?? i.pharmacyFee ?? 0);
+              const platFee = Number(i.platform_fee ?? i.platformFee ?? 0);
+              const totalAmt = Number(i.total_amount ?? i.totalAmount ?? (docFee + labFee + pharmFee));
+              const statusRaw = String(i.payment_status ?? i.paymentStatus ?? 'cleared').toLowerCase();
+              const paymentStatus = (statusRaw === 'unpaid' || statusRaw === 'pending' || statusRaw === 'pending_payment')
+                ? 'pending'
+                : ((statusRaw === 'paid' || statusRaw === 'cleared' || statusRaw === 'completed') ? 'cleared' : statusRaw);
+
+              return {
+                id: i.id,
+                encounterId: i.encounter_id || i.encounterId || undefined,
+                encounter_id: i.encounter_id || i.encounterId || undefined,
+                patientId: i.patient_id || i.patientId || '',
+                patient_id: i.patient_id || i.patientId || '',
+                patientName: patName,
+                patient_name: patName,
+                patientPhone: patPhone,
+                patient_phone: patPhone,
+                doctorFee: docFee,
+                doctor_fee: docFee,
+                labFee: labFee,
+                lab_fee: labFee,
+                pharmacyFee: pharmFee,
+                pharmacy_fee: pharmFee,
+                platformFee: platFee,
+                platform_fee: platFee,
+                totalAmount: totalAmt,
+                total_amount: totalAmt,
+                upiQrPayload: i.upi_qr_payload || i.upiQrPayload || '',
+                paymentStatus,
+                payment_status: paymentStatus,
+                paymentMethod: i.payment_method || i.paymentMethod || 'cash',
+                payment_method: i.payment_method || i.paymentMethod || 'cash',
+                source: i.source || 'counter',
+                podId: i.pod_id || i.podId,
+                pod_id: i.pod_id || i.podId,
+                createdAt: i.created_at || i.createdAt || new Date().toISOString(),
+                created_at: i.created_at || i.createdAt || new Date().toISOString()
+              } as any;
+            });
+
+            BillingService.saveUnifiedInvoices(normalizedInvoices);
+
+            const saasInvs: Invoice[] = normalizedInvoices.map(u => ({
+              id: u.id,
+              appointmentId: u.encounterId || u.id,
+              patientId: u.patientId,
+              amount: u.totalAmount,
+              status: u.paymentStatus === 'cleared' ? 'paid' : 'unpaid',
+              type: 'consult',
+              createdAt: u.createdAt
+            }));
+            BillingService.saveInvoices(saasInvs);
           }
         }
 

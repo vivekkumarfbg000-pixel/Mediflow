@@ -105,6 +105,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
 
     const unsubscribeApi = api.subscribe(sync);
     window.addEventListener('mediflow-state-change', sync);
+    window.addEventListener('mediflow-financial-update', sync);
     window.addEventListener('storage', sync);
 
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
@@ -129,6 +130,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
       unsubscribeApi();
       unsubscribeRealtime();
       window.removeEventListener('mediflow-state-change', sync);
+      window.removeEventListener('mediflow-financial-update', sync);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -163,27 +165,97 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
   }), [inventoryHolds, pharmacyInventory, todayStr]);
 
   const financialMetrics = useMemo(() => {
-    const uInvoices = api.getUnifiedInvoices();
-    const saasInvoices = api.getInvoices();
-    
+    const uInvoices = api.getUnifiedInvoices() || [];
+    const saasInvoices = api.getInvoices() || [];
+    const medBills = api.getMedicineBills() || [];
+    const activeLedgers = (financials && financials.length > 0) ? financials : (api.getFinancialLedgers() || []);
+
     // Map distinct invoices by ID to eliminate multi-party split duplication
     const invMap = new Map<string, { totalAmount: number; paymentStatus: string; createdAt?: string }>();
-    
-    uInvoices.forEach(i => {
-      invMap.set(i.id, {
-        totalAmount: Number(i.totalAmount) || ((Number(i.doctorFee) || 0) + (Number(i.labFee) || 0) + (Number(i.pharmacyFee) || 0)),
-        paymentStatus: i.paymentStatus || 'pending',
-        createdAt: i.createdAt
+
+    // 1. Process Unified Invoices (with snake_case and camelCase defensive fallbacks)
+    uInvoices.forEach((i: any) => {
+      const id = i.id || '';
+      if (!id) return;
+      const rawAmt = Number(i.totalAmount ?? i.total_amount);
+      const computedAmt = !isNaN(rawAmt) && rawAmt > 0
+        ? rawAmt
+        : ((Number(i.doctorFee ?? i.doctor_fee) || 0) + (Number(i.labFee ?? i.lab_fee) || 0) + (Number(i.pharmacyFee ?? i.pharmacy_fee) || 0));
+      const statusRaw = String(i.paymentStatus ?? i.payment_status ?? 'pending').toLowerCase();
+      const paymentStatus = (statusRaw === 'cleared' || statusRaw === 'paid' || statusRaw === 'completed' || statusRaw === 'settled')
+        ? 'cleared'
+        : (statusRaw === 'unpaid' || statusRaw === 'pending' || statusRaw === 'pending_payment')
+          ? 'pending'
+          : statusRaw;
+
+      invMap.set(id, {
+        totalAmount: computedAmt || 0,
+        paymentStatus,
+        createdAt: i.createdAt || i.created_at
       });
     });
 
-    saasInvoices.forEach(i => {
-      if (!invMap.has(i.id) && !invMap.has(i.appointmentId)) {
-        invMap.set(i.id, {
-          totalAmount: Number(i.amount) || 0,
-          paymentStatus: i.status === 'paid' ? 'cleared' : 'pending',
-          createdAt: i.createdAt
+    // 2. Process SaaS Invoices
+    saasInvoices.forEach((i: any) => {
+      const id = i.id || '';
+      const apptId = i.appointmentId || i.appointment_id || '';
+      if (!invMap.has(id) && (!apptId || !invMap.has(apptId))) {
+        const rawAmt = Number(i.amount ?? i.totalAmount ?? i.total_amount) || 0;
+        const statusRaw = String(i.status ?? i.paymentStatus ?? i.payment_status ?? 'pending').toLowerCase();
+        const paymentStatus = (statusRaw === 'paid' || statusRaw === 'cleared' || statusRaw === 'completed') ? 'cleared' : 'pending';
+        invMap.set(id || `saas-${Date.now()}`, {
+          totalAmount: rawAmt,
+          paymentStatus,
+          createdAt: i.createdAt || i.created_at
         });
+      }
+    });
+
+    // 3. Process Medicine Bills (Counter / WhatsApp Pharmacy Orders)
+    medBills.forEach((b: any) => {
+      const id = b.id || '';
+      if (!invMap.has(id)) {
+        const rawAmt = Number(b.totalAmount ?? b.total_amount) || 0;
+        const statusRaw = String(b.status ?? b.paymentStatus ?? 'pending').toLowerCase();
+        const paymentStatus = (statusRaw === 'paid' || statusRaw === 'cleared' || statusRaw === 'dispensed' || statusRaw === 'completed') ? 'cleared' : 'pending';
+        invMap.set(id, {
+          totalAmount: rawAmt,
+          paymentStatus,
+          createdAt: b.createdAt || b.created_at
+        });
+      }
+    });
+
+    // 4. Reconcile with Financial Ledgers (Doctor Consultations, Lab & Pharmacy Splits)
+    activeLedgers.forEach((l: any) => {
+      const invId = l.invoiceId || l.invoice_id || l.appointmentId || l.appointment_id;
+      const ledgerId = l.id || '';
+      const isCleared = String(l.paymentStatus ?? l.payment_status ?? l.settlementStatus ?? 'cleared').toLowerCase() === 'cleared' ||
+                        String(l.paymentStatus ?? l.payment_status ?? '').toLowerCase() === 'paid' ||
+                        String(l.paymentStatus ?? l.payment_status ?? '').toLowerCase() === 'completed';
+
+      // If this ledger corresponds to an existing invoice in invMap, ensure its status is marked cleared if ledger is cleared
+      if (invId && invMap.has(invId)) {
+        if (isCleared) {
+          const existing = invMap.get(invId)!;
+          existing.paymentStatus = 'cleared';
+        }
+      } else if (
+        l.transactionType === 'appointment_fee' ||
+        (l.transactionType as any) === 'doctor_consultation_fee' ||
+        (l as any).transaction_type === 'appointment_fee' ||
+        (l as any).transaction_type === 'consultation'
+      ) {
+        // Unmapped consultation ledger entry (e.g. Counter OPD booking or Direct Supabase Ledger)
+        const consultAmt = Number(l.grossAmount ?? l.gross_amount ?? l.netPayout ?? l.net_payout ?? 500) || 500;
+        const key = invId || ledgerId || `ledger-${Math.random()}`;
+        if (!invMap.has(key)) {
+          invMap.set(key, {
+            totalAmount: consultAmt,
+            paymentStatus: isCleared ? 'cleared' : 'pending',
+            createdAt: l.createdAt || l.created_at || l.settledAt || l.settled_at
+          });
+        }
       }
     });
 

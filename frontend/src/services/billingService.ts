@@ -53,8 +53,38 @@ export class BillingService {
         return true;
       });
     }
-    // BUG-08 FIX: Removed ₹450→500 auto-mutation — root cause (AuthGateway consultation_fee: 450) is now fixed
-    return invoices;
+    // Normalize and defensively guard properties for all returned invoices
+    return invoices.map(i => {
+      const rawDoc = Number(i.doctorFee ?? (i as any).doctor_fee ?? 0);
+      const rawLab = Number(i.labFee ?? (i as any).lab_fee ?? 0);
+      const rawPharm = Number(i.pharmacyFee ?? (i as any).pharmacy_fee ?? 0);
+      const rawPlat = Number(i.platformFee ?? (i as any).platform_fee ?? 0);
+      const total = Number(i.totalAmount ?? (i as any).total_amount ?? (rawDoc + rawLab + rawPharm)) || 0;
+      const statusRaw = String(i.paymentStatus ?? (i as any).payment_status ?? 'pending').toLowerCase();
+      const paymentStatus = (statusRaw === 'cleared' || statusRaw === 'paid' || statusRaw === 'completed' || statusRaw === 'settled')
+        ? 'cleared'
+        : (statusRaw === 'unpaid' || statusRaw === 'pending' || statusRaw === 'pending_payment')
+          ? 'pending'
+          : statusRaw;
+
+      return {
+        ...i,
+        totalAmount: total,
+        total_amount: total,
+        doctorFee: rawDoc,
+        doctor_fee: rawDoc,
+        labFee: rawLab,
+        lab_fee: rawLab,
+        pharmacyFee: rawPharm,
+        pharmacy_fee: rawPharm,
+        platformFee: rawPlat,
+        platform_fee: rawPlat,
+        paymentStatus,
+        payment_status: paymentStatus,
+        createdAt: i.createdAt || (i as any).created_at || new Date().toISOString(),
+        created_at: i.createdAt || (i as any).created_at || new Date().toISOString()
+      } as UnifiedInvoice;
+    });
   }
 
   static saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {
@@ -65,6 +95,7 @@ export class BillingService {
   static saveAppointments(appointments: Appointment[]): void {
     const currentPodId = getPodContext().podId;
     save('saas_appointments', appointments);
+    save('appointments', appointments);
     notify();
     writeAuditLog('APPOINTMENT_BULK_SAVED', { count: appointments.length }, null);
 
@@ -375,7 +406,9 @@ export class BillingService {
       const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
-        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
+        const src = String(a.source || (a as any).source || '').toLowerCase();
+        const isWa = src.includes('whatsapp') || Boolean(a.isVirtual || (a as any).is_virtual);
+        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID && !isWa) {
           return false;
         }
         if (!pod && effectivePod) {
@@ -405,6 +438,7 @@ export class BillingService {
     if (idx >= 0) appts[idx] = appt;
     else appts.push(appt);
     save('saas_appointments', appts);
+    save('appointments', appts);
     notify();
     writeAuditLog('APPOINTMENT_SAVED', {
       appointmentId: appt.id,

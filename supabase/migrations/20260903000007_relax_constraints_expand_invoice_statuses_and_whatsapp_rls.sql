@@ -3,6 +3,43 @@
 -- Migration ID: 20260903000007_relax_constraints_expand_invoice_statuses_and_whatsapp_rls
 -- =============================================================================
 
+-- 0. Update audit_alert_trigger to use JSONB to safely inspect fields across all table schemas
+CREATE OR REPLACE FUNCTION public.audit_alert_trigger()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_payload JSONB;
+  v_old_json JSONB := to_jsonb(OLD);
+  v_new_json JSONB := to_jsonb(NEW);
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_payload := jsonb_build_object(
+      'alert_type', 'FINANCIAL_DELETE',
+      'table', TG_TABLE_NAME,
+      'record_id', v_old_json->>'id',
+      'deleted_by', session_user,
+      'timestamp', NOW()
+    );
+    PERFORM pg_notify('financial_audit_alert', v_payload::text);
+  ELSIF TG_OP = 'UPDATE' AND (
+    (TG_TABLE_NAME = 'unified_invoices' AND (v_old_json->>'payment_status' IS DISTINCT FROM v_new_json->>'payment_status')) OR
+    (TG_TABLE_NAME = 'appointments' AND (v_old_json->>'payment_status' IS DISTINCT FROM v_new_json->>'payment_status')) OR
+    (TG_TABLE_NAME = 'unified_invoices' AND (v_old_json->>'total_amount' IS DISTINCT FROM v_new_json->>'total_amount'))
+  ) THEN
+    v_payload := jsonb_build_object(
+      'alert_type', 'FINANCIAL_UPDATE',
+      'table', TG_TABLE_NAME,
+      'record_id', v_new_json->>'id',
+      'changed_by', session_user,
+      'old_values', v_old_json,
+      'new_values', v_new_json,
+      'timestamp', NOW()
+    );
+    PERFORM pg_notify('financial_audit_alert', v_payload::text);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 1. Expand unified_invoices payment_status check constraint to support all care-loop statuses
 ALTER TABLE public.unified_invoices 
   DROP CONSTRAINT IF EXISTS unified_invoices_payment_status_check;

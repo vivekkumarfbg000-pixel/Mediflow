@@ -22,6 +22,19 @@ ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'upi';
 UPDATE public.pods SET is_verified_for_billing = TRUE;
 
 -- 5. Create RPC to safely increment platform revenue and pending cash balance on pod
+DO $$
+DECLARE r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT oid::regprocedure AS func_signature 
+        FROM pg_proc 
+        WHERE proname = 'accumulate_platform_revenue' AND pronamespace = 'public'::regnamespace
+    ) LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
+    END LOOP;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.accumulate_platform_revenue(p_pod_id UUID, p_amount NUMERIC, p_is_cash BOOLEAN DEFAULT FALSE)
 RETURNS BOOLEAN AS $$
 BEGIN
