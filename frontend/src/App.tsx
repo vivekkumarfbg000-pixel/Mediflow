@@ -605,6 +605,7 @@ export default function App() {
               user: {
                 id: parsed.id,
                 email: parsed.email || 'user@mediflow.com',
+                email_confirmed_at: parsed.email_confirmed_at || parsed.created_at || '2026-01-01T00:00:00.000Z',
                 user_metadata: parsed.user_metadata || { display_name: parsed.display_name, role: parsed.role }
               }
             };
@@ -628,18 +629,8 @@ export default function App() {
   });
   const [isBypassMode, setIsBypassMode] = useState<boolean>(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
-  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('vitalsync_cached_profile');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.id) return false;
-        }
-      } catch (_e) { /* ignore */ }
-    }
-    return true;
-  });
+  // Keep loading state active during startup until supabase.auth.getSession() verifies the token and email status
+  const [isLoadingSession, setIsLoadingSession] = useState<boolean>(true);
   const [initialSignupTab, setInitialSignupTab] = useState<'signin' | 'register' | 'join'>('signin');
   const [emailVerifiedOverride, setEmailVerifiedOverride] = useState(false);
   const watchdogTriggered = useRef(false);
@@ -1027,6 +1018,8 @@ export default function App() {
     if (activeProfile) {
       activeProfile = {
         ...activeProfile,
+        email_confirmed_at: session.user?.email_confirmed_at || (session.user as any)?.confirmed_at || activeProfile.email_confirmed_at,
+        email_verified: Boolean(session.user?.email_confirmed_at || (session.user as any)?.confirmed_at || activeProfile.email_verified),
         user_metadata: {
           ...session.user?.user_metadata,
           ...activeProfile.user_metadata
@@ -1058,7 +1051,7 @@ export default function App() {
       }
     }, 5000);
 
-    // Optimistically hydrate cached profile while checking session
+    // Optimistically hydrate cached profile for instant role/metadata readiness while checking session
     if (typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('vitalsync_cached_profile');
@@ -1066,7 +1059,7 @@ export default function App() {
           const parsed = JSON.parse(cached);
           if (parsed && parsed.id) {
             setActiveProfile(parsed);
-            setIsLoadingSession(false);
+            // DO NOT set setIsLoadingSession(false) here. Maintain loading gate until token & email verification resolve.
           }
         }
       } catch (_e) { /* ignore */ }
@@ -1539,14 +1532,17 @@ export default function App() {
 
   // 1b. Email Verification Gate for Active Sessions (Requires Verified Ownership before EHR Access)
   const isDemoUser = DEMO_EMAILS.includes((session?.user?.email || '').toLowerCase()) || isBypassMode;
-  const isEmailVerified = emailVerifiedOverride || isDemoUser || Boolean(session?.user?.email_confirmed_at || (session?.user as any)?.confirmed_at);
+  const isEmailVerified = 
+    emailVerifiedOverride || 
+    isDemoUser || 
+    Boolean(session?.user?.email_confirmed_at || (session?.user as any)?.confirmed_at || activeProfile?.email_verified);
 
   if (session && !isEmailVerified) {
     return (
       <ToastProvider>
         <EmailVerificationModal
           isOpen={true}
-          email={session.user.email || ''}
+          email={session.user?.email || ''}
           onVerified={() => setEmailVerifiedOverride(true)}
           onSignOut={handleSignOut}
         />
