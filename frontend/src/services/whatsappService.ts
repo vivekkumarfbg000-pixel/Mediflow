@@ -882,7 +882,7 @@ export class WhatsAppService {
                   nextState = 'COMPLETED';
                   const appts = BillingService.getAppointments();
                   const targetAppt = appts.find(a => (a.patientId === patient.id || (a as any).patient_id === patient.id));
-                  const tokenCode = targetAppt?.tokenNumber || (patient as any)?.tokenNumber || (targetInv as any)?.tokenNumber || PatientService.generateNextTokenNumber(todayStr, false);
+                  const tokenCode = targetAppt?.tokenNumber || (patient as any)?.tokenNumber || (targetInv as any)?.tokenNumber || PatientService.generateNextTokenNumber(getIstDateString(), false);
                   replyMessage = `🎉 *PAYMENT VERIFIED VIA DIRECT UPI (0% MDR AI OCR)!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • UTR Reference: \`${utrNumber}\`\n • Token Number: ${tokenCode}\n • Doctor: ${this.getDynamicDoctorName()}\n • Clinic: ${this.getDynamicClinicName()}\n\nPhysical visit OPD token is active at counter! Thank you for choosing VitalSync! 🩺`;
                 } else {
                   nextState = 'COMPLETED';
@@ -892,7 +892,7 @@ export class WhatsAppService {
                 nextState = 'COMPLETED';
                 const appts = BillingService.getAppointments();
                 const targetAppt = appts.find(a => (a.patientId === patient.id || (a as any).patient_id === patient.id));
-                const tokenCode = targetAppt?.tokenNumber || (patient as any)?.tokenNumber || (clearedInvoices[0] as any)?.tokenNumber || PatientService.generateNextTokenNumber(todayStr, false);
+                const tokenCode = targetAppt?.tokenNumber || (patient as any)?.tokenNumber || (clearedInvoices[0] as any)?.tokenNumber || PatientService.generateNextTokenNumber(getIstDateString(), false);
                 replyMessage = `🎉 *PAYMENT VERIFIED VIA GATEWAY & APPOINTMENT CONFIRMED!* 🟢\n\nHi ${patient.name}!\n • Payment Status: Cleared ✅\n • Token Number: ${tokenCode}\n\nPhysical visit token is active at ${this.getDynamicClinicName()} counter. Thank you for choosing VitalSync! 🩺`;
               } else {
                 // Strict Security: Unpaid appointments remain pending. Do NOT auto-clear on unverified user text assertion.

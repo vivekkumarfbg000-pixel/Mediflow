@@ -8,7 +8,7 @@ import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID 
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import { safeGetStorageJSON } from '../../utils/storage';
-import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop } from '../../types';
+import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop, UnifiedInvoice, Invoice } from '../../types';
 import { 
   Trash2, 
   CheckCircle2, 
