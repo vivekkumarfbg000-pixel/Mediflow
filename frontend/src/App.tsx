@@ -1525,8 +1525,9 @@ export default function App() {
     );
   }
 
-  // 1. Session Loading Gate
-  if (isLoadingSession) {
+  // 1. Session Loading Gate & Active Profile Resolution Hold
+  // Prevent premature evaluation of email verification or intermediate routes before the profile finishes resolving
+  if (isLoadingSession || (session && (!activeProfile || activeProfile.id !== session.user?.id))) {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
