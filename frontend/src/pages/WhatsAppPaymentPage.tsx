@@ -442,9 +442,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
     }
   }, [invoice, status, loading]);
 
-  const amountRupees = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 515) : 515;
+  const amountRupees = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 500) : 500;
   const doctorFee = invoice?.doctor_fee ? Number(invoice.doctor_fee) : 500;
-  const platformFee = invoice?.platform_fee ? Number(invoice.platform_fee) : 15;
+  const platformFee = invoice?.platform_fee ? Number(invoice.platform_fee) : 0;
   const patientName = patient?.name || invoice?.patient_name || 'Valued Patient';
 
   return (
@@ -535,10 +535,12 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                   <span>Doctor Consultation Fee:</span>
                   <span>₹{(doctorFee || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Online Platform Fee (3%):</span>
-                  <span>₹{(platformFee || 0).toFixed(2)}</span>
-                </div>
+                {platformFee > 0 && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Platform Convenience Fee:</span>
+                    <span>₹{(platformFee || 0).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t border-white/10 pt-2 flex justify-between font-bold text-sm text-white">
                   <span>Total Amount Payable:</span>
                   <span className="text-teal-400 font-mono text-base">₹{(amountRupees || 0).toFixed(2)}</span>

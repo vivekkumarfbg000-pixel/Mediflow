@@ -36,11 +36,74 @@ export function getStorageKey(key: string): string {
 
 const storageCache = new Map<string, any>();
 
-export function clearStorageCache(key?: string) {
+// ── 0ms Cross-Tab & Cross-Window Mesh Bus ────────────────────────────────────
+const MESH_BUS_CHANNEL_NAME = 'vitalsync_mesh_bus';
+
+let meshBus: BroadcastChannel | null = null;
+if (typeof window !== 'undefined' && typeof window.BroadcastChannel === 'function') {
+  try {
+    meshBus = new BroadcastChannel(MESH_BUS_CHANNEL_NAME);
+    meshBus.onmessage = (event: MessageEvent) => {
+      const data = event.data;
+      if (data && data.type === 'STORAGE_MUTATION') {
+        if (data.key) {
+          storageCache.delete(data.key);
+        } else {
+          storageCache.clear();
+        }
+        notify();
+      } else if (data && data.type === 'POD_CONTEXT_CHANGED') {
+        if (data.podId && typeof window !== 'undefined') {
+          (window as any).__mediflow_active_pod_id = data.podId;
+        }
+        storageCache.clear();
+        notify();
+        window.dispatchEvent(new CustomEvent('mediflow-pod-changed', { detail: { id: data.podId, entityId: data.entityId } }));
+      }
+    };
+  } catch (err) {
+    console.warn('[VitalSync MeshBus] BroadcastChannel init fallback:', err);
+  }
+}
+
+// Fallback: window storage event for cross-process or legacy environments
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e: StorageEvent) => {
+    if (e.key && e.key.startsWith('mediflow_')) {
+      const cleanKey = e.key.replace(/^mediflow_/, '');
+      storageCache.delete(cleanKey);
+      notify();
+    } else if (e.key === 'vitalsync_active_pod' || e.key === 'vitalsync_cached_active_pod') {
+      try {
+        const parsed = e.newValue ? JSON.parse(e.newValue) : null;
+        if (parsed?.id) {
+          (window as any).__mediflow_active_pod_id = parsed.id;
+        }
+      } catch (_e) {}
+      storageCache.clear();
+      notify();
+    }
+  });
+}
+
+export function broadcastStorageMutation(key?: string) {
+  if (meshBus) {
+    try {
+      meshBus.postMessage({ type: 'STORAGE_MUTATION', key, timestamp: Date.now() });
+    } catch (_e) {
+      /* ignore channel closed error */
+    }
+  }
+}
+
+export function clearStorageCache(key?: string, broadcast: boolean = false) {
   if (key) {
     storageCache.delete(key);
   } else {
     storageCache.clear();
+  }
+  if (broadcast) {
+    broadcastStorageMutation(key);
   }
 }
 
@@ -128,7 +191,7 @@ export function runStorageJanitor(): void {
   }
 }
 
-export function save<T>(key: string, value: T): void {
+export function save<T>(key: string, value: T, broadcast: boolean = true): void {
   try {
     const serialized = JSON.stringify(value);
     const encrypted = obfuscate(serialized);
@@ -149,6 +212,9 @@ export function save<T>(key: string, value: T): void {
     }
   }
   storageCache.set(key, value);
+  if (broadcast) {
+    broadcastStorageMutation(key);
+  }
 }
 
 export async function writeAuditLog(

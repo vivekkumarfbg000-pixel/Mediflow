@@ -38,3 +38,4 @@ setup_razorpay_secrets.ps1
 scratch/
 
 .agent/skills/cashfree-skills/
+supabase/.temp/

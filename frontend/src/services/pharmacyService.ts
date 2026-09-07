@@ -377,15 +377,29 @@ export class PharmacyService {
       }
     ];
 
-    const selectedDefaults = isOphthalmology ? defaultOphthalmicItems : defaultGeneralItems;
     const stored = load<PharmacyInventoryItem[]>('pharmacy_inventory', []);
-    
     if (stored.length > 0) {
       return stored;
     }
-    
-    save('pharmacy_inventory', selectedDefaults);
-    return selectedDefaults;
+
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+        if (parsed) {
+          const email = String(parsed.email || '').toLowerCase();
+          isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com');
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    if (isDemoAccount) {
+      const selectedDefaults = isOphthalmology ? defaultOphthalmicItems : defaultGeneralItems;
+      save('pharmacy_inventory', selectedDefaults);
+      return selectedDefaults;
+    }
+
+    return [];
   }
 
   static savePharmacyInventory(items: PharmacyInventoryItem[]) {
@@ -709,9 +723,7 @@ export class PharmacyService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }
@@ -790,9 +802,7 @@ export class PharmacyService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }

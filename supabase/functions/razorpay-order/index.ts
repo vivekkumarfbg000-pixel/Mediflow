@@ -49,7 +49,7 @@ serve(async (req) => {
 
     const bodyObj = (rawParsed && rawParsed.body && typeof rawParsed.body === 'object') ? rawParsed.body : rawParsed;
     const invoiceId = String(bodyObj?.invoiceId || bodyObj?.invoice_id || bodyObj?.id || `inv-wa-${Date.now()}`);
-    const requestedAmount = Number(bodyObj?.amount || bodyObj?.totalAmount || bodyObj?.total_amount || 515);
+    const requestedAmount = Number(bodyObj?.amount || bodyObj?.totalAmount || bodyObj?.total_amount || 500);
 
     // Retrieve invoice details from Supabase Postgres with resilient prefix lookup
     let invoice: any = null;

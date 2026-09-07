@@ -14,9 +14,10 @@ import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
 import { WhatsAppService } from '../../services/whatsappService';
 import { load } from '../../services/apiHelper';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
+import { categorizeAppointments, isVipBooking, compareAppointmentsForQueue } from '../../services/appointmentPipeline';
 import type {
   PharmacyInventoryItem,
   MedicineBill,
@@ -1059,17 +1060,13 @@ export const CompounderDashboard: React.FC = () => {
     setShowDilationModal(null);
   };
 
+  // ─── SSOT Enterprise Appointment Pipeline ──────────────────────────────────
+  const categorizedAppts = useMemo(() => {
+    return categorizeAppointments(appointments);
+  }, [appointments, dataRevision]);
+
   const activeOpdAppointments = useMemo(() => {
-    const todayStr = getIstDateString();
-    const rawList = appointments.filter(a => {
-      const aDate = getEffectiveAppointmentDate(a);
-      const isToday = aDate === todayStr || 
-        getIstDateString(a.createdAt) === todayStr || 
-        getIstDateString((a as any).created_at) === todayStr ||
-        getIstDateString(a.appointmentTime) === todayStr ||
-        getIstDateString((a as any).appointment_time) === todayStr;
-      return isToday && a.status !== 'cancelled';
-    });
+    const rawList = categorizedAppts.todayOpdQueue;
 
     // Deduplicate by patient ID so each patient has exactly one active appointment card in today's queue
     const seenPatients = new Map<string, Appointment>();
@@ -1102,7 +1099,7 @@ export const CompounderDashboard: React.FC = () => {
       const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
       let rawToken = appt.tokenNumber || (appt as any).token_number || p?.tokenNumber || (p as any)?.token_number;
       if (!rawToken) {
-        rawToken = `T-${String(idx + 1).padStart(2, '0')}`;
+        rawToken = isVipBooking(appt) ? `VIP-${String(idx + 1).padStart(2, '0')}` : `T-${String(idx + 1).padStart(2, '0')}`;
       }
       seenTokens.add(rawToken);
       const patDisplayName = (appt.patientName && appt.patientName !== 'WhatsApp Patient' && appt.patientName !== 'Patient')
@@ -1116,25 +1113,34 @@ export const CompounderDashboard: React.FC = () => {
         patientName: patDisplayName,
         patientPhone: appt.patientPhone || (appt as any).patient_phone || p?.phone || '',
         tokenNumber: rawToken,
-        token_number: rawToken
+        token_number: rawToken,
+        isVip: isVipBooking(appt),
+        is_vip: isVipBooking(appt)
       };
     });
 
-    // Sort by token sequence number ascending (e.g. T-01, T-02, T-03...)
-    resolvedList.sort((a, b) => {
-      const parseTokenNum = (tok?: string) => {
-        if (!tok) return 9999;
-        const match = tok.match(/\d+/);
-        return match ? parseInt(match[0], 10) : 9999;
-      };
-      const tokA = parseTokenNum(a.tokenNumber);
-      const tokB = parseTokenNum(b.tokenNumber);
-      if (tokA !== tokB) return tokA - tokB;
-      return new Date(a.createdAt || (a as any).created_at || 0).getTime() - new Date(b.createdAt || (b as any).created_at || 0).getTime();
-    });
-
+    resolvedList.sort(compareAppointmentsForQueue);
     return resolvedList;
-  }, [appointments, patients, dataRevision]);
+  }, [categorizedAppts.todayOpdQueue, patients, dataRevision]);
+
+  const upcomingAdvanceBookings = useMemo(() => {
+    return categorizedAppts.upcomingAdvanceBookings.map((appt, idx) => {
+      const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
+      const patDisplayName = (appt.patientName && appt.patientName !== 'WhatsApp Patient' && appt.patientName !== 'Patient')
+        ? appt.patientName
+        : (p?.name && p.name !== 'WhatsApp Patient')
+        ? p.name
+        : ((appt as any).patient_name || p?.name || 'WhatsApp Patient');
+      return {
+        ...appt,
+        patientName: patDisplayName,
+        patientPhone: appt.patientPhone || (appt as any).patient_phone || p?.phone || '',
+        tokenNumber: appt.tokenNumber || (appt as any).token_number || `T-${String(idx + 1).padStart(2, '0')}`,
+        isVip: isVipBooking(appt),
+        is_vip: isVipBooking(appt)
+      };
+    });
+  }, [categorizedAppts.upcomingAdvanceBookings, patients, dataRevision]);
 
   const inChamberAppointment = useMemo(() => {
     return appointments.find(a => a.status === 'in_consult');
@@ -1536,7 +1542,10 @@ export const CompounderDashboard: React.FC = () => {
   }, [patients, currentTime, dataRevision]);
 
   const sosEmergencyAppointment = useMemo(() => {
-    return appointments.find(a => a.source === 'whatsapp_sos' || (a as any).isEmergency);
+    return appointments.find(a => 
+      (a.source === 'whatsapp_sos' || a.source === 'whatsapp_vip' || (a as any).isEmergency || (a as any).is_emergency || (a as any).is_vip || (a as any).isVip || String(a.tokenNumber || '').startsWith('VIP-')) &&
+      a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment'
+    );
   }, [appointments, dataRevision]);
 
   const lowStockItems = useMemo(() => {
@@ -1736,7 +1745,7 @@ export const CompounderDashboard: React.FC = () => {
 
   const fetchLiveAppointments = useCallback(async () => {
     try {
-      const podId = getPodContext().podId || FALLBACK_POD_ID;
+      const podId = resolveSovereignPodId();
       let apptQuery = supabase
         .from('appointments')
         .select('*')
@@ -1788,6 +1797,19 @@ export const CompounderDashboard: React.FC = () => {
         setPatients(api.getPatients());
       }
 
+      let pendingWalAppts: any[] = [];
+      try {
+        const rawMem = localStorage.getItem('wal_mem_outbox');
+        if (rawMem) {
+          const outbox = JSON.parse(rawMem);
+          if (Array.isArray(outbox)) {
+            pendingWalAppts = outbox
+              .filter((e: any) => !e.synced && (e.table === 'appointments' || e.tableName === 'appointments') && e.data)
+              .map((e: any) => e.data);
+          }
+        }
+      } catch (_e) {}
+
       if (apptRes.data && apptRes.data.length > 0) {
         const mapped = apptRes.data.map((a: any, idx: number) => {
           const patInfo = patMap.get(a.patient_id) || {};
@@ -1830,13 +1852,19 @@ export const CompounderDashboard: React.FC = () => {
             appointment_time: a.appointment_time
           };
         });
-        const localAppts = api.getAppointments();
-        const mergedApptsMap = new Map();
-        localAppts.forEach(la => mergedApptsMap.set(la.id, la));
-        mapped.forEach(ma => mergedApptsMap.set(ma.id, ma));
-        const mergedApptsList = Array.from(mergedApptsMap.values());
+
+        // Authoritative Cloud SSOT + Pending Unsynced WAL: Prune zombie/cancelled records
+        const mergedApptsList = [...mapped];
+        pendingWalAppts.forEach(p => {
+          if (p && p.id && !mergedApptsList.some(m => m.id === p.id)) {
+            mergedApptsList.push(p);
+          }
+        });
         setAppointments(mergedApptsList as any);
         BillingService.saveAppointments(mergedApptsList as any);
+      } else if (apptRes.data !== undefined && apptRes.data !== null && apptRes.data.length === 0) {
+        setAppointments(pendingWalAppts as any);
+        BillingService.saveAppointments(pendingWalAppts as any);
       }
       setDataRevision(prev => prev + 1);
     } catch (err) {
@@ -4318,13 +4346,7 @@ export const CompounderDashboard: React.FC = () => {
                             <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
                               opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}>
-                              {(() => {
-                                const todayStr = getIstDateString();
-                                return appointments.filter(a => {
-                                  if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                                  return getEffectiveAppointmentDate(a) === todayStr;
-                                }).length;
-                              })()}
+                              {activeOpdAppointments.length}
                             </span>
                           </button>
 
@@ -4342,14 +4364,7 @@ export const CompounderDashboard: React.FC = () => {
                             <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
                               opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}>
-                              {(() => {
-                                const todayStr = getIstDateString();
-                                return appointments.filter(a => {
-                                  if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                                  const apptDate = getEffectiveAppointmentDate(a);
-                                  return Boolean(apptDate && apptDate > todayStr);
-                                }).length;
-                              })()}
+                              {upcomingAdvanceBookings.length}
                             </span>
                           </button>
                         </div>
@@ -4358,61 +4373,7 @@ export const CompounderDashboard: React.FC = () => {
 
                 <div className="space-y-4">
                   {(() => {
-                    const todayStr = getIstDateString();
-
-                    const confirmedAppts = appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                      const apptDate = getEffectiveAppointmentDate(a);
-                      if (opdQueueFilter === 'today') {
-                        return Boolean(apptDate && apptDate === todayStr);
-                      } else {
-                        return Boolean(apptDate && apptDate > todayStr);
-                      }
-                    });
-
-                    if (opdQueueFilter === 'today') {
-                      // 1. Emergency SOS takes Priority #1 at top of queue
-                      // 2. Awaiting / Active patients before seen/completed patients (demote seen from top)
-                      // 3. Strict Sequential Token Number sorting (#TK-001 > #TK-002 > #TK-003)
-                      const parseTokenNum = (token?: string | number) => {
-                        if (!token) return 999999;
-                        if (typeof token === 'number') return token;
-                        const match = String(token).match(/\d+/);
-                        return match ? parseInt(match[0], 10) : 999999;
-                      };
-
-                      confirmedAppts.sort((a, b) => {
-                        // Priority #1: Emergency SOS
-                        const isSOSA = Boolean((a as any).isEmergency || (a as any).is_emergency || String(a.source || '').toLowerCase().includes('sos') || String(a.source || '').toLowerCase().includes('emergency') || String(a.tokenNumber || '').toUpperCase().includes('SOS') || String(a.tokenNumber || '').toUpperCase().includes(' E') || String(a.tokenNumber || '').toUpperCase().includes('E-') || String(a.tokenNumber || '').startsWith('#EM-'));
-                        const isSOSB = Boolean((b as any).isEmergency || (b as any).is_emergency || String(b.source || '').toLowerCase().includes('sos') || String(b.source || '').toLowerCase().includes('emergency') || String(b.tokenNumber || '').toUpperCase().includes('SOS') || String(b.tokenNumber || '').toUpperCase().includes(' E') || String(b.tokenNumber || '').toUpperCase().includes('E-') || String(b.tokenNumber || '').startsWith('#EM-'));
-                        if (isSOSA && !isSOSB) return -1;
-                        if (!isSOSA && isSOSB) return 1;
-
-                        // Priority #2: Demote completed/seen patients from top
-                        const patientA = patients.find(p => p.id === (a.patientId || (a as any).patient_id));
-                        const patientB = patients.find(p => p.id === (b.patientId || (b as any).patient_id));
-
-                        const isDoneA = a.status === 'completed' || (patientA?.queueStatus as string) === 'completed' || (patientA?.queueStatus as string) === 'settled' || (patientA?.queueStatus as string) === 'pharmacy' || (patientA?.queueStatus as string) === 'lab';
-                        const isDoneB = b.status === 'completed' || (patientB?.queueStatus as string) === 'completed' || (patientB?.queueStatus as string) === 'settled' || (patientB?.queueStatus as string) === 'pharmacy' || (patientB?.queueStatus as string) === 'lab';
-                        if (!isDoneA && isDoneB) return -1;
-                        if (isDoneA && !isDoneB) return 1;
-
-                        // Priority #3: Sequential Numeric Token Number (Token 1 before Token 2)
-                        const tokenA = parseTokenNum(a.tokenNumber || (a as any).token_number || patientA?.tokenNumber);
-                        const tokenB = parseTokenNum(b.tokenNumber || (b as any).token_number || patientB?.tokenNumber);
-                        if (tokenA !== tokenB) return tokenA - tokenB;
-
-                        // Tie break by creation time
-                        return (a.createdAt || '').localeCompare(b.createdAt || '');
-                      });
-                    } else {
-                      // Upcoming appointments: closest date first
-                      confirmedAppts.sort((a, b) => {
-                        const dateA = getEffectiveAppointmentDate(a);
-                        const dateB = getEffectiveAppointmentDate(b);
-                        return dateA.localeCompare(dateB);
-                      });
-                    }
+                    const confirmedAppts = opdQueueFilter === 'today' ? activeOpdAppointments : upcomingAdvanceBookings;
 
                     if (confirmedAppts.length === 0) {
                       return (
@@ -4472,7 +4433,7 @@ export const CompounderDashboard: React.FC = () => {
                       );
                       const isAwaitingVitals = !hasVitalsRecorded && (patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus);
                       const isAwaitingConsult = hasVitalsRecorded || patient.queueStatus === 'awaiting_consultation';
-                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || String(appt.source || '').toLowerCase().includes('sos') || String(appt.source || '').toLowerCase().includes('emergency') || String(appt.tokenNumber || '').toUpperCase().includes('SOS') || String(appt.tokenNumber || '').startsWith('#EM-'));
+                      const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || (appt as any).is_vip || (appt as any).isVip || String(appt.source || '').toLowerCase().includes('sos') || String(appt.source || '').toLowerCase().includes('vip') || String(appt.source || '').toLowerCase().includes('emergency') || String(appt.tokenNumber || '').toUpperCase().includes('SOS') || String(appt.tokenNumber || '').startsWith('VIP-') || String(appt.tokenNumber || '').toUpperCase().includes(' E') || String(appt.tokenNumber || '').startsWith('#EM-'));
                       const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
                       const tokenDisplay = String(rawToken || `TK-${String(idx + 1).padStart(2, '0')}`);
 
@@ -4490,12 +4451,12 @@ export const CompounderDashboard: React.FC = () => {
                           <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2.5">
                               <span className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-mono font-black text-[10px] border border-indigo-200 dark:border-indigo-700/50 shadow-sm">
-                                #{tokenDisplay.startsWith('T-') || tokenDisplay.startsWith('TK-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`}
+                                #{tokenDisplay.startsWith('T-') || tokenDisplay.startsWith('TK-') || tokenDisplay.startsWith('VIP-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`}
                               </span>
                               {isSOS ? (
                                 <span className="flex items-center gap-1 text-[9px] font-black tracking-wider uppercase px-2 py-0.5 rounded-lg bg-rose-600 text-white shadow-md shadow-rose-600/30 animate-pulse">
                                   <ShieldAlert className="h-3 w-3" />
-                                  🚨 EMERGENCY SOS PRIORITY #1
+                                  ⭐ VIP PRIORITY #1
                                 </span>
                               ) : (
                                 <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${

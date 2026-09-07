@@ -1349,10 +1349,12 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                         {((activeUpiInvoice.pharmacyFee || 0) > 0) && (
                           <div className="flex justify-between"><span>💊 Pharmacy Medication:</span><span className="font-mono text-zinc-300">₹{(activeUpiInvoice.pharmacyFee || 0).toFixed(2)}</span></div>
                         )}
-                        <div className="flex justify-between border-t border-white/5 pt-1.5 font-bold text-white text-[10px]">
-                          <span>🛡️ VitalSync Platform Fee (3%):</span>
-                          <span className="font-mono text-cyan-400">₹{(activeUpiInvoice.platformFee || 0).toFixed(2)}</span>
-                        </div>
+                        {((activeUpiInvoice.platformFee || 0) > 0) && (
+                          <div className="flex justify-between border-t border-white/5 pt-1.5 font-bold text-white text-[10px]">
+                            <span>🛡️ Platform Convenience Fee:</span>
+                            <span className="font-mono text-cyan-400">₹{(activeUpiInvoice.platformFee || 0).toFixed(2)}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Pin code entering input sheet */}

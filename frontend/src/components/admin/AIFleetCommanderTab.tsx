@@ -135,11 +135,11 @@ export const AIFleetCommanderTab: React.FC = () => {
       status: 'ONLINE 🟢',
       latency: '24ms',
       color: 'amber',
-      metrics: '₹1,000 Pool Buffer • 3% Platform Fee Invariant',
+      metrics: '₹1,000 Pool Buffer • 5% Lab / 2% Pharmacy Split',
       testFn: async () => {
         return {
           agent: 'Autonomous CFO Reconciler',
-          formula: 'platformAmt = invoiceAmount * 0.03',
+          formula: 'Lab: 5% | Pharmacy: 2% | Doctor OPD: 0%',
           safetyBufferTarget: '₹1,000.00',
           autoPayoutRetry: 'Enabled'
         };

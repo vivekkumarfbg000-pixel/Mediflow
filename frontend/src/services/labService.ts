@@ -235,9 +235,7 @@ export class LabService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === FALLBACK_DOCTOR_ID
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }
@@ -386,7 +384,17 @@ export class LabService {
   }
 
   static getReagentStocks(): ReagentStock[] {
-    return load<ReagentStock[]>('reagents', DEFAULT_REAGENT_STOCKS);
+    let isDemoAccount = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const parsed = safeGetStorageJSON<any>('vitalsync_cached_profile', null);
+        if (parsed) {
+          const email = String(parsed.email || '').toLowerCase();
+          isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com');
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    return load<ReagentStock[]>('reagents', isDemoAccount ? DEFAULT_REAGENT_STOCKS : []);
   }
 
   static submitLabResult(reqId: string, resultValue: string): void {

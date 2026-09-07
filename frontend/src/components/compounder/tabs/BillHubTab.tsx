@@ -1150,9 +1150,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       // 1. Always create & save a UnifiedInvoice for the full consolidated bill (Consult + Pharmacy + Lab + OT)
       const unifiedInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
       const isPureCounterConsult = billingLedger.pharmacySub === 0 && billingLedger.labSub === 0 && billingLedger.otTotal === 0;
+
+      // Find target appointment if one exists for this patient
+      const saasInvoices = BillingService.getInvoices();
+      const consultInvoice = saasInvoices.find(
+        (i: any) => i.patientId === selectedPatient.id && i.type === 'consult' && (i.status === 'unpaid' || i.status === 'pending')
+      );
+      const appts = BillingService.getAppointments();
+      const targetAppt = appts.find(a => (consultInvoice && a.id === consultInvoice.appointmentId) || (a.patientId === selectedPatient.id && a.status !== 'completed' && a.status !== 'cancelled'));
+      const linkedApptId = targetAppt?.id || consultInvoice?.appointmentId || 'counter-checkout';
+
       const newUnifiedInvoice: UnifiedInvoice = {
         id: unifiedInvoiceId,
-        encounterId: 'counter-checkout',
+        encounterId: linkedApptId,
         patientId: selectedPatient.id,
         patientName: selectedPatient.name,
         patientPhone: selectedPatient.phone,
@@ -1166,21 +1176,18 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         paymentMethod: paymentMethod,
         createdAt: new Date().toISOString()
       };
+      if (linkedApptId !== 'counter-checkout') {
+        (newUnifiedInvoice as any).appointmentId = linkedApptId;
+      }
       BillingService.saveUnifiedInvoice(newUnifiedInvoice);
 
       // 2. Clear existing consultation invoice if any
-      const saasInvoices = BillingService.getInvoices();
-      const consultInvoice = saasInvoices.find(
-        (i: any) => i.patientId === selectedPatient.id && i.type === 'consult' && i.status === 'unpaid'
-      );
       if (consultInvoice) {
         consultInvoice.status = 'paid';
         consultInvoice.paymentMethod = paymentMethod;
         BillingService.saveInvoice(consultInvoice);
 
         // Confirm appointment status — MUST set payment_status = 'cleared' to enforce payment gate (USP 3)
-        const appts = BillingService.getAppointments();
-        const targetAppt = appts.find(a => a.id === consultInvoice.appointmentId);
         if (targetAppt) {
           targetAppt.status = 'ready_for_consult';
           targetAppt.payment_status = 'cleared';

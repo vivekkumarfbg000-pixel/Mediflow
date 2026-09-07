@@ -46,9 +46,17 @@ interface PodCommandCenterProps {
   onStartConsultation?: (patient: Patient) => void;
   onOpenChronicCare?: () => void;
   hideHeader?: boolean;
+  hideFinancialOverview?: boolean;
+  hideFulfillmentWidgets?: boolean;
 }
 
-export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsultation, onOpenChronicCare, hideHeader }) => {
+export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ 
+  onStartConsultation, 
+  onOpenChronicCare, 
+  hideHeader, 
+  hideFinancialOverview,
+  hideFulfillmentWidgets 
+}) => {
   /* ─── State Management ─────────────────────────────────────────── */
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -709,85 +717,87 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
    return (
     <div className="space-y-5 w-full animate-fade-in font-sans">
 
-      {/* ── CLINIC FINANCIAL SUMMARY WIDGET ─────────────────────────── */}
-      <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden animate-fade-in backdrop-blur-md">
-        {/* Amber-to-indigo gradient top line */}
-        <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-emerald-500 to-indigo-500" />
-        <div className="p-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          {/* Left info */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5 text-amber-600 shrink-0" />
-            </div>
-            <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">
-                Clinic Financial Overview
-              </h2>
-              <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
-                Real-time commission splits, settlement shares & system health metrics
+      {/* ── CLINIC FINANCIAL SUMMARY WIDGET (Omitted in Doctor Clinical Workspace) ─────────────────────────── */}
+      {!hideFinancialOverview && (
+        <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden animate-fade-in backdrop-blur-md">
+          {/* Amber-to-indigo gradient top line */}
+          <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-emerald-500 to-indigo-500" />
+          <div className="p-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            {/* Left info */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                <CreditCard className="w-5 h-5 text-amber-600 shrink-0" />
+              </div>
+              <div>
+                <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">
+                  Clinic Financial Overview
+                </h2>
+                <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                  Real-time commission splits, settlement shares & system health metrics
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Revenue Columns Grid + Clock */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full lg:w-auto lg:flex-1 lg:justify-end max-w-4xl">
-            {isLoading ? (
-              <>
-                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
-                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
-                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
-                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[100px]" />
-                <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[130px] hidden sm:block" />
-              </>
-            ) : (
-              <>
-                <PointerGlowCard containerClassName="min-w-[120px]" className="bg-slate-50 dark:bg-slate-900/40 p-2 text-center">
-                  <div className="text-[8px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Gross Revenue</div>
-                  <div className="text-xs font-bold font-mono text-slate-900 dark:text-white mt-0.5">
-                    ₹{financialMetrics.grossRev.toLocaleString('en-IN')}
-                  </div>
-                </PointerGlowCard>
+            {/* Revenue Columns Grid + Clock */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 w-full lg:w-auto lg:flex-1 lg:justify-end max-w-4xl">
+              {isLoading ? (
+                <>
+                  <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
+                  <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
+                  <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[120px]" />
+                  <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[100px]" />
+                  <div className="h-11 bg-slate-100 dark:bg-slate-900/60 rounded-xl animate-shimmer min-w-[130px] hidden sm:block" />
+                </>
+              ) : (
+                <>
+                  <PointerGlowCard containerClassName="min-w-[120px]" className="bg-slate-50 dark:bg-slate-900/40 p-2 text-center">
+                    <div className="text-[8px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Gross Revenue</div>
+                    <div className="text-xs font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+                      ₹{financialMetrics.grossRev.toLocaleString('en-IN')}
+                    </div>
+                  </PointerGlowCard>
 
-                <PointerGlowCard containerClassName="min-w-[120px]" className="bg-emerald-50/50 dark:bg-emerald-950/20 p-2 text-center">
-                  <div className="text-[8px] text-emerald-600 dark:text-emerald-455 font-semibold uppercase tracking-wider">Cleared Share</div>
-                  <div className="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">
-                    ₹{financialMetrics.cleared.toLocaleString('en-IN')}
-                  </div>
-                </PointerGlowCard>
+                  <PointerGlowCard containerClassName="min-w-[120px]" className="bg-emerald-50/50 dark:bg-emerald-950/20 p-2 text-center">
+                    <div className="text-[8px] text-emerald-600 dark:text-emerald-455 font-semibold uppercase tracking-wider">Cleared Share</div>
+                    <div className="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-400 mt-0.5">
+                      ₹{financialMetrics.cleared.toLocaleString('en-IN')}
+                    </div>
+                  </PointerGlowCard>
 
-                <PointerGlowCard containerClassName="min-w-[120px]" className="bg-amber-50/50 dark:bg-amber-950/20 p-2 text-center">
-                  <div className="text-[8px] text-amber-600 dark:text-amber-455 font-semibold uppercase tracking-wider">Pending Split</div>
-                  <div className="text-xs font-bold font-mono text-amber-700 dark:text-amber-400 mt-0.5">
-                    ₹{financialMetrics.pending.toLocaleString('en-IN')}
-                  </div>
-                </PointerGlowCard>
+                  <PointerGlowCard containerClassName="min-w-[120px]" className="bg-amber-50/50 dark:bg-amber-950/20 p-2 text-center">
+                    <div className="text-[8px] text-amber-600 dark:text-amber-455 font-semibold uppercase tracking-wider">Pending Split</div>
+                    <div className="text-xs font-bold font-mono text-amber-700 dark:text-amber-400 mt-0.5">
+                      ₹{financialMetrics.pending.toLocaleString('en-IN')}
+                    </div>
+                  </PointerGlowCard>
 
-                <PointerGlowCard 
-                  containerClassName="min-w-[100px]" 
-                  onClick={runTelemetryDiagnostics}
-                  className="bg-indigo-50/50 dark:bg-indigo-950/20 p-2 text-center flex flex-col justify-center items-center cursor-pointer active:scale-95 transition-all hover:scale-[1.03]"
-                  title="Run Real-time Proactive Telemetry Diagnostics Scan"
-                >
-                  <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Health Index</div>
-                  <div className="text-xs font-bold font-mono text-indigo-700 dark:text-indigo-455 mt-0.5 flex items-center gap-1 justify-center">
-                    <span className={`w-1.5 h-1.5 rounded-full ${overallHealthScore >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    {overallHealthScore}%
-                  </div>
-                </PointerGlowCard>
+                  <PointerGlowCard 
+                    containerClassName="min-w-[100px]" 
+                    onClick={runTelemetryDiagnostics}
+                    className="bg-indigo-50/50 dark:bg-indigo-950/20 p-2 text-center flex flex-col justify-center items-center cursor-pointer active:scale-95 transition-all hover:scale-[1.03]"
+                    title="Run Real-time Proactive Telemetry Diagnostics Scan"
+                  >
+                    <div className="text-[8px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Health Index</div>
+                    <div className="text-xs font-bold font-mono text-indigo-700 dark:text-indigo-455 mt-0.5 flex items-center gap-1 justify-center">
+                      <span className={`w-1.5 h-1.5 rounded-full ${overallHealthScore >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                      {overallHealthScore}%
+                    </div>
+                  </PointerGlowCard>
 
-                <PointerGlowCard containerClassName="min-w-[130px] hidden sm:block" className="bg-slate-50 dark:bg-slate-900/40 p-2 text-center">
-                  <div className="text-[8px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider font-mono">
-                    {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-                  </div>
-                  <div className="text-xs font-bold font-mono text-slate-900 dark:text-white mt-0.5">
-                    {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-                  </div>
-                </PointerGlowCard>
-              </>
-            )}
+                  <PointerGlowCard containerClassName="min-w-[130px] hidden sm:block" className="bg-slate-50 dark:bg-slate-900/40 p-2 text-center">
+                    <div className="text-[8px] text-slate-500 dark:text-zinc-400 font-semibold uppercase tracking-wider font-mono">
+                      {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
+                    </div>
+                    <div className="text-xs font-bold font-mono text-slate-900 dark:text-white mt-0.5">
+                      {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                    </div>
+                  </PointerGlowCard>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── CLINIC CLINICAL METRICS GRID ─────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
@@ -851,8 +861,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
         )}
       </div>
 
-      {/* ── 3-COLUMN WIDGET GRID ─────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      {/* ── WIDGET GRID (Dynamic 2-Col for Doctor / 3-Col for Admin) ── */}
+      <div className={`grid grid-cols-1 ${hideFulfillmentWidgets ? 'xl:grid-cols-2' : 'xl:grid-cols-3'} gap-5`}>
 
         {/* ── COLUMN 1: QUEUE & WHATSAPP ─────────────────────────── */}
         <div className="space-y-5">
@@ -1014,71 +1024,52 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ── COLUMN 2: LABS, PRESCRIPTIONS, & INBOX ─────────────── */}
-        <div className="space-y-5">
-
-          {/* Lab Reports Sign-Off */}
-          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
-            <div className="h-1 w-full bg-teal-500" />
-            <div className="p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <FlaskConical className="w-4 h-4 text-teal-500 shrink-0" />
-                  Lab Reports Sign-Off
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={restockAllReagents}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
-                    title="Restock Lab Reagents (+500ml)"
-                  >
-                    <TestTube2 className="w-3.5 h-3.5 shrink-0" />
-                    Restock Reagents
-                  </button>
+          {/* Clinical Lab Reports Verification (Shown ONLY when doctor has active pending reports to sign off in Doctor View) */}
+          {hideFulfillmentWidgets && pendingReports.length > 0 && (
+            <div className="bg-white/90 dark:bg-slate-950/60 border border-teal-200/80 dark:border-teal-800/30 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md animate-fade-in">
+              <div className="h-1 w-full bg-teal-500" />
+              <div className="p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4 text-teal-500 shrink-0" />
+                    Lab Reports Clinical Verification
+                  </h2>
                   <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/30 text-teal-700 dark:text-teal-400 rounded-full shrink-0">
-                    {pendingReports.length} Pending
+                    {pendingReports.length} Pending Sign-Off
                   </span>
                 </div>
-              </div>
 
-              <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-0.5">
-                {pendingReports.length === 0 ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    All lab reports signed off
-                  </div>
-                ) : (
-                  pendingReports.map(rep => {
+                <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-0.5">
+                  {pendingReports.map(rep => {
                     const isSigning = signingReportId === rep.id;
                     return (
-                      <div key={rep.id} className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
+                      <div key={rep.id} className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2">
                         <div className="flex justify-between items-start gap-2">
                           <div className="truncate">
-                            <span className="text-xs font-semibold text-slate-900 block truncate">{rep.patientName}</span>
-                            <span className="text-[9px] text-slate-500 font-medium">
+                            <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">{rep.patientName}</span>
+                            <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-medium">
                               Test: {rep.testName}
                             </span>
                           </div>
-                          <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 uppercase shrink-0">
-                            Needs Sign-off
+                          <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 rounded border border-amber-200 dark:border-amber-800/40 uppercase shrink-0">
+                            Needs Review
                           </span>
                         </div>
 
                         {isSigning ? (
-                          <div className="space-y-2 bg-white border border-slate-200 p-2.5 rounded-lg">
-                            <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Clinical Advice</label>
+                          <div className="space-y-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 p-2.5 rounded-lg">
+                            <label className="text-[8px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block">Clinical Advice / Notes</label>
                             <textarea
                               value={signingAdvice}
                               onChange={e => setSigningAdvice(e.target.value)}
-                              placeholder="Enter advice..."
-                              className="w-full text-[10px] p-2 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-teal-500 resize-none h-12"
+                              placeholder="Enter clinical advice..."
+                              className="w-full text-[10px] p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded focus:outline-none focus:border-teal-500 resize-none h-12 text-slate-800 dark:text-zinc-200"
                             />
                             <div className="flex justify-end gap-1.5">
                               <button
                                 onClick={() => setSigningReportId(null)}
-                                className="px-2 py-1 text-[8px] font-bold uppercase text-slate-500 bg-slate-100 hover:bg-slate-200 rounded border-0 cursor-pointer"
+                                className="px-2 py-1 text-[8px] font-bold uppercase text-slate-500 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded border-0 cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -1086,12 +1077,12 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                                 onClick={() => handleSignOffReport(rep.id)}
                                 className="px-3 py-1 text-[8px] font-bold uppercase text-white bg-teal-600 hover:bg-teal-700 rounded border-0 cursor-pointer shadow-sm"
                               >
-                                Approve
+                                Approve & Sign Off
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                          <div className="flex justify-between items-center pt-1 border-t border-slate-200/60 dark:border-white/5">
                             <span className="text-[8px] text-slate-400 font-mono">
                               {new Date(rep.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -1100,82 +1091,183 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ onStartConsu
                                 setSigningReportId(rep.id);
                                 setSigningAdvice(rep.results || 'Report verified. Acceptable parameters. Review in next follow-up.');
                               }}
-                              className="px-2 py-1 text-[9px] font-bold uppercase text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-600 hover:text-white transition-all cursor-pointer border-0"
+                              className="px-2 py-1 text-[9px] font-bold uppercase text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/40 rounded-md hover:bg-teal-600 hover:text-white transition-all cursor-pointer"
                             >
-                              Sign Off
+                              Verify & Sign Off
                             </button>
                           </div>
                         )}
                       </div>
                     );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* E-Rx Dispensation Monitor */}
-          <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
-            <div className="h-1 w-full bg-violet-500" />
-            <div className="p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Pill className="w-4 h-4 text-violet-500 shrink-0" />
-                  E-Rx Fulfillment
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={restockPharmacyOOS}
-                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-violet-700 dark:text-violet-400 hover:text-violet-850 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
-                    title="Restock Low Stock Pharmacy SKUs (+100 items)"
-                  >
-                    <Package className="w-3.5 h-3.5 shrink-0" />
-                    Restock SKUs
-                  </button>
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850/30 text-violet-700 dark:text-violet-400 rounded-full font-mono shrink-0">
-                    {groupedHolds.filter(g => g.status === 'held').length} Pending
-                  </span>
+                  })}
                 </div>
               </div>
+            </div>
+          )}
+        </div>
 
-              <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
-                {groupedHolds.filter(g => g.status === 'held').length === 0 ? (
-                  <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    All prescriptions dispensed
+        {/* ── COLUMN 2: LABS, PRESCRIPTIONS, & INBOX (Admin View Only) ─── */}
+        {!hideFulfillmentWidgets && (
+          <div className="space-y-5">
+
+            {/* Lab Reports Sign-Off */}
+            <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
+              <div className="h-1 w-full bg-teal-500" />
+              <div className="p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4 text-teal-500 shrink-0" />
+                    Lab Reports Sign-Off
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={restockAllReagents}
+                      className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-teal-700 dark:text-teal-400 hover:text-teal-800 dark:hover:text-white transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                      title="Restock Lab Reagents (+500ml)"
+                    >
+                      <TestTube2 className="w-3.5 h-3.5 shrink-0" />
+                      Restock Reagents
+                    </button>
+                    <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/30 text-teal-700 dark:text-teal-400 rounded-full shrink-0">
+                      {pendingReports.length} Pending
+                    </span>
                   </div>
-                ) : (
-                  groupedHolds.filter(g => g.status === 'held').map((group, idx) => (
-                    <div key={`group-hold-${idx}-${group.patientName}`} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{group.patientName}</span>
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 shrink-0">
-                          Held
-                        </span>
-                      </div>
-                      <div className="text-[9px] text-slate-600 dark:text-zinc-350 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg space-y-1">
-                        {group.medicines.map((m, mIdx) => (
-                          <div key={`med-hold-${mIdx}-${m.id || m.name}`} className="flex justify-between items-center">
-                            <span className="truncate max-w-[165px] font-medium">{m.name}</span>
-                            <span className="text-[8px] text-slate-500 dark:text-zinc-400 font-mono font-semibold shrink-0">Qty: {m.qty}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-end pt-1">
-                        <button
-                          onClick={() => dispensePatientHolds(group.medicines)}
-                          className="px-2.5 py-1 text-[9px] font-bold uppercase text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 rounded-md transition-all cursor-pointer border-0"
-                        >
-                          Dispense
-                        </button>
-                      </div>
+                </div>
+
+                <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-0.5">
+                  {pendingReports.length === 0 ? (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      All lab reports signed off
                     </div>
-                  ))
-                )}
+                  ) : (
+                    pendingReports.map(rep => {
+                      const isSigning = signingReportId === rep.id;
+                      return (
+                        <div key={rep.id} className="p-3 bg-slate-50 border border-slate-200/70 rounded-xl space-y-2">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="truncate">
+                              <span className="text-xs font-semibold text-slate-900 block truncate">{rep.patientName}</span>
+                              <span className="text-[9px] text-slate-500 font-medium">
+                                Test: {rep.testName}
+                              </span>
+                            </div>
+                            <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 uppercase shrink-0">
+                              Needs Sign-off
+                            </span>
+                          </div>
+
+                          {isSigning ? (
+                            <div className="space-y-2 bg-white border border-slate-200 p-2.5 rounded-lg">
+                              <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block">Clinical Advice</label>
+                              <textarea
+                                value={signingAdvice}
+                                onChange={e => setSigningAdvice(e.target.value)}
+                                placeholder="Enter advice..."
+                                className="w-full text-[10px] p-2 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-teal-500 resize-none h-12"
+                              />
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  onClick={() => setSigningReportId(null)}
+                                  className="px-2 py-1 text-[8px] font-bold uppercase text-slate-500 bg-slate-100 hover:bg-slate-200 rounded border-0 cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => handleSignOffReport(rep.id)}
+                                  className="px-3 py-1 text-[8px] font-bold uppercase text-white bg-teal-600 hover:bg-teal-700 rounded border-0 cursor-pointer shadow-sm"
+                                >
+                                  Approve
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-center pt-1 border-t border-slate-200/60">
+                              <span className="text-[8px] text-slate-400 font-mono">
+                                {new Date(rep.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setSigningReportId(rep.id);
+                                  setSigningAdvice(rep.results || 'Report verified. Acceptable parameters. Review in next follow-up.');
+                                }}
+                                className="px-2 py-1 text-[9px] font-bold uppercase text-teal-700 bg-teal-50 border border-teal-200 rounded-md hover:bg-teal-600 hover:text-white transition-all cursor-pointer border-0"
+                              >
+                                Sign Off
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* E-Rx Dispensation Monitor */}
+            <div className="bg-white/90 dark:bg-slate-950/60 border border-slate-200/80 dark:border-white/5 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md">
+              <div className="h-1 w-full bg-violet-500" />
+              <div className="p-5">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Pill className="w-4 h-4 text-violet-500 shrink-0" />
+                    E-Rx Fulfillment
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={restockPharmacyOOS}
+                      className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5 rounded-lg text-violet-700 dark:text-violet-400 hover:text-violet-850 transition-all cursor-pointer text-[10px] font-bold flex items-center gap-1 bg-transparent shrink-0"
+                      title="Restock Low Stock Pharmacy SKUs (+100 items)"
+                    >
+                      <Package className="w-3.5 h-3.5 shrink-0" />
+                      Restock SKUs
+                    </button>
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-850/30 text-violet-700 dark:text-violet-400 rounded-full font-mono shrink-0">
+                      {groupedHolds.filter(g => g.status === 'held').length} Pending
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-0.5">
+                  {groupedHolds.filter(g => g.status === 'held').length === 0 ? (
+                    <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-700 dark:text-emerald-400 text-xs text-center rounded-xl flex items-center justify-center gap-2 font-medium">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      All prescriptions dispensed
+                    </div>
+                  ) : (
+                    groupedHolds.filter(g => g.status === 'held').map((group, idx) => (
+                      <div key={`group-hold-${idx}-${group.patientName}`} className="p-3 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl space-y-2 hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all duration-300 hover:scale-[1.015] hover:shadow-xs">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate max-w-[150px]">{group.patientName}</span>
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 shrink-0">
+                            Held
+                          </span>
+                        </div>
+                        <div className="text-[9px] text-slate-600 dark:text-zinc-350 bg-white dark:bg-slate-950/40 border border-slate-100 dark:border-white/5 p-2 rounded-lg space-y-1">
+                          {group.medicines.map((m, mIdx) => (
+                            <div key={`med-hold-${mIdx}-${m.id || m.name}`} className="flex justify-between items-center">
+                              <span className="truncate max-w-[165px] font-medium">{m.name}</span>
+                              <span className="text-[8px] text-slate-500 dark:text-zinc-400 font-mono font-semibold shrink-0">Qty: {m.qty}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-end pt-1">
+                          <button
+                            onClick={() => dispensePatientHolds(group.medicines)}
+                            className="px-2.5 py-1 text-[9px] font-bold uppercase text-indigo-700 bg-indigo-50 hover:bg-indigo-600 hover:text-white border border-indigo-200 rounded-md transition-all cursor-pointer border-0"
+                          >
+                            Dispense
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ── COLUMN 3: CHRONIC CARE & PATIENT INQUIRIES ─────────── */}
         <div className="space-y-5">

@@ -1180,12 +1180,13 @@ async function triggerBotReplyPipeline(ctx: {
   let resolvedDoctorName = "Doctor";
   let resolvedClinicName = connection?.clinic_display_name || sessionData?.clinicName || "Clinic";
   let resolvedConsultationFee = 500;
+  let resolvedEmergencySosFee = 618;
   
   try {
     const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
     const currentPodId = toValidUuid(connection?.pod_id || session.pod_id);
 
-    const [patRes, consentRes, docRes, entityRes, podRes] = await Promise.all([
+    const [patRes, consentRes, docRes, entityRes, podRes, sopRes] = await Promise.all([
       session.patient_id
         ? supabase.from("patient_registry").select("*").eq("id", session.patient_id).maybeSingle()
         : supabase.from("patient_registry").select("*").or(`phone.eq.${clean10},phone.eq.${patientPhone},phone.eq.91${clean10}`).maybeSingle(),
@@ -1194,7 +1195,8 @@ async function triggerBotReplyPipeline(ctx: {
         : Promise.resolve({ data: [] }),
       supabase.from("profiles").select("id, display_name, consultation_fee, pod_id, entity_id").eq("role", "doctor").eq("pod_id", currentPodId).limit(1).maybeSingle(),
       supabase.from("entities").select("name").eq("pod_id", currentPodId).eq("entity_type", "clinic").limit(1).maybeSingle(),
-      supabase.from("pods").select("name").eq("id", currentPodId).maybeSingle()
+      supabase.from("pods").select("name").eq("id", currentPodId).maybeSingle(),
+      supabase.from("clinic_sops").select("extracted_config").or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`).order("created_at", { ascending: false }).limit(1).maybeSingle()
     ]);
 
     patient = patRes?.data ?? null;
@@ -1206,9 +1208,29 @@ async function triggerBotReplyPipeline(ctx: {
       if (docProfile.display_name) {
         resolvedDoctorName = docProfile.display_name.startsWith("Dr.") ? docProfile.display_name : `Doctor ${docProfile.display_name}`;
       }
-      if (docProfile.consultation_fee && Number(docProfile.consultation_fee) > 0) {
-        resolvedConsultationFee = Number(docProfile.consultation_fee);
-      }
+    }
+
+    let sopRow = sopRes?.data;
+    if (!sopRow) {
+      try {
+        const { data: fallbackSop } = await supabase.from("clinic_sops").select("extracted_config").eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (fallbackSop) sopRow = fallbackSop;
+      } catch (_e) {}
+    }
+
+    const sopCfg = sopRow?.extracted_config;
+    const sopDoctorFee = Number(sopCfg?.doctor_fee || 0);
+    if (sopDoctorFee > 0) {
+      resolvedConsultationFee = sopDoctorFee;
+    } else if (docProfile?.consultation_fee && Number(docProfile.consultation_fee) > 0) {
+      resolvedConsultationFee = Number(docProfile.consultation_fee);
+    }
+
+    const sopEmergencyFee = Number(sopCfg?.emergency_sos_fee || 0);
+    if (sopEmergencyFee > 0) {
+      resolvedEmergencySosFee = sopEmergencyFee;
+    } else if (resolvedConsultationFee > 0) {
+      resolvedEmergencySosFee = Math.round(resolvedConsultationFee * 1.236);
     }
 
     if (connection?.clinic_display_name) {
@@ -1462,7 +1484,28 @@ async function triggerBotReplyPipeline(ctx: {
           }).eq("patient_id", patient.id).is("revoked_at", null);
         }
       } else if (
-        (((cleaned === "1" || cleaned === "physical" || cleaned.includes("physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
+        (((cleaned === "1" || cleaned === "vip" || cleaned.includes("vip")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_vip" || replyId === "btn_vip" || cleaned === "sos" || cleaned.includes("emergency") || replyId === "menu_sos")
+      ) {
+        if (isUnregisteredOrIncompletePatient(patient)) {
+          sessionData.pendingConsultationType = "vip";
+          sessionData.isSos = true;
+          sessionData.isVip = true;
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein ⭐ *VIP Priority Booking* ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          break;
+        }
+        sessionData.consultationType = "vip";
+        sessionData.isSos = true;
+        sessionData.isVip = true;
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(true);
+        sessionData.dateOptions = dates;
+        sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
+
+        nextState = "AWAITING_DATE_SELECTION";
+        replyText = `⭐ *VIP PRIORITY BOOKING (Priority #1 Fast-Track)* ⚡\n\n${resolvedDoctorName} ke VIP Priority checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
+      } else if (
+        (((cleaned === "2" || cleaned === "physical" || cleaned.includes("physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
       ) {
         if (isUnregisteredOrIncompletePatient(patient)) {
           sessionData.pendingConsultationType = "physical";
@@ -1471,6 +1514,8 @@ async function triggerBotReplyPipeline(ctx: {
           break;
         }
         sessionData.consultationType = "physical";
+        sessionData.isSos = false;
+        sessionData.isVip = false;
         const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
@@ -1479,7 +1524,7 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (
-        (((cleaned === "2" || cleaned === "virtual" || cleaned.includes("virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
+        (((cleaned === "3" || cleaned === "virtual" || cleaned.includes("virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
       ) {
         if (isUnregisteredOrIncompletePatient(patient)) {
           sessionData.pendingConsultationType = "virtual";
@@ -1488,6 +1533,8 @@ async function triggerBotReplyPipeline(ctx: {
           break;
         }
         sessionData.consultationType = "virtual";
+        sessionData.isSos = false;
+        sessionData.isVip = false;
         const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
@@ -1496,7 +1543,7 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (
-        cleaned === "3" || cleaned.includes("report") || cleaned.includes("lab") || cleaned.includes("pathology") || replyId === "menu_report" || replyId === "btn_report"
+        cleaned === "4" || cleaned.includes("report") || cleaned.includes("lab") || cleaned.includes("pathology") || replyId === "menu_report" || replyId === "btn_report"
       ) {
         nextState = "COMPLETED";
         let reports: any[] = [];
@@ -1547,73 +1594,6 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `Aapka koi approved pathology report abhi on file nahi mila. ${resolvedClinicName} lab technician ke test publish karne par aapko WhatsApp par automatic report deliver ho jayegi! 🔬`;
         }
       } else if (
-        cleaned === "4" || cleaned === "sos" || cleaned.includes("emergency") || cleaned.includes("urgent") || replyId === "menu_sos"
-      ) {
-        const currentPodIdSos = toValidUuid(session.pod_id || connection?.pod_id);
-        let doctorIdSos = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
-        try {
-          const { data: docProfile } = await supabase.from("profiles").select("id").eq("pod_id", currentPodIdSos).eq("role", "doctor").limit(1).maybeSingle();
-          if (docProfile) {
-            doctorIdSos = docProfile.id;
-          } else {
-            const { data: fallbackDoc } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();
-            if (fallbackDoc) doctorIdSos = fallbackDoc.id;
-          }
-        } catch (_err) {}
-
-        const sosApptId = crypto.randomUUID();
-        const sosInvoiceId = crypto.randomUUID();
-        const todayDate = getIstDateString();
-
-        let doctorSosFee = 600.00;
-        let platformFeeSos = 18.00;
-        try {
-          const podId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
-          const { data: activeSop } = await supabase
-            .from("clinic_sops")
-            .select("extractedConfig")
-            .eq("entity_id", podId)
-            .eq("isActive", true)
-            .maybeSingle();
-          const feeFromSop = activeSop?.extractedConfig?.emergency_sos_fee ?? (activeSop?.extractedConfig?.doctor_fee ? Math.round(activeSop.extractedConfig.doctor_fee * 1.20) : undefined);
-          if (feeFromSop && typeof feeFromSop === 'number' && feeFromSop > 0) {
-            doctorSosFee = feeFromSop;
-            platformFeeSos = parseFloat((doctorSosFee * 0.03).toFixed(2));
-          }
-        } catch (_sopErr) {}
-
-        const totalSosFee = doctorSosFee + platformFeeSos;
-        const sosTokenNumber = `T-01 E`;
-        const sosPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
-
-        if (sosPatId) {
-          try {
-            await supabase.from("appointments").insert({
-              id: sosApptId,
-              patient_id: sosPatId,
-              doctor_id: doctorIdSos,
-              status: "ready_for_consult",
-              appointment_time: new Date().toISOString(),
-              is_virtual: false,
-              virtual_date: todayDate,
-              virtual_time: "EMERGENCY (Priority #1)",
-              token_number: sosTokenNumber,
-              pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
-            });
-            await supabase.from("patient_registry").update({
-              queue_status: "sos_priority",
-              token_number: sosTokenNumber
-            }).eq("id", sosPatId);
-          } catch (_eIns) {}
-        }
-
-        sessionData.pendingApptId = sosApptId;
-        sessionData.pendingInvoiceId = sosInvoiceId;
-        sessionData.isSos = true;
-        nextState = "COMPLETED";
-
-        replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${resolvedDoctorName} ke dashboard par aapka case *PRIORITY #1* position par place kar diya gaya hai!\n\n• *Token Number:* ${sosTokenNumber}\n• *Doctor:* ${resolvedDoctorName}\n• *Clinic Desk:* ${resolvedClinicName}\n• *Status:* Immediate Attention (Chamber Alerted) 🔴\n• *Emergency Fee:* ₹${totalSosFee.toFixed(2)}\n\nKripya turant ${resolvedClinicName} emergency desk par pahuchein aur counter par token *${sosTokenNumber}* show karein! 🩺`;
-      } else if (
         cleaned === "5" || cleaned.includes("refill") || cleaned.includes("medicine") || cleaned.includes("dawai") || replyId === "menu_refill"
       ) {
         let rxMeds: any[] = [];
@@ -1656,7 +1636,7 @@ async function triggerBotReplyPipeline(ctx: {
       } else {
         // Default welcome menu response
         nextState = "AWAITING_CONFIRMATION";
-        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 *${resolvedClinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1, 2, 3, 4, 5, ya 6) reply kijiye!`;
+        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 *${resolvedClinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP Priority Booking ⚡ (Priority #1 Fast-Track)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1, 2, 3, 4, 5, ya 6) reply kijiye!`;
       }
       break;
 
@@ -2373,10 +2353,11 @@ async function triggerBotReplyPipeline(ctx: {
       if (slotText) {
         sessionData.selectedSlot = slotText;
         const isVirtualSlot = sessionData.consultationType === "virtual";
-        let feeAmount = isVirtualSlot ? Math.round(resolvedConsultationFee * 0.8) : resolvedConsultationFee;
+        const isSosBookingSession = sessionData.isSos === true || sessionData.isVip === true || sessionData.consultationType === "sos" || sessionData.consultationType === "vip";
+        let feeAmount = isSosBookingSession ? resolvedEmergencySosFee : resolvedConsultationFee;
         let appliedDiscountNote = "";
         try {
-          if (patient) {
+          if (patient && !isSosBookingSession) {
             const { data: rw } = await supabase
               .from("patient_referral_rewards")
               .select("id, discount_percent")
@@ -2509,8 +2490,7 @@ async function triggerBotReplyPipeline(ctx: {
           tokenSeq = 1;
         }
 
-        const isSosBookingSession = sessionData.isSos === true || sessionData.consultationType === "sos";
-        const formattedTokenStr = isSosBookingSession ? `T-${tokenSeq.toString().padStart(2, '0')} E` : `T-${tokenSeq.toString().padStart(2, '0')}`;
+        const formattedTokenStr = isSosBookingSession ? `VIP-${tokenSeq.toString().padStart(2, '0')}` : `T-${tokenSeq.toString().padStart(2, '0')}`;
         const tokenNumber = formattedTokenStr;
 
         // Calculate approximate time slot based on selected slot window
@@ -2536,6 +2516,8 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.feeAmount = feeAmount;
         sessionData.selectedDate = selectedDate;
         sessionData.selectedDateDisplay = selectedDisplay;
+        sessionData.isSos = isSosBookingSession;
+        sessionData.isVip = isSosBookingSession;
 
         // Accurate Indian Standard Time (IST, UTC+5:30) ISO timestamp
         let apptTimestamp = `${selectedDate}T10:00:00.000Z`;
@@ -2795,13 +2777,14 @@ async function triggerBotReplyPipeline(ctx: {
               status: "pending_payment",
               appointment_time: apptTimestamp,
               is_virtual: isVirtualSlot,
+              is_emergency: isSosBookingSession,
               virtual_date: selectedDate,
               virtual_time: slotText,
               virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
               pod_id: safePodId,
               entity_id: safeEntityId,
               token_number: String(tokenNumber),
-              source: isVirtualSlot ? "whatsapp_virtual" : "whatsapp"
+              source: isSosBookingSession ? "whatsapp_vip" : (isVirtualSlot ? "whatsapp_virtual" : "whatsapp")
             });
             if (apptErr) console.error("[Meta Webhook] Database Appointment Insert Error:", apptErr);
           } catch (err) {
@@ -2844,27 +2827,34 @@ async function triggerBotReplyPipeline(ctx: {
 
           sessionData.pendingApptId = newApptId;
           sessionData.pendingInvoiceId = newInvoiceId;
-          sessionData.isSos = false;
-
-          const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
-          const portalPaymentUrl = paymentGatewayUrl || `${appBaseUrl}/pay/${newInvoiceId}`;
+          sessionData.isSos = isSosBookingSession;
+          sessionData.isVip = isSosBookingSession;
 
           let doctorUpiVpa = "vitalsync@axl";
           try {
-            const { data: sopRow } = await supabase
+            const currentPodId = toValidUuid(connection?.pod_id || session.pod_id);
+            let { data: sopRow } = await supabase
               .from("clinic_sops")
               .select("extracted_config")
-              .eq("is_active", true)
+              .or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`)
+              .order("created_at", { ascending: false })
               .limit(1)
               .maybeSingle();
-            if (sopRow?.extracted_config?.doctor_upi_vpa) {
-              doctorUpiVpa = sopRow.extracted_config.doctor_upi_vpa;
+            if (!sopRow) {
+              const { data: fallbackSop } = await supabase.from("clinic_sops").select("extracted_config").eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+              if (fallbackSop) sopRow = fallbackSop;
+            }
+            const sopCfg = sopRow?.extracted_config;
+            if (sopCfg?.doctor_upi_vpa) {
+              doctorUpiVpa = sopCfg.doctor_upi_vpa;
             }
           } catch (_e) {}
 
           const directUpiLink = `upi://pay?pa=${doctorUpiVpa}&pn=${encodeURIComponent(resolvedDoctorName)}&am=${doctorFee.toFixed(2)}&cu=INR&tn=VS-APPT-${newApptId.substring(0, 8)}`;
 
-          replyText = `📅 *Checkup Slot Selected!*\n\n${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai.\n\n• Doctor Consultation Fee: *₹${doctorFee.toFixed(2)}*\n(0% Convenience Fee • 100% Direct to Doctor)\n\n📲 *Doctor Direct UPI Se Pay Karein (GPay / PhonePe / Paytm):*\n${directUpiLink}\n\n📱 *Online Web Portal Payment Link:*\n${portalPaymentUrl}\n\n👉 *Payment Options:*\n1️⃣ UPI se pay karke *PAID* reply karein (turant token issue ho jayega).\n2️⃣ Ya agar clinic counter par pay karna chahte hain toh *COUNTER* reply karein.\n\n*(Note: Clinic vitals desk par payment screenshot verify hoga)* 📑`;
+          const slotHeader = isSosBookingSession ? `⭐ *VIP Priority Checkup Slot Selected!*` : `📅 *Checkup Slot Selected!*`;
+          const feeTitle = isSosBookingSession ? `Doctor Consultation Fee (VIP Priority)` : `Doctor Consultation Fee`;
+          replyText = `${slotHeader}\n\n${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai.\n\n• ${feeTitle}: *₹${doctorFee.toFixed(2)}*\n\n📲 *Doctor Direct UPI Se Pay Karein (GPay / PhonePe / Paytm):*\n${directUpiLink}\n\n👉 *Payment Options:*\n1️⃣ UPI se pay karke *PAID* reply karein (turant token issue ho jayega).\n2️⃣ Ya agar clinic counter par pay karna chahte hain toh *COUNTER* reply karein.\n\n*(Note: Clinic vitals desk par compounder payment screenshot verify karega)* 📑`;
         }
       } else {
         replyText = "Invalid slot timing choice. Please Timing select karne ke liye type kijiye:\n1️⃣ Morning (10am-12pm)\n2️⃣ Afternoon (2pm-4pm)\n3️⃣ Evening (6pm-8pm)\n\nType 1, 2, ya 3! ⏱️";
@@ -2874,20 +2864,20 @@ async function triggerBotReplyPipeline(ctx: {
     case "AWAITING_PAYMENT":
       const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
       const invoiceId = sessionData.pendingInvoiceId;
-      const apptId = sessionData.pendingApptId;
+      let apptId = sessionData.pendingApptId;
       let tokenNumber = sessionData.tokenNumber || 1;
       let approxTime = sessionData.approxTime;
       let doctorName = sessionData.doctorName || resolvedDoctorName;
       let clinicName = sessionData.clinicName || resolvedClinicName;
       let feeAmount = sessionData.feeAmount || resolvedConsultationFee;
       const isVirtualSlot = sessionData.consultationType === "virtual";
-      const isSosBooking = sessionData.isSos === true && sessionData.consultationType === "sos";
+      let isSosBooking = sessionData.isSos === true || sessionData.isVip === true || sessionData.consultationType === "sos" || sessionData.consultationType === "vip";
 
       // Resilient database appointment lookup if sessionData was cleared or lost
       let resolvedApptDate = sessionData.selectedDateDisplay || sessionData.selectedDate;
       if (apptId || invoiceId || bookingPatId) {
         try {
-          let apptQuery = supabase.from("appointments").select("virtual_date, virtual_time, appointment_time, token_number, doctor_id, entity_id");
+          let apptQuery = supabase.from("appointments").select("id, virtual_date, virtual_time, appointment_time, token_number, doctor_id, entity_id, is_emergency, source");
           if (apptId) {
             apptQuery = apptQuery.eq("id", apptId);
           } else if (bookingPatId) {
@@ -2895,6 +2885,12 @@ async function triggerBotReplyPipeline(ctx: {
           }
           const { data: dbAppt } = await apptQuery.maybeSingle();
           if (dbAppt) {
+            if (dbAppt.id && !apptId) {
+              apptId = dbAppt.id;
+            }
+            if (dbAppt.is_emergency || (dbAppt as any).is_vip || String((dbAppt as any).source || '').includes('vip') || String(dbAppt.token_number || '').startsWith('VIP-')) {
+              isSosBooking = true;
+            }
             if (!resolvedApptDate) {
               if (dbAppt.virtual_date) {
                 resolvedApptDate = /^\d{4}-\d{2}-\d{2}$/.test(dbAppt.virtual_date)
@@ -3085,12 +3081,36 @@ async function triggerBotReplyPipeline(ctx: {
               await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "upi", utr_number: utr }).eq("id", invoiceId);
             }
 
-            if (apptId) {
+            let effectiveApptId = apptId;
+            if (!effectiveApptId && bookingPatId) {
+              try {
+                const { data: pendingAppt } = await supabase
+                  .from("appointments")
+                  .select("id, token_number, virtual_date, virtual_time, is_emergency, source")
+                  .eq("patient_id", bookingPatId)
+                  .eq("status", "pending_payment")
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                if (pendingAppt?.id) {
+                  effectiveApptId = pendingAppt.id;
+                  if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
+                  if (pendingAppt.is_emergency || (pendingAppt as any).is_vip || String(pendingAppt.source || '').includes('vip') || String(pendingAppt.token_number || '').startsWith('VIP-')) isSosBooking = true;
+                }
+              } catch (_e) {}
+            }
+
+            if (effectiveApptId) {
               const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
               await supabase
                 .from("appointments")
-                .update({ status: finalStatus, payment_status: "cleared", utr_number: utr })
-                .eq("id", apptId);
+                .update({ 
+                  status: finalStatus, 
+                  payment_status: "cleared", 
+                  utr_number: utr,
+                  is_emergency: isSosBooking
+                })
+                .eq("id", effectiveApptId);
             }
 
             if (bookingPatId) {
@@ -3126,12 +3146,36 @@ async function triggerBotReplyPipeline(ctx: {
           await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "upi" }).eq("id", invoiceId);
         }
 
-        if (apptId) {
+        let effectiveApptId = apptId;
+        if (!effectiveApptId && bookingPatId) {
+          try {
+            const { data: pendingAppt } = await supabase
+              .from("appointments")
+              .select("id, token_number, virtual_date, virtual_time, is_emergency, source")
+              .eq("patient_id", bookingPatId)
+              .eq("status", "pending_payment")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (pendingAppt?.id) {
+              effectiveApptId = pendingAppt.id;
+              if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
+              if (pendingAppt.is_emergency || (pendingAppt as any).is_vip || String(pendingAppt.source || '').includes('vip') || String(pendingAppt.token_number || '').startsWith('VIP-')) isSosBooking = true;
+            }
+          } catch (_e) {}
+        }
+
+        if (effectiveApptId) {
           const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
           await supabase
             .from("appointments")
-            .update({ status: finalStatus, payment_status: "asserted", token_number: String(tokenNumber) })
-            .eq("id", apptId);
+            .update({ 
+              status: finalStatus, 
+              payment_status: "asserted", 
+              token_number: String(tokenNumber),
+              is_emergency: isSosBooking
+            })
+            .eq("id", effectiveApptId);
         }
 
         // Insert real-time financial ledger entry for doctor consultation (0% platform deduction)
@@ -3174,11 +3218,11 @@ async function triggerBotReplyPipeline(ctx: {
         const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
 
         if (isSosBooking) {
-          replyText = `🚨 *EMERGENCY SOS CONFIRMED & VERIFIED* 🚨\n\nAapka emergency case ${doctorName} ke dashboard par PRIORITY #1 par activate ho gaya hai!\n\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: Immediate Attention Required (PRIORITY #1) 🔴\n• Fee Paid: ₹618.00\n\nPlease *abhi* ${clinicName} emergency desk par contact karein:\n📞 *+91-8986426029*\n\nStaff ne aapko priority list top par place kar diya hai. Dhanyawad! 🙏`;
+          replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${doctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *#${tokenNumber || "T-01 E"}*\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n\nKripya turant clinic intake desk par pahuchein aur Emergency Token (#${tokenNumber || "T-01 E"}) compounder ko show karein! 🩺`;
         } else if (isVirtualSlot) {
-          replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${effectiveApptId || "room"}\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🎉 *APPOINTMENT CONFIRMED! Token #${tokenNumber} Issued!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\n⚠️ *Clinic Vitals Desk Verification*:\nClinic pahuchein aur intake counter par Token (#${tokenNumber}) show karein. Humara compounder vitals check karte waqt aapka payment screenshot verify karega. Thank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *APPOINTMENT CONFIRMED! Token #${tokenNumber} Issued!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\n⚠️ *Clinic Vitals Desk Verification*:\nClinic pahuchein aur intake counter par Token (#${tokenNumber}) show karein. Humara compounder vitals check karte waqt aapka payment screenshot verify karega. Thank you for choosing VitalSync! 😊`;
         }
 
       // 4. User chose to pay at clinic counter
@@ -3186,11 +3230,37 @@ async function triggerBotReplyPipeline(ctx: {
         if (invoiceId) {
           await supabase.from("unified_invoices").update({ payment_status: "pending", payment_method: "cash" }).eq("id", invoiceId);
         }
-        if (apptId) {
-          await supabase.from("appointments").update({ status: "scheduled", payment_status: "pending_counter", token_number: String(tokenNumber) }).eq("id", apptId);
+
+        let effectiveApptId = apptId;
+        if (!effectiveApptId && bookingPatId) {
+          try {
+            const { data: pendingAppt } = await supabase
+              .from("appointments")
+              .select("id, token_number, virtual_date, virtual_time, is_emergency, source")
+              .eq("patient_id", bookingPatId)
+              .eq("status", "pending_payment")
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (pendingAppt?.id) {
+              effectiveApptId = pendingAppt.id;
+              if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
+              if (pendingAppt.is_emergency || (pendingAppt as any).is_vip || String(pendingAppt.source || '').includes('vip') || String(pendingAppt.token_number || '').startsWith('VIP-')) isSosBooking = true;
+            }
+          } catch (_e) {}
+        }
+
+        if (effectiveApptId) {
+          await supabase.from("appointments").update({ 
+            status: "scheduled", 
+            payment_status: "pending_counter", 
+            token_number: String(tokenNumber),
+            is_emergency: isSosBooking
+          }).eq("id", effectiveApptId);
         }
         if (bookingPatId) {
-          await supabase.from("patient_registry").update({ queue_status: "awaiting_vitals", token_number: String(tokenNumber) }).eq("id", bookingPatId);
+          const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
+          await supabase.from("patient_registry").update({ queue_status: nextQ, token_number: String(tokenNumber) }).eq("id", bookingPatId);
         }
         nextState = "COMPLETED";
         sessionData.isSos = false;
@@ -3199,7 +3269,11 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.pendingApptId = null;
 
         const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
-        replyText = `🎉 *APPOINTMENT BOOKED! Token #${tokenNumber} Generated!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Due at Counter: ₹${feeAmount}.00\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Token (#${tokenNumber}) dikhakar Cash ya UPI se Doctor Consultation Fee pay karein! Staff vitals record karke aapko chamber mein call karega. Dhanyawad! 😊`;
+        if (isSosBooking) {
+          replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${doctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *#${tokenNumber || "T-01 E"}*\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Emergency Token (#${tokenNumber || "T-01 E"}) dikhakar Fee pay karein. Staff vitals verify karke priority chamber consult arrange karega. Dhanyawad! 😊`;
+        } else {
+          replyText = `🎉 *APPOINTMENT BOOKED! Token #${tokenNumber} Generated!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Token (#${tokenNumber}) dikhakar Cash ya UPI se Doctor Consultation Fee pay karein! Staff vitals record karke aapko chamber mein call karega. Dhanyawad! 😊`;
+        }
 
       // 4. Global navigation / Reset (Anti-Lockup)
       } else if (cleaned.includes("menu") || cleaned.includes("hi") || cleaned.includes("hello") || cleaned.includes("hey") || cleaned.includes("namaste") || cleaned.includes("restart") || cleaned.includes("reset") || cleaned.includes("cancel") || cleaned.includes("book") || cleaned.includes("start") || cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned === "0") {
@@ -3211,9 +3285,7 @@ async function triggerBotReplyPipeline(ctx: {
 
       // 5. Default Guidance
       } else {
-        const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
-        const fallbackUrl = invoiceId ? `${appBaseUrl}/pay/${invoiceId}` : `${appBaseUrl}/pay`;
-        replyText = `💳 *Payment Pending*\n\nCheckup booking complete karne ke liye:\n• *Online Link*: ${fallbackUrl}\n• *Direct UPI*: Pay to \`vitalsync@axl\` and upload screenshot / 12-digit UTR\n• *Check Status*: Reply **STATUS** ya **PAID**\n• *Main Menu*: Reply **MENU** ya **0** to restart or re-book. 🩺`;
+        replyText = `💳 *Payment Pending*\n\nCheckup booking complete karne ke liye:\n• *Direct UPI*: Doctor UPI VPA par pay karein aur *PAID* reply karein\n• *Clinic Counter*: Clinic intake desk par pay karne ke liye *COUNTER* reply karein\n• *Main Menu*: Reply **MENU** ya **0** to restart. 🩺`;
       }
       break;
 
@@ -3478,22 +3550,34 @@ async function triggerBotReplyPipeline(ctx: {
         const todayDate = getIstDateString();
 
         // Fetch dynamic emergency SOS fee from active clinic SOP (Rule 4: Emergency SOS Priority #1 Routing)
-        let doctorSosFee = 600.00; // Default fallback: Base ₹500 + 20% Priority Charge
-        let platformFeeSos = 18.00; // 3% of ₹600
+        let doctorSosFee = resolvedEmergencySosFee || 618.00;
         try {
           // Get active SOP for this pod
           const podId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
-          const { data: activeSop } = await supabase
+          let { data: activeSop } = await supabase
             .from("clinic_sops")
-            .select("extractedConfig")
-            .eq("entity_id", podId)
-            .eq("isActive", true)
+            .select("extracted_config")
+            .or(`pod_id.eq.${podId},entity_id.eq.${podId}`)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
+
+          if (!activeSop) {
+            const { data: fallbackSop } = await supabase
+              .from("clinic_sops")
+              .select("extracted_config")
+              .eq("is_active", true)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (fallbackSop) activeSop = fallbackSop;
+          }
           
-          const sosFeeFromSop = activeSop?.extractedConfig?.emergency_sos_fee ?? (activeSop?.extractedConfig?.doctor_fee ? Math.round(activeSop.extractedConfig.doctor_fee * 1.20) : undefined);
+          const sopCfg = activeSop?.extracted_config;
+          const sosFeeFromSop = sopCfg?.emergency_sos_fee ?? (sopCfg?.doctor_fee ? Math.round(Number(sopCfg.doctor_fee) * 1.236) : undefined);
           if (sosFeeFromSop && typeof sosFeeFromSop === 'number' && sosFeeFromSop > 0) {
             doctorSosFee = sosFeeFromSop;
-            platformFeeSos = parseFloat((doctorSosFee * 0.03).toFixed(2));
             console.log(`[Meta Webhook] Using dynamic SOS fee from SOP: ₹${doctorSosFee}`);
           } else {
             console.log(`[Meta Webhook] No SOS fee in SOP, using default: ₹${doctorSosFee}`);
@@ -3502,7 +3586,7 @@ async function triggerBotReplyPipeline(ctx: {
           console.warn("[Meta Webhook] Failed to fetch SOS fee from SOP, using default:", sopErr);
         }
         
-        const totalSosFee = doctorSosFee + platformFeeSos;
+        const totalSosFee = doctorSosFee;
         let paymentGatewayUrlSos = "";
         const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
         const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
@@ -3603,7 +3687,7 @@ async function triggerBotReplyPipeline(ctx: {
                 sosTokenSeq = maxSeq + 1;
               }
             } catch (err) { console.warn("[Meta Webhook] Error fetching appointment count for SOS token:", err); }
-            const sosTokenNumber = `T-${sosTokenSeq.toString().padStart(2, '0')} E`;
+            const sosTokenNumber = sosTokenSeq === 1 ? 'T-01 E' : `T-${sosTokenSeq.toString().padStart(2, '0')} E`;
 
             await supabase
               .from("patient_registry")
@@ -4180,6 +4264,7 @@ CLINICAL GUIDELINES:
         body: { text: replyText },
         action: {
           buttons: [
+            { type: "reply", reply: { id: "menu_sos", title: "⭐ VIP Booking ⚡" } },
             { type: "reply", reply: { id: "menu_physical", title: "Physical Visit 🏥" } },
             { type: "reply", reply: { id: "menu_virtual", title: "Virtual Call 💻" } }
           ]
@@ -4192,8 +4277,8 @@ CLINICAL GUIDELINES:
         body: { text: replyText },
         action: {
           buttons: [
+            { type: "reply", reply: { id: "menu_sos", title: "⭐ VIP Booking ⚡" } },
             { type: "reply", reply: { id: "menu_report", title: "View Lab Report 🧪" } },
-            { type: "reply", reply: { id: "menu_sos", title: "Emergency SOS 🚨" } },
             { type: "reply", reply: { id: "menu_list", title: "Services List 📋" } }
           ]
         }
@@ -4209,6 +4294,12 @@ CLINICAL GUIDELINES:
           button: "View All Services 📋",
           sections: [
             {
+              title: "⭐ Priority & Fast-Track",
+              rows: [
+                { id: "menu_sos", title: "⭐ VIP Priority Booking", description: "Direct Priority #1 slot with Doctor — instant queue pass" }
+              ]
+            },
+            {
               title: "Appointments & Visits",
               rows: [
                 { id: "menu_physical", title: "Physical Visit 🏥", description: `Clinic aakar ${resolvedDoctorName} se consult karein` },
@@ -4222,14 +4313,7 @@ CLINICAL GUIDELINES:
                 { id: "menu_report", title: "🧪 View Lab Report", description: "Apni latest pathology test report dekhein" },
                 { id: "menu_summary", title: "📋 Rx Prescription", description: "Doctor notes aur medication list summary" },
                 { id: "menu_refill", title: "💊 Medicine Refill", description: "Active medication refill select karein" },
-                { id: "menu_ai", title: "🤖 Ask AI Assistant", description: "Health query AI se poochein (₹9/month)" }
-              ]
-            },
-            {
-              title: "Emergency & Records",
-              rows: [
-                { id: "menu_locker", title: "📂 Health Locker", description: "Poora medical history ek jagah dekhein" },
-                { id: "menu_sos", title: "🚨 Emergency SOS", description: "Priority appointment — turant doctor alert" },
+                { id: "menu_ai", title: "🤖 Ask AI Assistant", description: "Health query AI se poochein (₹9/month)" },
                 { id: "menu_refer", title: "🎁 Refer & Earn (10%)", description: "Friends ko invite karke 10% OFF payen" }
               ]
             }
@@ -4375,6 +4459,12 @@ CLINICAL GUIDELINES:
               button: "View All Services 📋",
               sections: [
                 {
+                  title: "⭐ Priority & Fast-Track",
+                  rows: [
+                    { id: "menu_sos", title: "⭐ VIP Priority Booking", description: "Direct Priority #1 slot with Doctor — instant queue pass" }
+                  ]
+                },
+                {
                   title: "Appointments & Visits",
                   rows: [
                     { id: "menu_physical", title: "Physical Visit 🏥", description: `Clinic aakar ${resolvedDoctorName} se consult karein` },
@@ -4388,14 +4478,7 @@ CLINICAL GUIDELINES:
                     { id: "menu_report", title: "🧪 View Lab Report", description: "Apni latest pathology test report dekhein" },
                     { id: "menu_summary", title: "📋 Rx Prescription", description: "Doctor notes aur medication list summary" },
                     { id: "menu_refill", title: "💊 Medicine Refill", description: "Active medication refill select karein" },
-                    { id: "menu_ai", title: "🤖 Ask AI Assistant", description: "Health query AI se poochein (₹9/month)" }
-                  ]
-                },
-                {
-                  title: "Emergency & Records",
-                  rows: [
-                    { id: "menu_locker", title: "📂 Health Locker", description: "Poora medical history ek jagah dekhein" },
-                    { id: "menu_sos", title: "🚨 Emergency SOS", description: "Priority appointment — turant doctor alert" },
+                    { id: "menu_ai", title: "🤖 Ask AI Assistant", description: "Health query AI se poochein (₹9/month)" },
                     { id: "menu_refer", title: "🎁 Refer & Earn (10%)", description: "Friends ko invite karke 10% OFF payen" }
                   ]
                 }

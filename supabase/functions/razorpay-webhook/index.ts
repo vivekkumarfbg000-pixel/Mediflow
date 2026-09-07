@@ -123,7 +123,7 @@ serve(async (req) => {
       }
 
       const resolvedInvoiceId = invoice?.id || invoiceId;
-      const amountPaid = (payment.amount || paymentLink.amount_paid || 51500) / 100;
+      const amountPaid = (payment.amount || paymentLink.amount_paid || 50000) / 100;
       const gatewayFee = (payment.fee || Math.round(amountPaid * 0.02 * 100)) / 100;
       const targetPatId = invoice?.patient_id || invoice?.patientId;
 

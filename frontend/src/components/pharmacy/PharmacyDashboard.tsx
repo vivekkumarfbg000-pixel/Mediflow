@@ -5,6 +5,7 @@ import { PaymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { safeGetStorageJSON } from '../../utils/storage';
+import { resolveSovereignPodId } from '../../services/podContext';
 import { useSpecialization } from '../../context/SpecializationContext';
 import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
@@ -145,8 +146,7 @@ export const PharmacyDashboard: React.FC = () => {
         .select('*, medicine_bill_items(*), patient_registry(name, phone)')
         .order('created_at', { ascending: false });
 
-      const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null) || safeGetStorageJSON<any>('mediflow_active_pod', null);
-      const currentPodId = activePod?.id || localActivePod?.id || null;
+      const currentPodId = resolveSovereignPodId(activePod?.id);
 
       if (currentPodId) {
         query = query.eq('pod_id', currentPodId);
@@ -221,6 +221,7 @@ export const PharmacyDashboard: React.FC = () => {
         }));
       },
       onInventoryHoldChange: () => syncLocal(),
+      onPharmacyInventoryChange: () => syncLocal(),
       onPatientChange: () => syncLocal(),
       onAppointmentChange: () => syncLocal(),
       onFinancialLedgerChange: () => syncLocal(),

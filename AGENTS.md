@@ -115,7 +115,7 @@ Even when the user provides brief, informal, conversational, or underspecified p
   - STEP 1: Apply 5% Platform Fee for Pathology Lab and 2% Platform Fee for Pharmacy Counter.
   - STEP 2: Maintain the clinic's Commission Pool (`vitalsync_pool_settlements`) tracking platform dues while keeping a **₹1,000 Safety Buffer**.
 - **Doctor Consultation Fee Immunity Protocol**: Pure Doctor Consultation fees (both WhatsApp direct UPI and counter cash) MUST go 100% to the Doctor with 0% platform fee and 0 pool deduction. Doctor consultation fees MUST NEVER refill the commission pool.
-- **WhatsApp Online Booking Zero-Fee Protocol**: Online appointment bookings initiated via WhatsApp Chatbot charge flat **₹500.00** (`₹500 Doctor Consultation Fee + ₹0 Platform Fee`), paid directly by the patient to the Doctor's UPI VPA (or counter) with instant sequential token allocation and physical intake verification gate at the clinic vitals desk.
+- **WhatsApp Online Booking Zero-Fee & Zero-Jargon Protocol**: Online appointment bookings initiated via WhatsApp Chatbot charge the doctor's simple consultation fee (flat **₹500.00** with 0% platform fee), paid directly by the patient to the Doctor's UPI VPA (or counter) with instant sequential token allocation. The WhatsApp bot and patient checkout screens MUST NEVER display "(0% Platform Fee)" or platform fee rows to patients.
 
 ### 7. VitalSync Virtual Hospital Business Model & Category-Defining Triad SOP
 - **Company Identity**: **VitalSync** (Brand: *VitalSync Smart Virtual Hospital Network*).
@@ -142,6 +142,100 @@ Even when the user provides brief, informal, conversational, or underspecified p
 - **Automated 90-Day Diagnostic Re-Test Loops**: Proactively schedules Day-75/Day-85 WhatsApp Home Blood Sample Collection for repeat biomarker panels (HbA1c, Lipid Profile, TSH, Serum Creatinine).
 - **Doctor EMR Chronic Care Cockpit (`ChronicCareTab.tsx` & `PodCommandCenter.tsx`)**: Displays live cohort adherence rates, practice recurring revenue forecasts, and Refill Defaulter Safety Net alerts with 1-Tap WhatsApp Nudges.
 - **Realtime CDC Invariant**: `RealtimeSyncService.ts` subscribes to `postgres_changes` on `chronic_care_cohorts` with 250ms debounced auto-ingestion for instant live sync across all 5 consoles.
+
+### 9. Canonical WhatsApp Interactive Message Copy & Templates (Zero-Jargon Standard)
+All conversational AI engines, webhook relay handlers (`meta-webhook`), and background schedulers MUST strictly follow these canonical message templates to guarantee brand prestige, patient trust, and zero technical jargon:
+
+- **Template 1: Main Welcome Menu (6 Core Services)**
+  ```text
+  Namaste {PatientName}! 🙏 Welcome to {ClinicName}.
+
+  🌟 {CLINIC_NAME} SERVICES 🌟
+  1️⃣ Book Physical Clinic Visit 🏥
+  2️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)
+  3️⃣ View Lab Reports & Hinglish Summary 🔬
+  4️⃣ Emergency SOS Priority #1 Routing 🚨
+  5️⃣ 1-Click Medicine Refill (10% OFF) 💊
+  6️⃣ Refer a Patient & Earn 10% OFF 🎁
+
+  Service select karne ke liye button tap kijiye ya number (1-6) reply kijiye! 🩺
+  [ Buttons: 🏥 Book Physical Visit | 💻 Book Virtual Video | 🚨 Emergency SOS ]
+  ```
+
+- **Template 2: Checkup Slot Selection & Locked State (Zero Platform Fee Jargon Invariant)**
+  *Invariant*: MUST NEVER mention `(0% Platform Fee)` or `Platform Fee: ₹0`. Only state the Doctor Consultation Fee directly.
+  ```text
+  📅 *Checkup Slot Selected!*
+
+  {DoctorName} ke liye checkup slot *{SlotTime}* ({SlotDate}) at {ClinicName} lock kar diya gaya hai.
+
+  • Doctor Consultation Fee: *₹{DoctorFee}*
+
+  📱 *Doctor Direct UPI Se Pay Karein ya Portal Link Se:*
+  {PaymentPortalUrl}
+
+  Payment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token {TokenNumber} issue ho jayega 📑
+  [ Buttons: I Have Paid ✅ | Pay via Direct UPI 💳 ]
+  ```
+
+- **Template 3: Payment Cleared & Instant Sequential Token Issue**
+  ```text
+  🟢 *APPOINTMENT CONFIRMED & TOKEN ALLOCATED!*
+
+  Hi {PatientName}! {DoctorName} ke saath aapka checkup confirm ho gaya hai:
+
+  • Token Number: *{TokenNumber}* 🎫
+  • Queue Status: {AheadCount} Patients ahead of you (~{WaitMinutes} mins wait)
+  • Live Clinic Turn Alert: Turn aane se 2 patient pehle WhatsApp alert aayega!
+  • Clinic Location: {ClinicAddress}, Desk #1
+
+  Doctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Thank you! 😊
+  ```
+
+- **Template 4: Touchpoint 2: Lab Report Delivery & 2-Button Review Loop**
+  ```text
+  📄 *Aapki Pathology Report Taiyar Hai!* 🔬
+
+  • Patient: {PatientName}
+  • Test: {TestName}
+  • Status: Verified & Approved 🟢
+  • AI Clinical Summary: {AiSummaryHinglish}
+
+  📥 [ 📎 Download Full Lab Report PDF ]
+
+  Dr. {DoctorLastName} se report review ke liye option chuniye:
+  [ Buttons: 🏥 Physical Review at Clinic | 💻 Virtual Video Review ]
+  (Physical Review chune par aapki prescribed dawaiyan clinic pharmacy counter par reserve ho jayengi).
+  ```
+
+- **Template 5: Day-25 Automated Chronic Medicine Refill (10% OFF VIP Discount)**
+  ```text
+  Namaste {PatientName} Ji! 🩺
+  Aapki *{MedicineName}* dawa agle *5 dino mein khatam* hone wali hai.
+
+  Blood pressure/sugar control mein gap na aaye, isliye {ClinicName} Pharmacy ne aapka *1 Month Refill Pack (10% OFF)* ready rakha hai:
+
+  • MRP: ~₹{MrpAmount}~
+  • Your Price (10% VIP Discount): *₹{DiscountedAmount}*
+  • Delivery: Free Clinic Counter Pickup ya 24hr Home Delivery
+
+  [ Buttons: 📦 Confirm 1-Click Refill | 👨‍⚕️ Speak to Doctor ]
+  ```
+
+- **Template 6: Emergency SOS Priority #1 Routing**
+  ```text
+  🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨
+
+  {DoctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!
+
+  • Emergency Token: *{SosTokenNumber}*
+  • Doctor: *{DoctorName}*
+  • Clinic Desk: *{ClinicName}*
+  • Status: *Chamber Alerted (Top Priority)* 🔴
+  • Emergency Surcharge: *₹{EmergencyFee}*
+
+  Kripya turant clinic emergency desk par pahuchein aur token *{SosTokenNumber}* compounder ko show karein! 🩺
+  ```
 
 ---
 
@@ -283,3 +377,7 @@ Even when the user provides brief, informal, conversational, or underspecified p
 125. **Idempotent Postgres Publication Invariant Protocol (Error 42710 Immunity)**: All SQL migration scripts that add tables to the `supabase_realtime` publication MUST execute inside a safe `DO $$ ... $$` PL/pgSQL block querying `pg_publication_tables` (`IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = t) THEN EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I;', t); END IF;`). Direct raw `ALTER PUBLICATION ... ADD TABLE` statements that halt on Postgres `ERROR: 42710` are STRICTLY PROHIBITED.
 126. **Centralized Fallback Pod UUID Import Guarantee**: Raw hardcoded fallback UUID strings (such as `'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'`) and hardcoded clinic names are STRICTLY FORBIDDEN in frontend components, contexts, and services. All modules MUST import `FALLBACK_POD_ID` from `src/services/podContext.ts` and use dynamic naming resolvers.
 127. **Background Daemon Bridge Protocol (Port 9000 Grounding)**: The system maintains an active, self-contained Daemon Bridge on port 9000 (`scripts/daemon-bridge.cjs`) providing `/context`, `/health`, and `/state` endpoints for live DOM grounding, active pod verification, and system telemetry.
+128. **Zero Platform Fee Jargon & Canonical Fee Schedule Invariant Protocol**:
+     - **Patient-Facing Touchpoint Shield**: In all patient-facing interfaces (WhatsApp Chatbot messages, WhatsApp payment portals `/pay/:id`, Patient Mobile checkout sheets, SMS alerts, and simulated patient views), the system and AI agents MUST NEVER output or display `(0% Platform Fee)`, `Platform Fee: ₹0.00`, or SaaS/platform technical jargon. For Doctor Consultations, patients MUST exclusively see the clean, unbranded consultation fee: `Doctor Consultation Fee: ₹500.00` and `Total Amount Payable: ₹500.00`. The platform fee row MUST be completely hidden whenever `platformFee === 0`.
+     - **Doctor Consultation 100% Fee Immunity (Counter & WhatsApp OPD)**: Both counter walk-ins and WhatsApp online appointment bookings carry **0% platform fee / 0% commission**. 100% of patient consultation fees flow directly to the Doctor's bank account via Direct UPI (`upi://pay`) or counter cash.
+     - **B2B Ecosystem Monetization**: Pathology Lab Requisitions carry a flat **5% Platform Split** on diagnostic lab tests, and Pharmacy Counter POS carries a flat **2% Platform Split** on medicine sales, automatically ledgered in `vitalsync_pool_settlements` while maintaining a **₹1,000 Safety Buffer**.

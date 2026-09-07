@@ -283,14 +283,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'saas_admin', name: 'Platform Operations', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
   ];
 
+  const doctorClinicalModules = ['doctor', 'compounder', 'lab', 'pharmacy', 'patient', 'refraction'];
   const clinicalModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'];
   const adminModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
 
   const allowedRolesMap: Record<string, string[]> = {
-    'doctor': clinicalModulesList,
-    'ophthalmologist': clinicalModulesList,
-    'general_physician': clinicalModulesList,
-    'physician': clinicalModulesList,
+    'doctor': doctorClinicalModules,
+    'ophthalmologist': doctorClinicalModules,
+    'general_physician': doctorClinicalModules,
+    'physician': doctorClinicalModules,
     'compounder': ['compounder', 'billing'],
     'receptionist': ['compounder', 'billing'],
     'staff': ['compounder', 'billing'],

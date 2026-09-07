@@ -378,6 +378,10 @@ class MediflowApiService {
         }
       });
 
+      window.addEventListener('mediflow-state-change', () => {
+        this.notify();
+      });
+
       // Probe WAL replay initially
       setTimeout(() => this.replayWALOutbox().catch(err => console.error('[Mediflow WAL] Initial replay failed:', err)), 1000);
     }
@@ -613,10 +617,9 @@ class MediflowApiService {
   public async syncFromSupabase(): Promise<void> {
     if (this.isSyncing || this.isWALReplaying) return; // ← concurrency guard: skip if a sync or WAL replay is already in flight
 
-    // Prevent syncing if not authenticated
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      console.log('[Mediflow API] Sync skipped: No active session.');
+    // In enterprise offline-first mode, allow anonymous public clinic cloud sync when online
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('[Mediflow API] Sync skipped: Client is currently offline.');
       return;
     }
 
@@ -722,7 +725,7 @@ class MediflowApiService {
           }));
         }),
         // 4. clinic_sops
-        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').eq('pod_id', currentPodId) : supabase.from('clinic_sops').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`) : supabase.from('clinic_sops').select('*')).then(r => r.data).catch(() => null),
         // 5. medicine_bills
         Promise.resolve(supabase.from('medicine_bills').select(`
           id, patient_id, encounter_id, subtotal, loyalty_discount_percent,
@@ -996,7 +999,7 @@ class MediflowApiService {
                 if (parsed) {
                   const email = String(parsed.email || '').toLowerCase();
                   const id = String(parsed.id || '').toLowerCase();
-                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === FALLBACK_DOCTOR_ID);
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com');
                 }
               }
             } catch (_e) { /* ignore */ }
@@ -1050,7 +1053,7 @@ class MediflowApiService {
                 if (parsed) {
                   const email = String(parsed.email || '').toLowerCase();
                   const id = String(parsed.id || '').toLowerCase();
-                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === FALLBACK_DOCTOR_ID);
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com');
                 }
               }
             } catch (_e) { /* ignore */ }
@@ -1109,7 +1112,7 @@ class MediflowApiService {
                 if (parsed) {
                   const email = String(parsed.email || '').toLowerCase();
                   const id = String(parsed.id || '').toLowerCase();
-                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || id === FALLBACK_DOCTOR_ID);
+                  isDemoAccount = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com');
                 }
               }
             } catch (_e) { /* ignore */ }

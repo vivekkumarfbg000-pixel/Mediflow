@@ -182,8 +182,13 @@ const server = http.createServer((req, res) => {
         compounderDesk: { route: '/compounder', status: 'connected', cdcSynced: true, primaryComponent: 'CompounderDashboard.tsx' },
         pharmacyPOS: { route: '/pharmacy', status: 'connected', cdcSynced: true, primaryComponent: 'PharmacyDashboard.tsx' },
         pathologyLab: { route: '/lab', status: 'connected', cdcSynced: true, primaryComponent: 'LabDashboard.tsx' },
-        saasAdmin: { route: '/admin', status: 'connected', cdcSynced: true, primaryComponent: 'SaaSAdminPanel.tsx' },
-        patientMobile: { route: '/patient-dashboard', status: 'connected', cdcSynced: true, primaryComponent: 'PatientMobileDashboard.tsx' }
+        saasAdmin: { route: '/admin', status: 'connected', cdcSynced: true, primaryComponent: 'SaaSAdminPanel.tsx' }
+      },
+      patientChannel: {
+        channel: 'WhatsApp Chatbot & Webhook FSM (100% App-Less, Zero Patient Portal/Dashboard)',
+        status: 'active',
+        webhook: 'supabase/functions/meta-webhook',
+        paymentGateway: '/pay/:id'
       },
       realtimeSync: {
         engine: 'Supabase Realtime CDC',

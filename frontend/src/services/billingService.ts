@@ -7,6 +7,7 @@ import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescr
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
+import { FinanceEngine } from './financeEngine';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
@@ -19,9 +20,7 @@ export class BillingService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === FALLBACK_DOCTOR_ID
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }
@@ -202,14 +201,25 @@ export class BillingService {
     // Core Invoice Settlement & Financial Ledger Splits
     this.recordInvoicePayment(invoiceId, paymentMethod);
 
-    // Atomic Backend Settlement via Postgres RPC
-    supabase.rpc('process_invoice_settlement', {
+    // Atomic Backend Settlement via Postgres RPC v2
+    supabase.rpc('process_invoice_settlement_v2', {
       p_invoice_id: invoiceId,
       p_payment_method: paymentMethod,
       p_amount_paid: invoiceAmount
     }).then(({ error }) => {
-      if (error) console.warn('[BillingService] RPC process_invoice_settlement note:', error.message);
-      else writeAuditLog('invoice_payment_cleared', { invoiceId, paymentMethod }, invoiceId);
+      if (error) {
+        // Safe fallback to v1 if v2 not yet applied in DB
+        supabase.rpc('process_invoice_settlement', {
+          p_invoice_id: invoiceId,
+          p_payment_method: paymentMethod,
+          p_amount_paid: invoiceAmount
+        }).then(
+          () => {},
+          (err: any) => console.warn('[BillingService] RPC settlement fallback notice:', err?.message)
+        );
+      } else {
+        writeAuditLog('invoice_payment_cleared', { invoiceId, paymentMethod }, invoiceId);
+      }
     });
 
     window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
@@ -227,9 +237,7 @@ export class BillingService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === FALLBACK_DOCTOR_ID
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }
@@ -387,9 +395,7 @@ export class BillingService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === FALLBACK_DOCTOR_ID
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }
@@ -494,9 +500,7 @@ export class BillingService {
           const id = String(parsed.id || '').toLowerCase();
           isDemoAccount = Boolean(
             parsed.isDemo === true ||
-            email === 'demo@mediflow.com' ||
-            email === 'doctor@mediflow.com' ||
-            id === FALLBACK_DOCTOR_ID
+            email === 'demo@mediflow.com'
           );
         }
       } catch (_e) { /* ignore */ }
@@ -1620,81 +1624,15 @@ export class BillingService {
   }
 
   static calculateCommissionPoolBalance() {
-    // Ground truth: Derive earnings directly from deduplicated financial ledgers
+    // Ground truth: Derive earnings directly from deduplicated financial ledgers via FinanceEngine SSOT
     const ledgers = this.getFinancialLedgers();
-
-    let totalCashCommissionOwed = 0;   // 3% cash sales commission accrued debt (-)
-    let totalOnlineOffsetReceived = 0; // Online receipts (+)
-    let doctorConsultsEarned = 0;      // 100% doctor consult fee
-    let doctorLabReferralsEarned = 0;   // SOP lab test referral
-    let doctorMedicineReferralsEarned = 0; // SOP medicine referral
-
-    const seenConsultKeys = new Set<string>();
-
-    ledgers.forEach(l => {
-      const type = l.transactionType;
-      const isCleared = l.paymentStatus === 'cleared' || (l as any).payment_status === 'cleared' || (l as any).paymentStatus === 'completed';
-      if (!isCleared) return;
-
-      const method = String(l.paymentMethod || (l as any).payment_method || '').toLowerCase();
-      const isCash = method === 'cash';
-
-      if (type === 'appointment_fee' || (type as any) === 'doctor_consultation_fee') {
-        const key = `${l.invoiceId || l.id}_${(l as any).patientId || l.patientName || ''}`;
-        if (!seenConsultKeys.has(key)) {
-          seenConsultKeys.add(key);
-          const fee = Number(l.grossAmount || l.netPayout || 500);
-          doctorConsultsEarned += fee;
-          if (!isCash) {
-            totalOnlineOffsetReceived += fee;
-          }
-        }
-      } else if (type === 'medicine_commission') {
-        doctorMedicineReferralsEarned += Number(l.netPayout || 0);
-        if (isCash) {
-          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.02);
-          totalCashCommissionOwed += plat;
-        }
-      } else if (type === 'lab_commission') {
-        doctorLabReferralsEarned += Number(l.netPayout || 0);
-        if (isCash) {
-          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.05);
-          totalCashCommissionOwed += plat;
-        }
-      } else if (type === 'platform_fee') {
-        if (isCash) {
-          totalCashCommissionOwed += Number(l.netPayout || 0);
-        }
-      }
-    });
-
-    // Check manual settlement adjustments & auto-heal legacy seed entries (> 5000 or < -5000)
     let settlements = load<any[]>('vitalsync_pool_settlements', []);
-    if (settlements.some(s => Math.abs(s.amount) > 5000)) {
-      settlements = settlements.filter(s => Math.abs(s.amount) <= 5000);
+    if (settlements.some(s => Math.abs(s.amount || s.total_amount || 0) > 50000)) {
+      settlements = settlements.filter(s => Math.abs(s.amount || s.total_amount || 0) <= 50000);
       save('vitalsync_pool_settlements', settlements);
     }
-    let manualSettledTotal = 0;
-    settlements.forEach(s => {
-      manualSettledTotal += (s.amount || 0);
-    });
-
-    const netPoolBalance = (totalOnlineOffsetReceived + manualSettledTotal) - totalCashCommissionOwed;
-    const poolBufferThreshold = 1000;
-    const transferableDoctorPayout = Math.max(0, netPoolBalance - poolBufferThreshold);
-
-    return {
-      netPoolBalance,
-      poolBufferThreshold,
-      transferableDoctorPayout,
-      totalCashCommissionOwed,
-      totalOnlineOffsetReceived,
-      manualSettledTotal,
-      doctorConsultsEarned,
-      doctorLabReferralsEarned,
-      doctorMedicineReferralsEarned,
-      totalDoctorEarned: doctorConsultsEarned + doctorLabReferralsEarned + doctorMedicineReferralsEarned
-    };
+    const activeSop = this.getActiveSop();
+    return FinanceEngine.calculateRealtimeLedgerMetrics(ledgers, settlements, activeSop);
   }
 
   static recordPoolSettlement(amount: number, referenceNumber: string, notes?: string): void {
@@ -1719,10 +1657,11 @@ export class BillingService {
     save('unified_invoices', invoices);
     notify();
 
-    // Sync to Supabase
+    const rawApptId = (invoice as any).appointmentId || (invoice.encounterId && invoice.encounterId !== 'walkin' && invoice.encounterId !== 'counter-checkout' ? invoice.encounterId : null);
     supabase.from('unified_invoices').upsert({
       id: invoice.id,
       encounter_id: invoice.encounterId === 'walkin' ? null : (invoice.encounterId || null),
+      appointment_id: rawApptId,
       patient_id: invoice.patientId,
       doctor_fee: invoice.doctorFee,
       lab_fee: invoice.labFee,

@@ -1,7 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
-import { load, save, clearStorageCache, notify } from './apiHelper';
+import { load, save, clearStorageCache, notify, broadcastStorageMutation } from './apiHelper';
 import { getIstDateString } from '../utils/dateUtils';
-import { getPodContext, FALLBACK_POD_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, resolveSovereignPodId } from './podContext';
 
 export interface RealtimeSubscriptionHandlers {
   onAppointmentChange?: (payload: any) => void;
@@ -19,6 +19,8 @@ export interface RealtimeSubscriptionHandlers {
   onPoolSettlementChange?: (payload: any) => void;
   onClinicSopChange?: (payload: any) => void;
   onChronicCohortChange?: (payload: any) => void;
+  onPharmacyInventoryChange?: (payload: any) => void;
+  onReagentInventoryChange?: (payload: any) => void;
   onStatusChange?: (status: 'connected' | 'reconnecting' | 'disconnected') => void;
 }
 
@@ -114,7 +116,38 @@ export class RealtimeSyncService {
     if (record.revisit_scheduled_at !== undefined) normalized.revisitScheduledAt = record.revisit_scheduled_at;
     if (record.revisit_note !== undefined) normalized.revisitNote = record.revisit_note;
     if (record.is_emergency !== undefined) normalized.isEmergency = record.is_emergency === true;
-    if (record.medicine_name !== undefined) normalized.medicineName = record.medicine_name;
+    if (record.medicine_name !== undefined) {
+      normalized.medicineName = record.medicine_name;
+      if (!normalized.name) normalized.name = record.medicine_name;
+    }
+    if (record.quantity_in_stock !== undefined && normalized.stock === undefined) {
+      normalized.stock = typeof record.quantity_in_stock === 'string' ? parseInt(record.quantity_in_stock, 10) : record.quantity_in_stock;
+    }
+    if (record.reagent_name !== undefined) {
+      normalized.reagentName = record.reagent_name;
+      if (!normalized.name) normalized.name = record.reagent_name;
+    }
+    if (record.stock_volume !== undefined) {
+      normalized.stockVolume = typeof record.stock_volume === 'string' ? parseFloat(record.stock_volume) : record.stock_volume;
+    }
+    if (record.threshold_volume !== undefined) {
+      normalized.thresholdVolume = typeof record.threshold_volume === 'string' ? parseFloat(record.threshold_volume) : record.threshold_volume;
+      normalized.threshold = normalized.thresholdVolume;
+    }
+    if (record.low_stock_threshold !== undefined) {
+      normalized.thresholdVolume = typeof record.low_stock_threshold === 'string' ? parseFloat(record.low_stock_threshold) : record.low_stock_threshold;
+      normalized.threshold = normalized.thresholdVolume;
+    }
+    if (record.unit_price !== undefined) {
+      normalized.price = typeof record.unit_price === 'string' ? parseFloat(record.unit_price) : record.unit_price;
+      normalized.unitPrice = normalized.price;
+    }
+    if (record.generic_name !== undefined) {
+      normalized.genericName = record.generic_name;
+    }
+    if (record.threshold !== undefined && normalized.threshold === undefined) {
+      normalized.threshold = typeof record.threshold === 'string' ? parseInt(record.threshold, 10) : record.threshold;
+    }
     if (record.source !== undefined) normalized.source = record.source;
     if (record.vitals !== undefined) normalized.vitals = record.vitals;
     if (record.chronic_conditions !== undefined) normalized.chronicConditions = record.chronic_conditions;
@@ -240,7 +273,9 @@ export class RealtimeSyncService {
           'encounters': ['encounters'],
           'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
           'clinic_sops': ['clinic_sops'],
-          'chronic_care_cohorts': ['chronic_care_cohorts']
+          'chronic_care_cohorts': ['chronic_care_cohorts'],
+          'pharmacy_inventory': ['pharmacy_inventory', 'mediflow_inventory'],
+          'reagent_inventory': ['reagents', 'reagent_inventory']
         };
 
         const storageKeys = storageMap[tableName];
@@ -295,9 +330,8 @@ export class RealtimeSyncService {
   // ── 360° Realtime Cloud-First Boot & Data Hydration Engine ────────────────
   static async fetchInitialCloudData(forcedPodId?: string): Promise<void> {
     try {
-      const podCtx = getPodContext();
-      const currentPodId = forcedPodId || podCtx.podId || FALLBACK_POD_ID;
-      const isFiltered = currentPodId && currentPodId !== 'unresolved-pod';
+      const currentPodId = resolveSovereignPodId(forcedPodId);
+      const isFiltered = Boolean(currentPodId);
 
       const buildQuery = (tableName: string) => {
         let q = supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(150);
@@ -318,7 +352,12 @@ export class RealtimeSyncService {
         reportsRes,
         poolRes,
         sopsRes,
-        chronicRes
+        chronicRes,
+        encountersRes,
+        rxRes,
+        holdsRes,
+        pharmacyRes,
+        reagentsRes
       ] = await Promise.allSettled([
         buildQuery('appointments'),
         buildQuery('patient_registry'),
@@ -330,22 +369,48 @@ export class RealtimeSyncService {
         buildQuery('pathology_reports'),
         buildQuery('vitalsync_pool_settlements'),
         buildQuery('clinic_sops'),
-        buildQuery('chronic_care_cohorts')
+        buildQuery('chronic_care_cohorts'),
+        buildQuery('encounters'),
+        buildQuery('saas_prescriptions'),
+        buildQuery('inventory_holds'),
+        buildQuery('pharmacy_inventory'),
+        buildQuery('reagent_inventory')
       ]);
 
       const handleTableSync = (res: PromiseSettledResult<any>, tableName: string, storageKeys: string[]) => {
-        if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data) && res.value.data.length > 0) {
+        if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data)) {
           const normalized = res.value.data.map((r: any) => this.normalizeRecord(r));
-          for (const key of storageKeys) {
-            clearStorageCache(key);
-            const current = load<any[]>(key, []);
-            const merged = [...normalized];
-            current.forEach(item => {
-              if (item && item.id && !merged.some(m => m.id === item.id)) {
-                merged.push(item);
+
+          // Sovereign Cloud Authority: Check offline WAL outbox for pending unsynced records
+          let pendingWalRecords: any[] = [];
+          try {
+            const rawMemOutbox = localStorage.getItem('wal_mem_outbox');
+            if (rawMemOutbox) {
+              const outbox = JSON.parse(rawMemOutbox);
+              if (Array.isArray(outbox)) {
+                pendingWalRecords = outbox
+                  .filter((entry: any) => !entry.synced && (entry.table === tableName || entry.tableName === tableName) && entry.data)
+                  .map((entry: any) => this.normalizeRecord(entry.data));
+              }
+            }
+          } catch (_e) {
+            /* ignore outbox parse error */
+          }
+
+          // Merge: Authoritative Cloud Records + Pending Unsynced WAL Records
+          // (Zombies not in cloud and not in pending WAL are definitively pruned)
+          const finalDataset = [...normalized];
+          if (pendingWalRecords.length > 0) {
+            pendingWalRecords.forEach(pending => {
+              if (pending && pending.id && !finalDataset.some(m => m.id === pending.id)) {
+                finalDataset.push(pending);
               }
             });
-            save(key, merged);
+          }
+
+          for (const key of storageKeys) {
+            clearStorageCache(key, false);
+            save(key, finalDataset, false);
           }
         }
       };
@@ -361,7 +426,13 @@ export class RealtimeSyncService {
       handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements']);
       handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops']);
       handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts']);
+      handleTableSync(encountersRes, 'encounters', ['encounters']);
+      handleTableSync(rxRes, 'saas_prescriptions', ['saas_prescriptions', 'prescriptions']);
+      handleTableSync(holdsRes, 'inventory_holds', ['inventory_holds']);
+      handleTableSync(pharmacyRes, 'pharmacy_inventory', ['pharmacy_inventory', 'mediflow_inventory']);
+      handleTableSync(reagentsRes, 'reagent_inventory', ['reagents', 'reagent_inventory']);
 
+      broadcastStorageMutation();
       notify();
       window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { source: 'cloud_hydration' } }));
       window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { source: 'cloud_hydration' } }));
@@ -546,6 +617,24 @@ export class RealtimeSyncService {
           this.subscribers.forEach(s => s.onChronicCohortChange?.(payload));
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pharmacy_inventory' },
+        (payload) => {
+          console.log('[RealtimeSync] Pharmacy Inventory change detected:', payload);
+          this.autoIngestPayload('pharmacy_inventory', payload);
+          this.subscribers.forEach(s => s.onPharmacyInventoryChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reagent_inventory' },
+        (payload) => {
+          console.log('[RealtimeSync] Reagent Inventory change detected:', payload);
+          this.autoIngestPayload('reagent_inventory', payload);
+          this.subscribers.forEach(s => s.onReagentInventoryChange?.(payload));
+        }
+      )
       .subscribe((status, err) => {
         console.log(`[RealtimeSync] Channel Status: ${status}`, err || '');
 
@@ -637,4 +726,12 @@ export class RealtimeSyncService {
     this.subscribers.clear();
     this.updateStatus('disconnected');
   }
+}
+
+// Auto-Rehydration & Channel Reconnection on Network Online Restoration
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    console.log('[RealtimeSync] Network online detected — re-hydrating cloud tables and validating channel status...');
+    RealtimeSyncService.fetchInitialCloudData().catch(() => {});
+  });
 }

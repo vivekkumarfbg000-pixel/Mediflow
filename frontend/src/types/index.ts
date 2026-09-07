@@ -512,8 +512,10 @@ export interface Appointment {
   patient_phone?: string;
   doctor_id?: string;
   entityId?: string;
-  clinic_id?: string;
   isEmergency?: boolean;
+  is_emergency?: boolean;
+  isVip?: boolean;
+  is_vip?: boolean;
   vitals?: PatientVitals;
   patient_vitals?: PatientVitals;
 }

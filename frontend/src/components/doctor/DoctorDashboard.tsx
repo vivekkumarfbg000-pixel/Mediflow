@@ -4,7 +4,7 @@ import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
 import { PatientService } from '../../services/patientService';
 import { supabase } from '../../lib/supabaseClient';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import { safeGetStorageJSON } from '../../utils/storage';
@@ -319,8 +319,7 @@ export const DoctorDashboard: React.FC = () => {
         }
 
         // DB Fallback Hydration
-        const localActivePod = safeGetStorageJSON<any>('vitalsync_active_pod', null);
-        const currentPodId = activePod?.id || getPodContext().podId || localActivePod?.id || null;
+        const currentPodId = resolveSovereignPodId(activePod?.id);
         let query = supabase.from('waba_connections').select('*');
         if (currentPodId) {
           query = query.or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`);
@@ -433,8 +432,7 @@ export const DoctorDashboard: React.FC = () => {
       setWhatsAppSessions(api.getWhatsAppSessions());
 
       // Fetch live remote DB records scoped strictly to active tenant pod ID (no orphan leak)
-      // Fetch live remote DB records scoped strictly to active tenant pod ID (no orphan leak)
-      const podId = activePod?.id || getPodContext().podId || FALLBACK_POD_ID;
+      const podId = resolveSovereignPodId(activePod?.id);
 
       let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
       let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
@@ -465,12 +463,29 @@ export const DoctorDashboard: React.FC = () => {
           });
         }
 
-        if (apptsRes.data && apptsRes.data.length > 0) {
-          const dbAppts: Appointment[] = apptsRes.data.map((a: any, idx: number) => {
-            const resolvedName = (a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') 
-              ? a.patient_name 
-              : (patNameMap.get(a.patient_id) || patNameMap.get(a.patientId) || 'Patient');
-            const apptDate = getEffectiveAppointmentDate(a);
+        if (apptsRes.data !== undefined && apptsRes.data !== null) {
+          let pendingWalAppts: any[] = [];
+          try {
+            const rawMem = localStorage.getItem('wal_mem_outbox');
+            if (rawMem) {
+              const outbox = JSON.parse(rawMem);
+              if (Array.isArray(outbox)) {
+                pendingWalAppts = outbox
+                  .filter((e: any) => !e.synced && (e.table === 'appointments' || e.tableName === 'appointments') && e.data)
+                  .map((e: any) => e.data);
+              }
+            }
+          } catch (_e) {}
+
+          if (apptsRes.data.length === 0) {
+            BillingService.saveAppointments(pendingWalAppts);
+            setAppointments(pendingWalAppts);
+          } else {
+            const dbAppts: Appointment[] = apptsRes.data.map((a: any, idx: number) => {
+              const resolvedName = (a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') 
+                ? a.patient_name 
+                : (patNameMap.get(a.patient_id) || patNameMap.get(a.patientId) || 'Patient');
+              const apptDate = getEffectiveAppointmentDate(a);
               return {
                 id: a.id,
                 patientId: a.patient_id,
@@ -495,13 +510,16 @@ export const DoctorDashboard: React.FC = () => {
               } as any;
             });
 
-            const currentLocal = BillingService.getAppointments();
-            const merged = [...dbAppts];
-            currentLocal.forEach(loc => {
-              if (!merged.some(m => m.id === loc.id)) merged.push(loc);
+            // Authoritative Cloud SSOT + Pending Unsynced WAL: Prune zombie/cancelled records
+            const finalMerged = [...dbAppts];
+            pendingWalAppts.forEach(p => {
+              if (p && p.id && !finalMerged.some(m => m.id === p.id)) {
+                finalMerged.push(p);
+              }
             });
-            BillingService.saveAppointments(merged);
-            setAppointments(merged);
+            BillingService.saveAppointments(finalMerged);
+            setAppointments(finalMerged);
+          }
         }
 
         if (ledgersRes.data !== undefined && ledgersRes.data !== null) {
@@ -1488,6 +1506,8 @@ Keep the tone professional, clinical, objective, and precise.`;
               return (
                 <PodCommandCenter 
                   hideHeader={true}
+                  hideFinancialOverview={true}
+                  hideFulfillmentWidgets={true}
                   onOpenChronicCare={() => setActiveTab('chronic')}
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
@@ -1824,6 +1844,8 @@ Keep the tone professional, clinical, objective, and precise.`;
               return (
                 <PodCommandCenter 
                   hideHeader={true}
+                  hideFinancialOverview={true}
+                  hideFulfillmentWidgets={true}
                   onOpenChronicCare={() => setActiveTab('chronic')}
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
@@ -2355,7 +2377,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard },
             ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList }] : []),
             { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video },
-            { id: 'financials',        label: 'Financial Reports',      icon: CreditCard },
+            { id: 'financials',        label: 'My Earnings & SOP Splits', icon: CreditCard },
             { id: 'patients',          label: 'Patient Directory',      icon: Users },
             { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare }
           ].map(tab => {

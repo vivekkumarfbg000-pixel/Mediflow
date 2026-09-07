@@ -24,7 +24,7 @@ import type { ReagentStock } from '../../services/api';
 import type { LabRequisition, Patient, Invoice, LabReport, UnifiedInvoice, DiagnosticTest } from '../../types';
 import { useClinic } from '../../context/ClinicContext';
 import { SettlementWidget } from '../shared/SettlementWidget';
-import { FALLBACK_POD_ID } from '../../services/podContext';
+import { FALLBACK_POD_ID, resolveSovereignPodId } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { getIstDateString, getIstDateDisplay } from '../../utils/dateUtils';
 
@@ -211,12 +211,10 @@ export const LabDashboard: React.FC = () => {
   useEffect(() => {
     const fetchLiveRequisitions = async () => {
       try {
-        const activePodId = activePod?.id || null;
+        const activePodId = resolveSovereignPodId(activePod?.id);
         let query = supabase.from('lab_requisitions').select('*').order('created_at', { ascending: false });
         if (activePodId) {
-          query = query.eq('pod_id', activePodId);
-        } else {
-          query = query.is('pod_id', null);
+          query = query.or(`pod_id.eq.${activePodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
         }
         const { data, error } = await query;
         if (!error && data) {
@@ -263,6 +261,7 @@ export const LabDashboard: React.FC = () => {
         sync();
         fetchLiveRequisitions();
       },
+      onReagentInventoryChange: () => sync(),
       onPatientChange: () => sync(),
       onUnifiedInvoiceChange: () => sync(),
       onPathologyReportChange: () => sync(),

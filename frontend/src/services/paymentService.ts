@@ -474,34 +474,30 @@ export class PaymentService {
       const platformFee = parseFloat((Number(invoice.platform_fee || invoice.platformFee || 0)).toFixed(2));
       const netPlatformProfit = Math.max(0, parseFloat((platformFee - (gatewayFee || 0)).toFixed(2)));
 
-      // 2. Mark invoice as cleared in public.unified_invoices
-      await supabase
-        .from('unified_invoices')
-        .update({
-          payment_status: 'cleared',
-          payment_method: paymentMethod
-        })
-        .eq('id', invoiceId);
+      // Atomic Backend Settlement via PostgreSQL Stored Procedure
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('process_invoice_settlement_v2', {
+        p_invoice_id: invoiceId,
+        p_payment_method: paymentMethod,
+        p_amount_paid: totalAmount
+      });
 
-      // 3. Log settlement into vitalsync_pool_settlements
-      await supabase
-        .from('vitalsync_pool_settlements')
-        .upsert({
-          id: `pool-settle-${invoiceId}`,
-          invoice_id: invoiceId,
-          patient_id: invoice.patient_id || invoice.patientId,
-          total_amount: totalAmount,
-          doctor_share: doctorFee,
-          platform_share: platformFee,
-          gateway_fee: gatewayFee,
-          net_platform_profit: netPlatformProfit,
-          payment_method: paymentMethod,
-          settlement_status: 'completed',
-          created_at: new Date().toISOString()
-        }, { onConflict: 'id' })
-        .select();
+      if (rpcErr) {
+        // Fallback to v1 if v2 is not yet present
+        const { error: v1Err } = await supabase.rpc('process_invoice_settlement', {
+          p_invoice_id: invoiceId,
+          p_payment_method: paymentMethod,
+          p_amount_paid: totalAmount
+        });
+        if (v1Err) {
+          console.warn('[PaymentService] Fallback RPC error, applying direct invoice update:', v1Err.message);
+          await supabase
+            .from('unified_invoices')
+            .update({ payment_status: 'cleared', payment_method: paymentMethod })
+            .eq('id', invoiceId);
+        }
+      }
 
-      console.log(`[PaymentService] 🟢 Invoice ${invoiceId} settled via ${paymentMethod}. Doctor: ₹${doctorFee}, Platform Profit: ₹${netPlatformProfit}`);
+      console.log(`[PaymentService] 🟢 Invoice ${invoiceId} settled via ${paymentMethod}. Atomic status:`, rpcData || 'cleared');
       return true;
     } catch (err) {
       console.error('[PaymentService] Exception settling invoice:', err);

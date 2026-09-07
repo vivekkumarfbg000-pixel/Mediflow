@@ -56,6 +56,45 @@ export function isDemoMode(): boolean {
   } catch (_e) { return false; }
 }
 
+/**
+ * Resolves the active clinic's Sovereign Pod ID across all consoles.
+ * Strict Resolution Hierarchy:
+ *  1. forcedPodId (if valid)
+ *  2. window.__mediflow_active_pod_id
+ *  3. vitalsync_active_pod (localStorage)
+ *  4. vitalsync_cached_active_pod (localStorage)
+ *  5. mediflow_active_pod (localStorage)
+ *  6. _ctx.podId (if not unresolved)
+ *  7. FALLBACK_POD_ID (dfb2a1a8-8e68-4f8a-929e-4a6c8e317001 - VitalSync Sovereign Clinic)
+ */
+export function resolveSovereignPodId(forcedPodId?: string): string {
+  if (forcedPodId && forcedPodId !== UNRESOLVED_POD && forcedPodId !== 'unassigned-pod') {
+    return forcedPodId;
+  }
+  if (typeof window !== 'undefined') {
+    const winPod = (window as any).__mediflow_active_pod_id;
+    if (winPod && typeof winPod === 'string' && winPod !== UNRESOLVED_POD && winPod !== 'unassigned-pod') {
+      return winPod;
+    }
+    try {
+      const storageKeys = ['vitalsync_active_pod', 'vitalsync_cached_active_pod', 'mediflow_active_pod'];
+      for (const k of storageKeys) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.id === 'string' && parsed.id.length > 5 && parsed.id !== UNRESOLVED_POD) {
+            return parsed.id;
+          }
+        }
+      }
+    } catch (_e) { /* ignore parse error */ }
+  }
+  if (_ctx && _ctx.podId && _ctx.podId !== UNRESOLVED_POD && _ctx.podId !== 'unassigned-pod' && !_ctx.podId.startsWith('pod-')) {
+    return _ctx.podId;
+  }
+  return FALLBACK_POD_ID;
+}
+
 /** Guard: throws if pod context is not resolved yet. Use before critical DB writes. */
 export function assertPodLoaded(label?: string): void {
   if (!_ctx.loaded) {
@@ -83,6 +122,8 @@ export interface PodContext {
 function getInitialPodContext(): PodContext {
   let isDemo = false;
   let userId: string | null = null;
+  let userEntityId: string | null = null;
+
   if (typeof window !== 'undefined') {
     try {
       const cached = localStorage.getItem('vitalsync_cached_profile');
@@ -90,34 +131,30 @@ function getInitialPodContext(): PodContext {
         const parsed = JSON.parse(cached);
         if (parsed) {
           userId = parsed.id || null;
+          userEntityId = parsed.entity_id || parsed.entityId || null;
           const email = String(parsed.email || '').toLowerCase();
-          isDemo = Boolean(parsed.isDemo === true || email === 'demo@mediflow.com' || email === 'doctor@mediflow.com' || userId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101');
+          isDemo = Boolean(
+            parsed.isDemo === true ||
+            email === 'demo@mediflow.com' ||
+            email === 'doctor@mediflow.com' ||
+            userId === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+          );
         }
       }
     } catch (_e) { /* ignore */ }
   }
 
-  if (isDemo) {
-    return {
-      userId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-      entityId: FALLBACK_ENTITY_ID,
-      podId: FALLBACK_POD_ID,
-      doctorId: 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101',
-      labEntityId: FALLBACK_LAB_ENTITY,
-      pharmacyEntityId: FALLBACK_PHARM_ENTITY,
-      loaded: false,
-    };
-  }
+  const sovereignPodId = resolveSovereignPodId();
+  const effectiveEntityId = userEntityId || (isDemo ? FALLBACK_ENTITY_ID : (sovereignPodId === FALLBACK_POD_ID ? FALLBACK_ENTITY_ID : (userId || FALLBACK_ENTITY_ID)));
 
-  // Non-demo user: use null-sentinel values to prevent demo data pollution
   return {
-    userId,
-    entityId: userId || UNRESOLVED_ENTITY,
-    podId: userId || UNRESOLVED_POD,
-    doctorId: userId,
-    labEntityId: userId || UNRESOLVED_LAB,
-    pharmacyEntityId: userId || UNRESOLVED_PHARM,
-    loaded: false,
+    userId: userId || (isDemo ? 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101' : null),
+    entityId: effectiveEntityId,
+    podId: sovereignPodId,
+    doctorId: isDemo ? FALLBACK_DOCTOR_ID : userId,
+    labEntityId: isDemo ? FALLBACK_LAB_ENTITY : (userId || FALLBACK_LAB_ENTITY),
+    pharmacyEntityId: isDemo ? FALLBACK_PHARM_ENTITY : (userId || FALLBACK_PHARM_ENTITY),
+    loaded: Boolean(sovereignPodId),
   };
 }
 
@@ -125,9 +162,51 @@ let _ctx: PodContext = getInitialPodContext();
 
 let _resolvePromise: Promise<PodContext> | null = null;
 
-/** Read the current (possibly unresolved) context synchronously. */
+/** Read the current Sovereign Pod context synchronously. */
 export function getPodContext(): PodContext {
   return _ctx;
+}
+
+/**
+ * Sets the active Sovereign Pod across the entire application and broadcasts
+ * the change across all open dashboard tabs via the 0ms Mesh Bus.
+ */
+export function setActivePodContext(
+  pod: { id: string; name?: string; clinicCode?: string; entityId?: string } | null,
+  broadcast: boolean = true
+): void {
+  const sovereignPodId = pod?.id || FALLBACK_POD_ID;
+  const entityId = pod?.entityId || _ctx.entityId || FALLBACK_ENTITY_ID;
+
+  _ctx = {
+    ..._ctx,
+    podId: sovereignPodId,
+    entityId: entityId,
+    loaded: true
+  };
+
+  if (typeof window !== 'undefined') {
+    (window as any).__mediflow_active_pod_id = sovereignPodId;
+    if (pod) {
+      try {
+        localStorage.setItem('vitalsync_active_pod', JSON.stringify(pod));
+        localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify(pod));
+      } catch (_e) {}
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-pod-changed', { detail: pod }));
+    if (broadcast && typeof window.BroadcastChannel === 'function') {
+      try {
+        const bus = new BroadcastChannel('vitalsync_mesh_bus');
+        bus.postMessage({
+          type: 'POD_CONTEXT_CHANGED',
+          podId: sovereignPodId,
+          entityId: entityId,
+          timestamp: Date.now()
+        });
+        bus.close();
+      } catch (_e) {}
+    }
+  }
 }
 
 /**
@@ -176,16 +255,10 @@ export async function resolvePodContext(): Promise<PodContext> {
       const email = String(user.email || '').toLowerCase();
       const name = String(user.user_metadata?.display_name || user.user_metadata?.name || '').toLowerCase();
       const isDemoUser = Boolean(
-        email === 'demo@mediflow.com' ||
-        email === 'doctor@mediflow.com' ||
-        user.id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+        email === 'demo@mediflow.com'
       );
 
-      let podId = isDemoUser ? FALLBACK_POD_ID : user.id;
-      // Rule 76: If profile.entity_id is NULL for live user, generate user-isolated pod ID
-      // to prevent new accounts from querying/inheriting demo clinic data
-      const resolvedEntityId = profile?.entity_id || (isDemoUser ? FALLBACK_ENTITY_ID : `user-${user.id}`);
-      const entityId = isDemoUser ? FALLBACK_ENTITY_ID : resolvedEntityId;
+      let podId = resolveSovereignPodId();
 
       if (profile?.entity_id) {
         const { data: userEntity } = await supabase
@@ -196,10 +269,16 @@ export async function resolvePodContext(): Promise<PodContext> {
         if (userEntity?.pod_id) {
           podId = userEntity.pod_id;
         }
-      } else if (!isDemoUser) {
-        // Rule 76: Live user with no entity_id -> generate user-isolated pod ID
-        podId = `pod-${user.id}`;
+      } else if (isDemoUser) {
+        podId = FALLBACK_POD_ID;
       }
+
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_active_pod_id = podId;
+      }
+
+      const resolvedEntityId = profile?.entity_id || (isDemoUser ? FALLBACK_ENTITY_ID : (podId === FALLBACK_POD_ID ? FALLBACK_ENTITY_ID : `entity-${user.id}`));
+      const entityId = isDemoUser ? FALLBACK_ENTITY_ID : resolvedEntityId;
 
       let labEntityId = isDemoUser ? FALLBACK_LAB_ENTITY : user.id;
       let pharmacyEntityId = isDemoUser ? FALLBACK_PHARM_ENTITY : user.id;

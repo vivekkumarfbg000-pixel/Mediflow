@@ -201,7 +201,7 @@ export class ChronicCareService {
         .order('next_refill_date', { ascending: true });
 
       if (!error && data) {
-        return data.map(row => ({
+        const mapped = data.map(row => ({
           id: row.id,
           patientId: row.patient_id,
           patientName: row.patient_name,
@@ -221,6 +221,18 @@ export class ChronicCareService {
           status: row.status,
           monthlyMedicineSpend: Number(row.monthly_medicine_spend) || 0
         }));
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('chronic_care_cohorts', JSON.stringify(mapped));
+          } catch (_e) { /* ignore */ }
+        }
+        return mapped;
+      }
+
+      // Check offline cache first
+      const cached = safeGetStorageJSON<ChronicCohortRecord[]>('chronic_care_cohorts', []);
+      if (cached && cached.length > 0) {
+        return cached;
       }
 
       // Check if current user is on demo account
@@ -237,7 +249,8 @@ export class ChronicCareService {
       return [];
     } catch (err) {
       console.warn('[ChronicCareService] Error loading chronic cohorts:', err);
-      return [];
+      const cached = safeGetStorageJSON<ChronicCohortRecord[]>('chronic_care_cohorts', []);
+      return cached || [];
     }
   }
 

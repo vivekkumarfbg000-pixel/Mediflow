@@ -230,33 +230,8 @@ export class WhatsAppSupportBotService {
                        safeGetStorageJSON<SupportEscalationTicket[] | null>('mediflow_support_tickets', null);
       if (existing && existing.length > 0) return existing;
 
-      // Seed 2 realistic demo escalation tickets on first load
-      const demoTickets: SupportEscalationTicket[] = [
-        {
-          id: 'TKT-1042',
-          clinic_name: 'Metro Multispeciality Care',
-          doctor_name: 'Lead Clinician',
-          sender_role: 'doctor',
-          query_text: 'Need Payment Gateway API credential approval and domain CORS whitelisting.',
-          category: 'owner_escalation',
-          status: 'open',
-          created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-          ai_proposed_fix: 'Auto-provision Production Gateway App ID & Secret Key and whitelist clinic domain.'
-        },
-        {
-          id: 'TKT-1043',
-          clinic_name: 'City Heart & Diagnostic Clinic',
-          doctor_name: 'Consulting Physician',
-          sender_role: 'doctor',
-          query_text: 'Requesting custom Rx Prescription Letterhead footer & custom WhatsApp header text.',
-          category: 'owner_escalation',
-          status: 'open',
-          created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-          ai_proposed_fix: 'Configure VIP White-Labeling Branding settings in Admin Cockpit.'
-        }
-      ];
-      safeSetStorageJSON('vitalsync_support_tickets', demoTickets);
-      return demoTickets;
+      // In production, return real tickets or clean empty array without seeding mock tickets
+      return [];
     } catch (_e) {
       return [];
     }

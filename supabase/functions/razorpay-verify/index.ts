@@ -117,7 +117,7 @@ serve(async (req) => {
     }
 
     const resolvedInvoiceId = invoice?.id || invoiceId;
-    const amountPaid = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 515) : 515;
+    const amountPaid = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 500) : 500;
     const gatewayFee = Math.round(amountPaid * 0.02 * 100) / 100;
     const patientId = invoice?.patient_id || invoice?.patientId;
 

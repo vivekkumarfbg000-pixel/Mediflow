@@ -45,9 +45,7 @@ export class WhatsAppService {
             const name = String(parsed.display_name || parsed.displayName || parsed.name || '').toLowerCase();
             isDemoAccount = Boolean(
               parsed.isDemo === true ||
-              email === 'demo@mediflow.com' ||
-              email === 'doctor@mediflow.com' ||
-              id === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317101'
+              email === 'demo@mediflow.com'
             );
           }
         }
@@ -613,7 +611,45 @@ export class WhatsAppService {
 
       switch (session.currentState) {
         case 'AWAITING_CONFIRMATION':
-          if (cleaned === '1' || cleaned.includes('physical') || cleaned.includes('clinic')) {
+          if (cleaned === '1' || cleaned === 'sos' || cleaned.includes('vip') || cleaned.includes('priority') || cleaned.includes('emergency') || cleaned.includes('urgent')) {
+            const todayStr = getIstDateString();
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
+            const apptId = crypto.randomUUID();
+            const docName = this.getDynamicDoctorName();
+
+            const formattedToken = tokenNumber.startsWith('T-') && tokenNumber.includes(' E') ? tokenNumber : (tokenNumber.startsWith('VIP') ? tokenNumber : `T-${tokenNumber.replace(/\D/g, '').padStart(2, '0')} E`);
+            const sosAppt: Appointment = {
+              id: apptId,
+              patientId: patient.id,
+              patientName: patient.name,
+              patientPhone: phone,
+              doctorId: '',
+              date: todayStr,
+              appointmentTime: new Date().toISOString(),
+              status: 'ready_for_consult',
+              source: 'whatsapp_vip',
+              tokenNumber: formattedToken,
+              createdAt: new Date().toISOString()
+            };
+            BillingService.saveAppointment(sosAppt);
+            patient.queueStatus = 'awaiting_consultation';
+            patient.tokenNumber = formattedToken;
+            PatientService.savePatient(patient);
+
+            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+              detail: {
+                title: '⭐ VIP PRIORITY BOOKING ALERT!',
+                message: `Patient ${patient.name} booked VIP Priority Checkup! Priority #1 Chamber Alert!`,
+                type: 'info'
+              }
+            }));
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+
+            const activeSop = BillingService.getActiveSop();
+            const emergencyFee = activeSop?.extractedConfig?.emergency_sos_fee ?? 618;
+            nextState = 'COMPLETED';
+            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *${formattedToken}*\n• Doctor: *${docName}*\n• Clinic Desk: *${clinicName}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹${emergencyFee.toFixed(2)}*\n\nKripya turant clinic emergency desk par pahuchein aur token *${formattedToken}* compounder ko show karein! 🩺`;
+          } else if (cleaned === '2' || cleaned.includes('physical') || cleaned.includes('clinic')) {
             const todayStr = getIstDateString();
             const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
             const apptId = crypto.randomUUID();
@@ -652,14 +688,14 @@ export class WhatsAppService {
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
             nextState = 'COMPLETED';
             replyMessage = `🎫 *OPD TOKEN ISSUED SUCCESSFULLY!* 🟢\n\nNamaste *${patient.name}*!\n• Token Number: *${tokenNumber}*\n• Clinic: *${clinicName}*\n• Doctor: *${docName}*\n• Mode: *Physical OPD Visit* 🏥\n• Status: *Active in Clinic Queue*\n\nAapka appointment live sync ho gaya hai. Vitals (BP, Pulse, SpO2) check karane ke liye clinic counter par ye token number show kijiye! 🩺`;
-          } else if (cleaned === '2' || cleaned.includes('virtual') || cleaned.includes('video')) {
+          } else if (cleaned === '3' || cleaned.includes('virtual') || cleaned.includes('video')) {
             nextState = 'BOOKING_VIRTUAL';
             sessionData.awaitingProactiveAction = 'virtual_slot';
             const docName = this.getDynamicDoctorName();
             const isFree = Boolean(patient.isPremiumMember);
             const feeText = isFree ? " (🎁 Free Follow-Up Benefit Unlocked: ₹0)" : "";
             replyMessage = `📅 *Virtual Consultation Booking* \n\n${docName} ke virtual checkup ke liye slot select kijiye${feeText}:\n\n*1* - Morning Slot (10:00 AM - 11:30 AM)\n*2* - Afternoon Slot (2:00 PM - 3:30 PM)\n*3* - Evening Slot (5:00 PM - 6:30 PM)\n\nReply with **1**, **2**, or **3** to book! 💻`;
-          } else if (cleaned === '3' || cleaned.includes('report') || cleaned.includes('pathology') || cleaned.includes('test')) {
+          } else if (cleaned === '4' || cleaned.includes('report') || cleaned.includes('pathology') || cleaned.includes('test')) {
             nextState = 'COMPLETED';
             const approvedReports = LabService.getPathologyReports().filter(r => r.patientId === patient.id && r.status === 'approved');
             if (approvedReports.length > 0) {
@@ -678,43 +714,6 @@ export class WhatsAppService {
             } else {
               replyMessage = `Aapka koi approved pathology report abhi on file nahi mila. ${clinicName} lab technician ke test sync karne par aapko WhatsApp par automatic report deliver ho jayegi! 🔬`;
             }
-          } else if (cleaned === '4' || cleaned === 'sos' || cleaned.includes('emergency') || cleaned.includes('urgent')) {
-            nextState = 'COMPLETED';
-            const todayStr = getIstDateString();
-            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
-            const apptId = crypto.randomUUID();
-            const docName = this.getDynamicDoctorName();
-
-            const sosAppt: Appointment = {
-              id: apptId,
-              patientId: patient.id,
-              patientName: patient.name,
-              patientPhone: phone,
-              doctorId: '',
-              date: todayStr,
-              appointmentTime: new Date().toISOString(),
-              status: 'ready_for_consult',
-              source: 'whatsapp_sos',
-              tokenNumber: tokenNumber,
-              createdAt: new Date().toISOString()
-            };
-            BillingService.saveAppointment(sosAppt);
-            patient.queueStatus = 'awaiting_consultation';
-            patient.tokenNumber = tokenNumber;
-            PatientService.savePatient(patient);
-
-            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-              detail: {
-                title: '🚨 EMERGENCY SOS ALERT!',
-                message: `Patient ${patient.name} triggered Emergency SOS! Priority #1 Chamber Alert!`,
-                type: 'error'
-              }
-            }));
-            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
-
-            const activeSop = BillingService.getActiveSop();
-            const emergencyFee = activeSop?.extractedConfig?.emergency_sos_fee ?? 618;
-            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai!\n\n• Token Number: *${tokenNumber}*\n• Doctor: *${docName}*\n• Clinic Desk: *${clinicName}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹${emergencyFee.toFixed(2)}*\n\nKripya turant clinic emergency desk par pahuchein aur token *${tokenNumber}* show karein! 🩺`;
           } else if (cleaned === '5' || cleaned.includes('refill') || cleaned.includes('medicine') || cleaned.includes('dawai')) {
             const completed = EncounterService.getEncounters()
               .filter(e => e.patientId === patient.id && e.status === 'completed');
@@ -742,7 +741,7 @@ export class WhatsAppService {
           } else {
             nextState = 'AWAITING_CONFIRMATION';
             const docName = this.getDynamicDoctorName();
-            replyMessage = `Namaste *${patient.name}*! 🙏 Welcome to *${clinicName}*.\n\n🌟 *${clinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1, 2, 3, 4, 5, ya 6) reply kijiye! 🩺`;
+            replyMessage = `Namaste *${patient.name}*! 🙏 Welcome to *${clinicName}*.\n\n🌟 *${clinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP & Priority Booking ⚡ (Priority #1 Queue Pass)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1-6) reply kijiye! 🩺`;
           }
           break;
 
@@ -1252,8 +1251,8 @@ export class WhatsAppService {
             nextState = 'AWAITING_CONFIRMATION';
             const docName = this.getDynamicDoctorName();
             const patName = currentPat?.name || patient?.name || "Patient";
-            replyMessage = `Namaste *${patName}*! 🙏 Welcome to *${this.getDynamicClinicName()}*.\n\n🌟 *${this.getDynamicClinicName().toUpperCase()} SERVICES* 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1, 2, 3, 4, 5, ya 6) reply kijiye! 🩺`;
-          } else if (cleaned === '4' || cleaned === 'sos' || cleaned.includes('emergency') || cleaned.includes('urgent')) {
+            replyMessage = `Namaste *${patName}*! 🙏 Welcome to *${this.getDynamicClinicName()}*.\n\n🌟 *${this.getDynamicClinicName().toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP & Priority Booking ⚡ (Priority #1 Queue Pass)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1-6) reply kijiye! 🩺`;
+          } else if (cleaned === '1' || cleaned === 'sos' || cleaned.includes('vip') || cleaned.includes('priority') || cleaned.includes('emergency') || cleaned.includes('urgent')) {
             nextState = 'COMPLETED';
             const todayStr = getIstDateString();
             const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
@@ -1261,6 +1260,7 @@ export class WhatsAppService {
             const docName = this.getDynamicDoctorName();
             const effectivePat = currentPat || patient;
 
+            const formattedToken = tokenNumber.startsWith('T-') && tokenNumber.includes(' E') ? tokenNumber : (tokenNumber.startsWith('VIP') ? tokenNumber : `T-${tokenNumber.replace(/\D/g, '').padStart(2, '0')} E`);
             if (effectivePat) {
               const sosAppt: Appointment = {
                 id: apptId,
@@ -1271,28 +1271,28 @@ export class WhatsAppService {
                 date: todayStr,
                 appointmentTime: new Date().toISOString(),
                 status: 'ready_for_consult',
-                source: 'whatsapp_sos',
-                tokenNumber: tokenNumber,
+                source: 'whatsapp_vip',
+                tokenNumber: formattedToken,
                 createdAt: new Date().toISOString()
               };
               BillingService.saveAppointment(sosAppt);
               effectivePat.queueStatus = 'awaiting_consultation';
-              effectivePat.tokenNumber = tokenNumber;
+              effectivePat.tokenNumber = formattedToken;
               PatientService.savePatient(effectivePat);
             }
 
             window.dispatchEvent(new CustomEvent('mediflow-toast', {
               detail: {
-                title: '🚨 EMERGENCY SOS ALERT!',
-                message: `Patient ${effectivePat?.name || 'Walk-in'} triggered Emergency SOS! Priority #1 Chamber Alert!`,
-                type: 'error'
+                title: '⭐ VIP PRIORITY BOOKING ALERT!',
+                message: `Patient ${effectivePat?.name || 'Walk-in'} booked VIP Priority Checkup! Priority #1 Chamber Alert!`,
+                type: 'info'
               }
             }));
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
 
             const activeSop = BillingService.getActiveSop();
             const emergencyFee = activeSop?.extractedConfig?.emergency_sos_fee ?? 618;
-            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai!\n\n• Token Number: *${tokenNumber}*\n• Doctor: *${docName}*\n• Clinic Desk: *${this.getDynamicClinicName()}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹${emergencyFee.toFixed(2)}*\n\nKripya turant clinic emergency desk par pahuchein aur token *${tokenNumber}* show karein! 🩺`;
+            replyMessage = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${docName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *${formattedToken}*\n• Doctor: *${docName}*\n• Clinic Desk: *${this.getDynamicClinicName()}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹${emergencyFee.toFixed(2)}*\n\nKripya turant clinic emergency desk par pahuchein aur token *${formattedToken}* compounder ko show karein! 🩺`;
           } else if (cleaned === '6' || cleaned.includes('refer') || cleaned.includes('code') || cleaned.includes('reward')) {
             nextState = 'AWAITING_CONFIRMATION';
             const effectivePat = currentPat || patient;
@@ -1309,7 +1309,7 @@ export class WhatsAppService {
             const hasPaidInLastWeek = lastPaidInvoice && new Date(lastPaidInvoice.createdAt || 0) >= oneWeekAgo;
 
             if (!hasPaidInLastWeek) {
-              replyMessage = `Namaste *${currentPat?.name || patient?.name || "Patient"}*! 🙏\n\nClinic services ke liye niche diye option reply kijiye:\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻\n3️⃣ View Lab Reports 🔬\n4️⃣ Emergency SOS Consultation 🚨\n5️⃣ Medicine Refills 💊\n\n(Note: AI Health RAG advisory checkup fees clear karne par active hoti hai). Main Menu ke liye **MENU** reply kijiye!`;
+              replyMessage = `Namaste *${currentPat?.name || patient?.name || "Patient"}*! 🙏\n\nClinic services ke liye niche diye option reply kijiye:\n1️⃣ ⭐ VIP & Priority Booking ⚡\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻\n4️⃣ View Lab Reports 🔬\n5️⃣ Medicine Refills 💊\n6️⃣ Refer a Patient 🎁\n\nMain Menu ke liye **MENU** reply kijiye!`;
             } else {
               let chronicAdvice = "";
               if ((currentPat?.chronicConditions || []).some(c => c.toLowerCase().includes('diabetes') || c.toLowerCase().includes('sugar'))) {
@@ -1622,21 +1622,17 @@ export class WhatsAppService {
             };
             runInsert();
 
-            const baseUrl = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://vitalsync.in';
             const docName = WhatsAppService.getDynamicDoctorName();
             const clinicName = WhatsAppService.getDynamicClinicName();
-            const cleanPhone10 = (activePat.phone || '').replace(/\D/g, '').slice(-10);
-            const targetInvoiceId = sessionData.pendingInvoiceId || `inv-wa-${apptId.substring(0, 8)}`;
-            const razorpayPayLink = `${baseUrl}/pay/${targetInvoiceId}?phone=${cleanPhone10}`;
             const chosenDateDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate === getIstDateString() ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`);
             const activeSop = BillingService.getActiveSop();
             const baseDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
-            const onlinePlatFee = 0.00;
-            const totalOnlinePayable = baseDocFee;
             const assignedToken = (activePat as any)?.tokenNumber || (activePat as any)?.token_number || '#TK-001';
+            const doctorUpiVpa = activeSop?.extractedConfig?.doctor_upi_vpa || '8986426029@ybl';
+            const directUpiLink = `upi://pay?pa=${doctorUpiVpa}&pn=${encodeURIComponent(docName)}&am=${baseDocFee.toFixed(2)}&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`;
 
             nextState = 'AWAITING_VIRTUAL_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n• Doctor Consultation Fee: *₹${baseDocFee.toFixed(2)}* (0% Platform Fee)\n\n📱 *Doctor Direct UPI Se Pay Karein ya Portal Link Se:*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token ${assignedToken} issue ho jayega 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!*\n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n• Doctor Consultation Fee: *₹${baseDocFee.toFixed(2)}*\n\n📲 *Doctor Direct UPI Se Pay Karein (GPay / PhonePe / Paytm):*\n${directUpiLink}\n\n👉 *Payment Options:*\n1️⃣ UPI se pay karke *PAID* reply karein (turant token ${assignedToken} issue ho jayega).\n2️⃣ Ya agar clinic counter par pay karna chahte hain toh *COUNTER* reply karein.\n\n*(Note: Clinic vitals desk par compounder payment screenshot verify karega)* 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }
@@ -1644,6 +1640,7 @@ export class WhatsAppService {
         break;
 
         case 'AWAITING_VIRTUAL_PAYMENT': {
+          const docName = WhatsAppService.getDynamicDoctorName();
           if (cleaned.includes('pay') || cleaned.includes('clear') || cleaned.includes('paid') || cleaned.includes('done') || cleaned.includes('confirm') || cleaned === '1') {
             const apptId = sessionData.pendingApptId || crypto.randomUUID();
             const invoiceId = sessionData.pendingInvoiceId;
@@ -1675,15 +1672,16 @@ export class WhatsAppService {
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
             window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
 
-            const docName = WhatsAppService.getDynamicDoctorName();
             const realToken = targetAppt?.tokenNumber || (targetAppt as any)?.token_number || (patient as any)?.tokenNumber || '#TK-001';
             nextState = 'COMPLETED';
             replyMessage = `🟢 *APPOINTMENT CONFIRMED & PAID!* \n\n${docName} ke saath aapka checkup slot confirm ho gaya hai! 📑\n\n• Token Number: *${realToken}*\n• Status: *Confirmed & Scheduled* 🟢\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nDoctor EMR aur Compounder Desk par aapki appointment live sync ho chuki hai! Thank you! 😊`;
           } else {
             const invId = sessionData.pendingInvoiceId || `inv-wa-${Date.now()}`;
-            const baseUrl = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : 'https://vitalsync.in';
-            const razorpayPayLink = `${baseUrl}/pay/${invId}`;
-            replyMessage = `Payment verification pending. Please Razorpay UPI payment complete karke *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye.\n\nPayment Link: ${razorpayPayLink}`;
+            const activeSop = BillingService.getActiveSop();
+            const doctorUpiVpa = activeSop?.extractedConfig?.doctor_upi_vpa || '8986426029@ybl';
+            const baseDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
+            const directUpiLink = `upi://pay?pa=${doctorUpiVpa}&pn=${encodeURIComponent(docName)}&am=${baseDocFee.toFixed(2)}&cu=INR&tn=VS-APPT-${invId.substring(0, 8)}`;
+            replyMessage = `Payment verification pending. Please Doctor Direct UPI se payment complete karke *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye.\n\n📲 *Doctor Direct UPI Link:*\n${directUpiLink}\n\n*(Note: Clinic vitals desk par compounder payment screenshot verify karega)* 📑`;
           }
         }
         break;

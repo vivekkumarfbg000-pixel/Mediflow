@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
-import { FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../services/podContext';
+import { FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, setActivePodContext } from '../services/podContext';
 import type { Pod, Entity } from '../types';
 
 interface ClinicContextType {
@@ -209,6 +209,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         };
 
         setActivePod(mappedPod);
+        setActivePodContext(mappedPod, false);
 
         if (typeof window !== 'undefined') {
           safeSetStorageJSON('vitalsync_cached_active_pod', mappedPod);
@@ -375,6 +376,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
 
       window.addEventListener('storage', handleStorageSync);
       window.addEventListener('mediflow-pod-change', handleCustomPodChange);
+      window.addEventListener('mediflow-pod-changed', handleCustomPodChange);
 
       return () => {
         supabase.removeChannel(channel);
@@ -382,6 +384,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         if (doctorChannel) supabase.removeChannel(doctorChannel);
         window.removeEventListener('storage', handleStorageSync);
         window.removeEventListener('mediflow-pod-change', handleCustomPodChange);
+        window.removeEventListener('mediflow-pod-changed', handleCustomPodChange);
       };
     } else {
       // Realtime listener on public.pods table even without entity
