@@ -51,7 +51,11 @@ export class FounderAICopilotService {
         const invoices = api.getUnifiedInvoices();
         const clearedInvoices = invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid');
         const totalGross = clearedInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
-        const totalPlatformCommission = totalGross * 0.03;
+        const totalPlatformCommission = clearedInvoices.reduce((sum, i) => {
+          const lab = (i as any).labFee || (i as any).lab_amount || 0;
+          const pharm = (i as any).pharmacyFee || (i as any).pharmacy_amount || 0;
+          return sum + (lab * 0.05) + (pharm * 0.02);
+        }, 0);
         const pendingCashInvoices = invoices.filter(i => (i.paymentStatus as string) === 'pending_payment' || i.paymentStatus === 'pending');
         const totalPendingCash = pendingCashInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
 
@@ -59,10 +63,10 @@ export class FounderAICopilotService {
           id: messageId,
           sender: 'copilot',
           timestamp,
-          content: `### 💰 Financial & Revenue Intelligence Report\n\n- **Gross Invoiced Volume**: **₹${totalGross.toFixed(2)}** across **${clearedInvoices.length}** cleared invoices.\n- **VitalSync Platform Commission (3%)**: **₹${totalPlatformCommission.toFixed(2)}** earned.\n- **Pending / Uncollected Invoices**: **${pendingCashInvoices.length}** totaling **₹${totalPendingCash.toFixed(2)}**.\n- **Split Safety Buffer**: **₹1,000.00** reserve maintained across active pods.`,
+          content: `### 💰 Financial & Revenue Intelligence Report\n\n- **Gross Invoiced Volume**: **₹${totalGross.toFixed(2)}** across **${clearedInvoices.length}** cleared invoices.\n- **VitalSync Platform Commission**: **₹${totalPlatformCommission.toFixed(2)}** earned (5% Lab / 2% Pharmacy).\n- **Pending / Uncollected Invoices**: **${pendingCashInvoices.length}** totaling **₹${totalPendingCash.toFixed(2)}**.\n- **Split Safety Buffer**: **₹1,000.00** reserve maintained across active pods.`,
           dataCards: [
             { title: 'Gross Revenue', value: `₹${totalGross.toLocaleString('en-IN')}`, subtitle: `${clearedInvoices.length} cleared invoices`, type: 'financial' },
-            { title: '3% Platform Fee', value: `₹${totalPlatformCommission.toFixed(2)}`, subtitle: 'VitalSync Commission Pool', type: 'financial' },
+            { title: 'Platform Fee (2-5%)', value: `₹${totalPlatformCommission.toFixed(2)}`, subtitle: 'VitalSync Commission Pool', type: 'financial' },
             { title: 'Pending Counter Cash', value: `₹${totalPendingCash.toFixed(2)}`, subtitle: `${pendingCashInvoices.length} invoices due`, type: 'financial' }
           ],
           actionChips: [

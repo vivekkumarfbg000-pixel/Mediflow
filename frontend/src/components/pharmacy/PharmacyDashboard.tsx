@@ -1326,42 +1326,6 @@ export const PharmacyDashboard: React.FC = () => {
                                         Collect Cash
                                       </button>
                                       <button
-                                        onClick={async () => {
-                                          try {
-                                            const res = await PaymentService.initiatePaymentOrder({
-                                              gateway: 'paytm',
-                                              invoiceId: invoice.id,
-                                              amount: invoice.totalAmount || invoice.pharmacyFee,
-                                              patientName: invoice.patientName || 'Patient',
-                                              patientPhone: invoice.patientPhone || ''
-                                            });
-                                            if (res.success && res.paymentSessionId) {
-                                              window.open(res.paymentSessionId, '_blank');
-                                            } else {
-                                              throw new Error('Failed to initialize Paytm PG');
-                                            }
-                                          } catch (pErr) {
-                                            console.warn('[Paytm Pharmacy Error]:', pErr);
-                                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                              detail: { message: 'Failed to connect to Paytm PG.', type: 'error', title: 'Payment Failed ⚠️' }
-                                            }));
-                                            return;
-                                          }
-                                          api.clearInvoice(invoice.id, 'paytm');
-                                          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                            detail: {
-                                              message: `Invoice ₹${invoice.pharmacyFee} cleared via Paytm PG! Medicine hold marked as dispensed.`,
-                                              type: 'success',
-                                              title: 'Paytm Paid Successful'
-                                            }
-                                          }));
-                                          syncData();
-                                        }}
-                                        className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
-                                      >
-                                        Paytm PG
-                                      </button>
-                                      <button
                                         onClick={() => {
                                           api.clearInvoice(invoice.id, 'upi');
                                           window.dispatchEvent(new CustomEvent('mediflow-toast', {

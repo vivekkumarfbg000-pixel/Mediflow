@@ -737,7 +737,7 @@ export class WhatsAppService {
             }
           } else if (cleaned === '6' || cleaned.includes('refer') || cleaned.includes('code') || cleaned.includes('reward')) {
             nextState = 'AWAITING_CONFIRMATION';
-            const myRefCode = (patient as any)?.referral_code || (patient as any)?.referralCode || `REF-${phone.slice(-4)}`;
+            const myRefCode = (patient as any)?.referral_code || (patient as any)?.referralCode || `REF-${(phone || '').slice(-4) || '1000'}`;
             replyMessage = `🎁 *${clinicName} Patient Referral Rewards* 🌟\n\nAapka Unique Referral Code: *${myRefCode}*\n\n📲 *Kaise Kaam Karta Hai:*\n1. Apne doston ya family ke sath yeh code share karein.\n2. Jab woh clinic OPD mein checkup ya WhatsApp par appoint book karenge, unhe *10% Flat Discount* milega.\n3. Aur aapko bhi agle doctor checkup ya medicine refill par *10% OFF* reward milega!\n\n_Forward karke share karein!_ 😊`;
           } else {
             nextState = 'AWAITING_CONFIRMATION';
@@ -1296,7 +1296,7 @@ export class WhatsAppService {
           } else if (cleaned === '6' || cleaned.includes('refer') || cleaned.includes('code') || cleaned.includes('reward')) {
             nextState = 'AWAITING_CONFIRMATION';
             const effectivePat = currentPat || patient;
-            const myRefCode = (effectivePat as any)?.referral_code || (effectivePat as any)?.referralCode || `REF-${phone.slice(-4)}`;
+            const myRefCode = (effectivePat as any)?.referral_code || (effectivePat as any)?.referralCode || `REF-${(phone || '').slice(-4) || '1000'}`;
             replyMessage = `🎁 *${this.getDynamicClinicName()} Patient Referral Rewards* 🌟\n\nAapka Unique Referral Code: *${myRefCode}*\n\n📲 *Kaise Kaam Karta Hai:*\n1. Apne doston ya family ke sath yeh code share karein.\n2. Jab woh clinic OPD mein checkup ya WhatsApp par appoint book karenge, unhe *10% Flat Discount* milega.\n3. Aur aapko bhi agle doctor checkup ya medicine refill par *10% OFF* reward milega!\n\n_Forward karke share karein!_ 😊`;
           } else {
             const clearedInvoices = BillingService.getUnifiedInvoices()
@@ -1374,7 +1374,7 @@ export class WhatsAppService {
             const draftBill = {
               id: billId,
               patientId: currentPat?.id || 'pat-demo',
-              patientName: currentPat?.name || `Patient (+91 ${phone.slice(-4)})`,
+              patientName: currentPat?.name || `Patient (+91 ${(phone || '').slice(-4) || 'XXXX'})`,
               patientPhone: phone,
               items: [billItem],
               subtotal: itemTotal,
@@ -1456,7 +1456,7 @@ export class WhatsAppService {
               const newPatId = crypto.randomUUID();
               currentPat = {
                 id: newPatId,
-                name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || sessionData.waProfileName || `Patient (+91 ${phone.slice(-4)})`,
+                name: sessionData.familyDetails?.name || sessionData.tempNewPatientName || sessionData.waProfileName || `Patient (+91 ${(phone || '').slice(-4) || 'XXXX'})`,
                 phone: phone,
                 age: Number(sessionData.familyDetails?.age || sessionData.tempNewPatientAge || sessionData.age || 0) || 0,
                 gender: sessionData.familyDetails?.gender || sessionData.tempNewPatientGender || sessionData.gender || 'Other',
@@ -1556,8 +1556,8 @@ export class WhatsAppService {
 
               const activeSop = BillingService.getActiveSop();
               const baseDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
-              const onlinePlatFee = parseFloat((baseDocFee * 0.03).toFixed(2));
-              const totalOnlinePayable = parseFloat((baseDocFee + onlinePlatFee).toFixed(2));
+              const onlinePlatFee = 0.00; // 0% Platform Fee
+              const totalOnlinePayable = baseDocFee;
 
               const newInvoice: any = {
                 id: invoiceId,
@@ -1577,7 +1577,7 @@ export class WhatsAppService {
               };
               BillingService.saveInvoice(newInvoice);
 
-              const clinicUpi = PaymentService.getSafeClinicUpiVpa();
+              const doctorUpi = activeSop?.extractedConfig?.doctor_upi_vpa || PaymentService.getSafeClinicUpiVpa();
               const uInvoices = BillingService.getUnifiedInvoices();
               uInvoices.unshift({
                 id: invoiceId,
@@ -1590,7 +1590,7 @@ export class WhatsAppService {
                 pharmacyFee: 0,
                 platformFee: onlinePlatFee,
                 totalAmount: totalOnlinePayable,
-                upiQrPayload: `upi://pay?pa=${clinicUpi}&pn=VitalSync&am=${totalOnlinePayable.toFixed(2)}&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
+                upiQrPayload: `upi://pay?pa=${doctorUpi}&pn=Doctor&am=${totalOnlinePayable.toFixed(2)}&cu=INR&tn=VS-APPT-${apptId.substring(0, 8)}`,
                 paymentStatus: 'pending',
                 createdAt: new Date().toISOString()
               });
@@ -1631,12 +1631,12 @@ export class WhatsAppService {
             const chosenDateDisplay = sessionData.selectedDateDisplay || (sessionData.selectedDate === getIstDateString() ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`);
             const activeSop = BillingService.getActiveSop();
             const baseDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
-            const onlinePlatFee = parseFloat((baseDocFee * 0.03).toFixed(2));
-            const totalOnlinePayable = parseFloat((baseDocFee + onlinePlatFee).toFixed(2));
+            const onlinePlatFee = 0.00;
+            const totalOnlinePayable = baseDocFee;
             const assignedToken = (activePat as any)?.tokenNumber || (activePat as any)?.token_number || '#TK-001';
 
             nextState = 'AWAITING_VIRTUAL_PAYMENT';
-            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n*Fee Breakdown:*\n- Doctor Consultation Fee: ₹${baseDocFee.toFixed(2)}\n- Online Convenience Platform Fee (3%): ₹${onlinePlatFee.toFixed(2)}\n---------------------------------------\n*Total Amount Payable: ₹${totalOnlinePayable.toFixed(2)}*\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / Paytm / BHIM / Any UPI):*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token ${assignedToken} issue ho jayega 📑`;
+            replyMessage = `📅 *Checkup Slot Selected!* \n\n${docName} ke liye checkup slot *${selectedSlotText}* (${chosenDateDisplay}) at ${clinicName} lock kar diya gaya hai.\n\n• Doctor Consultation Fee: *₹${baseDocFee.toFixed(2)}* (0% Platform Fee)\n\n📱 *Doctor Direct UPI Se Pay Karein ya Portal Link Se:*\n${razorpayPayLink}\n\nPayment complete hone ke baad please *PAY* reply kijiye ya *[ I Have Paid ✅ ]* button tap kijiye! Turant token ${assignedToken} issue ho jayega 📑`;
           } else {
             replyMessage = `Invalid slot selection. Please reply with **1**, **2**, or **3** to book your virtual follow-up.`;
           }

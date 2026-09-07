@@ -965,7 +965,7 @@ export class PharmacyService {
       if (!exists) {
         const sops = load<any[]>('clinic_sops', []);
         const activeSop = sops.find((s: any) => s.isActive);
-        const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 5;
+        const splitPlat = activeSop?.extractedConfig?.splits?.pharmacyPlatform ?? 2;
         
         const amount = bill.totalAmount;
         const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));

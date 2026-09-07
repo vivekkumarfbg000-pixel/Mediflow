@@ -288,11 +288,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
     // 4. Verify compliance acceptances
     if (!complianceConfirm) {
-      setEligibilityError('You must confirm compliance with HIPAA, GDPR, and CCPA regulations.');
+      setEligibilityError('You must confirm compliance with the DPDP Act 2023 and ABDM healthcare guidelines.');
       return;
     }
     if (!baaConfirm) {
-      setEligibilityError('You must accept the HIPAA Business Associate Agreement (BAA).');
+      setEligibilityError('You must accept the Clinic Data Protection Agreement & SOP Guidelines.');
       return;
     }
 
@@ -446,10 +446,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         {/* Left Column: Information, Branding & CTAs */}
         <div className="lg:col-span-6 flex flex-col space-y-8 mt-4 text-left">
           
-          <div className="inline-flex items-center gap-2.5 self-start py-1.5 px-4 rounded-full border border-cyan-300 bg-cyan-50/90 shadow-sm backdrop-blur-md">
+          <div className="inline-flex items-center gap-2.5 self-start py-1.5 px-4 rounded-full border border-teal-300 bg-teal-50/90 shadow-sm backdrop-blur-md">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-[10px] text-teal-900 font-mono font-extrabold uppercase tracking-widest">
-              🏥 India's #1 Virtual Hospital Network
+              🏥 India's #1 Virtual Hospital Network · Zero-Screen Doctor OPD
             </span>
           </div>
 
@@ -462,12 +462,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </h1>
 
             <p className="text-base lg:text-lg font-bold text-teal-900 tracking-tight">
-              Clinic Freedom. Hospital Revenue. On WhatsApp.
+              Zero Screen for Doctors. 100% WhatsApp for Patients.
             </p>
 
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              Turn your OPD into an integrated virtual hospital. Connect your prescriptions directly to trusted local pharmacies &amp; labs, keep 100% of your consultation fee, capture 35% of the patient wallet, and automate Day-25 chronic refills with <strong>₹0 setup cost</strong>.
+              Doctors write on physical paper with regular pen — your compounder 1-tap scans with AI Vision in 2 seconds. Patients receive instant WhatsApp bills &amp; 1-0-1 dosage schedules. Keep 100% of your consultation fee with <strong>₹0 setup cost and ₹0 software fees</strong>.
             </p>
+          </div>
+
+          {/* Feature Badges Grid */}
+          <div className="flex flex-wrap gap-2 max-w-lg">
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-teal-900 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-lg">
+              ✍️ Zero Doctor Screen (Paper-Friendly)
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+              📸 1-Tap AI Vision Rx (2s Scan)
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-cyan-900 bg-cyan-50 border border-cyan-200 px-2.5 py-1 rounded-lg">
+              ⚡ Sub-300ms WhatsApp Engine
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg">
+              💰 Direct Doctor UPI (0% Platform Cut)
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+              🖨️ Daily OPD Register PDF
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-purple-900 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-lg">
+              🔄 Dual-Mode (Paper ↔ Digital EMR)
+            </span>
           </div>
 
           {/* Interactive CTAs */}
@@ -503,7 +525,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Doctor Consultation Fee Immunity (Rule 58)</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">100% of patient consultation fees go directly to the Doctor's bank account with 0% platform deductions. VitalSync is 100% free for doctors to adopt with zero software subscription fees.</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">100% of patient consultation fees go directly to the Doctor's bank account or counter drawer with 0% platform deductions. VitalSync is 100% free for doctors to adopt with zero software subscription fees.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-350 shadow-sm transition-all duration-300">
+              <div className="p-2.5 bg-teal-500/10 border border-teal-500/20 text-teal-600 rounded-xl shrink-0">
+                <FileText className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Zero Screen for Doctors — 0 Habit Change</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Doctors write on paper prescription pads as usual with zero screen distraction or typing fatigue. AI digitizes the prescription at the compounder desk in 1.2s — or switch to full Digital EMR in 1 click.</p>
               </div>
             </div>
 
@@ -514,16 +546,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div>
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Zero App Download — 100% Native WhatsApp</p>
                 <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Patients never download complex apps. Everything runs on 1-Tap native WhatsApp buttons for tokens, digital prescriptions, lab PDF downloads, and 1-click medicine refill orders.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-200 hover:border-slate-350 shadow-sm transition-all duration-300">
-              <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-xl shrink-0">
-                <Database className="h-4.5 w-4.5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">All-in-One Standalone EMR (Zero Double-Entry)</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">VitalSync is your complete, ABDM-compliant Cloud EMR (Doctor EMR, CDSS AI Scribe, OPD Queue, Pharmacy POS). Zero separate EMR software and zero manual copy-pasting needed.</p>
               </div>
             </div>
           </div>
@@ -1209,54 +1231,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
-      {/* Onboarding Steps Section */}
+      {/* Onboarding Steps Section — Exactly Matching Slide 13 of the Doctor Booklet */}
       <section id="onboarding" className="py-20 relative z-10 bg-[#F8F9FA] border-t border-slate-200/60">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Ecosystem Initialization</h2>
-            <p className="text-slate-500 text-sm font-semibold mt-2">Bring your entire clinic network online in under five minutes.</p>
+            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest mb-3">
+              <Zap className="h-3.5 w-3.5 text-teal-600" />
+              15-Minute Practice Onboarding
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Launch Your Connected Practice in 3 Simple Steps</h2>
+            <p className="text-slate-500 text-sm font-semibold mt-2">Zero upfront SaaS subscription fees. Zero complex hardware. Practice onboarding in under 15 minutes.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative text-left">
             {/* Desktop step connectors */}
-            <div className="hidden md:block absolute top-6 left-[12%] right-[12%] h-[1px] border-t border-dashed border-slate-200 pointer-events-none" />
+            <div className="hidden md:block absolute top-6 left-[16%] right-[16%] h-[1px] border-t border-dashed border-slate-200 pointer-events-none" />
 
             {[
               {
                 step: '01',
-                title: 'Authentication & Minting',
-                desc: "Register the primary clinical entity to mint a unique, immutable network key (Clinic Code) that acts as the cryptographic root of your pod.",
-                color: 'text-indigo-600',
-                bg: 'bg-indigo-500/10',
-                border: 'border-indigo-500/20'
+                title: 'Practice Profile & Direct Bank Setup',
+                desc: "Register your clinic profile, set up your doctor credentials, and link your direct settlement bank account or UPI QR with 100% consultation fee protection (Rule 58).",
+                color: 'text-teal-700',
+                bg: 'bg-teal-50',
+                border: 'border-teal-200'
               },
               {
                 step: '02',
-                title: 'Decentralized Distribution',
-                desc: "Distribute your secure network key directly to trusted local pharmacy and diagnostic laboratory partners via encrypted channels.",
-                color: 'text-cyan-600',
-                bg: 'bg-cyan-500/10',
-                border: 'border-cyan-500/20'
+                title: 'Connect Chemist & Pathology Lab',
+                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners with custom SOP split parameters (20%-30% pharmacy, 30%-40% lab).",
+                color: 'text-indigo-700',
+                bg: 'bg-indigo-50',
+                border: 'border-indigo-200'
               },
               {
                 step: '03',
-                title: 'Handshake Request',
-                desc: "Partner nodes register and input your token to securely request an isolated database pipeline hook back to your clinical workspace.",
-                color: 'text-indigo-600',
-                bg: 'bg-indigo-500/10',
-                border: 'border-indigo-500/20'
-              },
-              {
-                step: '04',
-                title: 'Cryptographic Approval',
-                desc: "Authorize the pending handshake request inside your admin panel to open the secure synchronization gateway and activate the closed care loop.",
-                color: 'text-cyan-600',
-                bg: 'bg-cyan-500/10',
-                border: 'border-cyan-500/20'
+                title: 'Front-Desk OPD Go-Live',
+                desc: "Your compounder starts generating smart tokens (#TK-001) and recording vitals. Doctor consults on paper pad (Option A) or digital screen (Option B) with live WhatsApp delivery.",
+                color: 'text-emerald-700',
+                bg: 'bg-emerald-50',
+                border: 'border-emerald-200'
               }
             ].map(({ step, title, desc, color, bg, border }, idx) => (
-              <div key={step} className={`flex flex-col gap-4 relative ${idx % 2 !== 0 ? 'md:mt-6' : ''}`}>
-                <div className={`w-12 h-12 rounded-2xl ${bg} border ${border} flex items-center justify-center font-bold text-sm ${color} z-10 shadow-md`}>
+              <div key={step} className="flex flex-col gap-4 relative">
+                <div className={`w-12 h-12 rounded-2xl ${bg} border ${border} flex items-center justify-center font-black text-sm ${color} z-10 shadow-md`}>
                   {step}
                 </div>
                 <div>
@@ -1701,7 +1719,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   />
                 </div>
                 <p className="text-[9px] text-slate-500 leading-normal pl-0.5 font-semibold">
-                  GDPR constraint: Email is validated locally against system defaults to protect patient registry and user privacy.
+                  Privacy assurance: Email is validated locally and encrypted to protect clinic registry and practitioner identity.
                 </p>
               </div>
 
@@ -1729,11 +1747,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     className="mt-0.5 h-3.5 w-3.5 accent-indigo-500 rounded border-slate-200 bg-white"
                   />
                   <span className="text-[11px] text-slate-650 font-semibold leading-tight">
-                    I agree to maintain compliance with GDPR, CCPA, and HIPAA privacy rules for isolated clinical databases.
+                    I agree to maintain compliance with the Digital Personal Data Protection (DPDP) Act 2023 and ABDM standards.
                   </span>
                 </label>
 
-                {/* BAA Agreement check */}
+                {/* Data Agreement check */}
                 <label className="flex items-start gap-2.5 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -1742,7 +1760,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     className="mt-0.5 h-3.5 w-3.5 accent-indigo-500 rounded border-slate-200 bg-white"
                   />
                   <span className="text-[11px] text-slate-650 font-semibold leading-tight">
-                    I accept the HIPAA Business Associate Agreement (BAA) and clinical data usage policies.
+                    I accept the Clinic Sovereign Pod Data Agreement and clinical care coordination terms.
                   </span>
                 </label>
               </div>

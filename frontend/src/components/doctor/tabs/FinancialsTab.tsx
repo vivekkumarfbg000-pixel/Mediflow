@@ -427,11 +427,11 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 Commission Pool Balance
                 <span className="text-[9px] bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20 font-bold uppercase">
-                  3% Fixed Platform Engine
+                  2% - 5% Dynamic Tech Ledger Engine
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Compounder OPD consults add ₹0 debt. 3% platform fee on cash Lab/Pharmacy sales accrues pool debt (-). Online WhatsApp bookings offset debt (+), keeping Total Doctor Earnings 100% intact.
+                Doctor OPD consults are 100% fee-free (₹0 debt). Platform fee of 5% on Lab and 2% on Pharmacy sales accrues pool ledger debt (-), automatically tracked without touching clinic gross cash.
               </p>
             </div>
           </div>

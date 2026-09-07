@@ -31,7 +31,8 @@ import {
   Network,
   Menu,
   Settings,
-  Lock
+  Lock,
+  Laptop
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
@@ -86,6 +87,63 @@ export const DoctorDashboard: React.FC = () => {
   const { activePod, activeEntity, activeProfile } = useClinic();
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'>('pod_view');
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('vitalsync_digital_emr_enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleModeChange = (e: any) => {
+      if (e.detail && typeof e.detail.enabled === 'boolean') {
+        setIsDigitalEmrEnabled(e.detail.enabled);
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'vitalsync_digital_emr_enabled') {
+        setIsDigitalEmrEnabled(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const handleToggleDigitalEmr = (newVal: boolean) => {
+    setIsDigitalEmrEnabled(newVal);
+    try {
+      localStorage.setItem('vitalsync_digital_emr_enabled', String(newVal));
+    } catch (e) {
+      console.error(e);
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+      detail: { enabled: newVal }
+    }));
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: newVal ? 'Digital EMR Mode Enabled 💻' : 'Physical Paper Rx Mode Active 📄',
+        message: newVal 
+          ? 'Full In-App Vitals at Compounder Desk and Consultation Queue in Doctor EMR are now unlocked.'
+          : 'Zero-Screen Doctor OPD active. Compounder queue simplified to 1-Tap OCR Scan & WhatsApp Bill.',
+        type: newVal ? 'info' : 'success'
+      }
+    }));
+
+    // Real-Time Supabase Postgres Cloud Synchronization (Rule 85: Pod-Id Invariant)
+    const targetPodId = activePod?.id || FALLBACK_POD_ID;
+    supabase.from('pods').update({
+      is_digital_emr_enabled: newVal,
+      operating_mode: newVal ? 'digital_emr' : 'paper_rx'
+    }).eq('id', targetPodId).then(({ error }) => {
+      if (error) console.warn('[Operating Mode] Supabase pods sync warning:', error.message);
+    });
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -1581,6 +1639,43 @@ Keep the tone professional, clinical, objective, and precise.`;
                 </div>
               );
             case 'consultation':
+              if (!isDigitalEmrEnabled) {
+                return (
+                  <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xl text-center space-y-5 animate-fade-in text-slate-800 dark:text-white">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                      <FileText className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-mono uppercase tracking-widest px-3 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-extrabold rounded-full">
+                        Physical Paper Rx Mode Active
+                      </span>
+                      <h3 className="text-xl font-black text-slate-800 dark:text-white">
+                        Doctor Screenless OPD Is On
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
+                        In this mode, you write physical prescriptions on your normal clinic pad. The compounder desk instantly scans your written Rx, creates the bill, and sends it to the patient's WhatsApp. No computer typing required during OPD!
+                      </p>
+                    </div>
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDigitalEmr(true)}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs rounded-xl shadow-md hover:from-indigo-700 hover:to-violet-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-0"
+                      >
+                        <Laptop className="w-4 h-4" />
+                        Switch to Digital EMR Mode
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('pod_view')}
+                        className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer border-0"
+                      >
+                        Return to Clinic Dashboard
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <ConsultationTab
                   patients={patients}
@@ -2219,6 +2314,30 @@ Keep the tone professional, clinical, objective, and precise.`;
 
           <div className="flex items-center gap-2 shrink-0 self-stretch md:self-auto justify-between md:justify-end w-full md:w-auto">
 
+            {/* Operating Mode Quick Toggle Pill */}
+            <button
+              type="button"
+              onClick={() => handleToggleDigitalEmr(!isDigitalEmrEnabled)}
+              className={`hidden sm:flex items-center gap-2 border shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium transition-all cursor-pointer select-none active:scale-95 ${
+                isDigitalEmrEnabled
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-500/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100'
+                  : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100'
+              }`}
+              title="Click to toggle between Zero-Screen Paper Mode and Digital EMR Mode"
+            >
+              {isDigitalEmrEnabled ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                  <span>Mode: <strong className="font-bold">Digital EMR 💻</strong></span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span>Mode: <strong className="font-bold">Paper Rx (Zero-Screen) 📄</strong></span>
+                </>
+              )}
+            </button>
+
             {/* Status pill - hidden on small mobile viewports */}
             <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200/80 shadow-xs px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 shrink-0">
               <span className="flex h-1.5 w-1.5 relative">
@@ -2234,7 +2353,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
           {[
             { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard },
-            { id: 'consultation',      label: 'Consultation Queue',     icon: ClipboardList },
+            ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList }] : []),
             { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video },
             { id: 'financials',        label: 'Financial Reports',      icon: CreditCard },
             { id: 'patients',          label: 'Patient Directory',      icon: Users },

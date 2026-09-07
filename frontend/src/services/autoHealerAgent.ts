@@ -332,7 +332,9 @@ export class StateHealingEngine {
       const rawSessions = localStorage.getItem('whatsapp_sessions');
       if (rawSessions) {
         const sessions = JSON.parse(rawSessions);
-        const target = sessions.find((s: any) => (s.patientPhone || s.patient_phone || '').includes(phone.slice(-10)));
+        const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
+        if (!cleanPhone) return false;
+        const target = sessions.find((s: any) => (s.patientPhone || s.patient_phone || '').includes(cleanPhone));
         if (target) {
           target.currentState = 'IDLE';
           localStorage.setItem('whatsapp_sessions', JSON.stringify(sessions));

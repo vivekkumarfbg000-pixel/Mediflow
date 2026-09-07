@@ -25,9 +25,10 @@ import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } f
 
 export interface BillHubTabProps {
   initialMode?: 'ocr_scan' | 'manual_billing';
+  initialPatientId?: string | null;
 }
 
-export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan' }) => {
+export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan', initialPatientId = null }) => {
   const { isOphthalmology } = useSpecialization();
   const { activePod, activeProfile } = useClinic();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +41,17 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setInvoiceSectionTab(initialMode);
     }
   }, [initialMode]);
+
+  useEffect(() => {
+    if (initialPatientId) {
+      const allPats = PatientService.getPatients();
+      const target = allPats.find(p => p.id === initialPatientId || (p as any).patient_code === initialPatientId);
+      if (target) {
+        setSelectedPatient(target);
+        setBillingMode('digital');
+      }
+    }
+  }, [initialPatientId]);
   
   // App States
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -80,7 +92,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [selectedTests, setSelectedTests] = useState<Record<string, boolean>>({});
   const [discountInput, setDiscountInput] = useState<number>(0);
   const [partialCashAmount, setPartialCashAmount] = useState<number>(0);
-  const [paymentMethod, setPaymentMethod] = useState<'paytm' | 'upi' | 'cash'>('paytm');
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cash'>('upi');
   const [isClearing, setIsClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -818,11 +830,13 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }
       }
 
-      // 3. Mark appointment as ready for billing / consult if matched
+      // 3. Mark appointment as completed since physical doctor consultation is already finished
       if (matchedAppt) {
-        matchedAppt.status = 'ready_for_consult';
+        matchedAppt.status = 'completed';
+        (matchedAppt as any).queue_status = 'completed';
+        (matchedAppt as any).queueStatus = 'completed';
         BillingService.saveAppointments(allAppts);
-        supabase.from('appointments').update({ status: 'ready_for_consult' }).eq('id', matchedAppt.id).then(() => {});
+        supabase.from('appointments').update({ status: 'completed' }).eq('id', matchedAppt.id).then(() => {});
       }
 
       setSelectedPatient(patientObj);
@@ -1145,7 +1159,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         doctorFee: billingLedger.consultTotal,
         labFee: billingLedger.labSub,
         pharmacyFee: billingLedger.pharmacySub,
-        platformFee: isPureCounterConsult ? 0 : parseFloat((billingLedger.finalTotal * 0.03).toFixed(2)),
+        platformFee: isPureCounterConsult ? 0 : parseFloat(((billingLedger.labSub * 0.05) + (billingLedger.pharmacySub * 0.02)).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
         upiQrPayload: dynamicUpiPayload || PaymentService.generateDirectUpiPayload(billingLedger.finalTotal, unifiedInvoiceId).upiDeepLink,
         paymentStatus: 'cleared',
@@ -1281,10 +1295,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setRefreshKey(prev => prev + 1);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'Bill Settled! 🧾', message: `Invoice amount of ₹${billingLedger.finalTotal} received via ${paymentMethod.toUpperCase()}.`, type: 'success' }
+        detail: { title: 'Bill Settled & WhatsApp Sent! 🧾📱', message: `Invoice amount of ₹${billingLedger.finalTotal.toFixed(2)} received via ${paymentMethod.toUpperCase()}. Digital bill sent to patient WhatsApp!`, type: 'success' }
       }));
 
-      handlePrintSplitInvoice('combined');
       setSelectedPatient(null);
     } catch (err) {
       console.error(err);
@@ -2008,20 +2021,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                       {/* Payment Mode Selector */}
                       <div className="pt-2">
                         <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Select Payment Method:</span>
-                        <div className="grid grid-cols-3 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod('paytm')}
-                            className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                              paymentMethod === 'paytm'
-                                ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-sm'
-                                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            <QrCode className="h-3.5 w-3.5 text-sky-400" />
-                            <span>Paytm PG (0% MDR)</span>
-                          </button>
-
+                        <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('upi')}
@@ -2050,8 +2050,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                         </div>
                       </div>
 
-                      {/* Dynamic Direct UPI / Paytm Standee Preview */}
-                      {(paymentMethod === 'upi' || paymentMethod === 'paytm') && (
+                      {/* Dynamic Direct UPI Standee Preview */}
+                      {paymentMethod === 'upi' && (
                         <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
                           <img
                             src={generateQRCodeDataURI(dynamicUpiPayload, { size: 160, color: '#0f172a' }) || `https://quickchart.io/qr?size=160&text=${encodeURIComponent(dynamicUpiPayload)}`}
@@ -2059,7 +2059,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                             className="w-24 h-24 rounded-lg p-1 bg-white border border-slate-200 object-contain"
                           />
                           <span className="text-[9px] font-bold text-indigo-400 uppercase font-mono tracking-wider">
-                            {paymentMethod === 'paytm' ? 'Scan Counter Paytm / UPI QR' : 'Scan Zero-Fee Direct UPI QR'}
+                            Scan Zero-Fee Direct UPI QR
                           </span>
                           <span className="text-[8px] text-slate-400">Scan with GPay, PhonePe, Paytm or BHIM</span>
                         </div>
@@ -2070,51 +2070,20 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                           type="button"
                           onClick={handleClearBill}
                           disabled={isClearing}
-                          className="w-full btn-primary py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="w-full btn-primary py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-indigo-600-force hover:bg-indigo-700-force transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                         >
                           <Check className="h-4 w-4" />
-                          {isClearing ? 'Clearing...' : 'Clear Bill (Cash/UPI)'}
+                          {isClearing ? 'Clearing...' : `Clear Bill (${paymentMethod === 'upi' ? 'Direct UPI' : 'Cash Counter'})`}
                         </button>
 
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (!selectedPatient || !billingLedger) return;
-                            setIsClearing(true);
-                            try {
-                              const invId = `inv-${crypto.randomUUID().substring(0, 8)}`;
-                              const res = await PaymentService.initiatePaymentOrder({
-                                gateway: 'paytm',
-                                invoiceId: invId,
-                                amount: billingLedger.finalTotal,
-                                patientName: selectedPatient.name,
-                                patientPhone: selectedPatient.phone
-                              });
-
-                              if (res.success && res.paymentSessionId) {
-                                window.open(res.paymentSessionId, '_blank');
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    title: 'Paytm PG Order Initiated 🚀',
-                                    message: 'Paytm 0% MDR checkout window opened for patient.',
-                                    type: 'success'
-                                  }
-                                }));
-                              } else {
-                                handleClearBill();
-                              }
-                            } catch (e) {
-                              console.warn('[Paytm Order] Error initiating order:', e);
-                              handleClearBill();
-                            } finally {
-                              setIsClearing(false);
-                            }
-                          }}
-                          disabled={isClearing}
-                          className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-white-force bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                          onClick={() => handlePrintSplitInvoice('combined')}
+                          className="w-full py-2.5 text-center text-xs font-bold rounded-xl text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                          title="Print optional paper receipt if requested by patient"
                         >
-                          <QrCode className="h-4 w-4" />
-                          <span>Pay via Paytm PG (0% MDR)</span>
+                          <Printer className="h-4 w-4 text-slate-400" />
+                          <span>🖨️ Print Paper Slip (Optional)</span>
                         </button>
                       </div>
 

@@ -301,6 +301,12 @@ export interface Pod {
   phone?: string;
   specialization?: string;
   gstin?: string;
+  isDigitalEmrEnabled?: boolean;
+  is_digital_emr_enabled?: boolean;
+  operatingMode?: 'paper_rx' | 'digital_emr';
+  operating_mode?: string;
+  prescriptionTemplate?: any;
+  prescription_template?: any;
 }
 
 export interface Entity {
@@ -456,12 +462,14 @@ export interface ClinicSop {
   extractedConfig: {
     doctor_fee: number;
     emergency_sos_fee?: number;
+    doctor_upi_vpa?: string;
     test_prices: Record<string, number>;
     splits: {
       doctor: number;
       platform: number;
       lab: number;
       pharmacyDoctor?: number;
+      pharmacyPlatform?: number;
       pharmacy?: number;
     };
     guidelines: string[];

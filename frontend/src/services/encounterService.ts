@@ -305,7 +305,7 @@ export class EncounterService {
 
     // BUG-07 FIX: Counter Doctor Consultation Fee Immunity Protocol (Rule 58/103)
     const isPureCounterConsult = (pharmFee === 0) && (labFee === 0);
-    const platFee = isPureCounterConsult ? 0 : parseFloat(((docFee + labFee + pharmFee) * 0.03).toFixed(2));
+    const platFee = isPureCounterConsult ? 0 : parseFloat(((labFee * 0.05) + (pharmFee * 0.02)).toFixed(2));
     const total = docFee + labFee + pharmFee + platFee;
 
     const dynamicUpiPayload = PaymentService.generateDirectUpiPayload(total, encounterId).upiDeepLink;

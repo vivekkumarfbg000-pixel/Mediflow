@@ -168,6 +168,10 @@ export const CompounderDashboard: React.FC = () => {
   const [selectedPatientIdsForPrint, setSelectedPatientIdsForPrint] = useState<string[]>([]);
   const [batchPrintSearchTerm, setBatchPrintSearchTerm] = useState('');
   const [previewPatientId, setPreviewPatientId] = useState<string | null>(null);
+  // Date-wise OPD Register Print States
+  const [showOpdRegisterPrintModal, setShowOpdRegisterPrintModal] = useState(false);
+  const [registerSelectedDate, setRegisterSelectedDate] = useState(() => getIstDateString());
+  const [selectedPatientForBillHub, setSelectedPatientForBillHub] = useState<string | null>(null);
 
   const vitalsDonePatients = useMemo(() => {
     return patients.filter(p => {
@@ -432,6 +436,166 @@ export const CompounderDashboard: React.FC = () => {
     }, 500);
   }, []);
 
+  const handlePrintOpdRegister = useCallback((targetDate: string) => {
+    const template = api.getPrescriptionTemplate();
+    const allAppts = BillingService.getAppointments();
+    const allPatients = PatientService.getPatients();
+
+    // Filter appointments for the target date (excluding cancelled)
+    const dayAppts = allAppts.filter(a => {
+      if (a.status === 'cancelled') return false;
+      const effectiveDate = getEffectiveAppointmentDate(a);
+      return effectiveDate === targetDate;
+    });
+
+    // Sort by token number ascending
+    dayAppts.sort((a, b) => {
+      const tokA = parseInt(String(a.tokenNumber || (a as any).token_number || '0').replace(/\D/g, '')) || 0;
+      const tokB = parseInt(String(b.tokenNumber || (b as any).token_number || '0').replace(/\D/g, '')) || 0;
+      return tokA - tokB;
+    });
+
+    const printWindow = window.open('', '_blank', 'width=1000,height=1100');
+    if (!printWindow) return;
+
+    const totalTokens = dayAppts.length;
+    const completedTokens = dayAppts.filter(a => a.status === 'completed').length;
+    const activeTokens = totalTokens - completedTokens;
+
+    const tableRows = dayAppts.map((a, idx) => {
+      const patId = a.patientId || (a as any).patient_id;
+      const pat = allPatients.find(p => p.id === patId || (p.phone && a.patientPhone && p.phone.replace(/\D/g, '').slice(-10) === String(a.patientPhone).replace(/\D/g, '').slice(-10)));
+      const v = (a as any).vitals || (a as any).patient_vitals || pat?.vitals || {};
+      const vitalsText = [
+        v.bloodPressure ? `BP: ${v.bloodPressure}` : '',
+        v.pulseRate ? `P: ${v.pulseRate}` : '',
+        v.temperature ? `T: ${v.temperature}°F` : '',
+        v.bloodSugar ? `BS: ${v.bloodSugar}` : '',
+        v.spO2 ? `SpO2: ${v.spO2}%` : ''
+      ].filter(Boolean).join(' | ') || '—';
+
+      const sourceLabel = String(a.source || '').toLowerCase().includes('whatsapp')
+        ? '🟢 WhatsApp'
+        : String(a.source || '').toLowerCase().includes('emergency') || (a as any).isEmergency
+        ? '🚨 SOS'
+        : '🏢 Walk-in';
+
+      const statusLabel = a.status === 'completed'
+        ? 'Completed'
+        : a.status === 'ready_for_consult'
+        ? 'In Chamber'
+        : a.status === 'scheduled'
+        ? 'Scheduled'
+        : a.status;
+
+      return `
+        <tr>
+          <td style="text-align: center; font-weight: 800; font-family: monospace;">#${a.tokenNumber || (a as any).token_number || idx + 1}</td>
+          <td>${a.time || (a as any).appointment_time || (a as any).virtual_time || 'OPD'}</td>
+          <td>
+            <strong>${a.patientName || pat?.name || 'Patient'}</strong>
+            <div style="font-size: 9px; color: #64748b;">${pat?.abhaId ? `ABHA: ${pat.abhaId}` : (pat?.patientCode || '')}</div>
+          </td>
+          <td style="font-family: monospace;">${a.patientPhone || pat?.phone || '—'}</td>
+          <td>${pat?.age ? `${pat.age}Y` : '—'} / ${pat?.gender || '—'}</td>
+          <td style="font-size: 10px; font-family: monospace;">${vitalsText}</td>
+          <td style="text-align: center;"><span style="font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #f1f5f9;">${sourceLabel}</span></td>
+          <td style="font-size: 10px;">${template.doctorName || 'Attending Physician'}</td>
+          <td style="text-align: center;"><span style="font-size: 9px; font-weight: 800; color: ${a.status === 'completed' ? '#15803d' : '#4338ca'};">${statusLabel}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>OPD Appointments Register — ${targetDate}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm 12mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; color: #0f172a; margin: 0; padding: 15px; font-size: 11px; }
+          .header { border-bottom: 2px solid ${template.headerColor || '#0284c7'}; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; }
+          .clinic-title { font-size: 20px; font-weight: 800; color: ${template.headerColor || '#0284c7'}; margin: 0; }
+          .clinic-sub { font-size: 10px; color: #64748b; margin-top: 2px; }
+          .reg-title { text-align: right; }
+          .reg-title h2 { font-size: 14px; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+          .reg-meta { font-size: 10px; color: #475569; margin-top: 2px; }
+          .summary-bar { display: flex; gap: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 12px; margin-bottom: 12px; font-size: 10px; }
+          .summary-bar strong { color: ${template.headerColor || '#0284c7'}; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; }
+          th { background: #f1f5f9; font-size: 9.5px; text-transform: uppercase; font-weight: 800; color: #334155; }
+          tr:nth-child(even) { background: #f8fafc; }
+          .footer-sigs { display: flex; justify-content: space-between; margin-top: 30px; padding-top: 10px; }
+          .sig-box { width: 220px; border-top: 1px dashed #64748b; text-align: center; padding-top: 5px; font-size: 10px; font-weight: 700; color: #334155; }
+          @media print {
+            body { padding: 0; }
+            .no-print { display: none !important; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="clinic-title">🏥 ${template.clinicName || activePod?.name || 'Smart Care Clinic & Hospital'}</h1>
+            <div class="clinic-sub">${template.clinicAddress || activePod?.location || 'Main Road, Health Plaza'} | 📞 ${template.clinicPhone || '+91 99342 98453'}</div>
+          </div>
+          <div class="reg-title">
+            <h2>OPD Appointments & Consultation Register</h2>
+            <div class="reg-meta">Date: <strong>${targetDate}</strong> | Generated: ${new Date().toLocaleTimeString()}</div>
+          </div>
+        </div>
+
+        <div class="summary-bar">
+          <div>Total OPD Tokens: <strong>${totalTokens}</strong></div>
+          <div>Consultations Completed: <strong>${completedTokens}</strong></div>
+          <div>In-Waiting / Chamber: <strong>${activeTokens}</strong></div>
+          <div>Attending Doctor: <strong>${template.doctorName || (activePod as any)?.doctor_name || 'Medical Officer'}</strong></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 50px; text-align: center;">Token</th>
+              <th style="width: 60px;">Time</th>
+              <th>Patient Name & ID</th>
+              <th style="width: 90px;">Mobile</th>
+              <th style="width: 60px;">Age/Sex</th>
+              <th>Recorded Pre-Check Vitals</th>
+              <th style="width: 85px; text-align: center;">Source</th>
+              <th style="width: 110px;">Doctor Chamber</th>
+              <th style="width: 75px; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows || '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #64748b;">No appointments registered for this date.</td></tr>'}
+          </tbody>
+        </table>
+
+        <div class="footer-sigs">
+          <div class="sig-box">
+            OPD Registrar / Compounder<br/>
+            <span style="font-size: 8px; font-weight: 400; color: #64748b;">Verified Intake Desk</span>
+          </div>
+          <div class="sig-box">
+            Attending Medical Officer / Doctor<br/>
+            <span style="font-size: 8px; font-weight: 400; color: #64748b;">Consultation Chamber Stamp & Sign</span>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 400);
+  }, [activePod]);
+
   // Realtime 1-sec clock ticker for live dilation countdowns
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -462,6 +626,34 @@ export const CompounderDashboard: React.FC = () => {
     return () => {
       window.removeEventListener('mediflow-compounder-tab-changed', handleTabChange);
       window.removeEventListener('mediflow-change-tab', handleTabChange);
+    };
+  }, []);
+
+  // Clinic Operating Mode State (Physical Paper Rx Mode vs Full Digital EMR)
+  const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('vitalsync_digital_emr_enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleModeChange = (e: any) => {
+      if (e.detail && typeof e.detail.enabled === 'boolean') {
+        setIsDigitalEmrEnabled(e.detail.enabled);
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'vitalsync_digital_emr_enabled') {
+        setIsDigitalEmrEnabled(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+      window.removeEventListener('storage', handleStorage);
     };
   }, []);
 
@@ -1100,7 +1292,7 @@ export const CompounderDashboard: React.FC = () => {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'WhatsApp Alert Dispatched! 📲',
-          message: `Lab result notification sent to ${patientName} (+91 ${phone.slice(-4)}).`,
+          message: `Lab result notification sent to ${patientName} (+91 ${(phone || '').slice(-4)}).`,
           type: 'success'
         }
       }));
@@ -1149,7 +1341,7 @@ export const CompounderDashboard: React.FC = () => {
       if (instantSelectedPatient) {
         targetPatient = instantSelectedPatient;
       } else {
-        const existing = patients.find(p => p.phone.slice(-10) === pPhone.slice(-10));
+        const existing = patients.find(p => (p.phone || '').replace(/\D/g, '').slice(-10) === (pPhone || '').replace(/\D/g, '').slice(-10));
         if (existing) {
           targetPatient = existing;
         } else {
@@ -2999,36 +3191,40 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowVitalsBottomSheet(true)}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20 border border-emerald-200/80 dark:border-emerald-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
-                >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-emerald-500/20">
-                    <Activity className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">Quick Vitals Intake</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">WhatsApp, QR &amp; BMI Pad</div>
-                  </div>
-                </button>
+                {isDigitalEmrEnabled && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowVitalsBottomSheet(true)}
+                      className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20 border border-emerald-200/80 dark:border-emerald-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
+                    >
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-emerald-500/20">
+                        <Activity className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white">Quick Vitals Intake</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">WhatsApp, QR &amp; BMI Pad</div>
+                      </div>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowBatchPrescriptionPrintModal(true)}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/80 dark:border-blue-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
-                >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-blue-500/20">
-                    <Printer className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                      <span>Print Rx Pads</span>
-                      <span className="text-[8px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-mono font-bold">Batch</span>
-                    </div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Pre-filled Vitals &amp; Slips</div>
-                  </div>
-                </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowBatchPrescriptionPrintModal(true)}
+                      className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/80 dark:border-blue-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
+                    >
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-blue-500/20">
+                        <Printer className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                          <span>Print Rx Pads</span>
+                          <span className="text-[8px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-mono font-bold">Batch</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Pre-filled Vitals &amp; Slips</div>
+                      </div>
+                    </button>
+                  </>
+                )}
 
                 <button
                   type="button"
@@ -4094,56 +4290,69 @@ export const CompounderDashboard: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* 1-Tap Switcher: Today's Live Queue vs Upcoming Advance Bookings */}
-                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {/* 🖨️ Print / Save OPD Register (PDF) Button */}
                         <button
                           type="button"
-                          onClick={() => setOpdQueueFilter('today')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                            opdQueueFilter === 'today'
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                          }`}
+                          onClick={() => setShowOpdRegisterPrintModal(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95"
+                          title="Print or Save Date-wise OPD Consultation Register as PDF"
                         >
-                          <Zap className="w-3.5 h-3.5 shrink-0" />
-                          <span>Today's Queue</span>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                            opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                          }`}>
-                            {(() => {
-                              const todayStr = getIstDateString();
-                              return appointments.filter(a => {
-                                if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                                return getEffectiveAppointmentDate(a) === todayStr;
-                              }).length;
-                            })()}
-                          </span>
+                          <Printer className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span>🖨️ Print OPD Register (PDF)</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => setOpdQueueFilter('upcoming')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                            opdQueueFilter === 'upcoming'
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          <Calendar className="w-3.5 h-3.5 shrink-0" />
-                          <span>Upcoming Bookings</span>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                            opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                          }`}>
-                            {(() => {
-                              const todayStr = getIstDateString();
-                              return appointments.filter(a => {
-                                if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                                const apptDate = getEffectiveAppointmentDate(a);
-                                return Boolean(apptDate && apptDate > todayStr);
-                              }).length;
-                            })()}
-                          </span>
-                        </button>
+                        {/* 1-Tap Switcher: Today's Live Queue vs Upcoming Advance Bookings */}
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setOpdQueueFilter('today')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                              opdQueueFilter === 'today'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <Zap className="w-3.5 h-3.5 shrink-0" />
+                            <span>Today's Queue</span>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                              opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}>
+                              {(() => {
+                                const todayStr = getIstDateString();
+                                return appointments.filter(a => {
+                                  if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                                  return getEffectiveAppointmentDate(a) === todayStr;
+                                }).length;
+                              })()}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setOpdQueueFilter('upcoming')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                              opdQueueFilter === 'upcoming'
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <Calendar className="w-3.5 h-3.5 shrink-0" />
+                            <span>Upcoming Bookings</span>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                              opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }`}>
+                              {(() => {
+                                const todayStr = getIstDateString();
+                                return appointments.filter(a => {
+                                  if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                                  const apptDate = getEffectiveAppointmentDate(a);
+                                  return Boolean(apptDate && apptDate > todayStr);
+                                }).length;
+                              })()}
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -4481,36 +4690,125 @@ export const CompounderDashboard: React.FC = () => {
                                 </button>
                               </div>
                             ) : isAwaitingVitals ? (
-                              <button
-                                onClick={() => {
-                                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                                  setVitalsPatient(patient);
-                                }}
-                                className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white border border-rose-600 font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer"
-                              >
-                                🩺 Record Vitals
-                              </button>
-                            ) : isAwaitingConsult ? (
-                              <div className="flex flex-col items-end gap-1">
-                                <span className="text-[8px] bg-amber-500/10 text-amber-700 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 uppercase tracking-widest animate-pulse">
-                                  In Doctor Chamber
-                                </span>
+                              <div className="flex flex-wrap items-center gap-1.5 justify-end">
+                                {isDigitalEmrEnabled && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        setVitalsPatient(patient);
+                                      }}
+                                      className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-lg uppercase tracking-wider text-[8.5px] transition-all cursor-pointer border-0 shadow-xs flex items-center gap-1"
+                                    >
+                                      🩺 Vitals
+                                    </button>
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        api.updatePatientQueueStatus(patient.id, 'in_consultation');
+                                        appt.status = 'ready_for_consult';
+                                        (appt as any).queue_status = 'in_consultation';
+                                        BillingService.saveAppointment(appt);
+                                        syncData();
+                                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                          detail: { 
+                                            title: 'Routed to Doctor! 🚪', 
+                                            message: `${patient.name} sent to Doctor Chamber (Digital mode).`, 
+                                            type: 'info' 
+                                          }
+                                        }));
+                                      }}
+                                      className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold rounded-lg uppercase tracking-wider text-[8.5px] transition-all cursor-pointer shadow-xs flex items-center gap-1"
+                                      title="Send patient to Doctor chamber"
+                                    >
+                                      👉 To Doctor
+                                    </button>
+                                  </>
+                                )}
+
                                 <button
+                                  type="button"
                                   onClick={() => {
-                                    api.updatePatientQueueStatus(patient.id, 'completed');
-                                    appt.status = 'completed';
-                                    BillingService.saveAppointment(appt);
-                                    syncData();
+                                    setSelectedPatientForBillHub(patient.id);
+                                    setActiveTab('billing_daycare');
+                                    setBillingSubTab('ocr_scan');
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
                                   }}
-                                  className="text-[8px] text-slate-500 hover:text-slate-800 underline cursor-pointer bg-transparent border-0 p-0"
+                                  className={`font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 shadow-md flex items-center gap-1.5 active:scale-95 ${
+                                    !isDigitalEmrEnabled
+                                      ? 'px-3.5 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] shadow-emerald-500/20'
+                                      : 'px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[8.5px]'
+                                  }`}
+                                  title="Patient returned with doctor handwritten prescription — Scan with Vision AI and bill"
                                 >
-                                  Mark Completed
+                                  <Camera className={!isDigitalEmrEnabled ? "w-3.5 h-3.5" : "w-3 h-3"} />
+                                  <span>📸 Scan Prescription & Bill</span>
                                 </button>
                               </div>
+                            ) : isAwaitingConsult ? (
+                              <div className="flex flex-col items-end gap-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  {isDigitalEmrEnabled && (
+                                    <span className="text-[8px] bg-amber-500/10 text-amber-700 dark:text-amber-300 font-mono font-bold px-2 py-0.5 rounded border border-amber-200 dark:border-amber-700 uppercase tracking-widest animate-pulse">
+                                      In Doctor Chamber
+                                    </span>
+                                  )}
+                                  
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedPatientForBillHub(patient.id);
+                                      setActiveTab('billing_daycare');
+                                      setBillingSubTab('ocr_scan');
+                                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
+                                    className={`font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 shadow-md flex items-center gap-1.5 active:scale-95 ${
+                                      !isDigitalEmrEnabled
+                                        ? 'px-3.5 py-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white text-[10px] shadow-emerald-500/20'
+                                        : 'px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[8.5px]'
+                                    }`}
+                                    title="Scan doctor's handwritten paper prescription with Vision AI"
+                                  >
+                                    <Camera className={!isDigitalEmrEnabled ? "w-3.5 h-3.5" : "w-3 h-3"} />
+                                    <span>📸 Scan Prescription & Bill</span>
+                                  </button>
+                                </div>
+
+                                {isDigitalEmrEnabled && (
+                                  <button
+                                    onClick={() => {
+                                      api.updatePatientQueueStatus(patient.id, 'completed');
+                                      appt.status = 'completed';
+                                      BillingService.saveAppointment(appt);
+                                      syncData();
+                                    }}
+                                    className="text-[8px] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 underline cursor-pointer bg-transparent border-0 p-0"
+                                  >
+                                    Mark Completed
+                                  </button>
+                                )}
+                              </div>
                             ) : (
-                              <span className="text-[8px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
-                                Consult Complete
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[8px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
+                                  Consult Complete
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPatientForBillHub(patient.id);
+                                    setActiveTab('billing_daycare');
+                                    setBillingSubTab('ocr_scan');
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700 rounded text-[8px] font-bold cursor-pointer"
+                                  title="View or Re-scan Prescription"
+                                >
+                                  🧾 View / Bill
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -5180,12 +5478,12 @@ export const CompounderDashboard: React.FC = () => {
 
             {/* Sub-View 1: Manual Counter Billing */}
             {billingSubTab === 'billing' && (
-              <BillHubTab initialMode="manual_billing" />
+              <BillHubTab initialMode="manual_billing" initialPatientId={selectedPatientForBillHub} />
             )}
 
             {/* Sub-View 2: AI Prescription Scan OCR */}
             {billingSubTab === 'ocr_scan' && (
-              <BillHubTab initialMode="ocr_scan" />
+              <BillHubTab initialMode="ocr_scan" initialPatientId={selectedPatientForBillHub} />
             )}
 
             {/* Sub-View 3: OT & Daycare Surgery */}
@@ -5869,7 +6167,7 @@ export const CompounderDashboard: React.FC = () => {
                           const tagLabel = tag === 'whatsapp' ? 'WhatsApp 🟢' : tag === 'qr_scan' ? 'QR 📲' : 'Counter 🏥';
                           return (
                             <option key={p.id} value={p.id} className="text-slate-900 font-medium">
-                              #{p.tokenNumber || 'TK'} · {p.name} [{tagLabel}] (+91 {p.phone.slice(-4)})
+                              #{p.tokenNumber || 'TK'} · {p.name} [{tagLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
                             </option>
                           );
                         })}
@@ -6049,6 +6347,33 @@ export const CompounderDashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Physical Intake Payment Screenshot Verification Gate */}
+                <div className="mt-4 p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-base">📱</span>
+                    <div>
+                      <span className="font-bold text-slate-850 dark:text-white block">
+                        Doctor Consultation Fee: ₹{currentConsultFee}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {(() => {
+                          const appt = appointments.find(a => a.patientId === vitalsPatient?.id || (a as any).patient_id === vitalsPatient?.id);
+                          const pStat = (appt as any)?.payment_status || (appt as any)?.paymentStatus || 'pending';
+                          if (pStat === 'cleared') return '✅ Payment already cleared / verified';
+                          if (pStat === 'asserted') return '🟡 WhatsApp UPI Asserted — Please inspect patient\'s phone screenshot';
+                          return '🔴 Fee Due — Collect ₹' + currentConsultFee + ' via Cash or Doctor UPI QR';
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold px-2 py-1 rounded-lg border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      Vitals Intake Gate Active
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -6206,7 +6531,7 @@ export const CompounderDashboard: React.FC = () => {
                     const srcLabel = srcTag === 'whatsapp' ? 'WhatsApp Bot 🟢' : srcTag === 'qr_scan' ? 'QR Scan 📲' : 'Walk-In 🏥';
                     return (
                       <option key={p.id} value={p.id}>
-                        #{p.tokenNumber || 'TK'} · {p.name} · [{srcLabel}] (+91 {p.phone.slice(-4)})
+                        #{p.tokenNumber || 'TK'} · {p.name} · [{srcLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
                       </option>
                     );
                   })}
@@ -6222,6 +6547,8 @@ export const CompounderDashboard: React.FC = () => {
                   const srcTag = getPatientSourceTag(p);
                   const isWhatsApp = srcTag === 'whatsapp';
                   const isQr = srcTag === 'qr_scan';
+                  const appt = appointments.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
+                  const pStat = (appt as any)?.payment_status || (appt as any)?.paymentStatus || 'pending';
 
                   return (
                     <div 
@@ -6246,7 +6573,7 @@ export const CompounderDashboard: React.FC = () => {
                         </span>
 
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-mono font-bold ${
                               isWhatsApp
@@ -6257,6 +6584,19 @@ export const CompounderDashboard: React.FC = () => {
                             }`}>
                               {isWhatsApp ? 'WhatsApp Bot 🟢' : isQr ? 'QR Scan 📲' : 'Walk-In 🏥'}
                             </span>
+                            {pStat === 'cleared' ? (
+                              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/50">
+                                🟢 Paid
+                              </span>
+                            ) : pStat === 'asserted' ? (
+                              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-mono font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50 animate-pulse">
+                                🟡 UPI Asserted (Check Screenshot)
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-mono font-bold bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700/50">
+                                🔴 ₹500 Due
+                              </span>
+                            )}
                           </div>
                           <div className="text-[10px] text-slate-500 font-mono mt-0.5">
                             +91 {p.phone} · Age: {p.age || '35'} · {p.gender}
@@ -6670,7 +7010,7 @@ export const CompounderDashboard: React.FC = () => {
                         <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 text-xs font-bold min-w-0">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="truncate">
-                            Registered Record: <span className="font-black">{instantSelectedPatient.name}</span> · ID: <span className="font-mono font-black">{instantSelectedPatient.patientCode || (instantSelectedPatient as any).patient_code || ('PID-' + instantSelectedPatient.id.slice(0, 6).toUpperCase())}</span> (+91 {instantSelectedPatient.phone.slice(-4)})
+                            Registered Record: <span className="font-black">{instantSelectedPatient.name}</span> · ID: <span className="font-mono font-black">{instantSelectedPatient.patientCode || (instantSelectedPatient as any).patient_code || ('PID-' + (instantSelectedPatient.id || '').slice(0, 6).toUpperCase())}</span> (+91 {(instantSelectedPatient.phone || '').slice(-4) || 'XXXX'})
                           </span>
                         </div>
                         <button
@@ -7222,6 +7562,235 @@ export const CompounderDashboard: React.FC = () => {
         </div>,
         document.body
       )}
+
+      {/* ── Dedicated Date-Wise OPD Register Print & Save-to-PDF Modal ── */}
+      {showOpdRegisterPrintModal && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-md animate-fade-in"
+          onClick={() => setShowOpdRegisterPrintModal(false)}
+        >
+          <div 
+            className="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-slide-up text-slate-800 dark:text-white flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shadow-inner">
+                  <Printer className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm sm:text-base font-black">OPD Appointments Register (PDF / Print)</h3>
+                    <span className="px-2 py-0.5 bg-white/20 text-[9px] font-bold rounded-full uppercase font-mono">
+                      Daily Archive
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-indigo-100/90 font-medium">
+                    Generate official date-wise consultation logs with letterhead, vitals & signatures
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOpdRegisterPrintModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer border-0 transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Date Selection & Statistics Controls */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 space-y-3 shrink-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                    Select OPD Date:
+                  </label>
+                  <input
+                    type="date"
+                    value={registerSelectedDate}
+                    onChange={(e) => setRegisterSelectedDate(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold font-mono outline-none focus:border-indigo-500 shadow-xs"
+                  />
+                </div>
+
+                {/* Quick Date Selectors */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setRegisterSelectedDate(getIstOffsetDateString(-1))}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                      registerSelectedDate === getIstOffsetDateString(-1)
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterSelectedDate(getIstDateString())}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                      registerSelectedDate === getIstDateString()
+                        ? 'bg-indigo-600 text-white border-indigo-600 font-black'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegisterSelectedDate(getIstOffsetDateString(1))}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                      registerSelectedDate === getIstOffsetDateString(1)
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    Tomorrow
+                  </button>
+                </div>
+              </div>
+
+              {/* Statistics Pill Strip */}
+              {(() => {
+                const dayAppts = BillingService.getAppointments().filter(a => {
+                  if (a.status === 'cancelled') return false;
+                  return getEffectiveAppointmentDate(a) === registerSelectedDate;
+                });
+                const completed = dayAppts.filter(a => a.status === 'completed').length;
+                const active = dayAppts.length - completed;
+
+                return (
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800">
+                      📋 Total Appointments: <strong className="font-mono font-black">{dayAppts.length}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800">
+                      ✓ Completed: <strong className="font-mono font-black">{completed}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-bold border border-amber-200 dark:border-amber-800">
+                      ⏳ In Chamber / Waiting: <strong className="font-mono font-black">{active}</strong>
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Preview List Table */}
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
+                {(() => {
+                  const dayAppts = BillingService.getAppointments().filter(a => {
+                    if (a.status === 'cancelled') return false;
+                    return getEffectiveAppointmentDate(a) === registerSelectedDate;
+                  });
+
+                  // Sort by token number
+                  dayAppts.sort((a, b) => {
+                    const tokA = parseInt(String(a.tokenNumber || (a as any).token_number || '0').replace(/\D/g, '')) || 0;
+                    const tokB = parseInt(String(b.tokenNumber || (b as any).token_number || '0').replace(/\D/g, '')) || 0;
+                    return tokA - tokB;
+                  });
+
+                  if (dayAppts.length === 0) {
+                    return (
+                      <div className="p-8 text-center text-slate-500">
+                        <FileText className="w-8 h-8 mx-auto mb-2 opacity-40 text-slate-400" />
+                        <p className="text-xs font-bold">No appointments found on {registerSelectedDate}.</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">Select another date above or register walk-in patients.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[10px] font-mono font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                          <th className="p-2.5 text-center">Token</th>
+                          <th className="p-2.5">Time</th>
+                          <th className="p-2.5">Patient Name</th>
+                          <th className="p-2.5">Phone</th>
+                          <th className="p-2.5">Vitals Status</th>
+                          <th className="p-2.5">Consult Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {dayAppts.map((a, idx) => {
+                          const v = (a as any).vitals || (a as any).patient_vitals || {};
+                          const hasVitals = Boolean(v.bloodPressure || v.pulseRate || v.temperature);
+                          return (
+                            <tr key={a.id || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+                              <td className="p-2.5 text-center font-mono font-black text-indigo-600 dark:text-indigo-400">
+                                #{a.tokenNumber || (a as any).token_number || idx + 1}
+                              </td>
+                              <td className="p-2.5 text-slate-500 font-mono text-[11px]">
+                                {a.time || (a as any).appointment_time || (a as any).virtual_time || 'OPD'}
+                              </td>
+                              <td className="p-2.5 font-bold text-slate-800 dark:text-white">
+                                {a.patientName || (a as any).patient_name || 'Patient'}
+                              </td>
+                              <td className="p-2.5 font-mono text-slate-600 dark:text-slate-400 text-[11px]">
+                                {a.patientPhone || (a as any).patient_phone || '—'}
+                              </td>
+                              <td className="p-2.5">
+                                {hasVitals ? (
+                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">
+                                    BP: {v.bloodPressure || '120/80'} | P: {v.pulseRate || '72'}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-400 font-medium">Paper Slip / Not entered</span>
+                                )}
+                              </td>
+                              <td className="p-2.5">
+                                <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                  a.status === 'completed'
+                                    ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                    : a.status === 'ready_for_consult'
+                                    ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                                    : 'bg-indigo-500/10 text-indigo-600 border border-indigo-500/20'
+                                }`}>
+                                  {a.status === 'ready_for_consult' ? 'In Chamber' : a.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowOpdRegisterPrintModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer bg-transparent border-0"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  handlePrintOpdRegister(registerSelectedDate);
+                  setShowOpdRegisterPrintModal(false);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-xs shadow-md transition active:scale-95 flex items-center gap-2 cursor-pointer border-0"
+              >
+                <Printer className="w-4 h-4 text-white" />
+                <span>🖨️ Print / Save as PDF ({registerSelectedDate})</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <div className="hidden md:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -7230,7 +7799,7 @@ export const CompounderDashboard: React.FC = () => {
         <div className="flex items-center gap-4">
           <span>Sub-300ms Outbound WhatsApp</span>
           <span>·</span>
-          <span>Cashfree Payment Gate Active</span>
+          <span>Direct Doctor Zero-Fee UPI &amp; Cash Counter</span>
           <span>·</span>
           <span className="text-indigo-600 dark:text-indigo-400 font-semibold">RLS Encrypted · Compounder</span>
         </div>

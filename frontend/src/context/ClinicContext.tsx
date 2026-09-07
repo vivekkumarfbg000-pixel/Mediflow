@@ -12,7 +12,16 @@ interface ClinicContextType {
   podEntities: Entity[];
   isLoading: boolean;
   refreshClinic: () => Promise<void>;
-  updatePodDetails: (updates: { name?: string; location?: string; upiVpa?: string; gstin?: string; doctorName?: string }) => Promise<{ success: boolean; pod?: Pod; error?: string }>;
+  updatePodDetails: (updates: { 
+    name?: string; 
+    location?: string; 
+    upiVpa?: string; 
+    gstin?: string; 
+    doctorName?: string;
+    isDigitalEmrEnabled?: boolean;
+    operatingMode?: 'paper_rx' | 'digital_emr';
+    prescriptionTemplate?: any;
+  }) => Promise<{ success: boolean; pod?: Pod; error?: string }>;
   registerClinic: (name: string, phone: string, address: string, specialization: string) => Promise<any>;
   joinClinic: (code: string, type: 'pharmacy' | 'lab' | 'compounder', name: string, phone: string, address: string) => Promise<any>;
 }
@@ -178,6 +187,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
 
       // 3. If a real pod exists in Supabase, set it
       if (podData) {
+        const isEmrEnabled = podData.is_digital_emr_enabled === true || podData.isDigitalEmrEnabled === true;
+        const opMode = podData.operating_mode || (isEmrEnabled ? 'digital_emr' : 'paper_rx');
+        const rxTemplate = podData.prescription_template || podData.prescriptionTemplate || null;
+
         const mappedPod: Pod = {
           id: podData.id,
           name: podData.name,
@@ -189,6 +202,9 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           doctorName: podData.doctor_name || podData.doctorName || undefined,
           phone: podData.phone || undefined,
           specialization: podData.specialization || undefined,
+          isDigitalEmrEnabled: isEmrEnabled,
+          operatingMode: opMode as any,
+          prescriptionTemplate: rxTemplate,
           createdAt: podData.created_at
         };
 
@@ -204,6 +220,19 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
             platform_fee_percent: 3.0
           });
           (window as any).__mediflow_active_pod_id = podData.id;
+
+          if (podData.is_digital_emr_enabled !== undefined) {
+            localStorage.setItem('vitalsync_digital_emr_enabled', String(isEmrEnabled));
+            window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+              detail: { enabled: isEmrEnabled }
+            }));
+          }
+          if (rxTemplate) {
+            localStorage.setItem('vitalsync_prescription_template', JSON.stringify(rxTemplate));
+            window.dispatchEvent(new CustomEvent('mediflow-prescription-template-changed', {
+              detail: { template: rxTemplate }
+            }));
+          }
         }
 
         // Fetch all entities in the same pod
@@ -302,6 +331,40 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           .subscribe();
       }
 
+      // Realtime listener on public.pods table for cross-terminal operating mode and letterhead sync
+      const podRealtimeChannel = supabase
+        .channel('pod-realtime-sync')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'pods'
+          },
+          (payload) => {
+            console.log('[ClinicContext Realtime] Pod record updated:', payload.new);
+            if (payload.new) {
+              if (payload.new.is_digital_emr_enabled !== undefined) {
+                const newEmrEnabled = payload.new.is_digital_emr_enabled === true;
+                localStorage.setItem('vitalsync_digital_emr_enabled', String(newEmrEnabled));
+                window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+                  detail: { enabled: newEmrEnabled }
+                }));
+              }
+
+              if (payload.new.prescription_template) {
+                localStorage.setItem('vitalsync_prescription_template', JSON.stringify(payload.new.prescription_template));
+                window.dispatchEvent(new CustomEvent('mediflow-prescription-template-changed', {
+                  detail: { template: payload.new.prescription_template }
+                }));
+              }
+
+              refreshClinic();
+            }
+          }
+        )
+        .subscribe();
+
       // Multi-Tab & Window synchronization (Rule 96)
       const handleStorageSync = (e: StorageEvent) => {
         if (e.key === 'vitalsync_active_pod' || e.key === 'vitalsync_cached_active_pod' || e.key === 'mediflow_active_profile') {
@@ -315,18 +378,53 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
 
       return () => {
         supabase.removeChannel(channel);
+        supabase.removeChannel(podRealtimeChannel);
         if (doctorChannel) supabase.removeChannel(doctorChannel);
         window.removeEventListener('storage', handleStorageSync);
         window.removeEventListener('mediflow-pod-change', handleCustomPodChange);
       };
     } else {
+      // Realtime listener on public.pods table even without entity
+      const podRealtimeChannel = supabase
+        .channel('pod-realtime-sync-guest')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'pods'
+          },
+          (payload) => {
+            if (payload.new) {
+              if (payload.new.is_digital_emr_enabled !== undefined) {
+                const newEmrEnabled = payload.new.is_digital_emr_enabled === true;
+                localStorage.setItem('vitalsync_digital_emr_enabled', String(newEmrEnabled));
+                window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+                  detail: { enabled: newEmrEnabled }
+                }));
+              }
+              if (payload.new.prescription_template) {
+                localStorage.setItem('vitalsync_prescription_template', JSON.stringify(payload.new.prescription_template));
+                window.dispatchEvent(new CustomEvent('mediflow-prescription-template-changed', {
+                  detail: { template: payload.new.prescription_template }
+                }));
+              }
+              refreshClinic();
+            }
+          }
+        )
+        .subscribe();
+
       const handleStorageSync = (e: StorageEvent) => {
         if (e.key === 'vitalsync_active_pod' || e.key === 'vitalsync_cached_active_pod') {
           refreshClinic();
         }
       };
       window.addEventListener('storage', handleStorageSync);
-      return () => window.removeEventListener('storage', handleStorageSync);
+      return () => {
+        supabase.removeChannel(podRealtimeChannel);
+        window.removeEventListener('storage', handleStorageSync);
+      };
     }
   }, [activeProfile, refreshClinic]);
 
@@ -375,7 +473,16 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
     }
   };
 
-  const updatePodDetails = async (updates: { name?: string; location?: string; upiVpa?: string; gstin?: string; doctorName?: string }) => {
+  const updatePodDetails = async (updates: { 
+    name?: string; 
+    location?: string; 
+    upiVpa?: string; 
+    gstin?: string; 
+    doctorName?: string;
+    isDigitalEmrEnabled?: boolean;
+    operatingMode?: 'paper_rx' | 'digital_emr';
+    prescriptionTemplate?: any;
+  }) => {
     setIsLoading(true);
     try {
       const targetPodId = activePod?.id || FALLBACK_POD_ID;
@@ -391,6 +498,12 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       if (cleanUpi) podUpdatePayload.upi_vpa = cleanUpi;
       if (cleanGstin) podUpdatePayload.gstin = cleanGstin;
       if (cleanDoctorName) podUpdatePayload.doctor_name = cleanDoctorName;
+      if (typeof updates.isDigitalEmrEnabled === 'boolean') {
+        podUpdatePayload.is_digital_emr_enabled = updates.isDigitalEmrEnabled;
+        podUpdatePayload.operating_mode = updates.isDigitalEmrEnabled ? 'digital_emr' : 'paper_rx';
+      }
+      if (updates.operatingMode) podUpdatePayload.operating_mode = updates.operatingMode;
+      if (updates.prescriptionTemplate) podUpdatePayload.prescription_template = updates.prescriptionTemplate;
 
       // 1. Update public.pods in Supabase
       const { error: podErr } = await supabase
@@ -428,14 +541,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
       const updatedPod: Pod = {
         id: targetPodId,
         name: cleanName || activePod?.name || 'VitalSync Smart Clinic',
-        location: cleanLocation || activePod?.location || 'Line Bazar, Purnea, Bihar',
+        location: cleanLocation || activePod?.location,
         clinicCode: activePod?.clinicCode || 'VS-V01R',
         isActive: activePod?.isActive ?? true,
         upiVpa: cleanUpi || activePod?.upiVpa || 'vitalsync@axl',
         gstin: cleanGstin || activePod?.gstin,
-        doctorName: cleanDoctorName || activePod?.doctorName || activeProfile?.display_name,
+        doctorName: cleanDoctorName || activePod?.doctorName,
         phone: activePod?.phone,
         specialization: activePod?.specialization,
+        isDigitalEmrEnabled: typeof updates.isDigitalEmrEnabled === 'boolean' ? updates.isDigitalEmrEnabled : activePod?.isDigitalEmrEnabled ?? false,
+        operatingMode: updates.operatingMode || (updates.isDigitalEmrEnabled ? 'digital_emr' : 'paper_rx'),
+        prescriptionTemplate: updates.prescriptionTemplate || activePod?.prescriptionTemplate,
         createdAt: activePod?.createdAt || new Date().toISOString()
       };
 

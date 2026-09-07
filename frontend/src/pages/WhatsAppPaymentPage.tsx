@@ -70,8 +70,8 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
   useEffect(() => {
     const activeSop = BillingService.getActiveSop();
     const fallbackDocFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
-    const fallbackPlatFee = parseFloat((fallbackDocFee * 0.03).toFixed(2));
-    const fallbackTotal = parseFloat((fallbackDocFee + fallbackPlatFee).toFixed(2));
+    const fallbackPlatFee = 0.00; // 0% Online Convenience Fee for WhatsApp Bookings
+    const fallbackTotal = fallbackDocFee;
 
     if (!invoiceId) {
       setInvoice({

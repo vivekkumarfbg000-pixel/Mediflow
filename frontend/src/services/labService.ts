@@ -653,9 +653,9 @@ export class LabService {
       
       const testPrice = activeSop?.extractedConfig?.test_prices?.[reports[idx].loincCode] ?? testCatalogItem?.price ?? 350;
       
-      const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 15;
-      const splitPlat = 5;
-      const splitLab = 100 - splitDoc - splitPlat;
+      const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
+      const splitPlat = activeSop?.extractedConfig?.splits?.platform ?? 5;
+      const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc - splitPlat);
 
       const platformAmt = parseFloat((testPrice * (splitPlat / 100)).toFixed(2));
       const docAmt = parseFloat((testPrice * (splitDoc / 100)).toFixed(2));

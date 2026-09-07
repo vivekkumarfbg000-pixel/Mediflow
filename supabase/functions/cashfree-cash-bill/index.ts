@@ -7,12 +7,11 @@ import { isRateLimited } from "../_shared/rate-limit.ts";
 // =============================================================================
 // Mediflow — cashfree-cash-bill Edge Function
 // Records a cash sale billed through the Mediflow app by a compounder.
-// Deducts 3% platform commission from the pod's commission pool.
+// Deducts platform commission (5% Lab, 2% Pharmacy) from the pod's commission pool.
 // If pool balance < ₹200 threshold, defers the commission silently
 // and notifies the clinic owner via activity log.
 // =============================================================================
 
-const COMMISSION_RATE = 0.03; // 3% — fixed for pilot
 const POOL_LOW_THRESHOLD = 200; // ₹200 minimum before deferral
 
 serve(async (req) => {
@@ -95,8 +94,9 @@ serve(async (req) => {
       });
     }
 
-    // ── Calculate 3% commission ─────────────────────────────────────────────
-    const commissionAmount = parseFloat((grossAmount * COMMISSION_RATE).toFixed(2));
+    // ── Calculate commission (5% lab, 2% pharmacy) ─────────────────────────
+    const commissionRate = saleType === "lab" ? 0.05 : 0.02;
+    const commissionAmount = parseFloat((grossAmount * commissionRate).toFixed(2));
 
     // ── Create cash_billing_session record ───────────────────────────────────
     const { data: session, error: sessionErr } = await supabase

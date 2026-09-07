@@ -15,7 +15,7 @@ import {
 // =============================================================================
 // Mediflow — CashBillingPanel
 // Used by compounders to record cash pharmacy/lab sales through the app.
-// Automatically deducts 3% platform commission from the pod's commission pool.
+// Automatically deducts platform commission (5% Lab, 2% Pharmacy) from the pod's commission pool.
 // Transparent to the compounder — shows the ₹ amount going to platform.
 // =============================================================================
 
@@ -55,7 +55,8 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const COMMISSION_RATE = 0.03;
+  const COMMISSION_RATE = entityType === 'lab' ? 0.05 : 0.02;
+  const platformFeePctLabel = entityType === 'lab' ? '5%' : '2%';
 
   // ── Load pool balance on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -177,7 +178,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
             Cash {entityType === 'pharmacy' ? 'Pharmacy' : 'Lab'} Billing
           </h2>
           <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-            Bill a cash sale through Mediflow — 3% platform fee is auto-handled
+            Bill a cash sale through Mediflow — {platformFeePctLabel} platform fee is auto-handled
           </p>
         </div>
 
@@ -286,7 +287,7 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
           <div className="flex justify-between text-indigo-600 dark:text-indigo-400">
             <span className="flex items-center gap-1">
               <Percent className="w-3 h-3" />
-              Platform fee (3%)
+              Platform fee ({platformFeePctLabel})
             </span>
             <span className="font-mono font-bold">₹{(commissionAmount || 0).toFixed(2)}</span>
           </div>

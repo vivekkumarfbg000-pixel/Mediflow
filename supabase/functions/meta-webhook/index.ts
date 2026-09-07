@@ -2653,8 +2653,8 @@ async function triggerBotReplyPipeline(ctx: {
           // Normal Paid Consultation Flow
           nextState = "AWAITING_PAYMENT";
           const doctorFee = feeAmount;
-          const platformFee = 15.00; // 3% Platform Convenience Fee (Rule 59)
-          const totalAmount = doctorFee + platformFee;
+          const platformFee = 0.00; // 0% Platform Convenience Fee
+          const totalAmount = doctorFee;
 
           let newApptId = crypto.randomUUID();
           let newInvoiceId = crypto.randomUUID();
@@ -2849,7 +2849,22 @@ async function triggerBotReplyPipeline(ctx: {
           const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
           const portalPaymentUrl = paymentGatewayUrl || `${appBaseUrl}/pay/${newInvoiceId}`;
 
-          replyText = `📅 *Checkup Slot Selected!*\n\n${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai.\n\n*Fee Breakdown:*\n• Doctor Consultation Fee: ₹${doctorFee.toFixed(2)}\n• Online Convenience Platform Fee (3%): ₹${platformFee.toFixed(2)}\n---------------------------------------\n*Total Amount Payable: ₹${totalAmount.toFixed(2)}*${appliedDiscountNote}\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${portalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke token issue kar dega! 📑`;
+          let doctorUpiVpa = "vitalsync@axl";
+          try {
+            const { data: sopRow } = await supabase
+              .from("clinic_sops")
+              .select("extracted_config")
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle();
+            if (sopRow?.extracted_config?.doctor_upi_vpa) {
+              doctorUpiVpa = sopRow.extracted_config.doctor_upi_vpa;
+            }
+          } catch (_e) {}
+
+          const directUpiLink = `upi://pay?pa=${doctorUpiVpa}&pn=${encodeURIComponent(resolvedDoctorName)}&am=${doctorFee.toFixed(2)}&cu=INR&tn=VS-APPT-${newApptId.substring(0, 8)}`;
+
+          replyText = `📅 *Checkup Slot Selected!*\n\n${resolvedDoctorName} ke liye checkup slot *${slotText}* on *${selectedDisplay}* at *${resolvedClinicName}* lock kar diya gaya hai.\n\n• Doctor Consultation Fee: *₹${doctorFee.toFixed(2)}*\n(0% Convenience Fee • 100% Direct to Doctor)\n\n📲 *Doctor Direct UPI Se Pay Karein (GPay / PhonePe / Paytm):*\n${directUpiLink}\n\n📱 *Online Web Portal Payment Link:*\n${portalPaymentUrl}\n\n👉 *Payment Options:*\n1️⃣ UPI se pay karke *PAID* reply karein (turant token issue ho jayega).\n2️⃣ Ya agar clinic counter par pay karna chahte hain toh *COUNTER* reply karein.\n\n*(Note: Clinic vitals desk par payment screenshot verify hoga)* 📑`;
         }
       } else {
         replyText = "Invalid slot timing choice. Please Timing select karne ke liye type kijiye:\n1️⃣ Morning (10am-12pm)\n2️⃣ Afternoon (2pm-4pm)\n3️⃣ Evening (6pm-8pm)\n\nType 1, 2, ya 3! ⏱️";
@@ -2974,7 +2989,7 @@ async function triggerBotReplyPipeline(ctx: {
           }
 
           // Check amount discrepancy (1 Rupee tolerance)
-          const expectedFee = Number(feeAmount) || 515;
+          const expectedFee = Number(feeAmount) || 500;
           const diff = Math.abs(matchedTx.amount - expectedFee);
           if (diff > 1.5) {
             replyText = `⚠️ *Amount Mismatch*\n\nScreen par transaction ₹${matchedTx.amount.toFixed(2)} ka dikh raha hai, jabki aapki booking fee ₹${expectedFee.toFixed(2)} hai. Please correct amount pay karein.`;
@@ -3097,29 +3112,29 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `⏳ *Direct UPI Verification Pending*\n\nHumne aapka 12-digit UTR *${utr}* note kar liya hai.\n\nBank se settlement SMS sync hote hi token automatic confirm ho jayega! Tab tak aap 2 mins wait karein ya **STATUS** reply karein. 🤝`;
         }
 
-      // 3. User checking status / asserting payment (Directive 48 Enforcement)
+      // 3. User asserting payment (Direct UPI or 1-tap button)
       } else if (cleaned.includes("pay") || cleaned.includes("clear") || cleaned.includes("paid") || cleaned.includes("done") || cleaned.includes("confirm") || cleaned.includes("status") || replyId === "btn_pay" || replyId === "btn_paid") {
         if (invoiceId) {
           try {
             await supabase.rpc('process_invoice_settlement', {
               p_invoice_id: invoiceId,
-              p_payment_method: 'razorpay',
-              p_amount_paid: Number(feeAmount) || 515,
+              p_payment_method: 'upi',
+              p_amount_paid: Number(feeAmount) || 500,
               p_gateway_reference_id: sessionData.rzpPaymentLinkId || 'wa_asserted'
             });
           } catch (_e) {}
-          await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "razorpay" }).eq("id", invoiceId);
+          await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "upi" }).eq("id", invoiceId);
         }
 
         if (apptId) {
           const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
           await supabase
             .from("appointments")
-            .update({ status: finalStatus, payment_status: "cleared", token_number: String(tokenNumber) })
+            .update({ status: finalStatus, payment_status: "asserted", token_number: String(tokenNumber) })
             .eq("id", apptId);
         }
 
-        // Insert real-time financial ledger entry for doctor consultation
+        // Insert real-time financial ledger entry for doctor consultation (0% platform deduction)
         if (invoiceId) {
           try {
             await supabase.from("financial_ledgers").insert({
@@ -3132,7 +3147,7 @@ async function triggerBotReplyPipeline(ctx: {
               net_payout: Number(feeAmount) || 500,
               payment_status: "cleared",
               settled_at: new Date().toISOString(),
-              platform_fee_deducted: 15,
+              platform_fee_deducted: 0,
               gateway_disbursed_net: Number(feeAmount) || 500,
               payment_method: "upi",
               pod_id: safePodId
@@ -3163,8 +3178,28 @@ async function triggerBotReplyPipeline(ctx: {
         } else if (isVirtualSlot) {
           replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${feeAmount}.00\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${apptId}\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🎉 *PAYMENT VERIFIED & APPOINTMENT SCHEDULED!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n• Address: ${clinicName}, Central Desk.\n\nTime par clinic pahuchein aur counter par token number (${tokenNumber}) ya patient ID (${pCode}) show karein. Compounder intake desk par vitals verify honge! Thank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *APPOINTMENT CONFIRMED! Token #${tokenNumber} Issued!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${apptId ? apptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\n⚠️ *Clinic Vitals Desk Verification*:\nClinic pahuchein aur intake counter par Token (#${tokenNumber}) show karein. Humara compounder vitals check karte waqt aapka payment screenshot verify karega. Thank you for choosing VitalSync! 😊`;
         }
+
+      // 4. User chose to pay at clinic counter
+      } else if (cleaned.includes("counter") || cleaned.includes("cash") || replyId === "btn_pay_counter" || replyId === "btn_counter") {
+        if (invoiceId) {
+          await supabase.from("unified_invoices").update({ payment_status: "pending", payment_method: "cash" }).eq("id", invoiceId);
+        }
+        if (apptId) {
+          await supabase.from("appointments").update({ status: "scheduled", payment_status: "pending_counter", token_number: String(tokenNumber) }).eq("id", apptId);
+        }
+        if (bookingPatId) {
+          await supabase.from("patient_registry").update({ queue_status: "awaiting_vitals", token_number: String(tokenNumber) }).eq("id", bookingPatId);
+        }
+        nextState = "COMPLETED";
+        sessionData.isSos = false;
+        delete sessionData.isSos;
+        sessionData.pendingInvoiceId = null;
+        sessionData.pendingApptId = null;
+
+        const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
+        replyText = `🎉 *APPOINTMENT BOOKED! Token #${tokenNumber} Generated!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Due at Counter: ₹${feeAmount}.00\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Token (#${tokenNumber}) dikhakar Cash ya UPI se Doctor Consultation Fee pay karein! Staff vitals record karke aapko chamber mein call karega. Dhanyawad! 😊`;
 
       // 4. Global navigation / Reset (Anti-Lockup)
       } else if (cleaned.includes("menu") || cleaned.includes("hi") || cleaned.includes("hello") || cleaned.includes("hey") || cleaned.includes("namaste") || cleaned.includes("restart") || cleaned.includes("reset") || cleaned.includes("cancel") || cleaned.includes("book") || cleaned.includes("start") || cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned === "0") {

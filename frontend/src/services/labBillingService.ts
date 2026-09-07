@@ -139,7 +139,7 @@ export class LabBillingService {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     const exists = ledgerEntries.some(l => l.invoiceId === id);
     if (!exists) {
-      const splitPlat = 3; // 3% platform fee for lab
+      const splitPlat = 5; // 5% platform fee for lab
       const amount = bill.totalAmount;
       const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       const labAmt = parseFloat((amount - platformAmt).toFixed(2));

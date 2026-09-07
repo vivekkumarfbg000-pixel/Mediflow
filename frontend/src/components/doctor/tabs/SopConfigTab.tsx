@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react';
 import { api } from '../../../services/api';
+import { supabase } from '../../../lib/supabaseClient';
+import { PaymentService } from '../../../services/paymentService';
 import { getIstDateString } from '../../../utils/dateUtils';
-import { getPodContext, FALLBACK_ENTITY_ID } from '../../../services/podContext';
+import { getPodContext, FALLBACK_ENTITY_ID, FALLBACK_POD_ID } from '../../../services/podContext';
+import { useClinic } from '../../../context/ClinicContext';
 import type { ClinicSop } from '../../../types';
 import { 
   Shield, 
@@ -22,7 +25,11 @@ import {
   User, 
   Network, 
   History,
-  Zap 
+  Zap,
+  Smartphone,
+  Pill,
+  Laptop,
+  FileText
 } from 'lucide-react';
 
 interface SopConfigTabProps {
@@ -58,8 +65,66 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
   sopActiveSubTab,
   setSopActiveSubTab
 }) => {
+  const { activePod } = useClinic();
   const sops = api.getClinicSops();
   const activeSop = api.getActiveSop();
+
+  const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = React.useState<boolean>(() => {
+    try {
+      return localStorage.getItem('vitalsync_digital_emr_enabled') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  React.useEffect(() => {
+    const handleModeChange = (e: any) => {
+      if (e.detail && typeof e.detail.enabled === 'boolean') {
+        setIsDigitalEmrEnabled(e.detail.enabled);
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'vitalsync_digital_emr_enabled') {
+        setIsDigitalEmrEnabled(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const handleToggleDigitalEmr = (newVal: boolean) => {
+    setIsDigitalEmrEnabled(newVal);
+    try {
+      localStorage.setItem('vitalsync_digital_emr_enabled', String(newVal));
+    } catch (e) {
+      console.error(e);
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+      detail: { enabled: newVal }
+    }));
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: newVal ? 'Digital EMR Mode Enabled 💻' : 'Physical Paper Rx Mode Active 📄',
+        message: newVal 
+          ? 'Full In-App Vitals at Compounder Desk and Consultation Queue in Doctor EMR are now unlocked.'
+          : 'Zero-Screen Doctor OPD active. Compounder queue simplified to 1-Tap OCR Scan & WhatsApp Bill.',
+        type: newVal ? 'info' : 'success'
+      }
+    }));
+
+    // Real-Time Supabase Postgres Cloud Synchronization (Rule 85: Pod-Id Invariant)
+    const targetPodId = activePod?.id || FALLBACK_POD_ID;
+    supabase.from('pods').update({
+      is_digital_emr_enabled: newVal,
+      operating_mode: newVal ? 'digital_emr' : 'paper_rx'
+    }).eq('id', targetPodId).then(({ error }) => {
+      if (error) console.warn('[Operating Mode] Supabase pods sync warning:', error.message);
+    });
+  };
 
   const [templateDocName, setTemplateDocName] = React.useState(() => api.getPrescriptionTemplate().doctorName || 'Attending Physician');
   const [templateDocQual, setTemplateDocQual] = React.useState(() => api.getPrescriptionTemplate().doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)');
@@ -73,7 +138,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
   const handleSaveTemplate = () => {
     setIsSavingTemplate(true);
-    api.savePrescriptionTemplate({
+    const templateData = {
       doctorName: templateDocName,
       doctorQualification: templateDocQual,
       doctorRegNo: templateDocReg,
@@ -82,13 +147,23 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       clinicPhone: templateClinicPhone,
       headerColor: templateHeaderColor,
       footerNote: templateFooterNote
+    };
+    api.savePrescriptionTemplate(templateData);
+
+    // Real-Time Supabase Postgres Cloud Synchronization for Multi-Terminal letterheads
+    const targetPodId = activePod?.id || FALLBACK_POD_ID;
+    supabase.from('pods').update({
+      prescription_template: templateData
+    }).eq('id', targetPodId).then(({ error }) => {
+      if (error) console.warn('[Prescription Template] Supabase pods sync warning:', error.message);
     });
+
     setTimeout(() => {
       setIsSavingTemplate(false);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Prescription Template Saved! 📄',
-          message: 'All printed OPD slips and e-prescriptions will now use this exact letterhead.',
+          title: 'Prescription Template Saved to Cloud! 📄',
+          message: 'All printed OPD slips and e-prescriptions across all staff desks will now use this exact letterhead.',
           type: 'success'
         }
       }));
@@ -144,9 +219,12 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const splitPharmaDocMatch = text.match(/(?:medicine|pharmacy|drug)\s*(?:commission|referral|split|share)[^0-9]*(\d+(?:\.\d+)?)\s*%/i);
 
     const splitDoc = splitDocMatch ? parseFloat(splitDocMatch[1]) : activeSop?.extractedConfig?.splits?.doctor ?? 40;
-    const splitPlat = splitPlatMatch ? parseFloat(splitPlatMatch[1]) : activeSop?.extractedConfig?.splits?.platform ?? 3;
-    const splitLab = splitLabMatch ? parseFloat(splitLabMatch[1]) : activeSop?.extractedConfig?.splits?.lab ?? 57;
+    const splitPlat = splitPlatMatch ? parseFloat(splitPlatMatch[1]) : activeSop?.extractedConfig?.splits?.platform ?? 5;
+    const splitLab = splitLabMatch ? parseFloat(splitLabMatch[1]) : activeSop?.extractedConfig?.splits?.lab ?? 55;
     const splitPharmaDoc = splitPharmaDocMatch ? parseFloat(splitPharmaDocMatch[1]) : (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
+
+    const upiMatch = text.match(/(?:upi|vpa|gpay|phonepe|paytm)\s*[:\-]?\s*([a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64})/i);
+    const doctorUpiVpa = upiMatch ? upiMatch[1] : (activeSop?.extractedConfig?.doctor_upi_vpa || PaymentService.getSafeClinicUpiVpa('vitalsync@axl'));
 
     // Parse test prices
     const testPrices: Record<string, number> = { ...activeSop?.extractedConfig?.test_prices };
@@ -169,8 +247,9 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const config = {
       doctor_fee: docFee,
       emergency_sos_fee: emergencySosFee,
+      doctor_upi_vpa: doctorUpiVpa,
       test_prices: testPrices,
-      splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab, pharmacyDoctor: splitPharmaDoc },
+      splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab, pharmacyDoctor: splitPharmaDoc, pharmacyPlatform: 2 },
       guidelines: guidelineLines.length > 0 ? guidelineLines : activeSop?.extractedConfig?.guidelines ?? []
     };
 
@@ -196,6 +275,17 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     // Deactivate previous SOPs
     const existing = api.getClinicSops().map((s: ClinicSop) => ({ ...s, isActive: false }));
     api.saveClinicSops([newSop, ...existing]);
+
+    if (newSop.extractedConfig?.doctor_upi_vpa) {
+      try {
+        localStorage.setItem('clinic_upi_vpa', newSop.extractedConfig.doctor_upi_vpa);
+        const podId = getPodContext().podId;
+        if (podId) {
+          supabase.from('pods').update({ upi_vpa: newSop.extractedConfig.doctor_upi_vpa }).eq('id', podId).then(() => {});
+        }
+      } catch (_e) {}
+    }
+
     setExtractedConfig(null);
     setSopText('');
     setSopFile(null);
@@ -231,6 +321,78 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
             Active SOP: {activeSop.sopFileName}
           </div>
         )}
+      </div>
+
+      {/* ── CLINIC OPERATING MODE MASTER SWITCH (Offline Paper Rx vs Full Digital EMR) ── */}
+      <div className="p-5 sm:p-6 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-gradient-to-br from-white via-slate-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/80 dark:to-indigo-950/20 shadow-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-2xl">
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono uppercase tracking-wider border ${
+                isDigitalEmrEnabled
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800'
+                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+              }`}>
+                {isDigitalEmrEnabled ? 'Digital EMR Mode' : 'Physical Paper Rx Mode (Default)'}
+              </span>
+              <span className="text-xs text-slate-400">·</span>
+              <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">Clinic Workflow Controller</span>
+            </div>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              {isDigitalEmrEnabled ? (
+                <>
+                  <Laptop className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  Full Online Digital EMR Active
+                </>
+              ) : (
+                <>
+                  <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  Zero-Screen Doctor OPD (Physical Paper Rx) Active
+                </>
+              )}
+            </h3>
+            <p className="text-xs text-slate-650 dark:text-slate-300 leading-relaxed">
+              {isDigitalEmrEnabled ? (
+                <span>
+                  Doctor conducts consultations inside software with CDSS AI Scribe and e-prescriptions. Compounder records digital vitals in-app before sending patient to chamber.
+                </span>
+              ) : (
+                <span>
+                  Doctor writes on traditional clinic prescription pad with zero screen distraction. Compounder desk queue is streamlined with a single prominent <strong>📸 Scan Rx & Bill</strong> button to OCR handwritten prescriptions directly into WhatsApp bills.
+                </span>
+              )}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleToggleDigitalEmr(!isDigitalEmrEnabled)}
+              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none cursor-pointer p-1 shadow-inner ${
+                isDigitalEmrEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+              }`}
+              role="switch"
+              aria-checked={isDigitalEmrEnabled}
+              title="Toggle between Physical Paper Mode and Digital EMR Mode"
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform flex items-center justify-center text-[10px] ${
+                  isDigitalEmrEnabled ? 'translate-x-8 text-indigo-600' : 'translate-x-0 text-slate-500'
+                }`}
+              >
+                {isDigitalEmrEnabled ? '💻' : '📄'}
+              </span>
+            </button>
+            <div className="text-left">
+              <div className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                {isDigitalEmrEnabled ? 'Disable Digital EMR' : 'Enable Digital EMR'}
+              </div>
+              <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                {isDigitalEmrEnabled ? 'Switch to Paper OPD' : 'Unlock Doctor Consultation Queue'}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Sub-tabs — 2-Column Mobile-First Horizontal Segmented Controller */}
@@ -463,7 +625,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 <span className="text-xs text-slate-600">— review before activating</span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* Doctor Fee */}
                 <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 space-y-2">
                   <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider">
@@ -508,52 +670,83 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   </div>
                 </div>
 
-                {/* Commission Splits */}
-                <div className="p-4 rounded-2xl bg-violet-50 border border-violet-100 space-y-2">
-                  <div className="flex items-center gap-2 text-violet-700 font-bold text-xs uppercase tracking-wider">
-                    <PieChart className="w-4 h-4 shrink-0" />
-                    Lab Splits (%)
+                {/* Doctor Direct UPI VPA */}
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-wider">
+                      <Smartphone className="w-4 h-4 shrink-0" />
+                      Doctor Direct UPI (VPA)
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">0% Fee Direct</span>
                   </div>
-                  <div className="space-y-1.5">
+                  <input
+                    type="text"
+                    placeholder="e.g. doctor@upi"
+                    value={extractedConfig.doctor_upi_vpa || ''}
+                    onChange={e => setExtractedConfig({...extractedConfig, doctor_upi_vpa: e.target.value})}
+                    className="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2 text-xs font-bold text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-300 font-mono"
+                  />
+                  <p className="text-[9px] text-emerald-600">WhatsApp sends this direct UPI link to patients</p>
+                </div>
+
+                {/* Pathology Splits */}
+                <div className="p-4 rounded-2xl bg-violet-50 border border-violet-100 space-y-2">
+                  <div className="flex items-center justify-between text-violet-700 font-bold text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5"><PieChart className="w-4 h-4 shrink-0" /> Lab Splits (%)</span>
+                    <span className="text-[9px] text-violet-600">5% Platform</span>
+                  </div>
+                  <div className="space-y-1">
                     {[
                       { label: 'Doctor', key: 'doctor', color: 'text-blue-600' },
                       { label: 'Platform', key: 'platform', color: 'text-violet-600' },
                       { label: 'Lab', key: 'lab', color: 'text-emerald-600' }
                     ].map(s => (
                       <div key={s.key} className="flex items-center gap-2">
-                        <span className={`text-xs font-semibold w-16 ${s.color}`}>{s.label}</span>
+                        <span className={`text-[10px] font-semibold w-14 ${s.color}`}>{s.label}</span>
                         <input
                           type="number"
                           value={extractedConfig.splits[s.key] ?? 0}
                           onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, [s.key]: parseFloat(e.target.value) || 0}})}
-                          className="flex-1 bg-white border border-violet-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
+                          className="flex-1 bg-white border border-violet-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                         />
-                        <span className="text-xs text-slate-600">%</span>
+                        <span className="text-[10px] text-slate-600">%</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Total Split Check */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="flex items-center gap-2 text-slate-600 font-bold text-xs uppercase tracking-wider">
-                    <Scale className="w-4 h-4 shrink-0" />
-                    Split Validation
+                {/* Pharmacy Splits */}
+                <div className="p-4 rounded-2xl bg-teal-50 border border-teal-100 space-y-2">
+                  <div className="flex items-center justify-between text-teal-700 font-bold text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5"><Pill className="w-4 h-4 shrink-0" /> Pharmacy Splits (%)</span>
+                    <span className="text-[9px] text-teal-600">2% Platform</span>
                   </div>
-                  {(() => {
-                    const total = (extractedConfig.splits.doctor || 0) + (extractedConfig.splits.platform || 0) + (extractedConfig.splits.lab || 0);
-                    const isValid = Math.abs(total - 100) < 0.01;
-                    return (
-                      <div className={`flex items-center gap-2 p-2 rounded-lg ${isValid ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                        {isValid ? (
-                          <CheckCircle2 className="w-4 h-4 shrink-0" />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 shrink-0" />
-                        )}
-                        <span className="text-xs font-bold">Total: {total.toFixed(1)}% {isValid ? '✓ Valid' : 'Must equal 100%'}</span>
-                      </div>
-                    );
-                  })()}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold w-14 text-teal-700">Doctor</span>
+                      <input
+                        type="number"
+                        value={extractedConfig.splits.pharmacyDoctor ?? 20}
+                        onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, pharmacyDoctor: parseFloat(e.target.value) || 0}})}
+                        className="flex-1 bg-white border border-teal-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                      />
+                      <span className="text-[10px] text-slate-600">%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold w-14 text-violet-700">Platform</span>
+                      <input
+                        type="number"
+                        value={extractedConfig.splits.pharmacyPlatform ?? 2}
+                        onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, pharmacyPlatform: parseFloat(e.target.value) || 0}})}
+                        className="flex-1 bg-white border border-teal-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                      />
+                      <span className="text-[10px] text-slate-600">%</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-teal-800 font-medium pt-1">
+                      <span>Chemist Net Keep:</span>
+                      <span className="font-bold">{Math.max(0, 100 - (extractedConfig.splits.pharmacyDoctor ?? 20) - (extractedConfig.splits.pharmacyPlatform ?? 2))}%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -641,13 +834,14 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 {[
                   { label: 'Doctor Fee', value: `₹${activeSop.extractedConfig?.doctor_fee ?? 500}`, icon: <Stethoscope className="w-5 h-5 text-blue-500 mx-auto" />, colorClasses: 'bg-blue-50 border-blue-100 text-blue-700' },
-                  { label: 'Emergency SOS Fee (+20%)', value: `₹${activeSop.extractedConfig?.emergency_sos_fee ?? Math.round((activeSop.extractedConfig?.doctor_fee ?? 500) * 1.20)}`, icon: <Zap className="w-5 h-5 text-rose-500 mx-auto" />, colorClasses: 'bg-rose-50 border-rose-100 text-rose-700' },
-                  { label: 'Doctor Split', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}%`, icon: <User className="w-5 h-5 text-indigo-500 mx-auto" />, colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
-                  { label: 'Platform Split', value: `${activeSop.extractedConfig?.splits?.platform ?? 3}%`, icon: <Network className="w-5 h-5 text-violet-500 mx-auto" />, colorClasses: 'bg-violet-50 border-violet-100 text-violet-700' },
-                  { label: 'Lab Split', value: `${activeSop.extractedConfig?.splits?.lab ?? 57}%`, icon: <Coins className="w-5 h-5 text-emerald-500 mx-auto" />, colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                  { label: 'Doctor Direct UPI', value: `${activeSop.extractedConfig?.doctor_upi_vpa || 'vitalsync@axl'}`, icon: <Smartphone className="w-5 h-5 text-emerald-500 mx-auto" />, colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                  { label: 'Emergency SOS (+20%)', value: `₹${activeSop.extractedConfig?.emergency_sos_fee ?? Math.round((activeSop.extractedConfig?.doctor_fee ?? 500) * 1.20)}`, icon: <Zap className="w-5 h-5 text-rose-500 mx-auto" />, colorClasses: 'bg-rose-50 border-rose-100 text-rose-700' },
+                  { label: 'Lab Splits', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}% Dr / ${activeSop.extractedConfig?.splits?.platform ?? 5}% Tech`, icon: <Coins className="w-5 h-5 text-indigo-500 mx-auto" />, colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
+                  { label: 'Lab Keep', value: `${activeSop.extractedConfig?.splits?.lab ?? 55}%`, icon: <FlaskConical className="w-5 h-5 text-emerald-500 mx-auto" />, colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+                  { label: 'Pharmacy Splits', value: `${activeSop.extractedConfig?.splits?.pharmacyDoctor ?? 20}% Dr / 2% Tech`, icon: <Pill className="w-5 h-5 text-teal-500 mx-auto" />, colorClasses: 'bg-teal-50 border-teal-100 text-teal-700' },
                 ].map((stat: any) => {
                   const [bg, border, textColor] = stat.colorClasses.split(' ');
                   return (

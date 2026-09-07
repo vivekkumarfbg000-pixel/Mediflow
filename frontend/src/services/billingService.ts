@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
+import { PaymentService } from './paymentService';
 import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
@@ -916,27 +917,11 @@ export class BillingService {
     const exists = ledgerEntries.some(l => l.invoiceId === invoiceId && (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee')));
     if (exists) return;
 
-    // Fetch platform_fee_percent for this pod from Supabase
-    let platformFeePercent = 3.00; // Standard VitalSync 3% Platform Fee (Rule 58)
-    const ctx = getPodContext();
-    const podId = ctx.podId;
-    try {
-      const { data: podData } = await supabase
-        .from('pods')
-        .select('platform_fee_percent')
-        .eq('id', podId)
-        .maybeSingle();
-      if (podData && podData.platform_fee_percent !== null && podData.platform_fee_percent !== undefined) {
-        platformFeePercent = parseFloat(podData.platform_fee_percent.toString());
-      }
-    } catch (e) {
-      console.warn('[BillingService] Failed to load pod fee, using 3.0% default fallback:', e);
-    }
-
     // Fetch active SOP or use defaults for doctor/lab splits
     const activeSop = this.getActiveSop();
     const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
-    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? 57;
+    const splitPlatLab = activeSop?.extractedConfig?.splits?.platform ?? 5.00;
+    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc - splitPlatLab);
 
     // Resolve patient name for this invoice/appointment
     const invoices = this.getInvoices();
@@ -975,7 +960,7 @@ export class BillingService {
       };
       listToSave.push(docLedger);
     } else if (type === 'lab') {
-      const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
+      const splitPlat = splitPlatLab; // 5% VitalSync Platform Fee for Lab
       platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
       
       const remainingAmt = amount - platformAmt;
@@ -1026,7 +1011,7 @@ export class BillingService {
       listToSave.push(platformLedger, docLedger, labLedger);
     } else if (type === 'pharmacy') {
       const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20; // 20% SOP Doctor Referral Share
-      const splitPlat = paymentMethod === 'card' ? platformFeePercent + 2.00 : platformFeePercent;
+      const splitPlat = (activeSop?.extractedConfig?.splits as any)?.pharmacyPlatform ?? 2.00; // 2% VitalSync Platform Fee for Pharmacy
       platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
 
       const remainingAmt = amount - platformAmt;
@@ -1112,7 +1097,7 @@ export class BillingService {
       });
 
       // Update lifetime revenue for this pod in Supabase
-      supabase.rpc('accumulate_platform_revenue', { p_pod_id: podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
+      supabase.rpc('accumulate_platform_revenue', { p_pod_id: getPodContext().podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
         if (error) console.error('Error updating pod platform revenue in Supabase:', error);
       });
     }
@@ -1508,11 +1493,12 @@ export class BillingService {
       id: 'sop-standard-1',
       entityId: getPodContext().entityId || FALLBACK_ENTITY_ID,
       sopFileName: 'VitalSync_Clinic_Standard_SOP.txt',
-      sopText: 'Doctor consultation fee: INR 500. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 3% Platform, 57% Lab.',
+      sopText: 'Doctor consultation fee: INR 500. HbA1c test price: INR 350. Splits: 40% Referring Doctor, 5% VitalSync Platform, 55% Lab. Pharmacy Splits: 20% Doctor, 2% VitalSync Platform, 78% Chemist.',
       extractedConfig: {
         doctor_fee: 500,
+        doctor_upi_vpa: 'vitalsync@axl',
         test_prices: { '4544-3': 350, '2160-0': 250, '3024-7': 150, '2947-0': 200, '1975-2': 300 },
-        splits: { doctor: 40, platform: 3, lab: 57 },
+        splits: { doctor: 40, platform: 5, lab: 55, pharmacyDoctor: 20, pharmacyPlatform: 2 },
         guidelines: [
           'Auto-assign Lalit Prasad for tech verification',
           'Allow doorstep sample collection scheduling',
@@ -1526,10 +1512,22 @@ export class BillingService {
     const sops = load<ClinicSop[]>('clinic_sops', [defaultSop]);
     let modified = false;
     sops.forEach(s => {
-      if (s.extractedConfig && s.extractedConfig.doctor_fee === 450) {
-        s.extractedConfig.doctor_fee = 500;
-        s.sopText = s.sopText?.replace(/450/g, '500');
-        modified = true;
+      if (s.extractedConfig) {
+        if (s.extractedConfig.doctor_fee === 450) {
+          s.extractedConfig.doctor_fee = 500;
+          s.sopText = s.sopText?.replace(/450/g, '500');
+          modified = true;
+        }
+        if (s.extractedConfig.splits?.platform === 3) {
+          s.extractedConfig.splits.platform = 5;
+          s.extractedConfig.splits.lab = 55;
+          s.extractedConfig.splits.pharmacyPlatform = 2;
+          modified = true;
+        }
+        if (!s.extractedConfig.doctor_upi_vpa) {
+          s.extractedConfig.doctor_upi_vpa = PaymentService.getSafeClinicUpiVpa('vitalsync@axl');
+          modified = true;
+        }
       }
     });
     if (modified) {
@@ -1575,15 +1573,30 @@ export class BillingService {
   }
 
   static getPrescriptionTemplate(podId?: string): PrescriptionTemplateConfig {
+    let cachedPodTemplate: any = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('vitalsync_prescription_template');
+        if (raw) cachedPodTemplate = JSON.parse(raw);
+        if (!cachedPodTemplate) {
+          const rawPod = localStorage.getItem('vitalsync_cached_active_pod') || localStorage.getItem('vitalsync_active_pod');
+          if (rawPod) {
+            const parsed = JSON.parse(rawPod);
+            cachedPodTemplate = parsed?.prescriptionTemplate || parsed?.prescription_template;
+          }
+        }
+      } catch (_e) {}
+    }
+
     const activeSop = this.getActiveSop();
-    const sopTemplate = activeSop?.extractedConfig?.prescriptionTemplate;
+    const sopTemplate = cachedPodTemplate || activeSop?.extractedConfig?.prescriptionTemplate;
     const ctx = getPodContext();
     return {
-      doctorName: sopTemplate?.doctorName || 'Attending Physician',
+      doctorName: sopTemplate?.doctorName || 'Dr. Rajesh Verma',
       doctorQualification: sopTemplate?.doctorQualification || 'MBBS, MS (Ophthalmology), FICO (London)',
       doctorRegNo: sopTemplate?.doctorRegNo || 'MCI-84992-A',
-      clinicName: sopTemplate?.clinicName || (ctx as any).clinicName || 'Smart Care Clinic & Hospital',
-      clinicAddress: sopTemplate?.clinicAddress || 'Main Road, Health Plaza, City Center',
+      clinicName: sopTemplate?.clinicName || (ctx as any).clinicName || 'VitalSync Smart PolyClinic',
+      clinicAddress: sopTemplate?.clinicAddress || 'Line Bazar, Purnea, Bihar 854301',
       clinicPhone: sopTemplate?.clinicPhone || '+91 99342 98453',
       headerColor: sopTemplate?.headerColor || '#0284c7',
       footerNote: sopTemplate?.footerNote || 'Emergency Care: Available 24x7 • Valid for Follow-up Review within 15 Days • Please bring this prescription for your review.'
@@ -1639,13 +1652,13 @@ export class BillingService {
       } else if (type === 'medicine_commission') {
         doctorMedicineReferralsEarned += Number(l.netPayout || 0);
         if (isCash) {
-          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.03);
+          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.02);
           totalCashCommissionOwed += plat;
         }
       } else if (type === 'lab_commission') {
         doctorLabReferralsEarned += Number(l.netPayout || 0);
         if (isCash) {
-          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.03);
+          const plat = Number((l as any).platformFee || (l as any).platform_fee || 0) || Math.round((l.grossAmount || 0) * 0.05);
           totalCashCommissionOwed += plat;
         }
       } else if (type === 'platform_fee') {
