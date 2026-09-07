@@ -1702,7 +1702,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 }
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
-                return (pDate === todayStr) && paidPatientIds.has(p.id);
+                return Boolean(pDate && pDate === todayStr && paidPatientIds.has(p.id));
               };
 
               const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
@@ -1712,7 +1712,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const todayRegList = patients.filter(p => {
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
-                return pDate === todayStr;
+                return Boolean(pDate && pDate === todayStr);
               });
               const completedList = patients.filter(p => isCompletedPat(p) && isPatientForToday(p));
               const upcomingList = patients.filter(p => {
@@ -1827,7 +1827,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   }
                   const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                   const pDate = getIstDateString(regDate);
-                  return pDate === todayStr && paidPatientIds.has(p.id);
+                  return Boolean(pDate && pDate === todayStr && paidPatientIds.has(p.id));
                 };
 
                 const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';

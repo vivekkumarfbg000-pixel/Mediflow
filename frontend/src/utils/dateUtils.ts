@@ -8,12 +8,18 @@
  * Prevents UTC serverless date shifts between 12:00 AM and 05:30 AM IST.
  */
 export function getIstDateString(date?: Date | string | null): string {
-  if (!date) {
+  if (date === undefined) {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  }
+  if (!date || date === '') {
+    return '';
   }
   const d = typeof date === 'string' ? new Date(date) : date;
   if (isNaN(d.getTime())) {
-    return typeof date === 'string' ? date.split('T')[0] : '';
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+      return date.substring(0, 10);
+    }
+    return '';
   }
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
 }
@@ -75,9 +81,10 @@ export function getIstOffsetDateDisplay(offsetDays: number, baseDate: Date = new
  * Prioritizes direct date fields (date, virtual_date, virtualDate, appointment_date, appointmentDate),
  * then converts ISO appointment_time / appointmentTime to IST.
  * Only falls back to created_at if no appointment date is specified.
+ * Returns empty string if no valid date can be resolved.
  */
 export function getEffectiveAppointmentDate(appt: any): string {
-  if (!appt) return getIstDateString();
+  if (!appt) return '';
   
   const directDate = appt.date || appt.virtual_date || appt.virtualDate || appt.appointment_date || appt.appointmentDate;
   if (directDate) {
@@ -92,11 +99,11 @@ export function getEffectiveAppointmentDate(appt: any): string {
       try {
         const parsed = new Date(trimmed);
         if (!isNaN(parsed.getTime())) {
-          return getIstDateString(parsed);
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(parsed);
         }
       } catch (_e) { /* ignore */ }
     } else if (directDate instanceof Date && !isNaN(directDate.getTime())) {
-      return getIstDateString(directDate);
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(directDate);
     }
   }
 
@@ -105,7 +112,7 @@ export function getEffectiveAppointmentDate(appt: any): string {
     try {
       const parsed = new Date(apptTime);
       if (!isNaN(parsed.getTime())) {
-        return getIstDateString(parsed);
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(parsed);
       }
     } catch (_e) { /* ignore */ }
   }
@@ -115,10 +122,10 @@ export function getEffectiveAppointmentDate(appt: any): string {
     try {
       const parsed = new Date(creationTime);
       if (!isNaN(parsed.getTime())) {
-        return getIstDateString(parsed);
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(parsed);
       }
     } catch (_e) { /* ignore */ }
   }
 
-  return getIstDateString();
+  return '';
 }

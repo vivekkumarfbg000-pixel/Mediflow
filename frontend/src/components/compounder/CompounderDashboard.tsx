@@ -4155,7 +4155,7 @@ export const CompounderDashboard: React.FC = () => {
                       if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
                       const apptDate = getEffectiveAppointmentDate(a);
                       if (opdQueueFilter === 'today') {
-                        return !apptDate || apptDate === todayStr;
+                        return Boolean(apptDate && apptDate === todayStr);
                       } else {
                         return Boolean(apptDate && apptDate > todayStr);
                       }

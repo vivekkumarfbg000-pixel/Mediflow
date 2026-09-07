@@ -585,8 +585,8 @@ export class PatientService {
     const apptsForDate = allAppts.filter(a => {
       if (!isMatchingPod(a)) return false;
       if (a.status === 'cancelled') return false;
-      const apptDate = getEffectiveAppointmentDate(a) || getIstDateString(a.createdAt || a.created_at);
-      return apptDate === dateStr || String(apptDate).startsWith(dateStr);
+      const apptDate = getEffectiveAppointmentDate(a);
+      return Boolean(apptDate && apptDate === dateStr);
     });
 
     const tokenNums: number[] = [];
@@ -628,10 +628,13 @@ export class PatientService {
     // 2. Collect all token numbers from patients registered strictly on target date
     allPatients.forEach(p => {
       if (!isMatchingPod(p)) return;
-      const pRegDate = getIstDateString(p.registeredAt || p.createdAt || p.created_at);
-      if (pRegDate === dateStr) {
-        const num = extractTokenNum(p.tokenNumber || (p as any).token_number);
-        if (num != null) tokenNums.push(num);
+      const regTimestamp = p.registeredAt || p.createdAt || p.created_at;
+      if (regTimestamp) {
+        const pRegDate = getIstDateString(regTimestamp);
+        if (pRegDate === dateStr) {
+          const num = extractTokenNum(p.tokenNumber || (p as any).token_number);
+          if (num != null) tokenNums.push(num);
+        }
       }
     });
 

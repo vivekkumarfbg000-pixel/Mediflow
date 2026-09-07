@@ -1804,42 +1804,43 @@ async function triggerBotReplyPipeline(ctx: {
 
         let tokenSeq = 1;
         try {
-          const { data: tokenStr, error: tokenErr } = await supabase.rpc(
+          let tokenStr: string | null = null;
+          const rpcRes1 = await supabase.rpc(
             'generate_next_token_number',
             { p_virtual_date: selectedDate, p_pod_id: currentPodId }
           );
-          if (!tokenErr && tokenStr) {
+          if (!rpcRes1.error && rpcRes1.data) {
+            tokenStr = rpcRes1.data as string;
+          } else {
+            const rpcRes2 = await supabase.rpc(
+              'generate_next_token_number',
+              { p_pod_id: currentPodId, p_date: selectedDate }
+            );
+            if (!rpcRes2.error && rpcRes2.data) {
+              tokenStr = rpcRes2.data as string;
+            }
+          }
+
+          if (tokenStr) {
             const seqMatch = String(tokenStr).match(/\d+/);
             tokenSeq = seqMatch ? parseInt(seqMatch[0], 10) : 1;
           } else {
-            const [{ data: dateAppts }, { data: regPats }] = await Promise.all([
-              supabase
-                .from("appointments")
-                .select("token_number, virtual_date, appointment_time, created_at")
-                .eq("pod_id", currentPodId)
-                .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%,created_at.gte.${selectedDate}T00:00:00`),
-              supabase
-                .from("patient_registry")
-                .select("token_number")
-                .eq("pod_id", currentPodId)
-            ]);
+            const { data: dateAppts } = await supabase
+              .from("appointments")
+              .select("token_number, virtual_date, appointment_time, created_at")
+              .or(`pod_id.eq.${currentPodId},pod_id.eq.00000000-0000-0000-0000-000000000001,pod_id.is.null`)
+              .neq("status", "cancelled")
+              .or(`virtual_date.eq.${selectedDate},appointment_time.ilike.${selectedDate}%,created_at.gte.${selectedDate}T00:00:00`);
             
             let maxSeq = 0;
             (dateAppts || []).forEach((a: any) => {
               const match = String(a.token_number || '').match(/\d+/);
               if (match) {
                 const num = parseInt(match[0], 10);
-                if (num > maxSeq) maxSeq = num;
+                if (num > maxSeq && num <= 999) maxSeq = num;
               }
             });
-            (regPats || []).forEach((p: any) => {
-              const match = String(p.token_number || '').match(/\d+/);
-              if (match) {
-                const num = parseInt(match[0], 10);
-                if (num > maxSeq) maxSeq = num;
-              }
-            });
-            tokenSeq = Math.max((dateAppts?.length || 0), maxSeq) + 1;
+            tokenSeq = maxSeq + 1;
           }
         } catch (_tErr) {
           tokenSeq = 1;
@@ -3528,41 +3529,43 @@ async function triggerBotReplyPipeline(ctx: {
             let sosTokenSeq = 1;
             const sosPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
             try {
-              const { data: tokenStr, error: tokenErr } = await supabase.rpc(
+              let tokenStr: string | null = null;
+              const rpcRes1 = await supabase.rpc(
                 'generate_next_token_number',
                 { p_virtual_date: todayDate, p_pod_id: sosPodId }
               );
-              if (!tokenErr && tokenStr) {
+              if (!rpcRes1.error && rpcRes1.data) {
+                tokenStr = rpcRes1.data as string;
+              } else {
+                const rpcRes2 = await supabase.rpc(
+                  'generate_next_token_number',
+                  { p_pod_id: sosPodId, p_date: todayDate }
+                );
+                if (!rpcRes2.error && rpcRes2.data) {
+                  tokenStr = rpcRes2.data as string;
+                }
+              }
+
+              if (tokenStr) {
                 const seqMatch = String(tokenStr).match(/\d+/);
                 sosTokenSeq = seqMatch ? parseInt(seqMatch[0], 10) : 1;
               } else {
-                const [{ data: apptRows }, { data: regPats }] = await Promise.all([
-                  supabase
-                    .from("appointments")
-                    .select("token_number, virtual_date, appointment_time, created_at")
-                    .eq("pod_id", sosPodId)
-                    .or(`virtual_date.eq.${todayDate},appointment_time.ilike.${todayDate}%,created_at.gte.${todayDate}T00:00:00`),
-                  supabase
-                    .from("patient_registry")
-                    .select("token_number")
-                    .eq("pod_id", sosPodId)
-                ]);
+                const { data: apptRows } = await supabase
+                  .from("appointments")
+                  .select("token_number, virtual_date, appointment_time, created_at")
+                  .or(`pod_id.eq.${sosPodId},pod_id.eq.00000000-0000-0000-0000-000000000001,pod_id.is.null`)
+                  .neq("status", "cancelled")
+                  .or(`virtual_date.eq.${todayDate},appointment_time.ilike.${todayDate}%,created_at.gte.${todayDate}T00:00:00`);
+                
                 let maxSeq = 0;
                 (apptRows || []).forEach((a: any) => {
                   const match = String(a.token_number || '').match(/\d+/);
                   if (match) {
                     const num = parseInt(match[0], 10);
-                    if (num > maxSeq) maxSeq = num;
+                    if (num > maxSeq && num <= 999) maxSeq = num;
                   }
                 });
-                (regPats || []).forEach((p: any) => {
-                  const match = String(p.token_number || '').match(/\d+/);
-                  if (match) {
-                    const num = parseInt(match[0], 10);
-                    if (num > maxSeq) maxSeq = num;
-                  }
-                });
-                sosTokenSeq = Math.max((apptRows?.length || 0), maxSeq) + 1;
+                sosTokenSeq = maxSeq + 1;
               }
             } catch (err) { console.warn("[Meta Webhook] Error fetching appointment count for SOS token:", err); }
             const sosTokenNumber = `T-${sosTokenSeq.toString().padStart(2, '0')} E`;

@@ -5462,7 +5462,7 @@ AS $$
 DECLARE
   v_next_val INT;
   v_token TEXT;
-  v_date TEXT := TO_CHAR(COALESCE(p_date, CURRENT_DATE), 'YYYY-MM-DD');
+  v_date TEXT := TO_CHAR(COALESCE(p_date, CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'), 'YYYY-MM-DD');
 BEGIN
   SELECT COALESCE(MAX(
     CASE 
@@ -5489,6 +5489,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, DATE) TO anon, authenticated, service_role;
+
 
 
 
