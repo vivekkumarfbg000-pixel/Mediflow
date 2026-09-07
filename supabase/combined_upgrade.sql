@@ -460,6 +460,7 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_system_health_telemetry_pod_id ON public.system_health_telemetry(pod_id);
 CREATE INDEX IF NOT EXISTS idx_system_health_telemetry_subsystem ON public.system_health_telemetry(subsystem);
 
+DROP FUNCTION IF EXISTS public.execute_autonomous_db_repair(TEXT, TEXT, TEXT);
 CREATE OR REPLACE FUNCTION public.execute_autonomous_db_repair(p_table TEXT, p_column TEXT, p_type TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -2423,6 +2424,9 @@ $$;
 -- =============================================================================
 -- SECTION 48: Pop Pending Broadcast Batch RPC (SKIP LOCKED)
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.pop_pending_broadcast_batch(TEXT, UUID, INTEGER);
+DROP FUNCTION IF EXISTS public.pop_pending_broadcast_batch(TEXT, INTEGER);
+DROP FUNCTION IF EXISTS public.pop_pending_broadcast_batch;
 CREATE OR REPLACE FUNCTION public.pop_pending_broadcast_batch(
     p_campaign_id TEXT,
     p_pod_id UUID,
@@ -2566,6 +2570,10 @@ ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS token_number TEXT;
 -- =============================================================================
 -- STEP 39: Atomic OPD Token Number Generation (20260824000004)
 -- =============================================================================
+DROP FUNCTION IF EXISTS public.generate_next_token_number(TEXT, UUID);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, DATE);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.generate_next_token_number;
 CREATE OR REPLACE FUNCTION public.generate_next_token_number(
     p_virtual_date TEXT,
     p_pod_id UUID
@@ -5412,6 +5420,11 @@ GRANT EXECUTE ON FUNCTION public.trigger_devsecops_auto_heal() TO authenticated,
 -- =============================================================================
 -- STEP 57: Fix generate_next_token_number Overloads & Date-Scoped Sequences (20260906000001)
 -- =============================================================================
+
+DROP FUNCTION IF EXISTS public.generate_next_token_number(TEXT, UUID);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, DATE);
+DROP FUNCTION IF EXISTS public.generate_next_token_number(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.generate_next_token_number;
 
 -- Signature 1: Called with (p_virtual_date TEXT, p_pod_id UUID)
 CREATE OR REPLACE FUNCTION public.generate_next_token_number(
