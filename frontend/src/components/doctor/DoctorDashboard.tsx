@@ -32,7 +32,11 @@ import {
   Menu,
   Settings,
   Lock,
-  Laptop
+  Laptop,
+  Plus,
+  Send,
+  UserPlus,
+  Copy
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
@@ -100,11 +104,18 @@ export const DoctorDashboard: React.FC = () => {
     const handleModeChange = (e: any) => {
       if (e.detail && typeof e.detail.enabled === 'boolean') {
         setIsDigitalEmrEnabled(e.detail.enabled);
+        if (!e.detail.enabled && activeTab === 'consultation') {
+          setActiveTab('pod_view');
+        }
       }
     };
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'vitalsync_digital_emr_enabled') {
-        setIsDigitalEmrEnabled(e.newValue === 'true');
+        const enabled = e.newValue === 'true';
+        setIsDigitalEmrEnabled(enabled);
+        if (!enabled && activeTab === 'consultation') {
+          setActiveTab('pod_view');
+        }
       }
     };
     window.addEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
@@ -113,10 +124,13 @@ export const DoctorDashboard: React.FC = () => {
       window.removeEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
       window.removeEventListener('storage', handleStorage);
     };
-  }, []);
+  }, [activeTab]);
 
   const handleToggleDigitalEmr = (newVal: boolean) => {
     setIsDigitalEmrEnabled(newVal);
+    if (!newVal && activeTab === 'consultation') {
+      setActiveTab('pod_view');
+    }
     try {
       localStorage.setItem('vitalsync_digital_emr_enabled', String(newVal));
     } catch (e) {
@@ -162,6 +176,13 @@ export const DoctorDashboard: React.FC = () => {
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [isTestWhatsAppOpen, setIsTestWhatsAppOpen] = useState(false);
   const [isPlacardModalOpen, setIsPlacardModalOpen] = useState(false);
+
+  // Virtual Schedule Creator States
+  const [showVirtualCreator, setShowVirtualCreator] = useState(false);
+  const [virtualPatientSearch, setVirtualPatientSearch] = useState('');
+  const [virtualSelectedPatientId, setVirtualSelectedPatientId] = useState<string | null>(null);
+  const [virtualDate, setVirtualDate] = useState(() => getIstDateString());
+  const [virtualTime, setVirtualTime] = useState('10:00 AM - 12:00 PM');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -395,12 +416,12 @@ export const DoctorDashboard: React.FC = () => {
     if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 40) {
       const tabs: Array<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule'> = [
         'pod_view',
-        'consultation', 
+        ...(isDigitalEmrEnabled ? ['consultation' as const] : []),
+        'virtual_schedule',
         'financials', 
         'patients',
         'whatsapp',
-        'sop',
-        'virtual_schedule'
+        'sop'
       ];
       const currentIdx = tabs.indexOf(activeTab as any);
       
@@ -434,11 +455,11 @@ export const DoctorDashboard: React.FC = () => {
       // Fetch live remote DB records scoped strictly to active tenant pod ID (no orphan leak)
       const podId = resolveSovereignPodId(activePod?.id);
 
-      let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false });
-      let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false });
-      let patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false });
-      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false });
-      let invoicesQuery = supabase.from('unified_invoices').select('*').order('created_at', { ascending: false });
+      let apptsQuery = supabase.from('appointments').select('*').order('created_at', { ascending: false }).limit(60);
+      let ledgersQuery = supabase.from('financial_ledgers').select('*').order('created_at', { ascending: false }).limit(60);
+      let patientsQuery = supabase.from('patient_registry').select('*').order('created_at', { ascending: false }).limit(60);
+      let sessionsQuery = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false }).limit(60);
+      let invoicesQuery = supabase.from('unified_invoices').select('*').order('created_at', { ascending: false }).limit(60);
 
       if (podId && podId !== 'default-pod') {
         apptsQuery = apptsQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
@@ -731,10 +752,18 @@ export const DoctorDashboard: React.FC = () => {
 
     syncDashboardData();
 
+    let syncDebounceTimer: any = null;
+    const debouncedSync = () => {
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+      syncDebounceTimer = setTimeout(() => {
+        syncDashboardData();
+      }, 400);
+    };
+
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
         console.log('[DoctorDashboard] Realtime Appointment update received:', payload);
-        syncDashboardData();
+        debouncedSync();
         if (payload.new?.virtual_time?.includes('EMERGENCY') || payload.new?.status === 'pending_payment') {
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
             detail: {
@@ -761,12 +790,12 @@ export const DoctorDashboard: React.FC = () => {
           }));
         }
       },
-      onPatientChange: () => syncDashboardData(),
-      onMedicineBillChange: () => syncDashboardData(),
-      onLabRequisitionChange: () => syncDashboardData(),
-      onFinancialLedgerChange: () => syncDashboardData(),
-      onUnifiedInvoiceChange: () => syncDashboardData(),
-      onEncounterChange: () => syncDashboardData(),
+      onPatientChange: () => debouncedSync(),
+      onMedicineBillChange: () => debouncedSync(),
+      onLabRequisitionChange: () => debouncedSync(),
+      onFinancialLedgerChange: () => debouncedSync(),
+      onUnifiedInvoiceChange: () => debouncedSync(),
+      onEncounterChange: () => debouncedSync(),
       onWhatsAppSessionChange: (payload) => {
         console.log('[DoctorDashboard] Realtime WhatsApp Session update received:', payload);
         const dbSession = payload.new;
@@ -807,20 +836,17 @@ export const DoctorDashboard: React.FC = () => {
             return prev;
           });
         }
-        // Bug Fix #9: Debounce syncDashboardData on WhatsApp events (250ms CDC debounce per AGENTS.md)
-        // to avoid hammering Supabase with redundant full re-fetches on each patient message
-        if (typeof (window as any).__waSyncTimeout !== 'undefined') clearTimeout((window as any).__waSyncTimeout);
-        (window as any).__waSyncTimeout = setTimeout(() => syncDashboardData(), 250);
+        debouncedSync();
       },
-      onPathologyReportChange: () => syncDashboardData(),
-      onPoolSettlementChange: () => syncDashboardData(),
-      onClinicSopChange: () => syncDashboardData(),
-      onSaaSInvoiceChange: () => syncDashboardData(),
-      onSaaSPrescriptionChange: () => syncDashboardData(),
-      onInventoryHoldChange: () => syncDashboardData()
+      onPathologyReportChange: () => debouncedSync(),
+      onPoolSettlementChange: () => debouncedSync(),
+      onClinicSopChange: () => debouncedSync(),
+      onSaaSInvoiceChange: () => debouncedSync(),
+      onSaaSPrescriptionChange: () => debouncedSync(),
+      onInventoryHoldChange: () => debouncedSync()
     });
 
-    const apiUnsub = api.subscribe(syncDashboardData);
+    const apiUnsub = api.subscribe(debouncedSync);
     const handleFinancialUpdate = () => {
       console.log('[DoctorDashboard] mediflow-financial-update received, refreshing ledgers...');
       setFinancialLedgers(api.getFinancialLedgers());
@@ -832,14 +858,15 @@ export const DoctorDashboard: React.FC = () => {
       }
     };
     window.addEventListener('mediflow-financial-update', handleFinancialUpdate);
-    window.addEventListener('mediflow-state-change', syncDashboardData);
+    window.addEventListener('mediflow-state-change', debouncedSync);
     window.addEventListener('mediflow-change-tab', handleTabChange);
 
     return () => {
+      if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
       apiUnsub();
       unsubscribeRealtime();
       window.removeEventListener('mediflow-financial-update', handleFinancialUpdate);
-      window.removeEventListener('mediflow-state-change', syncDashboardData);
+      window.removeEventListener('mediflow-state-change', debouncedSync);
       window.removeEventListener('mediflow-change-tab', handleTabChange);
     };
   }, [activePod?.id]);
@@ -1530,60 +1557,374 @@ Keep the tone professional, clinical, objective, and precise.`;
                 />
               );
             case 'virtual_schedule':
-              return (
-                <div className="space-y-6 animate-fade-in text-left">
-                  <div className="glass-panel p-6 border-slate-200/60 shadow-xl bg-white dark:bg-slate-900/80 rounded-3xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500 opacity-80" />
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                      <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <Video className="w-5 h-5 text-cyan-500 shrink-0" />
-                          Telemedicine &amp; Virtual Consultation Command Hub (वर्चुअल क्लिनिक)
-                        </h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                          Manage live video consults, join Google Meet Jitsi links, and launch 1-Click E-Rx worksheets.
-                        </p>
-                      </div>
-                      <span className="text-xs font-mono font-bold px-3.5 py-1.5 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full shrink-0">
-                        ● Live Telemedicine Hub
-                      </span>
+              return (() => {
+                const todayStr = getIstDateString();
+
+                // ── Compute Virtual Appointment Segments ──
+                const allVirtual = appointments.filter((a: Appointment) =>
+                  Boolean(a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false))
+                );
+
+                const activeVirtual = allVirtual.filter(a =>
+                  a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment'
+                );
+
+                const upcomingVirtual = allVirtual.filter(a => {
+                  const apptDate = getEffectiveAppointmentDate(a);
+                  return apptDate && apptDate >= todayStr && a.status !== 'completed' && a.status !== 'cancelled';
+                });
+
+                const completedVirtual = allVirtual.filter(a => a.status === 'completed');
+                const completedToday = completedVirtual.filter(a => {
+                  const apptDate = getEffectiveAppointmentDate(a);
+                  return apptDate === todayStr;
+                });
+
+                const freeFollowups = allVirtual.filter(a =>
+                  (a as any).amount === 0 || (a as any).fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false)
+                );
+
+                // ── Build Display Lists ──
+                const activeDisplayList = activeVirtual
+                  .filter(a => {
+                    const apptDate = getEffectiveAppointmentDate(a);
+                    return !apptDate || apptDate >= todayStr;
+                  })
+                  .map((a: Appointment) => {
+                    const p = patients.find((pat: Patient) => pat.id === (a.patientId || (a as any).patient_id)) ||
+                      ({ id: a.patientId, name: (a as any).patientName || 'Virtual Patient', phone: (a as any).patientPhone || 'N/A', age: '30', gender: 'M', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() } as unknown as Patient);
+                    const isFreeLoyalty = (a as any).amount === 0 || (a as any).fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false);
+                    return { appt: a, patient: p, isFreeLoyalty };
+                  });
+
+                const completedDisplayList = completedVirtual
+                  .slice(0, 10)
+                  .map((a: Appointment) => {
+                    const p = patients.find((pat: Patient) => pat.id === (a.patientId || (a as any).patient_id)) ||
+                      ({ id: a.patientId || '', name: (a as any).patientName || 'Patient', phone: 'N/A' } as unknown as Patient);
+                    return { appt: a, patient: p };
+                  });
+
+                // ── Patient search for creator ──
+                const searchResults = virtualPatientSearch.trim().length >= 2
+                  ? patients.filter(p =>
+                      (p.name || '').toLowerCase().includes(virtualPatientSearch.toLowerCase()) ||
+                      (p.phone || '').includes(virtualPatientSearch)
+                    ).slice(0, 5)
+                  : [];
+
+                const selectedCreatorPatient = virtualSelectedPatientId
+                  ? patients.find(p => p.id === virtualSelectedPatientId)
+                  : null;
+
+                // ── Handle Create Virtual Appointment ──
+                const handleCreateVirtualAppt = () => {
+                  if (!selectedCreatorPatient) return;
+
+                  const apptId = crypto.randomUUID();
+                  const meetUrl = `https://meet.jit.si/vitalsync-consult-${apptId}`;
+                  const vTokenNum = `V-${String(allVirtual.length + 1).padStart(2, '0')}`;
+
+                  const newAppt: any = {
+                    id: apptId,
+                    patientId: selectedCreatorPatient.id,
+                    patient_id: selectedCreatorPatient.id,
+                    patientName: selectedCreatorPatient.name,
+                    patient_name: selectedCreatorPatient.name,
+                    doctorId: (activePod as any)?.doctorId || activeEntity?.id || FALLBACK_DOCTOR_ID,
+                    doctor_id: (activePod as any)?.doctorId || activeEntity?.id || FALLBACK_DOCTOR_ID,
+                    status: 'scheduled',
+                    source: 'doctor_virtual',
+                    channel: 'virtual',
+                    date: virtualDate,
+                    appointmentTime: new Date().toISOString(),
+                    appointment_time: new Date().toISOString(),
+                    createdAt: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    isVirtual: true,
+                    is_virtual: true,
+                    virtualDate: virtualDate,
+                    virtual_date: virtualDate,
+                    virtualTime: virtualTime,
+                    virtual_time: virtualTime,
+                    virtualMeetingUrl: meetUrl,
+                    virtual_meeting_url: meetUrl,
+                    tokenNumber: vTokenNum,
+                    token_number: vTokenNum,
+                    amount: 500
+                  };
+
+                  BillingService.saveAppointment(newAppt);
+                  setAppointments(prev => [newAppt, ...prev]);
+
+                  // Supabase Cloud Sync (Rule 85: Pod-Id Invariant)
+                  const podId = resolveSovereignPodId(activePod?.id);
+                  supabase.from('appointments').upsert({
+                    id: apptId,
+                    patient_id: selectedCreatorPatient.id,
+                    patient_name: selectedCreatorPatient.name,
+                    doctor_id: (activePod as any)?.doctorId || activeEntity?.id || FALLBACK_DOCTOR_ID,
+                    status: 'scheduled',
+                    source: 'doctor_virtual',
+                    is_virtual: true,
+                    virtual_date: virtualDate,
+                    virtual_time: virtualTime,
+                    appointment_time: new Date().toISOString(),
+                    virtual_meeting_url: meetUrl,
+                    token_number: vTokenNum,
+                    created_at: new Date().toISOString(),
+                    pod_id: podId
+                  }, { onConflict: 'id' }).then(({ error }) => {
+                    if (error) console.error('[Virtual Schedule] Supabase sync error:', error);
+                  });
+
+                  // Outbound WhatsApp Notification (Rule 62: Outbound Dispatch First)
+                  if (selectedCreatorPatient.phone) {
+                    api.dispatchVirtualConsultMeetingLinkWhatsApp({
+                      patientPhone: selectedCreatorPatient.phone,
+                      patientName: selectedCreatorPatient.name,
+                      doctorName: headerDoctorTitle,
+                      clinicName: activePod?.name || activeDoctorProfile?.clinicName || (headerDoctorTitle + "'s Care Clinic"),
+                      appointmentDate: virtualDate,
+                      appointmentTime: virtualTime,
+                      meetingUrl: meetUrl
+                    }).catch(e => console.warn('[Virtual Consult WhatsApp Dispatch Notice]:', e));
+                  }
+
+                  // Reset form
+                  setShowVirtualCreator(false);
+                  setVirtualSelectedPatientId(null);
+                  setVirtualPatientSearch('');
+
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Virtual Consult Scheduled! 💻',
+                      message: `Video consultation for ${selectedCreatorPatient.name} on ${virtualDate} at ${virtualTime}. Jitsi link generated & WhatsApp dispatched.`,
+                      type: 'success'
+                    }
+                  }));
+                  window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+                };
+
+                return (
+                  <div className="space-y-5 animate-fade-in text-left">
+                    {/* ── Stats Cards Row ── */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { label: 'Active Now', value: activeVirtual.length, bgClass: 'from-cyan-50/80 to-white dark:from-cyan-950/30 dark:to-slate-900/60', borderClass: 'border-cyan-200/60 dark:border-cyan-500/20', valueClass: 'text-cyan-700 dark:text-cyan-400', icon: '📡' },
+                        { label: 'Upcoming', value: upcomingVirtual.length, bgClass: 'from-indigo-50/80 to-white dark:from-indigo-950/30 dark:to-slate-900/60', borderClass: 'border-indigo-200/60 dark:border-indigo-500/20', valueClass: 'text-indigo-700 dark:text-indigo-400', icon: '📅' },
+                        { label: 'Completed Today', value: completedToday.length, bgClass: 'from-emerald-50/80 to-white dark:from-emerald-950/30 dark:to-slate-900/60', borderClass: 'border-emerald-200/60 dark:border-emerald-500/20', valueClass: 'text-emerald-700 dark:text-emerald-400', icon: '✅' },
+                        { label: 'Free Followups', value: freeFollowups.length, bgClass: 'from-amber-50/80 to-white dark:from-amber-950/30 dark:to-slate-900/60', borderClass: 'border-amber-200/60 dark:border-amber-500/20', valueClass: 'text-amber-700 dark:text-amber-400', icon: '💎' },
+                      ].map(stat => (
+                        <div key={stat.label} className={`p-4 rounded-2xl border ${stat.borderClass} bg-gradient-to-br ${stat.bgClass}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{stat.label}</span>
+                            <span className="text-lg">{stat.icon}</span>
+                          </div>
+                          <p className={`text-2xl font-black ${stat.valueClass} font-mono`}>{stat.value}</p>
+                        </div>
+                      ))}
                     </div>
 
-                    {(() => {
-                      const todayStr = getIstDateString();
+                    {/* ── Telemedicine Command Hub Header + Quick Actions ── */}
+                    <div className="glass-panel p-5 border-slate-200/60 shadow-lg bg-white dark:bg-slate-900/80 rounded-3xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 opacity-80" />
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Video className="w-5 h-5 text-cyan-500 shrink-0" />
+                            Telemedicine &amp; Virtual Consultation Command Hub (वर्चुअल क्लिनिक)
+                          </h2>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            Schedule video consults, join Jitsi links, and launch 1-Click E-Rx worksheets for remote patients.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-xs font-mono font-bold px-3.5 py-1.5 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full">
+                            ● Live Telemedicine Hub
+                          </span>
+                          <button
+                            onClick={() => setShowVirtualCreator(prev => !prev)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Schedule Virtual Consult
+                          </button>
+                        </div>
+                      </div>
+                    </div>
 
-                      const virtualAppts = appointments.filter((a: Appointment) => {
-                        if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
-                        const isVirt = Boolean(a.is_virtual || a.isVirtual || (a.source ? a.source.includes('virtual') || a.source.includes('loyalty') : false));
-                        if (!isVirt) return false;
-                        const apptDate = getEffectiveAppointmentDate(a);
-                        return !apptDate || apptDate >= todayStr;
-                      });
+                    {/* ── Inline Virtual Appointment Creator ── */}
+                    {showVirtualCreator && (
+                      <div className="glass-panel p-6 border-cyan-200/60 dark:border-cyan-500/20 shadow-lg bg-gradient-to-br from-cyan-50/60 to-white dark:from-cyan-950/20 dark:to-slate-900/80 rounded-3xl relative overflow-hidden animate-fade-in">
+                        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-400 to-indigo-400" />
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                          <UserPlus className="w-4 h-4 text-cyan-600" />
+                          Schedule New Virtual Video Consultation
+                        </h3>
 
-                      const displayList: Array<{ appt: Appointment; patient: Patient; isFreeLoyalty: boolean }> = virtualAppts.map((a: Appointment) => {
-                        const p = patients.find((pat: Patient) => pat.id === a.patientId) || ({ id: a.patientId, name: (a as any).patientName || 'Virtual Patient', phone: (a as any).patientPhone || 'N/A', age: '30', gender: 'M', allergies: [], chronicConditions: [], createdAt: new Date().toISOString() } as unknown as Patient);
-                        const isFreeLoyalty = a.amount === 0 || a.fee_status === 'waived_loyalty' || (a.source ? a.source.includes('loyalty') : false);
-                        return { appt: a, patient: p, isFreeLoyalty };
-                      });
-
-                      if (displayList.length === 0) {
-                        return (
-                          <div className="p-12 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
-                            <VideoOff className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                            <h4 className="text-sm font-bold text-slate-800 dark:text-white">No active virtual video calls scheduled right now</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">WhatsApp bot bookings and patient online video requests will stream here automatically.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {/* Patient Search */}
+                          <div className="md:col-span-2 relative">
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">Patient</label>
+                            {selectedCreatorPatient ? (
+                              <div className="flex items-center gap-2 px-3 py-2.5 bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-500/30 rounded-xl">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white flex-1">
+                                  {selectedCreatorPatient.name} <span className="text-xs text-slate-500 font-normal">({selectedCreatorPatient.phone || 'N/A'})</span>
+                                </span>
+                                <button
+                                  onClick={() => { setVirtualSelectedPatientId(null); setVirtualPatientSearch(''); }}
+                                  className="text-slate-400 hover:text-red-500 cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  value={virtualPatientSearch}
+                                  onChange={e => setVirtualPatientSearch(e.target.value)}
+                                  placeholder="Search patient by name or phone..."
+                                  className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40 text-slate-900 dark:text-white placeholder-slate-400"
+                                />
+                                {searchResults.length > 0 && (
+                                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                                    {searchResults.map(p => (
+                                      <button
+                                        key={p.id}
+                                        onClick={() => { setVirtualSelectedPatientId(p.id); setVirtualPatientSearch(''); }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-cyan-50 dark:hover:bg-cyan-950/30 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-700/50 last:border-0"
+                                      >
+                                        <span className="font-bold text-slate-900 dark:text-white">{p.name}</span>
+                                        <span className="text-xs text-slate-500 ml-2">{p.phone || 'No phone'} · {p.age ? `${p.age}y` : ''}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                        );
-                      }
 
-                      return (
+                          {/* Date Picker */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">Date</label>
+                            <input
+                              type="date"
+                              value={virtualDate}
+                              onChange={e => setVirtualDate(e.target.value)}
+                              min={getIstDateString()}
+                              className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40 text-slate-900 dark:text-white"
+                            />
+                          </div>
+
+                          {/* Time Slot */}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 block">Time Slot</label>
+                            <select
+                              value={virtualTime}
+                              onChange={e => setVirtualTime(e.target.value)}
+                              className="w-full px-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40 text-slate-900 dark:text-white cursor-pointer"
+                            >
+                              <option value="09:00 AM - 10:00 AM">09:00 AM - 10:00 AM</option>
+                              <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
+                              <option value="10:00 AM - 12:00 PM">10:00 AM - 12:00 PM</option>
+                              <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
+                              <option value="02:00 PM - 03:00 PM">02:00 PM - 03:00 PM</option>
+                              <option value="03:00 PM - 04:00 PM">03:00 PM - 04:00 PM</option>
+                              <option value="04:00 PM - 06:00 PM">04:00 PM - 06:00 PM</option>
+                              <option value="05:00 PM - 06:00 PM">05:00 PM - 06:00 PM</option>
+                              <option value="06:00 PM - 07:00 PM">06:00 PM - 07:00 PM</option>
+                              <option value="07:00 PM - 08:00 PM">07:00 PM - 08:00 PM</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200/60 dark:border-white/5">
+                          <button
+                            onClick={handleCreateVirtualAppt}
+                            disabled={!selectedCreatorPatient}
+                            className={`inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer ${
+                              selectedCreatorPatient
+                                ? 'text-white bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 shadow-cyan-500/20'
+                                : 'text-slate-400 bg-slate-100 dark:bg-slate-800 cursor-not-allowed'
+                            }`}
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            Create Virtual Appointment
+                          </button>
+                          <button
+                            onClick={() => setShowVirtualCreator(false)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition-all cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          {selectedCreatorPatient && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 ml-auto font-mono hidden md:inline">
+                              Jitsi link auto-generated · Appointment synced to Supabase
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Active Virtual Appointments Grid ── */}
+                    <div className="glass-panel p-6 border-slate-200/60 shadow-lg bg-white dark:bg-slate-900/80 rounded-3xl relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500 opacity-80" />
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                        <Activity className="w-4 h-4 text-cyan-500" />
+                        Active &amp; Upcoming Virtual Consultations
+                        {activeDisplayList.length > 0 && (
+                          <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 rounded-full">
+                            {activeDisplayList.length} Active
+                          </span>
+                        )}
+                      </h3>
+
+                      {activeDisplayList.length === 0 ? (
+                        <div className="p-10 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
+                          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-cyan-50 dark:bg-cyan-950/30 flex items-center justify-center">
+                            <Video className="w-8 h-8 text-cyan-400" />
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">No Active Virtual Consultations</h4>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-5 max-w-md mx-auto">
+                            Virtual video consults appear here when patients book via WhatsApp or when you schedule one directly.
+                          </p>
+
+                          {/* How It Works — 3-step guide */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
+                            {[
+                              { step: '1', title: 'Schedule', desc: 'Click "Schedule Virtual Consult" above to create a video appointment for any registered patient.', emoji: '📅' },
+                              { step: '2', title: 'Join Jitsi Call', desc: 'When the appointment time arrives, click "Join Video Call" to open the Jitsi meeting room.', emoji: '💻' },
+                              { step: '3', title: 'E-Rx & Dispatch', desc: 'After the consult, click "Start E-Rx" to write a prescription and WhatsApp it to the patient.', emoji: '📱' },
+                            ].map(s => (
+                              <div key={s.step} className="p-3 rounded-xl bg-white dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="w-5 h-5 rounded-full bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 flex items-center justify-center text-[10px] font-black">{s.step}</span>
+                                  <span className="text-xs font-bold text-slate-800 dark:text-white">{s.title} {s.emoji}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">{s.desc}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button
+                            onClick={() => setShowVirtualCreator(true)}
+                            className="mt-5 inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Schedule Your First Virtual Consult
+                          </button>
+                        </div>
+                      ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {displayList.map(({ appt, patient, isFreeLoyalty }: { appt: Appointment; patient: Patient; isFreeLoyalty: boolean }) => {
+                          {activeDisplayList.map(({ appt, patient, isFreeLoyalty }: { appt: Appointment; patient: Patient; isFreeLoyalty: boolean }) => {
                             const meetUrl = appt.virtual_meeting_url || (appt as any).virtualMeetingUrl || `https://meet.jit.si/vitalsync-consult-${appt.id}`;
                             const tokenNo = appt.token_number || (appt as any).tokenNumber || patient.tokenNumber || '1';
 
                             return (
-                              <div key={appt.id} className="p-5 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-4 hover:border-cyan-500/40 transition-all relative overflow-hidden">
+                              <div key={appt.id} className="p-5 border border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/80 dark:bg-slate-900/60 space-y-4 hover:border-cyan-500/40 transition-all relative overflow-hidden group">
                                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-cyan-500" />
                                 <div className="flex items-center justify-between">
                                   <span className="text-[10px] font-mono font-extrabold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 px-2.5 py-1 rounded-md">
@@ -1595,7 +1936,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                                     </span>
                                   ) : (
                                     <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full">
-                                      Paid Virtual: ₹618.00 ✅
+                                      Paid Virtual: ₹{((appt as any).amount || 618).toFixed(2)} ✅
                                     </span>
                                   )}
                                 </div>
@@ -1609,9 +1950,24 @@ Keep the tone professional, clinical, objective, and precise.`;
                                     <span>Phone: {patient.phone || 'N/A'}</span>
                                     <span>·</span>
                                     <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold">
-                                      Slot: {appt.virtual_time || '10:00 AM - 12:00 PM'}
+                                      Slot: {appt.virtual_time || (appt as any).virtualTime || '10:00 AM - 12:00 PM'}
                                     </span>
                                   </p>
+                                </div>
+
+                                {/* Copy Jitsi Link */}
+                                <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-400">
+                                  <span className="truncate flex-1">{meetUrl}</span>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(meetUrl);
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { title: 'Link Copied! 📋', message: 'Jitsi meeting link copied to clipboard.', type: 'success' } }));
+                                    }}
+                                    className="text-cyan-600 hover:text-cyan-800 dark:text-cyan-400 dark:hover:text-cyan-200 cursor-pointer shrink-0"
+                                    title="Copy Jitsi Link"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
 
                                 <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
@@ -1631,7 +1987,6 @@ Keep the tone professional, clinical, objective, and precise.`;
                                       setMedications([]);
                                       setSelectedTests([]);
                                       setRefractionRx(EMPTY_REFRACTION_RX);
-
                                       setSelectedPatient(patient);
                                       setActiveTab('consultation');
                                       api.updatePatientQueueStatus(patient.id, 'in_consultation');
@@ -1653,11 +2008,57 @@ Keep the tone professional, clinical, objective, and precise.`;
                             );
                           })}
                         </div>
-                      );
-                    })()}
+                      )}
+                    </div>
+
+                    {/* ── Completed Virtual Consults History ── */}
+                    {completedDisplayList.length > 0 && (
+                      <div className="glass-panel p-6 border-slate-200/60 shadow-lg bg-white dark:bg-slate-900/80 rounded-3xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500 opacity-60" />
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          Completed Virtual Consultations
+                          <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 rounded-full">
+                            {completedVirtual.length} Total
+                          </span>
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-200 dark:border-white/10">
+                                <th className="text-left py-2 px-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Patient</th>
+                                <th className="text-left py-2 px-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Date</th>
+                                <th className="text-left py-2 px-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Time Slot</th>
+                                <th className="text-left py-2 px-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Source</th>
+                                <th className="text-left py-2 px-3 font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[10px]">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {completedDisplayList.map(({ appt, patient }) => (
+                                <tr key={appt.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                  <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-white">{patient.name}</td>
+                                  <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono">{getEffectiveAppointmentDate(appt) || 'N/A'}</td>
+                                  <td className="py-2.5 px-3 text-cyan-600 dark:text-cyan-400 font-mono font-bold">{appt.virtual_time || (appt as any).virtualTime || '—'}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
+                                      {((appt.source || 'whatsapp') + '').replace(/_/g, ' ')}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold">
+                                      ✅ Completed
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
+                );
+              })();
             case 'consultation':
               if (!isDigitalEmrEnabled) {
                 return (
@@ -1698,6 +2099,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               }
               return (
                 <ConsultationTab
+                  isPaperMode={false}
                   patients={patients}
                   selectedPatient={selectedPatient}
                   setSelectedPatient={setSelectedPatient}
@@ -2373,14 +2775,17 @@ Keep the tone professional, clinical, objective, and precise.`;
 
         {/* Desktop tab nav — integrated into header */}
         <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
-          {[
-            { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard },
-            ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList }] : []),
-            { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video },
-            { id: 'financials',        label: 'My Earnings & SOP Splits', icon: CreditCard },
-            { id: 'patients',          label: 'Patient Directory',      icon: Users },
-            { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare }
-          ].map(tab => {
+          {(() => {
+            const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
+            return [
+              { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard, badge: 0 },
+              ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList, badge: 0 }] : []),
+              { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video, badge: vBadge },
+              { id: 'financials',        label: 'My Earnings & SOP Splits', icon: CreditCard, badge: 0 },
+              { id: 'patients',          label: 'Patient Directory',      icon: Users, badge: 0 },
+              { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare, badge: 0 }
+            ];
+          })().map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -2399,6 +2804,11 @@ Keep the tone professional, clinical, objective, and precise.`;
                   }`} />
                 </div>
                 <span>{tab.label}</span>
+                {tab.badge > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 text-[9px] font-bold bg-cyan-500 text-white rounded-full min-w-[16px] text-center leading-tight animate-pulse">
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}

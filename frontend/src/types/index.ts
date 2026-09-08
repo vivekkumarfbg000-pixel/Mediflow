@@ -440,6 +440,9 @@ export interface PathologyReport {
   compounderScanned: boolean;
   results?: string;
   timestamp: string;
+  reportUrl?: string;
+  fileUrl?: string;
+  pdfUrl?: string;
 }
 
 export interface PrescriptionTemplateConfig {

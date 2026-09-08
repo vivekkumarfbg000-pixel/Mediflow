@@ -175,8 +175,12 @@ export class BillingService {
     // Update appointment status and payment_status across local and remote
     const appts = this.getAppointments();
     const targetAppt = appts.find(a => a.id === targetApptId || a.id === invoiceId);
+    const isPaperMode = typeof window !== 'undefined' && (
+      localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
+      localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
+    );
     if (targetAppt) {
-      targetAppt.status = targetAppt.isVirtual ? 'ready_for_consult' : 'scheduled';
+      targetAppt.status = (targetAppt.isVirtual || isPaperMode) ? 'ready_for_consult' : 'scheduled';
       targetAppt.payment_status = 'cleared';
       (targetAppt as any).paymentStatus = 'cleared';
       this.saveAppointment(targetAppt);
@@ -191,7 +195,7 @@ export class BillingService {
 
     // Update patient queue status defensively
     if (targetPatientId) {
-      const nextQueueStatus = targetAppt?.isVirtual ? 'awaiting_consultation' : 'awaiting_vitals';
+      const nextQueueStatus = (targetAppt?.isVirtual || isPaperMode) ? 'awaiting_consultation' : 'awaiting_vitals';
       PatientService.updatePatientQueueStatus(targetPatientId, nextQueueStatus);
       supabase.from('patient_registry').update({
         queue_status: nextQueueStatus

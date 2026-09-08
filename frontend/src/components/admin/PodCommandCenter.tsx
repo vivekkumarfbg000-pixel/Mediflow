@@ -288,6 +288,19 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
     failed: sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length,
   }), [sessions]);
 
+  const isPaperMode = typeof window !== 'undefined' && (
+    localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
+    localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
+  );
+
+  const chronicPatients = useMemo(() => {
+    return patients.filter(p => (p as any).isChronic || (p.chronicConditions && p.chronicConditions.length > 0));
+  }, [patients]);
+
+  const dueRefillsCount = useMemo(() => {
+    return Math.max(0, Math.round(chronicPatients.length * 0.4));
+  }, [chronicPatients]);
+
   const patientMetrics = useMemo(() => {
     const todayPatients = patients.filter(isPatientForToday);
     const isPatientCompleted = (p: any) => p.queueStatus === 'completed' || p.queue_status === 'completed' || p.queueStatus === 'settled' || p.queueStatus === 'pharmacy' || p.queueStatus === 'lab';
@@ -296,15 +309,15 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
       total: todayPatients.length,
       awaitingConsultation: todayPatients.filter(p => {
         if (isPatientCompleted(p)) return false;
-        if (p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || (p.queueStatus as any) === 'pending_payment') return false;
+        if (!isPaperMode && (p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || (p.queueStatus as any) === 'pending_payment')) return false;
         const isVirtual = Boolean((p as any).isVirtual || (p as any).is_virtual);
         const hasVitals = Boolean(p.vitals && p.vitals.bloodPressure && p.vitals.bloodPressure.trim().length > 0);
-        return p.queueStatus === 'awaiting_consultation' && (hasVitals || isVirtual);
+        return p.queueStatus === 'awaiting_consultation' && (hasVitals || isVirtual || isPaperMode);
       }).length,
       inConsultation: todayPatients.filter(p => p.queueStatus === 'in_consultation' && !isPatientCompleted(p)).length,
       completed: todayPatients.filter(isPatientCompleted).length,
     };
-  }, [patients, appointments, todayStr]);
+  }, [patients, appointments, todayStr, isPaperMode]);
 
   const overallHealthScore = useMemo(() => {
     let score = 100;
@@ -345,14 +358,13 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
         
         // Doctor Consultation Queue strictly requires:
         // 1. Not completed
-        // 2. Not awaiting_vitals at Compounder desk (unless virtual)
+        // 2. Not awaiting_vitals at Compounder desk (unless virtual or paper mode)
         // 3. Not pending_payment
-        // 4. Queue status must be awaiting_consultation and have vitals recorded (or virtual)
+        // 4. Queue status must be awaiting_consultation and have vitals recorded (or virtual or paper mode)
         const isAwaitingConsult = !isCompleted && 
-                                  (p.queueStatus === 'awaiting_consultation' || (isVirtual && (p.queueStatus as any) !== 'awaiting_vitals' && (p.queueStatus as any) !== 'pending_payment')) &&
-                                  (hasVitals || isVirtual) &&
-                                  (p.queueStatus as any) !== 'awaiting_vitals' && 
-                                  p.queueStatus !== 'registered' && 
+                                  (p.queueStatus === 'awaiting_consultation' || (isVirtual && (p.queueStatus as any) !== 'awaiting_vitals' && (p.queueStatus as any) !== 'pending_payment') || (isPaperMode && (p.queueStatus as any) !== 'pending_payment')) &&
+                                  (hasVitals || isVirtual || isPaperMode) &&
+                                  (isPaperMode || ((p.queueStatus as any) !== 'awaiting_vitals' && p.queueStatus !== 'registered')) && 
                                   (p.queueStatus as any) !== 'pending_payment';
         const isInConsult = !isCompleted && p.queueStatus === 'in_consultation';
 
@@ -1020,6 +1032,70 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
                       </div>
                     );
                   })
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Chronic Care & Recurring Refill Radar Widget */}
+          <div className="bg-white/90 dark:bg-slate-950/60 border border-indigo-200/80 dark:border-indigo-800/30 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md animate-fade-in">
+            <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <HeartPulse className="w-4 h-4 text-indigo-500 shrink-0" />
+                  Chronic Care & Refill Radar
+                </h2>
+                <span className="text-[10px] font-bold font-mono px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/30 text-indigo-700 dark:text-indigo-400 rounded-full shrink-0">
+                  {chronicPatients.length} Active
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <div className="p-2.5 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-xl">
+                  <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Refills Due (5d)</div>
+                  <div className="text-base font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{dueRefillsCount}</div>
+                </div>
+                <div className="p-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-xl">
+                  <div className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Monthly Est. Rev</div>
+                  <div className="text-base font-black text-emerald-600 dark:text-emerald-400 mt-0.5">₹{Math.round(chronicPatients.length * 850).toLocaleString()}</div>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-[160px] overflow-y-auto pr-0.5">
+                {chronicPatients.length === 0 ? (
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-white/5 rounded-xl text-center text-[10px] text-slate-400">
+                    No chronic patients tagged yet. AI prescription scan auto-detects chronic conditions.
+                  </div>
+                ) : (
+                  chronicPatients.slice(0, 4).map(cp => (
+                    <div key={cp.id} className="p-2.5 bg-slate-50/80 dark:bg-slate-900/40 border border-slate-200/70 dark:border-white/5 rounded-xl flex items-center justify-between gap-2">
+                      <div className="truncate">
+                        <span className="text-xs font-semibold text-slate-800 dark:text-white block truncate">{cp.name}</span>
+                        <span className="text-[9px] text-slate-500 dark:text-zinc-400">
+                          {(cp.chronicConditions || ['Chronic Care']).join(', ')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (cp.phone) {
+                            WhatsAppService.pushWhatsAppMessageFromBot(
+                              cp.phone,
+                              `Namaste ${cp.name} Ji! 🩺 Aapki chronic dawa ka 1 Month Refill Pack 10% discount ke sath clinic counter par ready hai. Free pickup ya 24hr delivery ke liye confirm karein! 📦`
+                            );
+                            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                              detail: { title: 'Refill Nudge Sent! 📱', message: `WhatsApp 10% OFF refill reminder sent to ${cp.name}`, type: 'success' }
+                            }));
+                          }
+                        }}
+                        className="px-2 py-1 text-[8.5px] font-bold uppercase tracking-wider bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-lg border border-indigo-200 transition-all cursor-pointer whitespace-nowrap shrink-0"
+                        title="Send 1-Tap WhatsApp Refill Nudge"
+                      >
+                        Refill Nudge
+                      </button>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

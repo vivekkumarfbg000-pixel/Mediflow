@@ -327,118 +327,138 @@ export class RealtimeSyncService {
     // Legacy implementation kept for reference
   }
 
+  // Cloud Hydration Deduplication & Throttling (Prevents egress spikes on component mounts / HMR)
+  private static lastHydrationTime = 0;
+  private static inFlightHydration: Promise<void> | null = null;
+  private static readonly HYDRATION_THROTTLE_MS = 60_000;
+
   // ── 360° Realtime Cloud-First Boot & Data Hydration Engine ────────────────
-  static async fetchInitialCloudData(forcedPodId?: string): Promise<void> {
-    try {
-      const currentPodId = resolveSovereignPodId(forcedPodId);
-      const isFiltered = Boolean(currentPodId);
-
-      const buildQuery = (tableName: string) => {
-        let q = supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(150);
-        if (isFiltered && currentPodId !== FALLBACK_POD_ID) {
-          q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
-        }
-        return q;
-      };
-
-      const [
-        apptsRes,
-        patsRes,
-        invoicesRes,
-        ledgersRes,
-        sessionsRes,
-        medBillsRes,
-        labReqsRes,
-        reportsRes,
-        poolRes,
-        sopsRes,
-        chronicRes,
-        encountersRes,
-        rxRes,
-        holdsRes,
-        pharmacyRes,
-        reagentsRes
-      ] = await Promise.allSettled([
-        buildQuery('appointments'),
-        buildQuery('patient_registry'),
-        buildQuery('unified_invoices'),
-        buildQuery('financial_ledgers'),
-        buildQuery('whatsapp_sessions'),
-        buildQuery('medicine_bills'),
-        buildQuery('lab_requisitions'),
-        buildQuery('pathology_reports'),
-        buildQuery('vitalsync_pool_settlements'),
-        buildQuery('clinic_sops'),
-        buildQuery('chronic_care_cohorts'),
-        buildQuery('encounters'),
-        buildQuery('saas_prescriptions'),
-        buildQuery('inventory_holds'),
-        buildQuery('pharmacy_inventory'),
-        buildQuery('reagent_inventory')
-      ]);
-
-      const handleTableSync = (res: PromiseSettledResult<any>, tableName: string, storageKeys: string[]) => {
-        if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data)) {
-          const normalized = res.value.data.map((r: any) => this.normalizeRecord(r));
-
-          // Sovereign Cloud Authority: Check offline WAL outbox for pending unsynced records
-          let pendingWalRecords: any[] = [];
-          try {
-            const rawMemOutbox = localStorage.getItem('wal_mem_outbox');
-            if (rawMemOutbox) {
-              const outbox = JSON.parse(rawMemOutbox);
-              if (Array.isArray(outbox)) {
-                pendingWalRecords = outbox
-                  .filter((entry: any) => !entry.synced && (entry.table === tableName || entry.tableName === tableName) && entry.data)
-                  .map((entry: any) => this.normalizeRecord(entry.data));
-              }
-            }
-          } catch (_e) {
-            /* ignore outbox parse error */
-          }
-
-          // Merge: Authoritative Cloud Records + Pending Unsynced WAL Records
-          // (Zombies not in cloud and not in pending WAL are definitively pruned)
-          const finalDataset = [...normalized];
-          if (pendingWalRecords.length > 0) {
-            pendingWalRecords.forEach(pending => {
-              if (pending && pending.id && !finalDataset.some(m => m.id === pending.id)) {
-                finalDataset.push(pending);
-              }
-            });
-          }
-
-          for (const key of storageKeys) {
-            clearStorageCache(key, false);
-            save(key, finalDataset, false);
-          }
-        }
-      };
-
-      handleTableSync(apptsRes, 'appointments', ['saas_appointments', 'appointments']);
-      handleTableSync(patsRes, 'patient_registry', ['patients', 'patient_registry']);
-      handleTableSync(invoicesRes, 'unified_invoices', ['unified_invoices', 'saas_invoices']);
-      handleTableSync(ledgersRes, 'financial_ledgers', ['financial_ledgers']);
-      handleTableSync(sessionsRes, 'whatsapp_sessions', ['whatsapp_sessions']);
-      handleTableSync(medBillsRes, 'medicine_bills', ['medicine_bills']);
-      handleTableSync(labReqsRes, 'lab_requisitions', ['lab_requisitions']);
-      handleTableSync(reportsRes, 'pathology_reports', ['pathology_reports', 'full_lab_reports']);
-      handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements']);
-      handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops']);
-      handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts']);
-      handleTableSync(encountersRes, 'encounters', ['encounters']);
-      handleTableSync(rxRes, 'saas_prescriptions', ['saas_prescriptions', 'prescriptions']);
-      handleTableSync(holdsRes, 'inventory_holds', ['inventory_holds']);
-      handleTableSync(pharmacyRes, 'pharmacy_inventory', ['pharmacy_inventory', 'mediflow_inventory']);
-      handleTableSync(reagentsRes, 'reagent_inventory', ['reagents', 'reagent_inventory']);
-
-      broadcastStorageMutation();
-      notify();
-      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { source: 'cloud_hydration' } }));
-      window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { source: 'cloud_hydration' } }));
-    } catch (err) {
-      console.warn('[RealtimeSync] Cloud hydration non-blocking warning:', err);
+  static async fetchInitialCloudData(forcedPodId?: string, bypassThrottle = false): Promise<void> {
+    const now = Date.now();
+    if (!bypassThrottle && (now - this.lastHydrationTime < this.HYDRATION_THROTTLE_MS)) {
+      return;
     }
+    if (this.inFlightHydration) {
+      return this.inFlightHydration;
+    }
+
+    this.inFlightHydration = (async () => {
+      try {
+        const currentPodId = resolveSovereignPodId(forcedPodId);
+        const isFiltered = Boolean(currentPodId);
+
+        const buildQuery = (tableName: string) => {
+          let q = supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(60);
+          if (isFiltered && currentPodId !== FALLBACK_POD_ID) {
+            q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+          }
+          return q;
+        };
+
+        const [
+          apptsRes,
+          patsRes,
+          invoicesRes,
+          ledgersRes,
+          sessionsRes,
+          medBillsRes,
+          labReqsRes,
+          reportsRes,
+          poolRes,
+          sopsRes,
+          chronicRes,
+          encountersRes,
+          rxRes,
+          holdsRes,
+          pharmacyRes,
+          reagentsRes
+        ] = await Promise.allSettled([
+          buildQuery('appointments'),
+          buildQuery('patient_registry'),
+          buildQuery('unified_invoices'),
+          buildQuery('financial_ledgers'),
+          buildQuery('whatsapp_sessions'),
+          buildQuery('medicine_bills'),
+          buildQuery('lab_requisitions'),
+          buildQuery('pathology_reports'),
+          buildQuery('vitalsync_pool_settlements'),
+          buildQuery('clinic_sops'),
+          buildQuery('chronic_care_cohorts'),
+          buildQuery('encounters'),
+          buildQuery('saas_prescriptions'),
+          buildQuery('inventory_holds'),
+          buildQuery('pharmacy_inventory'),
+          buildQuery('reagent_inventory')
+        ]);
+
+        const handleTableSync = (res: PromiseSettledResult<any>, tableName: string, storageKeys: string[]) => {
+          if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data)) {
+            const normalized = res.value.data.map((r: any) => this.normalizeRecord(r));
+
+            // Sovereign Cloud Authority: Check offline WAL outbox for pending unsynced records
+            let pendingWalRecords: any[] = [];
+            try {
+              const rawMemOutbox = localStorage.getItem('wal_mem_outbox');
+              if (rawMemOutbox) {
+                const outbox = JSON.parse(rawMemOutbox);
+                if (Array.isArray(outbox)) {
+                  pendingWalRecords = outbox
+                    .filter((entry: any) => !entry.synced && (entry.table === tableName || entry.tableName === tableName) && entry.data)
+                    .map((entry: any) => this.normalizeRecord(entry.data));
+                }
+              }
+            } catch (_e) {
+              /* ignore outbox parse error */
+            }
+
+            // Merge: Authoritative Cloud Records + Pending Unsynced WAL Records
+            // (Zombies not in cloud and not in pending WAL are definitively pruned)
+            const finalDataset = [...normalized];
+            if (pendingWalRecords.length > 0) {
+              pendingWalRecords.forEach(pending => {
+                if (pending && pending.id && !finalDataset.some(m => m.id === pending.id)) {
+                  finalDataset.push(pending);
+                }
+              });
+            }
+
+            for (const key of storageKeys) {
+              clearStorageCache(key, false);
+              save(key, finalDataset, false);
+            }
+          }
+        };
+
+        handleTableSync(apptsRes, 'appointments', ['saas_appointments', 'appointments']);
+        handleTableSync(patsRes, 'patient_registry', ['patients', 'patient_registry']);
+        handleTableSync(invoicesRes, 'unified_invoices', ['unified_invoices', 'saas_invoices']);
+        handleTableSync(ledgersRes, 'financial_ledgers', ['financial_ledgers']);
+        handleTableSync(sessionsRes, 'whatsapp_sessions', ['whatsapp_sessions']);
+        handleTableSync(medBillsRes, 'medicine_bills', ['medicine_bills']);
+        handleTableSync(labReqsRes, 'lab_requisitions', ['lab_requisitions']);
+        handleTableSync(reportsRes, 'pathology_reports', ['pathology_reports', 'full_lab_reports']);
+        handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements']);
+        handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops']);
+        handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts']);
+        handleTableSync(encountersRes, 'encounters', ['encounters']);
+        handleTableSync(rxRes, 'saas_prescriptions', ['saas_prescriptions', 'prescriptions']);
+        handleTableSync(holdsRes, 'inventory_holds', ['inventory_holds']);
+        handleTableSync(pharmacyRes, 'pharmacy_inventory', ['pharmacy_inventory', 'mediflow_inventory']);
+        handleTableSync(reagentsRes, 'reagent_inventory', ['reagents', 'reagent_inventory']);
+
+        this.lastHydrationTime = Date.now();
+        broadcastStorageMutation();
+        notify();
+        window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { source: 'cloud_hydration' } }));
+        window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { source: 'cloud_hydration' } }));
+      } catch (err) {
+        console.warn('[RealtimeSync] Cloud hydration non-blocking warning:', err);
+      } finally {
+        this.inFlightHydration = null;
+      }
+    })();
+
+    return this.inFlightHydration;
   }
 
   static subscribeToLiveClinicUpdates(handlers: RealtimeSubscriptionHandlers) {

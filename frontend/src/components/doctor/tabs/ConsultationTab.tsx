@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
+import { LabService } from '../../../services/labService';
 import { FALLBACK_DOCTOR_ID } from '../../../services/podContext';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ClinicalSafetySentry } from '../../../services/clinicalSafetySentry';
@@ -79,6 +80,7 @@ import {
 } from '../../../types/ophthalmic';
 
 interface ConsultationTabProps {
+  isPaperMode?: boolean;
   patients: Patient[];
   selectedPatient: Patient | null;
   setSelectedPatient: (p: Patient | null) => void;
@@ -133,6 +135,7 @@ interface ConsultationTabProps {
 }
 
 export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
+  isPaperMode,
   patients,
   selectedPatient,
   setSelectedPatient,
@@ -186,6 +189,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   activeProfile
 }) => {
   const { activePod, activeProfile: clinicProfile } = useClinic();
+  const isPaperRx = Boolean(isPaperMode || (typeof window !== 'undefined' && localStorage.getItem('mediflow_digital_emr_enabled') === 'false'));
   const [appointments, setAppointments] = useState<Appointment[]>(api.getAppointments());
   const [aiHistory, setAiHistory] = useState<any[]>([]);
   const [dataRevision, setDataRevision] = useState(0);
@@ -1707,7 +1711,17 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
               const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
 
-              const awaitingList = patients.filter(p => paidPatientIds.has(p.id) && !isCompletedPat(p) && (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered' && (p.queueStatus as any) !== 'pending_payment' && isPatientForToday(p));
+              const isPaperRx = Boolean(isPaperMode || (typeof window !== 'undefined' && localStorage.getItem('mediflow_digital_emr_enabled') === 'false'));
+              const awaitingList = patients.filter(p => {
+                if (!paidPatientIds.has(p.id)) return false;
+                if (isCompletedPat(p)) return false;
+                if ((p.queueStatus as any) === 'pending_payment') return false;
+                if (!isPatientForToday(p)) return false;
+                if (isPaperRx) {
+                  return p.queueStatus === 'awaiting_consultation' || (p.queueStatus as any) === 'ready_for_consult' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_vitals' || !p.queueStatus || Boolean(p.vitals?.bloodPressure);
+                }
+                return (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered';
+              });
               const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && !isCompletedPat(p) && isPatientForToday(p));
               const todayRegList = patients.filter(p => {
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
@@ -1845,6 +1859,9 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       if (!paidPatientIds.has(p.id)) return false;
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
                       if (isCompletedPat(p)) return false;
+                      if (isPaperRx) {
+                        return p.queueStatus === 'awaiting_consultation' || (p.queueStatus as any) === 'ready_for_consult' || p.queueStatus === 'in_consultation' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_vitals' || !p.queueStatus;
+                      }
                       return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
                     }
                     if (queueFilter === 'in_consult') {
@@ -2091,6 +2108,10 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     </span>
                   )}
                 </div>
+              ) : isPaperRx ? (
+                <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
+                  <FileText className="w-2.5 h-2.5 text-emerald-500" /> 📄 Paper OPD Active (Physical Pad)
+                </span>
               ) : (
                 <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200/80 flex items-center gap-1">
                   <Activity className="w-2.5 h-2.5 text-amber-500" /> 🩺 Vitals Pending Compounder Intake
@@ -2100,6 +2121,22 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
             {/* Right side helper action buttons */}
             <div className="flex items-center gap-2">
+              {(() => {
+                const labReports = LabService.getFullLabReports().filter((r: any) => (r.patientId === selectedPatient?.id || (r as any).patient_id === selectedPatient?.id) && Boolean(r.reportFileUrl || (r as any).fileUrl || (r as any).pdfUrl));
+                const targetPdf = labReports[0]?.reportFileUrl || (labReports[0] as any)?.fileUrl || (labReports[0] as any)?.pdfUrl;
+                if (!targetPdf) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => window.open(targetPdf, '_blank', 'noopener,noreferrer')}
+                    className="text-[9.5px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-2.5 py-1 rounded-lg transition border border-teal-300 cursor-pointer shadow-2xs flex items-center gap-1"
+                    title="View Approved Pathology Report PDF in new tab"
+                  >
+                    <FileText className="w-3 h-3 text-teal-600" />
+                    <span>📄 Lab PDF Ready</span>
+                  </button>
+                );
+              })()}
               <button
                 type="button"
                 onClick={() => setIsQueueExpanded(prev => !prev)}

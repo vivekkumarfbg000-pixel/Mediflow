@@ -1899,7 +1899,6 @@ export const CompounderDashboard: React.FC = () => {
     const handleFocus = () => fetchLiveAppointments();
     window.addEventListener('focus', handleFocus);
     window.addEventListener('visibilitychange', handleFocus);
-    const interval = setInterval(fetchLiveAppointments, 4000);
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
         console.log('[CompounderDashboard] Realtime Appointment update:', payload);
@@ -1930,7 +1929,6 @@ export const CompounderDashboard: React.FC = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleFocus);
-      clearInterval(interval);
       unsubscribe();
     };
   }, [fetchLiveAppointments]);

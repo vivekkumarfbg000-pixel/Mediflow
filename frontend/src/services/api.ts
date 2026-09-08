@@ -334,12 +334,25 @@ class MediflowApiService {
       supabase.removeChannel(c);
     }
 
+    const IGNORED_REALTIME_TABLES = new Set([
+      'system_health_telemetry',
+      'activity_logs',
+      'self_healing_execution_logs',
+      'deployment_health',
+      'rate_limits',
+      'blacklisted_ips'
+    ]);
+
     supabase
       .channel('mediflow-pod-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public' },
         (payload) => {
+          // Ignore high-frequency telemetry / audit writes to break cascade loops
+          if (payload.table && IGNORED_REALTIME_TABLES.has(payload.table)) {
+            return;
+          }
           console.log('[Mediflow Realtime] Event received:', payload.table, payload.eventType);
           // Sub-300ms Realtime Engine: collapse rapid successive DB events into ultra-low latency sync cycle
           if (this.realtimeSyncTimer) clearTimeout(this.realtimeSyncTimer);
@@ -353,9 +366,16 @@ class MediflowApiService {
           console.log('[Mediflow Realtime] Channel status changed:', status);
       });
 
-    setInterval(() => {
-      this.syncFromSupabase().catch(err => console.error('[Mediflow API] Background sync interval failed:', err));
-    }, 10000);
+    // Throttled background sync: Only on tab visibility change after at least 5 minutes of inactivity
+    let lastVisibilitySync = Date.now();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && Date.now() - lastVisibilitySync > 300_000) {
+          lastVisibilitySync = Date.now();
+          this.syncFromSupabase().catch(err => console.error('[Mediflow API] Visibility sync failed:', err));
+        }
+      });
+    }
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
@@ -685,7 +705,7 @@ class MediflowApiService {
       ] = await Promise.all([
         // 1. patient_consents
         supabaseCircuit.execute(async () => {
-          let q = supabase.from('patient_consents').select('*').eq('data_sharing_consent', true);
+          let q = supabase.from('patient_consents').select('*').eq('data_sharing_consent', true).limit(100);
           if (currentPodId) q = q.eq('pod_id', currentPodId);
           const { data, error } = await q;
           if (error) throw error;
@@ -696,7 +716,7 @@ class MediflowApiService {
         }),
         // 2. patient_registry
         supabaseCircuit.execute(async () => {
-          let q = supabase.from('patient_registry').select('*');
+          let q = supabase.from('patient_registry').select('*').order('created_at', { ascending: false }).limit(100);
           if (currentPodId) q = q.eq('pod_id', currentPodId);
           const { data, error } = await q;
           if (error) throw error;
@@ -711,7 +731,7 @@ class MediflowApiService {
         }),
         // 3. whatsapp_sessions
         supabaseCircuit.execute(async () => {
-          let q = supabase.from('whatsapp_sessions').select('*');
+          let q = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false }).limit(100);
           if (currentPodId) q = q.eq('pod_id', currentPodId);
           const { data, error } = await q;
           if (error) throw error;
@@ -725,7 +745,7 @@ class MediflowApiService {
           }));
         }),
         // 4. clinic_sops
-        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`) : supabase.from('clinic_sops').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`).limit(20) : supabase.from('clinic_sops').select('*').limit(20)).then(r => r.data).catch(() => null),
         // 5. medicine_bills
         Promise.resolve(supabase.from('medicine_bills').select(`
           id, patient_id, encounter_id, subtotal, loyalty_discount_percent,
@@ -737,29 +757,29 @@ class MediflowApiService {
             inventory_item_id, name, batch_number, expiry_date, quantity,
             mrp, selling_price, discount_percent, gst_percent, line_total
           )
-        `).eq('pod_id', currentPodId)).then(r => r.data).catch(() => null),
+        `).eq('pod_id', currentPodId).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
         // 6. encounters (role-gated promise already built above)
         encounterFetch,
         // 7. lab_requisitions (role-filtered query already built above)
         Promise.resolve(reqQuery).then(r => r.data).catch(() => null),
         // 8. reagent_inventory
-        Promise.resolve(supabase.from('reagent_inventory').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('reagent_inventory').select('*').limit(100)).then(r => r.data).catch(() => null),
         // 9. inventory_holds
-        Promise.resolve(supabase.from('inventory_holds').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('inventory_holds').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).limit(50)).then(r => r.data).catch(() => null),
         // 10. unified_invoices
         Promise.resolve(supabase.from('unified_invoices').select(`
           id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
           platform_fee, total_amount, upi_qr_payload, payment_status, payment_method, pod_id, source, created_at,
           patient:patient_registry(name, phone)
-        `).or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
+        `).or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
         // 11. seasonal_demand_forecasts
-        Promise.resolve(supabase.from('seasonal_demand_forecasts').select('*')).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('seasonal_demand_forecasts').select('*').limit(20)).then(r => r.data).catch(() => null),
         // 12. clinic_staff
-        Promise.resolve(supabase.from('clinic_staff').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('clinic_staff').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).limit(50)).then(r => r.data).catch(() => null),
         // 13. financial_ledgers
-        Promise.resolve(supabase.from('financial_ledgers').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('financial_ledgers').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
         // 14. appointments
-        Promise.resolve(supabase.from('appointments').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`)).then(r => r.data).catch(() => null),
+        Promise.resolve(supabase.from('appointments').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
       ]);
 
       // ─── Process consent IDs (needed to filter patients) ─────────────────

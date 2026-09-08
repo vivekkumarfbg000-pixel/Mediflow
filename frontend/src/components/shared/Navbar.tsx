@@ -35,7 +35,8 @@ import {
   Bot,
   Building,
   Coins,
-  Sliders
+  Sliders,
+  Video
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
@@ -90,6 +91,45 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalInitialTab, setProfileModalInitialTab] = useState<SettingsTabType>('profile');
   const [realtimeStatus, setRealtimeStatus] = useState<'connected' | 'reconnecting' | 'disconnected'>('connected');
+  const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = useState<boolean>(() => {
+    try {
+      const cached = localStorage.getItem('vitalsync_digital_emr_enabled');
+      if (cached !== null) return cached === 'true';
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleModeChange = (e: any) => {
+      if (e.detail && typeof e.detail.enabled === 'boolean') {
+        setIsDigitalEmrEnabled(e.detail.enabled);
+        if (!e.detail.enabled && activeDoctorTab === 'consultation') {
+          setActiveDoctorTab('pod_view');
+          window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: 'pod_view' }));
+          window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
+        }
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'vitalsync_digital_emr_enabled') {
+        const enabled = e.newValue === 'true';
+        setIsDigitalEmrEnabled(enabled);
+        if (!enabled && activeDoctorTab === 'consultation') {
+          setActiveDoctorTab('pod_view');
+          window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: 'pod_view' }));
+          window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
+        }
+      }
+    };
+    window.addEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [activeDoctorTab]);
 
   useEffect(() => {
     const handleStatus = (e: any) => {
@@ -1015,7 +1055,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             if (currentRole === 'doctor') {
               const docTabs = [
                 { id: 'pod_view', label: 'Pod', icon: LayoutDashboard },
-                { id: 'consultation', label: 'Consult', icon: ClipboardList },
+                ...(isDigitalEmrEnabled
+                  ? [{ id: 'consultation', label: 'Consult', icon: ClipboardList }]
+                  : [{ id: 'virtual_schedule', label: 'Virtual', icon: Video }]
+                ),
                 { id: 'financials', label: 'Finance', icon: CreditCard },
                 { id: 'patients', label: 'Patients', icon: Users },
                 { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare }

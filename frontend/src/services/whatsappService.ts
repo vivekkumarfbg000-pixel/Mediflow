@@ -294,7 +294,10 @@ export class WhatsAppService {
         patient.name === 'Patient' || 
         patient.name === 'Walk-In Patient' ||
         patient.name.toLowerCase().startsWith('patient (+91') ||
-        patient.name.toLowerCase().startsWith('patient (');
+        patient.name.toLowerCase().startsWith('patient (') ||
+        !patient.age ||
+        Number(patient.age) <= 0 ||
+        !patient.gender;
 
       if (isUnregistered) {
         // Unregistered walk-in patient: Initiate conversational onboarding
@@ -347,84 +350,106 @@ export class WhatsAppService {
         } else if (session.currentState === 'AWAITING_REGISTRATION_DETAILS') {
           if ((cleaned.includes('physical') || text.includes('Physical Visit')) && !text.includes(',')) {
             sessionData.pendingConsultationType = 'physical';
-            replyMessage = `Namaste! ${clinicName} mein Physical OPD Visit book karne ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+            replyMessage = `Namaste! ${clinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           } else if ((cleaned.includes('virtual') || text.includes('Virtual Call')) && !text.includes(',')) {
             sessionData.pendingConsultationType = 'virtual';
-            replyMessage = `Namaste! ${clinicName} mein Virtual Video Call book karne ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+            replyMessage = `Namaste! ${clinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           } else {
-          const rawInput = text.trim();
-          let regName = rawInput;
-          let regAge = 30;
-          let regGender: 'Male' | 'Female' | 'Other' = 'Male';
+            const rawInput = text.trim();
+            let regName = sessionData.newPatientName || rawInput;
+            let regAge = 0;
+            let regGender: 'Male' | 'Female' | 'Other' = 'Male';
+            let ageFound = false;
 
-          if (rawInput.includes(',')) {
-            const parts = rawInput.split(',').map(p => p.trim()).filter(Boolean);
-            if (parts.length >= 1 && parts[0]) regName = parts[0];
-            if (parts.length >= 2) {
-              const ageMatch = parts[1].match(/\d+/);
-              if (ageMatch) regAge = parseInt(ageMatch[0], 10);
+            if (rawInput.includes(',')) {
+              const parts = rawInput.split(',').map(p => p.trim()).filter(Boolean);
+              if (parts.length >= 1 && parts[0] && isNaN(parseInt(parts[0], 10))) regName = parts[0];
+              if (parts.length >= 2) {
+                const ageMatch = parts[1].match(/\d+/);
+                if (ageMatch) {
+                  regAge = parseInt(ageMatch[0], 10);
+                  ageFound = true;
+                }
+              }
+              if (parts.length >= 3) {
+                const g = parts[2].toLowerCase();
+                if (g.startsWith('f') || g.includes('female') || g.includes('mahila') || g.includes('aurat')) regGender = 'Female';
+                else if (g.startsWith('o') || g.includes('other')) regGender = 'Other';
+              }
+            } else {
+              const ageMatch = rawInput.match(/\b(\d{1,3})\s*(?:y(?:rs?|ears?|o)?|saal)?\b/i);
+              if (ageMatch) {
+                regAge = parseInt(ageMatch[1], 10);
+                ageFound = true;
+              }
+
+              const genderMatch = rawInput.match(/\b(male|female|other|purush|mahila|m\b|f\b)\b/i);
+              if (genderMatch) {
+                const g = genderMatch[1].toLowerCase();
+                if (g === 'female' || g === 'f' || g === 'mahila') regGender = 'Female';
+                else if (g === 'other') regGender = 'Other';
+              }
+
+              const nameCandidate = rawInput
+                .replace(/\b\d{1,3}\s*(?:y(?:rs?|ears?|o)?|saal)?\b/gi, '')
+                .replace(/\b(male|female|other|purush|mahila|m\b|f\b)\b/gi, '')
+                .replace(/[,\-:|]/g, ' ')
+                .trim();
+              if (nameCandidate.length >= 2 && isNaN(parseInt(nameCandidate, 10))) {
+                regName = nameCandidate.replace(/\s+/g, ' ');
+              }
             }
-            if (parts.length >= 3) {
-              const g = parts[2].toLowerCase();
-              if (g.startsWith('f') || g.includes('female') || g.includes('mahila') || g.includes('aurat')) regGender = 'Female';
-              else if (g.startsWith('o') || g.includes('other')) regGender = 'Other';
-            }
-          } else {
-            const ageMatch = rawInput.match(/\b(\d{1,3})\s*(?:y(?:rs?|ears?|o)?|saal)?\b/i);
-            if (ageMatch) regAge = parseInt(ageMatch[1], 10);
 
-            const genderMatch = rawInput.match(/\b(male|female|other|purush|mahila|m\b|f\b)\b/i);
-            if (genderMatch) {
-              const g = genderMatch[1].toLowerCase();
-              if (g === 'female' || g === 'f' || g === 'mahila') regGender = 'Female';
-              else if (g === 'other') regGender = 'Other';
+            if (regName) {
+              regName = regName.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+              sessionData.newPatientName = regName;
             }
 
-            const nameCandidate = rawInput
-              .replace(/\b\d{1,3}\s*(?:y(?:rs?|ears?|o)?|saal)?\b/gi, '')
-              .replace(/\b(male|female|other|purush|mahila|m\b|f\b)\b/gi, '')
-              .replace(/[,\-:|]/g, ' ')
-              .trim();
-            if (nameCandidate.length >= 2) {
-              regName = nameCandidate.replace(/\s+/g, ' ');
+            // Prompt specifically for age if missing
+            if (!ageFound || regAge <= 0) {
+              nextState = 'AWAITING_REGISTRATION_DETAILS';
+              replyMessage = `Namaste${regName ? ` *${regName}*` : ''}! 🙏\n\nClinical record aur OPD token ke liye, please apna *Age aur Gender* reply kijiye:\n\n👉 *Age, Gender* (e.g. *28, Male* ya *45, Female*) 👤`;
+            } else {
+              regName = regName || 'Patient';
+              const podCtx = getPodContext();
+              const targetPodId = podCtx.podId || FALLBACK_POD_ID;
+              const isPaperMode = (podCtx as any)?.operatingMode === 'paper_rx' || 
+                                  (podCtx as any)?.isDigitalEmrEnabled === false || 
+                                  (typeof window !== 'undefined' && localStorage.getItem('mediflow_operating_mode') === 'paper_rx');
+              const initialQueueStatus = isPaperMode ? 'awaiting_consultation' : 'awaiting_vitals';
+
+              const targetPatId = patient?.id || crypto.randomUUID();
+              PatientService.registerPatient({
+                id: targetPatId,
+                name: regName,
+                phone: phone,
+                age: regAge,
+                gender: regGender,
+                queueStatus: initialQueueStatus,
+                allergies: [],
+                chronicConditions: []
+              });
+
+              try {
+                supabase.from('patient_registry').upsert({
+                  id: targetPatId,
+                  name: regName,
+                  phone: phone,
+                  age: regAge,
+                  gender: regGender,
+                  queue_status: initialQueueStatus,
+                  registered_at: now,
+                  pod_id: targetPodId
+                }, { onConflict: 'id' }).then(() => {});
+              } catch (_e) { /* ignore */ }
+
+              sessionData.newPatientId = targetPatId;
+              sessionData.newPatientName = regName;
+              session.patientId = targetPatId;
+              session.patientName = regName;
+              nextState = 'AWAITING_APPOINTMENT_TYPE';
+              replyMessage = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
             }
-          }
-
-          regName = regName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') || 'Patient';
-
-          const targetPatId = patient?.id || crypto.randomUUID();
-          PatientService.registerPatient({
-            id: targetPatId,
-            name: regName,
-            phone: phone,
-            age: regAge,
-            gender: regGender,
-            queueStatus: 'awaiting_vitals',
-            allergies: [],
-            chronicConditions: []
-          });
-
-          const podCtx = getPodContext();
-          const targetPodId = podCtx.podId || FALLBACK_POD_ID;
-          try {
-            supabase.from('patient_registry').upsert({
-              id: targetPatId,
-              name: regName,
-              phone: phone,
-              age: regAge,
-              gender: regGender,
-              queue_status: 'awaiting_vitals',
-              registered_at: now,
-              pod_id: targetPodId
-            }, { onConflict: 'id' }).then(() => {});
-          } catch (_e) { /* ignore */ }
-
-          sessionData.newPatientId = targetPatId;
-          sessionData.newPatientName = regName;
-          session.patientId = targetPatId;
-          session.patientName = regName;
-          nextState = 'AWAITING_APPOINTMENT_TYPE';
-          replyMessage = `✅ *Patient Profile Created Successfully!* 🟢\n\nNamaste *${regName}*! Aapka digital clinical record ban gaya hai.\n\nAb aaiye aapka appointment token generate karte hain. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
           }
         } else if (session.currentState === 'AWAITING_APPOINTMENT_TYPE') {
           if (cleaned === '1' || cleaned.includes('physical')) {

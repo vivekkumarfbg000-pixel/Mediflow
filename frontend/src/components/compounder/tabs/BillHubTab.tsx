@@ -17,6 +17,7 @@ import { useClinic } from '../../../context/ClinicContext';
 import { WhatsAppService } from '../../../services/whatsappService';
 import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
+import { ChronicCareService } from '../../../services/chronicCareService';
 import { ForecastService } from '../../../services/forecastService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
@@ -809,6 +810,65 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         diagnosticTests: diagnosticTestsList
       });
 
+      // 1.5. AI Chronic Condition Detection & Automated Cohort Registration
+      try {
+        const chronicDetection = ChronicCareService.detectChronicCondition(
+          medicationsList.map(m => m.medicineName).join(' '),
+          `${(digitized as any).diagnosis || ''} AI Scanned Handwritten Prescription`
+        );
+
+        if (chronicDetection) {
+          const conditionCode = chronicDetection.code;
+          const conditionName = chronicDetection.name;
+          const currentConditions = new Set(patientObj.chronicConditions || []);
+          currentConditions.add(conditionName);
+
+          (patientObj as any).isChronic = true;
+          patientObj.chronicConditions = Array.from(currentConditions);
+
+          // Update local patient in registry
+          const allPats = PatientService.getPatients();
+          const pIdx = allPats.findIndex(p => p.id === patientObj.id);
+          if (pIdx >= 0) {
+            (allPats[pIdx] as any).isChronic = true;
+            allPats[pIdx].chronicConditions = Array.from(currentConditions);
+            PatientService.savePatients(allPats);
+          }
+
+          // Auto-enroll in Chronic Care Cohort
+          await ChronicCareService.registerChronicPatient({
+            patientId: patientObj.id,
+            patientName: patientObj.name,
+            patientPhone: patientObj.phone,
+            conditionCode: conditionCode,
+            conditionName: conditionName,
+            medications: medicationsList.map(m => ({ name: m.medicineName, dosage: m.dosage })),
+            daysSupply: 30,
+            nextRefillDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          } as any);
+
+          // Dual-write chronic flag to Supabase
+          supabase.from('patient_registry').update({
+            is_chronic: true,
+            chronic_conditions: Array.from(currentConditions)
+          }).eq('id', patientObj.id).then(() => {});
+
+          window.dispatchEvent(new CustomEvent('mediflow-chronic-update', {
+            detail: { patientId: patientObj.id, condition: conditionName }
+          }));
+
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: {
+              title: 'Chronic Patient Enrolled! 🩺',
+              message: `${patientObj.name} identified with ${conditionName}. Enrolled in Day-25 WhatsApp Refill & Adherence Program.`,
+              type: 'info'
+            }
+          }));
+        }
+      } catch (chronicErr) {
+        console.warn('[BillHubTab] Chronic detection note:', chronicErr);
+      }
+
       // 2. Dispatch Lab Tests to Pathology Requisitions
       if (diagnosticTestsList.length > 0) {
         try {
@@ -1289,6 +1349,30 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://app.vitalsync.in/invoices/${unifiedInvoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
       WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, invoiceMsg);
 
+      // 8.1. Automated Dosage Delivery & Supabase Dosage Schedules Dispatch
+      if (selectedPatient.phone && (billingLedger.medicinesList || []).length > 0) {
+        const activeMedsForDosage = (billingLedger.medicinesList || [])
+          .filter(m => selectedMedicines[(m?.name || '').toLowerCase()]?.selected)
+          .map(m => ({
+            medicineName: m.name,
+            dosage: (m as any).dosage || '1 Tab',
+            frequency: (m as any).frequency || (m as any).freq || '1-0-1',
+            duration: (m as any).duration || (m as any).dur || '10 Days',
+            instructions: (m as any).instructions || 'Take with water after meals'
+          }));
+
+        if (activeMedsForDosage.length > 0) {
+          ClinicalNotificationService.dispatchPrescriptionDosageWhatsApp({
+            patientPhone: selectedPatient.phone,
+            patientName: selectedPatient.name,
+            doctorName: activePod?.doctor_name || 'Dr. Attending Physician',
+            clinicName: activePod?.name || activeProfile?.clinicName || 'VitalSync Clinic',
+            medications: activeMedsForDosage,
+            clinicalNotes: 'Prescription settled and verified at Pharmacy Counter'
+          }).catch(err => console.warn('[BillHubTab] Prescription dosage WhatsApp dispatch notice:', err));
+        }
+      }
+
       // 9. Dispatch state change event for instant 360-degree CDC update across consoles
       window.dispatchEvent(new CustomEvent('mediflow-state-change', {
         detail: {
@@ -1297,6 +1381,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           invoiceId: unifiedInvoiceId,
           paymentStatus: 'cleared'
         }
+      }));
+      window.dispatchEvent(new CustomEvent('mediflow-chronic-update', {
+        detail: { patientId: selectedPatient.id }
       }));
 
       setRefreshKey(prev => prev + 1);

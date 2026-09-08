@@ -40,13 +40,42 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
   const [isTriggeringCron, setIsTriggeringCron] = useState(false);
 
   useEffect(() => {
+    let timer: any = null;
     const fetchCohorts = async () => {
-      setIsLoading(true);
       const data = await ChronicCareService.getChronicCohorts();
       setCohorts(data);
       setIsLoading(false);
     };
     fetchCohorts();
+
+    const handleUpdate = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        fetchCohorts();
+      }, 250);
+    };
+
+    window.addEventListener('mediflow-chronic-update', handleUpdate);
+    window.addEventListener('mediflow-state-change', handleUpdate);
+
+    // Supabase Realtime CDC subscription on chronic_care_cohorts
+    const channel = supabase
+      .channel(`chronic-care-live-${Date.now()}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chronic_care_cohorts'
+      }, () => {
+        handleUpdate();
+      })
+      .subscribe();
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('mediflow-chronic-update', handleUpdate);
+      window.removeEventListener('mediflow-state-change', handleUpdate);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Aggregated KPI Metrics

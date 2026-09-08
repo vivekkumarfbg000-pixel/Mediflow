@@ -262,11 +262,17 @@ export class PatientService {
       const matchedAppt = todayAppts.find(a => a.patientId === p.id || a.patient_id === p.id);
       const resolvedToken = tokensMap[p.id] || p.tokenNumber || (p as any).token_number || matchedAppt?.tokenNumber || (matchedAppt as any)?.token_number;
 
+      const isPaperMode = typeof window !== 'undefined' && (
+        localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
+        localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
+      );
+      const defaultQueueStatus = isPaperMode ? 'awaiting_consultation' : 'awaiting_vitals';
+
       return {
         ...p,
         vitals: vitalsMap[p.id] || p.vitals,
         tokenNumber: resolvedToken,
-        queueStatus: queueStatusMap[p.id] || p.queueStatus || 'awaiting_vitals',
+        queueStatus: queueStatusMap[p.id] || (isPaperMode && p.queueStatus === 'awaiting_vitals' ? 'awaiting_consultation' : (p.queueStatus || defaultQueueStatus)),
         syncStatus: syncStatusMap[p.id] || p.syncStatus || 'synced',
         isPremiumMember: premiumMap[p.id] !== undefined ? premiumMap[p.id] : p.isPremiumMember
       };
@@ -674,12 +680,21 @@ export class PatientService {
     const customPatientId = patientData.patientCode || this.generateSmartPatientId(patientData.name, patients);
     const nextToken = patientData.tokenNumber || this.generateNextTokenNumber(undefined, false);
 
+    const isPaperMode = typeof window !== 'undefined' && (
+      localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
+      localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
+    );
+    const resolvedQueueStatus = patientData.queueStatus 
+      ? (isPaperMode && patientData.queueStatus === 'awaiting_vitals' ? 'awaiting_consultation' : patientData.queueStatus)
+      : (isPaperMode ? 'awaiting_consultation' : 'awaiting_vitals');
+
     const newPatient: Patient = {
       ...patientData,
       id: newId,
       podId: currentPodId,
       patientCode: customPatientId,
       tokenNumber: nextToken,
+      queueStatus: resolvedQueueStatus,
       createdAt: new Date().toISOString()
     } as any;
     
@@ -689,6 +704,28 @@ export class PatientService {
     const syncStatusMap = load<Record<string, Patient['syncStatus']>>('sync_status_map', {});
     syncStatusMap[newPatient.id] = 'pending';
     save('sync_status_map', syncStatusMap);
+
+    // Immediate Dual-Write to Supabase
+    (async () => {
+      try {
+        await supabase.from('patient_registry').upsert({
+          id: newPatient.id,
+          name: newPatient.name,
+          phone: newPatient.phone,
+          age: newPatient.age,
+          gender: newPatient.gender,
+          allergies: newPatient.allergies,
+          chronic_conditions: newPatient.chronicConditions,
+          abha_id: newPatient.abhaId,
+          token_number: newPatient.tokenNumber,
+          patient_code: newPatient.patientCode,
+          queue_status: resolvedQueueStatus,
+          pod_id: currentPodId || null
+        }, { onConflict: 'id' });
+      } catch (err) {
+        console.warn('[PatientService] Direct registration upsert notice:', err);
+      }
+    })();
 
     // Push to sync queue
     const queue = load<any[]>('sync_queue', []);
@@ -707,6 +744,7 @@ export class PatientService {
         abha_id: newPatient.abhaId,
         token_number: newPatient.tokenNumber,
         patient_code: newPatient.patientCode,
+        queue_status: resolvedQueueStatus,
         registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== FALLBACK_ENTITY_ID) ? getPodContext().entityId : null,
         pod_id: currentPodId
       },

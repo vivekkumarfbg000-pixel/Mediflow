@@ -4,6 +4,7 @@ import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../../ser
 import { api } from '../../../services/api';
 import { BillingService } from '../../../services/billingService';
 import { EncounterService } from '../../../services/encounterService';
+import { LabService } from '../../../services/labService';
 import { useClinic } from '../../../context/ClinicContext';
 import { getIstDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
@@ -299,7 +300,18 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                       </span>
                       <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">ID: {p.patientCode || p.tokenNumber || 'PAT'}</span>
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-1">{p.gender}, {p.age} years • {p.phone}</div>
+                    <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between flex-wrap gap-1">
+                      <span>{p.gender}, {p.age} years • {p.phone}</span>
+                      {(() => {
+                        const hasReports = LabService.getFullLabReports().some(r => (r.patientId === p.id || (r as any).patient_id === p.id) && Boolean(r.reportFileUrl || (r as any).fileUrl));
+                        if (!hasReports) return null;
+                        return (
+                          <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                            🔬 Report Ready
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </button>
                 );
               })}
@@ -559,6 +571,103 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Official Pathology Lab Reports & Instant PDF Preview ──────────────────── */}
+            {(() => {
+              const fullReports = LabService.getFullLabReports().filter(
+                r => (r.patientId === selectedDirectoryPatient.id || (r as any).patient_id === selectedDirectoryPatient.id)
+              );
+              const pathReports = LabService.getPathologyReports().filter(
+                r => (r.patientId === selectedDirectoryPatient.id || (r as any).patient_id === selectedDirectoryPatient.id)
+              );
+              
+              // Combined unique reports
+              const allReports = [...fullReports];
+              pathReports.forEach(pr => {
+                if (!allReports.some(fr => fr.id === pr.id || fr.requisitionId === pr.id)) {
+                  allReports.push({
+                    id: pr.id,
+                    requisitionId: pr.id,
+                    patientId: pr.patientId,
+                    patientName: pr.patientName,
+                    reportFileUrl: pr.reportUrl || pr.fileUrl || pr.pdfUrl,
+                    status: pr.status || 'approved',
+                    createdAt: pr.timestamp || new Date().toISOString(),
+                    updatedAt: pr.timestamp || new Date().toISOString()
+                  } as any);
+                }
+              });
+
+              return (
+                <div className="p-5 bg-white border border-teal-200/80 rounded-3xl space-y-4 shadow-sm text-left">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+                        <FlaskConical className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Pathology Lab Reports</h4>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Official electronic laboratory diagnostic reports & instant PDF preview</p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full border border-teal-200">
+                      {allReports.length} {allReports.length === 1 ? 'Report' : 'Reports'}
+                    </span>
+                  </div>
+
+                  {allReports.length === 0 ? (
+                    <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center text-[10px] text-slate-400">
+                      No pathology reports uploaded yet for {selectedDirectoryPatient.name}.
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {allReports.map((rep, rIdx) => {
+                        const fileUrl = rep.reportFileUrl || (rep as any).fileUrl || (rep as any).pdfUrl || (rep as any).reportUrl;
+                        return (
+                          <div key={rep.id || `rep-${rIdx}`} className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2 hover:border-teal-300 transition-all">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 block">
+                                  {(rep as any).testName || (rep.biomarkerJson as any)?.testName || 'Pathology Diagnostic Panel'}
+                                </span>
+                                <span className="text-[9.5px] text-slate-500 font-mono">
+                                  {new Date(rep.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[8.5px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                  (rep.status as any) === 'approved' || (rep.status as any) === 'completed' 
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                                }`}>
+                                  {rep.status}
+                                </span>
+                                {fileUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(fileUrl, '_blank', 'noopener,noreferrer')}
+                                    className="px-2.5 py-1 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-[9.5px] rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition active:scale-95 border-0 text-white-force"
+                                    title="Open Official PDF Report in New Tab"
+                                  >
+                                    <FileText className="w-3 h-3 text-white-force" />
+                                    <span>📄 View PDF</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {(rep as any).hinglishSummary && (
+                              <p className="text-[10px] text-teal-800 bg-teal-50/60 border border-teal-200/50 p-2 rounded-lg leading-relaxed">
+                                <strong>AI Clinical Summary:</strong> {(rep as any).hinglishSummary}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

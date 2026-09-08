@@ -1134,6 +1134,9 @@ function isUnregisteredOrIncompletePatient(pat: any): boolean {
   if (!name || name === 'WhatsApp Patient' || name === 'Patient' || name === 'Walk-In Patient' || name === 'VD' || name === 'User') return true;
   if (name.toLowerCase().startsWith('patient (+91') || name.toLowerCase().startsWith('patient (')) return true;
   if (name.length < 2) return true;
+  const age = Number(pat.age);
+  if (!age || isNaN(age) || age <= 0) return true;
+  if (!pat.gender || !['male', 'female', 'other'].includes(String(pat.gender).toLowerCase().trim())) return true;
   return false;
 }
 
@@ -1181,6 +1184,7 @@ async function triggerBotReplyPipeline(ctx: {
   let resolvedClinicName = connection?.clinic_display_name || sessionData?.clinicName || "Clinic";
   let resolvedConsultationFee = 500;
   let resolvedEmergencySosFee = 618;
+  let isPaperMode = false;
   
   try {
     const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
@@ -1195,7 +1199,7 @@ async function triggerBotReplyPipeline(ctx: {
         : Promise.resolve({ data: [] }),
       supabase.from("profiles").select("id, display_name, consultation_fee, pod_id, entity_id").eq("role", "doctor").eq("pod_id", currentPodId).limit(1).maybeSingle(),
       supabase.from("entities").select("name").eq("pod_id", currentPodId).eq("entity_type", "clinic").limit(1).maybeSingle(),
-      supabase.from("pods").select("name").eq("id", currentPodId).maybeSingle(),
+      supabase.from("pods").select("name, operating_mode, is_digital_emr_enabled").eq("id", currentPodId).maybeSingle(),
       supabase.from("clinic_sops").select("extracted_config").or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`).order("created_at", { ascending: false }).limit(1).maybeSingle()
     ]);
 
@@ -1219,6 +1223,7 @@ async function triggerBotReplyPipeline(ctx: {
     }
 
     const sopCfg = sopRow?.extracted_config;
+    isPaperMode = podRes?.data?.operating_mode === 'paper_rx' || podRes?.data?.is_digital_emr_enabled === false || sopCfg?.operating_mode === 'paper_rx' || connection?.operating_mode === 'paper_rx';
     const sopDoctorFee = Number(sopCfg?.doctor_fee || 0);
     if (sopDoctorFee > 0) {
       resolvedConsultationFee = sopDoctorFee;
@@ -1643,16 +1648,20 @@ async function triggerBotReplyPipeline(ctx: {
     case "AWAITING_REGISTRATION_DETAILS":
       // Robust multi-format parsing for new patient registration details: Name, Age, Gender
       const rawInput = incomingText.trim();
-      let regName = rawInput;
-      let regAge = 30;
+      let regName = sessionData.tempNewPatientName || "";
+      let regAge: number | null = null;
       let regGender = "Male";
+      let ageFound = false;
 
       if (rawInput.includes(",")) {
         const parts = rawInput.split(",").map(p => p.trim()).filter(Boolean);
-        if (parts.length >= 1 && parts[0]) regName = parts[0];
+        if (parts.length >= 1 && parts[0] && isNaN(parseInt(parts[0]))) regName = parts[0];
         if (parts.length >= 2) {
           const parsedA = parseInt(parts[1]);
-          if (!isNaN(parsedA)) regAge = parsedA;
+          if (!isNaN(parsedA) && parsedA > 0 && parsedA < 125) {
+            regAge = parsedA;
+            ageFound = true;
+          }
         }
         if (parts.length >= 3) {
           const g = parts[2].toLowerCase();
@@ -1661,7 +1670,13 @@ async function triggerBotReplyPipeline(ctx: {
         }
       } else {
         const ageMatch = rawInput.match(/\b(\d{1,3})\s*(?:y(?:rs?|ears?|o)?|saal)?\b/i);
-        if (ageMatch) regAge = parseInt(ageMatch[1]);
+        if (ageMatch) {
+          const parsedA = parseInt(ageMatch[1]);
+          if (parsedA > 0 && parsedA < 125) {
+            regAge = parsedA;
+            ageFound = true;
+          }
+        }
 
         const genderMatch = rawInput.match(/\b(male|female|other|purush|mahila|m\b|f\b)\b/i);
         if (genderMatch) {
@@ -1675,12 +1690,29 @@ async function triggerBotReplyPipeline(ctx: {
           .replace(/\b(male|female|other|purush|mahila|m\b|f\b)\b/gi, "")
           .replace(/[,\-:|]/g, " ")
           .trim();
-        if (nameCandidate.length >= 2) {
+        if (nameCandidate.length >= 2 && isNaN(parseInt(nameCandidate))) {
           regName = nameCandidate.replace(/\s+/g, " ");
         }
       }
 
-      regName = regName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") || "Patient";
+      if (regName) {
+        regName = regName.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+        sessionData.tempNewPatientName = regName;
+      }
+
+      // If Age was not provided or parsed, prompt specifically for Age and Gender before proceeding
+      if (!ageFound || !regAge) {
+        if (!regName || regName === "Patient") {
+          regName = waContactName && !["VD", "WhatsApp", "User", "Patient"].includes(waContactName) ? waContactName : "";
+        }
+        if (regName) sessionData.tempNewPatientName = regName;
+
+        nextState = "AWAITING_REGISTRATION_DETAILS";
+        replyText = `Namaste${regName ? ` *${regName}*` : ""}! 🙏\n\nClinical record aur accurate OPD token ke liye, please apna *Age aur Gender* reply kijiye:\n\n👉 *Age, Gender* (e.g. *28, Male* ya *45, Female*) 👤`;
+        break;
+      }
+
+      regName = regName || "Patient";
 
       const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10);
       let targetPatId = patient?.id;
@@ -1688,6 +1720,7 @@ async function triggerBotReplyPipeline(ctx: {
       const currentPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
       const currentEntityId = toValidUuid(session.entity_id || connection?.entity_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002", currentPodId);
       const pCode = `${(regName.substring(0, 1) || 'P').toUpperCase()}1`;
+      const initialQueueStatus = isPaperMode ? "awaiting_consultation" : "awaiting_vitals";
 
       try {
         if (targetPatId) {
@@ -1699,7 +1732,7 @@ async function triggerBotReplyPipeline(ctx: {
               age: regAge,
               gender: regGender,
               patient_code: pCode,
-              queue_status: "awaiting_vitals"
+              queue_status: initialQueueStatus
             })
             .eq("id", targetPatId)
             .select()
@@ -1722,7 +1755,7 @@ async function triggerBotReplyPipeline(ctx: {
               referral_code: ownReferralCode,
               registered_at_entity: currentEntityId,
               pod_id: currentPodId,
-              queue_status: "awaiting_vitals"
+              queue_status: initialQueueStatus
             })
             .select()
             .single();
@@ -2310,7 +2343,7 @@ async function triggerBotReplyPipeline(ctx: {
 
     case "AWAITING_SLOT_SELECTION":
       let slotText = "";
-      const lowerSlot = (cleaned || messageText || "").toLowerCase().trim();
+      const lowerSlot = (cleaned || incomingText || "").toLowerCase().trim();
       if (
         lowerSlot === "1" ||
         lowerSlot.includes("morning") ||
@@ -2744,7 +2777,7 @@ async function triggerBotReplyPipeline(ctx: {
                 patient_code: pCode,
                 referral_code: `REF-${cleanPhone10.slice(-4)}`,
                 token_number: String(tokenNumber),
-                queue_status: isVirtualSlot ? "awaiting_consultation" : "awaiting_vitals"
+                queue_status: isVirtualSlot ? "awaiting_consultation" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals")
               });
               if (regErr) {
                 console.error("[Meta Webhook] Auto-register patient error:", regErr);
@@ -2761,7 +2794,7 @@ async function triggerBotReplyPipeline(ctx: {
                 name: targetPatName,
                 patient_code: pCode,
                 token_number: String(tokenNumber),
-                queue_status: isVirtualSlot ? "awaiting_consultation" : "awaiting_vitals"
+                queue_status: isVirtualSlot ? "awaiting_consultation" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals")
               }).eq("id", bookingPatId);
             } catch (_uErr) {}
           }
@@ -3010,7 +3043,7 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             if (apptId) {
-              const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
+              const finalStatus = (isVirtualSlot || isSosBooking || isPaperMode) ? "ready_for_consult" : "scheduled";
               await supabase
                 .from("appointments")
                 .update({ status: finalStatus, payment_status: "cleared", utr_number: utr })
@@ -3018,7 +3051,7 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             if (bookingPatId) {
-              const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
+              const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals"));
               await supabase
                 .from("patient_registry")
                 .update({ queue_status: nextQ, token_number: String(tokenNumber) })
@@ -3101,20 +3134,20 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             if (effectiveApptId) {
-              const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
+              const finalStatus = (isVirtualSlot || isSosBooking || isPaperMode) ? "ready_for_consult" : "scheduled";
               await supabase
                 .from("appointments")
                 .update({ 
                   status: finalStatus, 
                   payment_status: "cleared", 
-                  utr_number: utr,
+                  utr_number: utr, 
                   is_emergency: isSosBooking
                 })
                 .eq("id", effectiveApptId);
             }
 
             if (bookingPatId) {
-              const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
+              const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals"));
               await supabase
                 .from("patient_registry")
                 .update({ queue_status: nextQ, token_number: String(tokenNumber) })
@@ -3183,8 +3216,8 @@ async function triggerBotReplyPipeline(ctx: {
           try {
             await supabase.from("financial_ledgers").insert({
               invoice_id: invoiceId,
-              source_entity_id: safeEntityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
-              destination_entity_id: safeEntityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
+              source_entity_id: entityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
+              destination_entity_id: entityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
               transaction_type: "appointment_fee",
               gross_amount: Number(feeAmount) || 500,
               commission_rate: 0,
@@ -3194,7 +3227,7 @@ async function triggerBotReplyPipeline(ctx: {
               platform_fee_deducted: 0,
               gateway_disbursed_net: Number(feeAmount) || 500,
               payment_method: "upi",
-              pod_id: safePodId
+              pod_id: podId
             });
           } catch (_fErr) {
             console.error("[Meta Webhook] Financial ledger insert error:", _fErr);
@@ -3202,11 +3235,15 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (bookingPatId) {
-          const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
-          await supabase
-            .from("patient_registry")
-            .update({ queue_status: nextQ, token_number: String(tokenNumber) })
-            .eq("id", bookingPatId);
+          try {
+            const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals"));
+            await supabase
+              .from("patient_registry")
+              .update({ queue_status: nextQ, token_number: String(tokenNumber) })
+              .eq("id", bookingPatId);
+          } catch (qErr) {
+            console.warn("[Meta Webhook] Patient registry queue update warning:", qErr);
+          }
         }
 
         nextState = "COMPLETED";
@@ -3251,16 +3288,25 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (effectiveApptId) {
-          await supabase.from("appointments").update({ 
-            status: "scheduled", 
-            payment_status: "pending_counter", 
-            token_number: String(tokenNumber),
-            is_emergency: isSosBooking
-          }).eq("id", effectiveApptId);
+          try {
+            const finalStatus = (isVirtualSlot || isSosBooking || isPaperMode) ? "ready_for_consult" : "scheduled";
+            await supabase.from("appointments").update({ 
+              status: finalStatus, 
+              payment_status: "pending_counter", 
+              token_number: String(tokenNumber),
+              is_emergency: isSosBooking
+            }).eq("id", effectiveApptId);
+          } catch (_aErr) {
+            console.warn("[Meta Webhook] Counter appointment update warning:", _aErr);
+          }
         }
         if (bookingPatId) {
-          const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : "awaiting_vitals");
-          await supabase.from("patient_registry").update({ queue_status: nextQ, token_number: String(tokenNumber) }).eq("id", bookingPatId);
+          try {
+            const nextQ = isVirtualSlot ? "awaiting_consultation" : (isSosBooking ? "sos_priority" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals"));
+            await supabase.from("patient_registry").update({ queue_status: nextQ, token_number: String(tokenNumber) }).eq("id", bookingPatId);
+          } catch (_pErr) {
+            console.warn("[Meta Webhook] Counter patient registry update warning:", _pErr);
+          }
         }
         nextState = "COMPLETED";
         sessionData.isSos = false;
@@ -3717,7 +3763,7 @@ async function triggerBotReplyPipeline(ctx: {
               id: sosInvoiceId,
               patient_id: sosPatId,
               doctor_fee: doctorSosFee,
-              platform_fee: platformFeeSos,
+              platform_fee: 0,
               total_amount: totalSosFee,
               payment_status: "pending",
               upi_qr_payload: paymentGatewayUrlSos,
@@ -3738,7 +3784,7 @@ async function triggerBotReplyPipeline(ctx: {
         const appBaseUrl = Deno.env.get("PUBLIC_APP_URL") || "https://vitalsync.in";
         const sosPortalPaymentUrl = paymentGatewayUrlSos || `${appBaseUrl}/pay/${sosInvoiceId}`;
 
-        replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\n${resolvedDoctorName} ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Doctor Consult Fee: ₹${doctorSosFee.toFixed(2)} (Includes 20% Doctor Priority Charge)\n• VitalSync Platform Fee (+3%): ₹${platformFeeSos.toFixed(2)}\n---------------------------------------\n*Total Amount Payable*: ₹${totalSosFee.toFixed(2)}\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${sosPortalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke case Priority #1 par active kar dega! 🟢`;
+        replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\n${resolvedDoctorName} ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Emergency Doctor Consultation Fee: *₹${doctorSosFee.toFixed(2)}*\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${sosPortalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke case Priority #1 par active kar dega! 🟢`;
 
       } else if (cleaned === "9" || cleaned === "locker" || cleaned.includes("health locker") || cleaned.includes("records")) {
         // DIGITAL HEALTH LOCKER: Compile full patient medical history
@@ -4004,10 +4050,7 @@ async function triggerBotReplyPipeline(ctx: {
               replyText = `⚠️ *AI Usage Limit Reached* \n\nAapka is month ka free clinical AI quota (10 questions) exhaust ho gaya hai.\n\n*Direct AI Upgrade Package*:\n• Price: ₹9.00 only (100% Doctor/Owner income)\n• Quota: 20 extra clinical queries\n• Validity: Active till end of this month\n\n📱 *Click to Pay via Razorpay 0% MDR UPI (GPay / PhonePe / Paytm / BHIM):*\n${aiPayUrl}\n\nPayment confirm karne ke baad please **ACTIVATE** reply karein! 🧾`;
             }
             aiSuccess = true; // Bypasses the fallback static RAG block
-          } else if (groqApiKey) {
-            try {
-              console.log(`[Meta Webhook] Calling Groq LLM for dynamic RAG response for patient: ${patient?.id || "anonymous"}. Count: ${sessionData.llmUsage.count}/${limit}`);
-            
+          } else {
             // Format Patient Profile Context
             const chronicList = (patient?.chronic_conditions ?? patient?.chronicConditions ?? []).join(", ") || "None recorded";
             
@@ -4061,6 +4104,10 @@ CLINICAL GUIDELINES:
 1. Always base your advice on ADA, KDIGO, or standard clinical protocols.
 2. If they have diabetes/sugar and are asking about sugar, explain that their average 3-month sugar level (HbA1c 7.2% or whatever is on file) requires reducing sugar/carbs. Suggest LOINC: 4544-3 tests.
 3. If creatinine is high (>1.2), caution them not to take heavy NSAIDs/pain-killers.`;
+
+            if (groqApiKey) {
+              try {
+                console.log(`[Meta Webhook] Calling Groq LLM for dynamic RAG response for patient: ${patient?.id || "anonymous"}. Count: ${sessionData.llmUsage.count}/${limit}`);
             // Using global LLM_CIRCUIT_BREAKERS and callWithCircuitBreaker defined at top level
             
             const chatHistoryMessages = chatHistory.slice(-5).map((h: any) => ({
@@ -4188,7 +4235,8 @@ CLINICAL GUIDELINES:
         }
       }
       }
-      break;
+    }
+    break;
 
     case "FAILED_DELIVERY":
       if (cleaned) {
