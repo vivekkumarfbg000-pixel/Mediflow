@@ -248,7 +248,7 @@ function AppContent({
         pod_view: 'Pod Workspace',
         consultation: 'Patient Consultation',
         patients: 'Directory',
-        financials: 'My Earnings & SOP Splits',
+        financials: 'Finances',
         whatsapp: 'WhatsApp Integration',
         sop: 'Clinic SOP'
       };

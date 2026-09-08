@@ -2781,7 +2781,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard, badge: 0 },
               ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList, badge: 0 }] : []),
               { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video, badge: vBadge },
-              { id: 'financials',        label: 'My Earnings & SOP Splits', icon: CreditCard, badge: 0 },
+              { id: 'financials',        label: 'Finances',               icon: CreditCard, badge: 0 },
               { id: 'patients',          label: 'Patient Directory',      icon: Users, badge: 0 },
               { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare, badge: 0 }
             ];
