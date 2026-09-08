@@ -670,7 +670,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               How VitalSync Works in 4 Simple Clinic Steps
             </h2>
             <p className="text-slate-600 text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-medium">
-              Zero disruption to your daily OPD rush. Doctors can write on paper or type on screen — while your compounder, chemist, and lab sync automatically in real time.
+              Zero disruption to your daily OPD rush. Patients book 24/7 via WhatsApp AI or walk in at your desk — while doctors write on paper or screen with zero data entry.
             </p>
           </div>
 
@@ -682,22 +682,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-sm">
                     01
                   </span>
-                  <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                    🩺 Front Desk Intake
+                  <span className="text-[10px] font-mono font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                    🤖 24/7 WhatsApp AI &amp; Desk Intake
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">Smart OPD Token &amp; Vitals</h3>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1 list-disc list-inside">
-                    <li>Compounder registers patient with phone &amp; age.</li>
-                    <li>Records BP, Pulse, SpO₂, Temp, Blood Sugar.</li>
-                    <li>Generates OPD Token (<code className="text-[10px] bg-slate-100 px-1 rounded font-bold font-mono">#TK-001</code>).</li>
-                    <li>Unpaid visits held safely at payment gate.</li>
+                  <h3 className="font-bold text-sm text-slate-900">WhatsApp AI Booking &amp; OPD Token</h3>
+                  <ul className="text-xs text-slate-600 mt-2 space-y-1.5 list-disc list-inside">
+                    <li><strong className="text-slate-800">24/7 WhatsApp AI Agent:</strong> Patients book checkups in 30s with 1-tap buttons.</li>
+                    <li><strong className="text-slate-800">Smart Sequential Token:</strong> Instant token (<code className="text-[10px] bg-slate-100 px-1 rounded font-bold font-mono">#TK-001</code>) + live turn alerts.</li>
+                    <li><strong className="text-slate-800">Front Desk Intake:</strong> Walk-ins registered with BP, Pulse, SpO₂, Temp &amp; Sugar.</li>
+                    <li><strong className="text-slate-800">Payment Gate:</strong> Direct Doctor UPI QR or Cash clears patients safely.</li>
                   </ul>
                 </div>
               </div>
               <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-teal-800 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-teal-600" /> Patient waits in queue
+                <Check className="w-3.5 h-3.5 text-teal-600" /> 30s WhatsApp Auto-Booking + Zero Rush
               </div>
             </div>
 
