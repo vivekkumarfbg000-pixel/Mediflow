@@ -6234,6 +6234,22 @@ CREATE TABLE IF NOT EXISTS public.dosage_schedules (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Defensively ensure all columns exist if dosage_schedules was created earlier without status
+ALTER TABLE IF EXISTS public.dosage_schedules
+  ADD COLUMN IF NOT EXISTS pod_id UUID REFERENCES public.clinic_pods(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS patient_phone TEXT,
+  ADD COLUMN IF NOT EXISTS patient_name TEXT,
+  ADD COLUMN IF NOT EXISTS medicine_name TEXT,
+  ADD COLUMN IF NOT EXISTS dosage TEXT,
+  ADD COLUMN IF NOT EXISTS frequency TEXT,
+  ADD COLUMN IF NOT EXISTS duration TEXT,
+  ADD COLUMN IF NOT EXISTS instructions TEXT,
+  ADD COLUMN IF NOT EXISTS reminder_times TEXT[] DEFAULT '{"08:00 AM", "08:00 PM"}',
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
 CREATE INDEX IF NOT EXISTS idx_dosage_schedules_patient 
   ON public.dosage_schedules (patient_id);
 
