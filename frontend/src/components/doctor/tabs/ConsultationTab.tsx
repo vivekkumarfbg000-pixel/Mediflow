@@ -1711,7 +1711,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
               const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
 
-              const isPaperRx = Boolean(isPaperMode || (typeof window !== 'undefined' && localStorage.getItem('mediflow_digital_emr_enabled') === 'false'));
+              const isPaperRx = Boolean(
+                isPaperMode || 
+                (typeof window !== 'undefined' && (
+                  localStorage.getItem('vitalsync_operating_mode') === 'paper_rx' ||
+                  localStorage.getItem('mediflow_operating_mode') === 'paper_rx' ||
+                  localStorage.getItem('vitalsync_digital_emr_enabled') === 'false' ||
+                  localStorage.getItem('mediflow_digital_emr_enabled') === 'false'
+                ))
+              );
               const awaitingList = patients.filter(p => {
                 if (!paidPatientIds.has(p.id)) return false;
                 if (isCompletedPat(p)) return false;
@@ -1879,16 +1887,22 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                     return (!isCompletedPat(p) && isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
                   })
                   .sort((a, b) => {
-                    const isSosA = Boolean((a as any).isEmergency || (a as any).is_emergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('emergency') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).toUpperCase().includes(' E') || String(a.tokenNumber).toUpperCase().includes('E-') || String(a.tokenNumber).startsWith('#EM-'))));
-                    const isSosB = Boolean((b as any).isEmergency || (b as any).is_emergency || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('emergency') || (b.tokenNumber && (String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).toUpperCase().includes(' E') || String(b.tokenNumber).toUpperCase().includes('E-') || String(b.tokenNumber).startsWith('#EM-'))));
+                    const hasVipApptA = appointments.some(appt => (appt.patientId === a.id || (appt as any).patient_id === a.id) && (appt.status !== 'cancelled') && ((appt as any).isEmergency || (appt as any).is_emergency || (appt as any).isVip || (appt as any).is_vip || String(appt.source || '').toLowerCase().includes('vip') || String(appt.source || '').toLowerCase().includes('sos') || String(appt.tokenNumber || (appt as any).token_number || '').startsWith('VIP-')));
+                    const hasVipApptB = appointments.some(appt => (appt.patientId === b.id || (appt as any).patient_id === b.id) && (appt.status !== 'cancelled') && ((appt as any).isEmergency || (appt as any).is_emergency || (appt as any).isVip || (appt as any).is_vip || String(appt.source || '').toLowerCase().includes('vip') || String(appt.source || '').toLowerCase().includes('sos') || String(appt.tokenNumber || (appt as any).token_number || '').startsWith('VIP-')));
+                    const isSosA = Boolean(hasVipApptA || (a as any).isEmergency || (a as any).is_emergency || (a as any).isVip || (a as any).is_vip || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('vip') || (a.tokenNumber && (String(a.tokenNumber).toUpperCase().includes('SOS') || String(a.tokenNumber).toUpperCase().includes(' E') || String(a.tokenNumber).toUpperCase().startsWith('VIP-') || String(a.tokenNumber).startsWith('#EM-'))));
+                    const isSosB = Boolean(hasVipApptB || (b as any).isEmergency || (b as any).is_emergency || (b as any).isVip || (b as any).is_vip || String((b as any).source || '').toLowerCase().includes('sos') || String((b as any).source || '').toLowerCase().includes('vip') || (b.tokenNumber && (String(b.tokenNumber).toUpperCase().includes('SOS') || String(b.tokenNumber).toUpperCase().includes(' E') || String(b.tokenNumber).toUpperCase().startsWith('VIP-') || String(b.tokenNumber).startsWith('#EM-'))));
+                    
+                    // Priority #1: VIP bookings strictly on top
                     if (isSosA && !isSosB) return -1;
                     if (!isSosA && isSosB) return 1;
 
+                    // Within same priority tier: in_consultation first, then awaiting_consultation
                     const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2 };
                     const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
                     const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
                     if (statusA !== statusB) return statusA - statusB;
 
+                    // Then sort strictly by sequential token sequence
                     const tokenA = parseTokenNum(a.tokenNumber);
                     const tokenB = parseTokenNum(b.tokenNumber);
                     return tokenA - tokenB;

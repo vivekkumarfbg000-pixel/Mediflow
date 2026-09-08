@@ -1068,40 +1068,23 @@ export const CompounderDashboard: React.FC = () => {
   const activeOpdAppointments = useMemo(() => {
     const rawList = categorizedAppts.todayOpdQueue;
 
-    // Deduplicate by patient ID so each patient has exactly one active appointment card in today's queue
-    const seenPatients = new Map<string, Appointment>();
+    // Map each appointment to an actionable queue card (preserve all appointments by appt.id)
+    const seenApptIds = new Set<string>();
+    const uniqueAppts: Appointment[] = [];
     rawList.forEach(appt => {
-      const pKey = String(appt.patientId || (appt as any).patient_id || appt.id);
-      if (!seenPatients.has(pKey)) {
-        seenPatients.set(pKey, appt);
-      } else {
-        // Keep whichever appointment is in active progress or more recently updated
-        const existing = seenPatients.get(pKey)!;
-        const statusPriority: Record<string, number> = { 
-          in_consult: 6, 
-          ready_for_consult: 5, 
-          vitals_completed: 4, 
-          awaiting_vitals: 3, 
-          scheduled: 3, 
-          checked_in: 2, 
-          completed: 1 
-        };
-        const curScore = statusPriority[appt.status] ?? 1;
-        const existScore = statusPriority[existing.status] ?? 1;
-        if (curScore > existScore || (curScore === existScore && new Date(appt.createdAt || (appt as any).created_at || 0).getTime() > new Date(existing.createdAt || (existing as any).created_at || 0).getTime())) {
-          seenPatients.set(pKey, appt);
-        }
+      const key = String(appt.id || `${appt.patientId}_${appt.tokenNumber}`);
+      if (!seenApptIds.has(key)) {
+        seenApptIds.add(key);
+        uniqueAppts.push(appt);
       }
     });
 
-    const seenTokens = new Set<string>();
-    const resolvedList = Array.from(seenPatients.values()).map((appt, idx) => {
+    const resolvedList = uniqueAppts.map((appt, idx) => {
       const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
       let rawToken = appt.tokenNumber || (appt as any).token_number || p?.tokenNumber || (p as any)?.token_number;
       if (!rawToken) {
         rawToken = isVipBooking(appt) ? `VIP-${String(idx + 1).padStart(2, '0')}` : `T-${String(idx + 1).padStart(2, '0')}`;
       }
-      seenTokens.add(rawToken);
       const patDisplayName = (appt.patientName && appt.patientName !== 'WhatsApp Patient' && appt.patientName !== 'Patient')
         ? appt.patientName
         : (p?.name && p.name !== 'WhatsApp Patient')

@@ -94,7 +94,8 @@ export const DoctorDashboard: React.FC = () => {
 
   const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('vitalsync_digital_emr_enabled') === 'true';
+      return localStorage.getItem('vitalsync_digital_emr_enabled') === 'true' ||
+             localStorage.getItem('mediflow_digital_emr_enabled') === 'true';
     } catch {
       return false;
     }
@@ -107,11 +108,23 @@ export const DoctorDashboard: React.FC = () => {
         if (!e.detail.enabled && activeTab === 'consultation') {
           setActiveTab('pod_view');
         }
+      } else if (e.detail && typeof e.detail.mode === 'string') {
+        const enabled = e.detail.mode === 'digital_emr';
+        setIsDigitalEmrEnabled(enabled);
+        if (!enabled && activeTab === 'consultation') {
+          setActiveTab('pod_view');
+        }
       }
     };
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'vitalsync_digital_emr_enabled') {
+      if (e.key === 'vitalsync_digital_emr_enabled' || e.key === 'mediflow_digital_emr_enabled') {
         const enabled = e.newValue === 'true';
+        setIsDigitalEmrEnabled(enabled);
+        if (!enabled && activeTab === 'consultation') {
+          setActiveTab('pod_view');
+        }
+      } else if (e.key === 'vitalsync_operating_mode' || e.key === 'mediflow_operating_mode') {
+        const enabled = e.newValue === 'digital_emr';
         setIsDigitalEmrEnabled(enabled);
         if (!enabled && activeTab === 'consultation') {
           setActiveTab('pod_view');
@@ -119,9 +132,11 @@ export const DoctorDashboard: React.FC = () => {
       }
     };
     window.addEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+    window.addEventListener('mediflow-operating-mode-changed', handleModeChange);
     window.addEventListener('storage', handleStorage);
     return () => {
       window.removeEventListener('mediflow-digital-emr-mode-changed', handleModeChange);
+      window.removeEventListener('mediflow-operating-mode-changed', handleModeChange);
       window.removeEventListener('storage', handleStorage);
     };
   }, [activeTab]);
@@ -133,11 +148,17 @@ export const DoctorDashboard: React.FC = () => {
     }
     try {
       localStorage.setItem('vitalsync_digital_emr_enabled', String(newVal));
+      localStorage.setItem('mediflow_digital_emr_enabled', String(newVal));
+      localStorage.setItem('vitalsync_operating_mode', newVal ? 'digital_emr' : 'paper_rx');
+      localStorage.setItem('mediflow_operating_mode', newVal ? 'digital_emr' : 'paper_rx');
     } catch (e) {
       console.error(e);
     }
     window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
       detail: { enabled: newVal }
+    }));
+    window.dispatchEvent(new CustomEvent('mediflow-operating-mode-changed', {
+      detail: { mode: newVal ? 'digital_emr' : 'paper_rx' }
     }));
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
@@ -1535,6 +1556,9 @@ Keep the tone professional, clinical, objective, and precise.`;
                   hideHeader={true}
                   hideFinancialOverview={true}
                   hideFulfillmentWidgets={true}
+                  appointments={appointments}
+                  patients={patients}
+                  isPaperMode={!isDigitalEmrEnabled}
                   onOpenChronicCare={() => setActiveTab('chronic')}
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');
@@ -2248,6 +2272,9 @@ Keep the tone professional, clinical, objective, and precise.`;
                   hideHeader={true}
                   hideFinancialOverview={true}
                   hideFulfillmentWidgets={true}
+                  appointments={appointments}
+                  patients={patients}
+                  isPaperMode={!isDigitalEmrEnabled}
                   onOpenChronicCare={() => setActiveTab('chronic')}
                   onStartConsultation={(patient: Patient) => {
                     setNotes('');

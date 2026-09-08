@@ -330,7 +330,7 @@ export class RealtimeSyncService {
   // Cloud Hydration Deduplication & Throttling (Prevents egress spikes on component mounts / HMR)
   private static lastHydrationTime = 0;
   private static inFlightHydration: Promise<void> | null = null;
-  private static readonly HYDRATION_THROTTLE_MS = 60_000;
+  private static readonly HYDRATION_THROTTLE_MS = 2_000;
 
   // ── 360° Realtime Cloud-First Boot & Data Hydration Engine ────────────────
   static async fetchInitialCloudData(forcedPodId?: string, bypassThrottle = false): Promise<void> {
@@ -423,8 +423,8 @@ export class RealtimeSyncService {
             }
 
             for (const key of storageKeys) {
-              clearStorageCache(key, false);
-              save(key, finalDataset, false);
+              clearStorageCache(key);
+              save(key, finalDataset, true);
             }
           }
         };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '../../services/api';
-import type { Patient, LabRequisition, InventoryHold, FinancialLedgerEntry, WhatsAppSession, PathologyReport } from '../../types';
+import type { Patient, Appointment, LabRequisition, InventoryHold, FinancialLedgerEntry, WhatsAppSession, PathologyReport } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ProactiveHealthMonitor } from '../../services/autoHealerAgent';
@@ -48,6 +48,9 @@ interface PodCommandCenterProps {
   hideHeader?: boolean;
   hideFinancialOverview?: boolean;
   hideFulfillmentWidgets?: boolean;
+  appointments?: Appointment[];
+  patients?: Patient[];
+  isPaperMode?: boolean;
 }
 
 export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({ 
@@ -55,7 +58,10 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
   onOpenChronicCare, 
   hideHeader, 
   hideFinancialOverview,
-  hideFulfillmentWidgets 
+  hideFulfillmentWidgets,
+  appointments: propAppointments,
+  patients: propPatients,
+  isPaperMode: propIsPaperMode,
 }) => {
   /* ─── State Management ─────────────────────────────────────────── */
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -68,6 +74,9 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
   const [pharmacyInventory, setPharmacyInventory] = useState<any[]>([]);
   const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>([]);
   const [chronicCohorts, setChronicCohorts] = useState<ChronicCohortRecord[]>([]);
+
+  const effectivePatients = propPatients !== undefined ? propPatients : patients;
+  const effectiveAppointments = propAppointments !== undefined ? propAppointments : appointments;
 
   // Lab Report Sign-off Interactive States
   const [signingReportId, setSigningReportId] = useState<string | null>(null);
@@ -147,7 +156,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
   const todayStr = useMemo(() => getIstDateString(currentTime), [currentTime]);
 
   const isPatientForToday = (p: Patient) => {
-    const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
+    const patAppts = effectiveAppointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled');
     if (patAppts.length > 0) {
       return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
     }
@@ -288,21 +297,25 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
     failed: sessions.filter(s => s.currentState === 'FAILED_DELIVERY').length,
   }), [sessions]);
 
-  const isPaperMode = typeof window !== 'undefined' && (
-    localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
-    localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
+  const isPaperMode = propIsPaperMode !== undefined ? propIsPaperMode : (
+    typeof window !== 'undefined' && (
+      localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
+      localStorage.getItem('vitalsync_digital_emr_enabled') === 'false' ||
+      localStorage.getItem('vitalsync_operating_mode') === 'paper_rx' ||
+      localStorage.getItem('mediflow_operating_mode') === 'paper_rx'
+    )
   );
 
   const chronicPatients = useMemo(() => {
-    return patients.filter(p => (p as any).isChronic || (p.chronicConditions && p.chronicConditions.length > 0));
-  }, [patients]);
+    return effectivePatients.filter(p => (p as any).isChronic || (p.chronicConditions && p.chronicConditions.length > 0));
+  }, [effectivePatients]);
 
   const dueRefillsCount = useMemo(() => {
     return Math.max(0, Math.round(chronicPatients.length * 0.4));
   }, [chronicPatients]);
 
   const patientMetrics = useMemo(() => {
-    const todayPatients = patients.filter(isPatientForToday);
+    const todayPatients = effectivePatients.filter(isPatientForToday);
     const isPatientCompleted = (p: any) => p.queueStatus === 'completed' || p.queue_status === 'completed' || p.queueStatus === 'settled' || p.queueStatus === 'pharmacy' || p.queueStatus === 'lab';
 
     return {
@@ -312,12 +325,15 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
         if (!isPaperMode && (p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || (p.queueStatus as any) === 'pending_payment')) return false;
         const isVirtual = Boolean((p as any).isVirtual || (p as any).is_virtual);
         const hasVitals = Boolean(p.vitals && p.vitals.bloodPressure && p.vitals.bloodPressure.trim().length > 0);
-        return p.queueStatus === 'awaiting_consultation' && (hasVitals || isVirtual || isPaperMode);
+        if (isPaperMode) {
+          return (p.queueStatus as any) !== 'pending_payment' && p.queueStatus !== 'in_consultation';
+        }
+        return p.queueStatus === 'awaiting_consultation' && (hasVitals || isVirtual);
       }).length,
       inConsultation: todayPatients.filter(p => p.queueStatus === 'in_consultation' && !isPatientCompleted(p)).length,
       completed: todayPatients.filter(isPatientCompleted).length,
     };
-  }, [patients, appointments, todayStr, isPaperMode]);
+  }, [effectivePatients, effectiveAppointments, todayStr, isPaperMode]);
 
   const overallHealthScore = useMemo(() => {
     let score = 100;
@@ -337,7 +353,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
       return match ? parseInt(match[0], 10) : Infinity;
     };
 
-    return patients
+    return effectivePatients
       .filter(p => {
         // If user is searching by text, allow searching all patients
         if (searchQuery) {
@@ -387,6 +403,12 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
         if (isSosA && !isSosB) return -1;
         if (!isSosA && isSosB) return 1;
 
+        // VIP priority pinning right below Emergency SOS
+        const isVipA = Boolean((a as any).isVip || (a as any).is_vip || String(a.tokenNumber || '').toUpperCase().includes('VIP'));
+        const isVipB = Boolean((b as any).isVip || (b as any).is_vip || String(b.tokenNumber || '').toUpperCase().includes('VIP'));
+        if (isVipA && !isVipB) return -1;
+        if (!isVipA && isVipB) return 1;
+
         const statusOrder = { 'in_consultation': 1, 'awaiting_consultation': 2, 'completed': 3 };
         const statusA = statusOrder[a.queueStatus as keyof typeof statusOrder] || 99;
         const statusB = statusOrder[b.queueStatus as keyof typeof statusOrder] || 99;
@@ -396,7 +418,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
         const tokenB = parseTokenNum(b.tokenNumber);
         return tokenA - tokenB;
       });
-  }, [patients, appointments, searchQuery, selectedMetric, todayStr]);
+  }, [effectivePatients, effectiveAppointments, searchQuery, selectedMetric, todayStr, isPaperMode]);
 
   const lowStockSKUs = useMemo(() => {
     return pharmacyInventory.filter(item => item.stock <= item.threshold);
@@ -409,72 +431,35 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
 
     if (vitals.temperature) {
       const temp = parseFloat(vitals.temperature);
-      if (!isNaN(temp)) {
-        if (temp > 100) alerts.push(`Fever (${temp}°F)`);
-        else if (temp < 96) alerts.push(`Hypothermia (${temp}°F)`);
-      }
+      if (temp > 100.4) alerts.push(`High Fever (${temp}°F)`);
     }
     if (vitals.bloodPressure) {
       const parts = vitals.bloodPressure.split('/');
-      const systolic = parseInt(parts[0] || '0', 10);
-      if (!isNaN(systolic)) {
-        if (systolic > 140) alerts.push(`High BP (${vitals.bloodPressure})`);
-        else if (systolic < 90) alerts.push(`Low BP (${vitals.bloodPressure})`);
+      if (parts.length === 2) {
+        const sys = parseInt(parts[0]);
+        const dia = parseInt(parts[1]);
+        if (sys >= 140 || dia >= 90) alerts.push(`Hypertension Alert (${sys}/${dia})`);
+        else if (sys < 90 || dia < 60) alerts.push(`Hypotension Alert (${sys}/${dia})`);
       }
     }
-    if (vitals.pulseRate) {
-      let hr = parseInt(vitals.pulseRate, 10);
-      if (!isNaN(hr)) {
-        // Sanitize repeated digits (e.g. 72727272 -> 72)
-        const hrStr = vitals.pulseRate.toString().trim();
-        if (hrStr.length >= 4 && hrStr.length % 2 === 0) {
-          const half = hrStr.substring(0, 2);
-          if (hrStr.split(half).join('') === '') {
-            hr = parseInt(half, 10);
-          }
-        }
-        
-        if (hr >= 30 && hr <= 250) {
-          if (hr > 100) alerts.push(`High HR (${hr} bpm)`);
-          else if (hr < 55) alerts.push(`Low HR (${hr} bpm)`);
-        } else {
-          alerts.push(`Invalid HR (${hrStr} bpm)`);
-        }
-      }
+    if (vitals.pulse) {
+      const pulse = parseInt(vitals.pulse);
+      if (pulse > 100) alerts.push(`Tachycardia (${pulse} bpm)`);
+      else if (pulse < 60) alerts.push(`Bradycardia (${pulse} bpm)`);
     }
-    if (vitals.bloodSugar) {
-      let bs = parseInt(vitals.bloodSugar, 10);
-      if (!isNaN(bs)) {
-        const bsStr = vitals.bloodSugar.toString().trim();
-        if (bsStr.length >= 6 && bsStr.length % 3 === 0) {
-          const pattern = bsStr.substring(0, 3);
-          if (bsStr.split(pattern).join('') === '') {
-            bs = parseInt(pattern, 10);
-          }
-        } else if (bsStr.length >= 4 && bsStr.length % 2 === 0) {
-          const pattern = bsStr.substring(0, 2);
-          if (bsStr.split(pattern).join('') === '') {
-            bs = parseInt(pattern, 10);
-          }
-        }
-        
-        if (bs >= 20 && bs <= 1000) {
-          if (bs > 180) alerts.push(`High Sugar (${bs} mg/dL)`);
-          else if (bs < 70) alerts.push(`Low Sugar (${bs} mg/dL)`);
-        } else {
-          alerts.push(`Invalid Sugar (${bsStr} mg/dL)`);
-        }
-      }
+    if (vitals.spo2) {
+      const spo2 = parseInt(vitals.spo2);
+      if (spo2 < 95) alerts.push(`Low SpO2 (${spo2}%)`);
     }
     return alerts;
   };
 
   const criticalPatients = useMemo(() => {
-    return patients.filter(p => {
+    return effectivePatients.filter(p => {
       if (p.queueStatus !== 'awaiting_consultation' || !p.vitals) return false;
       return checkVitalsAlerts(p.vitals).length > 0;
     });
-  }, [patients]);
+  }, [effectivePatients]);
 
   const pendingReports = useMemo(() => {
     return pathologyReports.filter((r: any) => r.status === 'pending');
@@ -483,7 +468,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
   const groupedHolds = useMemo(() => {
     const groups: { [patientId: string]: { patientName: string; medicines: { id: string; name: string; qty: number; status: string }[]; totalItems: number; status: 'dispensed' | 'held' } } = {};
     inventoryHolds.forEach(h => {
-      const patient = patients.find(p => p.id === h.patientId);
+      const patient = effectivePatients.find(p => p.id === h.patientId);
       const name = patient ? patient.name : `Patient ${(h.patientId || '').substring(0, 5)}`;
       if (!groups[h.patientId]) {
         groups[h.patientId] = {
@@ -500,7 +485,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
       }
     });
     return Object.values(groups);
-  }, [inventoryHolds, patients]);
+  }, [inventoryHolds, effectivePatients]);
 
   const patientInquiries = useMemo(() => {
     const list: { id: string; patientName: string; text: string; status: string; phone: string }[] = [];
@@ -509,7 +494,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
       const lastPatientMsg = [...history].reverse().find(m => m.sender === 'patient');
       if (lastPatientMsg) {
         const sPhoneDigits = (s.patientPhone || (s as any).patient_phone || '').replace(/\D/g, '').slice(-10);
-        const patient = patients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === sPhoneDigits);
+        const patient = effectivePatients.find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === sPhoneDigits);
         let text = lastPatientMsg.text.trim();
         const cleaned = text.toLowerCase();
         
@@ -546,7 +531,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
       }
     });
     return list.slice(0, 3);
-  }, [sessions, patients]);
+  }, [sessions, effectivePatients]);
 
   /* ─── Quick Actions & Handlers ─────────────────────────────────── */
   const checkInWalkInPatient = () => {

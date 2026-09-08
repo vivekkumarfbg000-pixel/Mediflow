@@ -222,12 +222,17 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           });
           (window as any).__mediflow_active_pod_id = podData.id;
 
-          if (podData.is_digital_emr_enabled !== undefined) {
-            localStorage.setItem('vitalsync_digital_emr_enabled', String(isEmrEnabled));
-            window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
-              detail: { enabled: isEmrEnabled }
-            }));
-          }
+          localStorage.setItem('vitalsync_operating_mode', opMode);
+          localStorage.setItem('mediflow_operating_mode', opMode);
+          localStorage.setItem('vitalsync_digital_emr_enabled', String(isEmrEnabled));
+          localStorage.setItem('mediflow_digital_emr_enabled', String(isEmrEnabled));
+          window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+            detail: { enabled: isEmrEnabled, operatingMode: opMode }
+          }));
+          window.dispatchEvent(new CustomEvent('mediflow-operating-mode-changed', {
+            detail: { operatingMode: opMode, enabled: isEmrEnabled }
+          }));
+
           if (rxTemplate) {
             localStorage.setItem('vitalsync_prescription_template', JSON.stringify(rxTemplate));
             window.dispatchEvent(new CustomEvent('mediflow-prescription-template-changed', {
@@ -570,6 +575,18 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           platform_fee_percent: 3.0
         });
         (window as any).__mediflow_active_pod_id = updatedPod.id;
+
+        const curOpMode = updatedPod.operatingMode || (updatedPod.isDigitalEmrEnabled ? 'digital_emr' : 'paper_rx');
+        localStorage.setItem('vitalsync_operating_mode', curOpMode);
+        localStorage.setItem('mediflow_operating_mode', curOpMode);
+        localStorage.setItem('vitalsync_digital_emr_enabled', String(updatedPod.isDigitalEmrEnabled));
+        localStorage.setItem('mediflow_digital_emr_enabled', String(updatedPod.isDigitalEmrEnabled));
+        window.dispatchEvent(new CustomEvent('mediflow-digital-emr-mode-changed', {
+          detail: { enabled: updatedPod.isDigitalEmrEnabled, operatingMode: curOpMode }
+        }));
+        window.dispatchEvent(new CustomEvent('mediflow-operating-mode-changed', {
+          detail: { operatingMode: curOpMode, enabled: updatedPod.isDigitalEmrEnabled }
+        }));
 
         // Broadcast to all open consoles and windows
         window.dispatchEvent(new CustomEvent('mediflow-pod-change', { detail: updatedPod }));
