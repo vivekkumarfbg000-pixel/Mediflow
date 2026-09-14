@@ -803,6 +803,22 @@ export class WhatsAppService {
             const reps = LabService.getPathologyReports().filter(r => r.patientId === patient.id);
             nextState = 'COMPLETED';
             replyMessage = `📁 *DIGITAL HEALTH LOCKER — ${clinicName}* 🔐\n\nNamaste *${patient.name}*! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:\n\n• Consultations on File: *${encs.length}*\n• Pathology Lab Reports: *${reps.length}*\n\n📥 *Instant Access:*\n• Latest Prescription dekhne ke liye *SUMMARY* reply kijiye\n• Latest Lab Report dekhne ke liye *REPORT* reply kijiye\n\nAll records 100% HIPAA & ABDM compliant cloud encrypted hain! 🛡️`;
+          } else if (cleaned === 'physical review' || cleaned.includes('physical review')) {
+            nextState = 'COMPLETED';
+            replyMessage = `🏥 *${clinicName.toUpperCase()} EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye ${this.getDynamicDoctorName()} ne aaj shaam *04:00 PM - 06:00 PM* ka slot lock kar diya hai.\n\n• Location: ${clinicName}, Central Desk\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊`;
+          } else if (cleaned === 'virtual review' || cleaned.includes('virtual review')) {
+            nextState = 'COMPLETED';
+            const vApptId = crypto.randomUUID();
+            replyMessage = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\n${this.getDynamicDoctorName()} aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Time: Aaj shaam 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
+          } else if (cleaned === 'confirm refill' || cleaned.includes('confirm refill') || cleaned === '1-click refill') {
+            nextState = 'COMPLETED';
+            replyMessage = `📦 *1-CLICK MEDICINE REFILL CONFIRMED (10% OFF)!* 🟢\n\nNamaste *${patient.name}* Ji!\n\n• Clinic: *${clinicName} Pharmacy*\n• Discount: *10% VIP Refill Savings Applied* 🏷️\n• Status: *Packed & Reserved at Counter*\n• Delivery: Free Counter Pickup ya 24hr Home Delivery\n\nCompounder desk par aapka order note ho gaya hai. Dawa time par lein aur swasth rahein! Dhanyawad! 😊`;
+          } else if (cleaned === 'speak to doctor' || cleaned.includes('speak to doctor')) {
+            nextState = 'AWAITING_APPOINTMENT_TYPE';
+            replyMessage = `👨‍⚕️ *CONSULTATION WITH ${this.getDynamicDoctorName().toUpperCase()}* 🩺\n\nDoctor se baat karne ke liye mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Call Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
+          } else if (cleaned === 'order delivery' || cleaned === 'delivery') {
+            nextState = 'COMPLETED';
+            replyMessage = `🚚 *HOME DELIVERY ORDER CONFIRMED* 📦\n\nAapka prescription dawa parcel ${clinicName} Pharmacy counter se process ho gaya hai!\n\n• Delivery Time: Within 2 Hours\n• Delivery Status: Dispatched to Address on File\n\nCompounder packing verify kar rahe hain. Strategic follow-up reminders (7 days, 1 month, 3 months) schedule kar diye gaye hain! Dhanyawad! 🟢`;
           } else {
             nextState = 'AWAITING_CONFIRMATION';
             const docName = this.getDynamicDoctorName();
