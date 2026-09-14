@@ -20,6 +20,7 @@ export type CollectionName =
   | 'appointments'
   | 'patients'
   | 'unified_invoices'
+  | 'invoices'
   | 'saas_invoices'
   | 'saas_prescriptions'
   | 'inventory_holds'
@@ -98,6 +99,7 @@ export class SovereignCloudStore {
       'appointments',
       'patients',
       'unified_invoices',
+      'invoices',
       'saas_invoices',
       'saas_prescriptions',
       'inventory_holds',
@@ -243,6 +245,15 @@ export class SovereignCloudStore {
     this.notifySubscribers(collection);
   }
 
+  public setInitialCloudSnapshot(collection: CollectionName, cloudRecords: any[]): void {
+    this.setAuthoritativeCloudCollection(collection, cloudRecords);
+  }
+
+  public hasCollection(collection: CollectionName): boolean {
+    const colMap = this.store.get(collection);
+    return Boolean(colMap && colMap.size > 0);
+  }
+
   // ── Ingest Postgres CDC Diff (<5ms execution) ──────────────────────────────
   /**
    * Ingest incoming Supabase Realtime CDC frame directly into memory.
@@ -349,6 +360,7 @@ export class SovereignCloudStore {
           'appointments': ['saas_appointments', 'appointments'],
           'patients': ['patients', 'patient_registry'],
           'unified_invoices': ['unified_invoices', 'saas_invoices'],
+          'invoices': ['unified_invoices', 'saas_invoices'],
           'saas_invoices': ['saas_invoices'],
           'saas_prescriptions': ['saas_prescriptions', 'prescriptions'],
           'inventory_holds': ['inventory_holds'],

@@ -1982,6 +1982,8 @@ export const CompounderDashboard: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [vitalsPatient]);
 
+  const syncDataRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     fetchLiveAppointments();
     const handleFocus = () => fetchLiveAppointments();
@@ -1990,7 +1992,7 @@ export const CompounderDashboard: React.FC = () => {
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
         console.log('[CompounderDashboard] Realtime Appointment update:', payload);
-        syncData();
+        syncDataRef.current();
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             title: '📅 NEW APPOINTMENT BOOKED! 🟢',
@@ -1999,25 +2001,25 @@ export const CompounderDashboard: React.FC = () => {
           }
         }));
       },
-      onPatientChange: () => syncData(),
-      onMedicineBillChange: () => syncData(),
-      onLabRequisitionChange: () => syncData(),
-      onLabTestBillChange: () => syncData(),
-      onFinancialLedgerChange: () => syncData(),
-      onUnifiedInvoiceChange: () => syncData(),
-      onWhatsAppSessionChange: () => syncData(),
-      onPathologyReportChange: () => syncData(),
-      onPoolSettlementChange: () => syncData(),
-      onClinicSopChange: () => syncData(),
-      onSaaSInvoiceChange: () => syncData(),
-      onSaaSPrescriptionChange: () => syncData(),
-      onInventoryHoldChange: () => syncData(),
-      onChronicCohortChange: () => syncData(),
-      onEncounterChange: () => syncData(),
-      onPharmacyInventoryChange: () => syncData(),
-      onReagentInventoryChange: () => syncData(),
-      onReferralRewardChange: () => syncData(),
-      onWabaConnectionChange: () => syncData()
+      onPatientChange: () => syncDataRef.current(),
+      onMedicineBillChange: () => syncDataRef.current(),
+      onLabRequisitionChange: () => syncDataRef.current(),
+      onLabTestBillChange: () => syncDataRef.current(),
+      onFinancialLedgerChange: () => syncDataRef.current(),
+      onUnifiedInvoiceChange: () => syncDataRef.current(),
+      onWhatsAppSessionChange: () => syncDataRef.current(),
+      onPathologyReportChange: () => syncDataRef.current(),
+      onPoolSettlementChange: () => syncDataRef.current(),
+      onClinicSopChange: () => syncDataRef.current(),
+      onSaaSInvoiceChange: () => syncDataRef.current(),
+      onSaaSPrescriptionChange: () => syncDataRef.current(),
+      onInventoryHoldChange: () => syncDataRef.current(),
+      onChronicCohortChange: () => syncDataRef.current(),
+      onEncounterChange: () => syncDataRef.current(),
+      onPharmacyInventoryChange: () => syncDataRef.current(),
+      onReagentInventoryChange: () => syncDataRef.current(),
+      onReferralRewardChange: () => syncDataRef.current(),
+      onWabaConnectionChange: () => syncDataRef.current()
     });
 
     return () => {
@@ -2025,7 +2027,7 @@ export const CompounderDashboard: React.FC = () => {
       window.removeEventListener('visibilitychange', handleFocus);
       unsubscribe();
     };
-  }, [fetchLiveAppointments, syncData]);
+  }, [fetchLiveAppointments]);
   
   // Real-time Network Resilience State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -2179,6 +2181,7 @@ export const CompounderDashboard: React.FC = () => {
       return fresh || null;
     });
   }, []);
+  syncDataRef.current = syncData;
 
   useEffect(() => {
     syncData();

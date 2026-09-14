@@ -396,6 +396,8 @@ export class RealtimeSyncService {
               save('queue_status_map', queueStatusMap);
             }
           } catch (_e) {}
+        }
+
         // 🌟 SOVEREIGN CLOUD STORE INGESTION: Apply live CDC diff in <5ms
         const colName = (tableName === 'patient_registry' ? 'patients' : tableName) as CollectionName;
         for (const payload of deduped) {

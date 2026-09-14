@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, resolveSovereignPodId } from './podContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
-import type { Patient, PatientVitals } from '../types';
+import type { Patient, PatientVitals, Appointment } from '../types';
 import { cloudStore } from './cloudStore';
 
 export interface PhysicalConsent {
@@ -623,7 +623,7 @@ export class PatientService {
     // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry and appointments in Supabase
     (async () => {
       try {
-        const updates: Promise<any>[] = [
+        const updates: any[] = [
           supabase.from('patient_registry').update({
             queue_status: status,
             updated_at: new Date().toISOString()

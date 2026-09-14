@@ -276,8 +276,8 @@ export class LabService {
       const isMatchingPod = (itemPod: any, targetPod: string) => {
         if (!itemPod || itemPod === 'default' || itemPod === 'default-pod') return true;
         if (itemPod === targetPod) return true;
-        if ((itemPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001' && targetPod === 'VS-V01R') ||
-            (itemPod === 'VS-V01R' && targetPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001')) {
+        if ((itemPod === FALLBACK_POD_ID && targetPod === 'VS-V01R') ||
+            (itemPod === 'VS-V01R' && targetPod === FALLBACK_POD_ID)) {
           return true;
         }
         return false;
@@ -648,8 +648,8 @@ export class LabService {
     const isMatchingPod = (itemPod: any, targetPod: string) => {
       if (!itemPod || itemPod === 'default' || itemPod === 'default-pod') return true;
       if (itemPod === targetPod) return true;
-      if ((itemPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001' && targetPod === 'VS-V01R') ||
-          (itemPod === 'VS-V01R' && targetPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001')) {
+      if ((itemPod === FALLBACK_POD_ID && targetPod === 'VS-V01R') ||
+          (itemPod === 'VS-V01R' && targetPod === FALLBACK_POD_ID)) {
         return true;
       }
       return false;

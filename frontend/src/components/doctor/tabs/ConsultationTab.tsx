@@ -293,7 +293,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       };
 
       const awaiting = patients.find(p => 
-        (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || p.queueStatus === 'ready_for_consult') && 
+        (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || (p.queueStatus as any) === 'ready_for_consult') && 
         isPatientForToday(p) && 
         isPatientPaid(p)
       );

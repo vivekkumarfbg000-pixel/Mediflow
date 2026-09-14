@@ -674,7 +674,7 @@ export const DoctorDashboard: React.FC = () => {
               } as any;
             });
 
-            cloudStore.setInitialCloudSnapshot('invoices', normalizedInvoices);
+            cloudStore.setInitialCloudSnapshot('unified_invoices', normalizedInvoices);
             BillingService.saveUnifiedInvoices(normalizedInvoices);
 
             const saasInvs: Invoice[] = normalizedInvoices.map(u => ({
@@ -750,7 +750,7 @@ export const DoctorDashboard: React.FC = () => {
             }));
 
             const existingSessions = WhatsAppService.getWhatsAppSessions() || [];
-            const mergedSessions = [...formattedList];
+            const mergedSessions: any[] = [...formattedList];
             existingSessions.forEach(s => {
               if (!mergedSessions.some(ms => ms.id === s.id || (s.patientPhone && ms.patientPhone === s.patientPhone))) {
                 mergedSessions.push(s);
