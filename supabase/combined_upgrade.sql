@@ -6969,4 +6969,48 @@ GRANT EXECUTE ON FUNCTION public.generate_next_token_number(TEXT, UUID) TO authe
 GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, DATE) TO authenticated, service_role, anon;
 GRANT EXECUTE ON FUNCTION public.generate_next_token_number(UUID, TEXT) TO authenticated, service_role, anon;
 
+-- ==============================================================================
+-- 🏛️ VitalSync / Mediflow Enterprise Database Migration
+-- Migration: 20260914000006_whatsapp_interactive_service_templates.sql
+-- ==============================================================================
 
+CREATE INDEX IF NOT EXISTS idx_patient_registry_family_phone 
+ON public.patient_registry (phone text_pattern_ops);
+
+CREATE INDEX IF NOT EXISTS idx_encounters_patient_status_created 
+ON public.encounters (patient_id, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_encounter_medications_encounter_id 
+ON public.encounter_medications (encounter_id);
+
+CREATE INDEX IF NOT EXISTS idx_pathology_reports_patient_created 
+ON public.pathology_reports (patient_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.get_patient_family_members(p_primary_phone TEXT)
+RETURNS TABLE (
+  id UUID,
+  name TEXT,
+  age INT,
+  gender TEXT,
+  phone TEXT,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    pr.id,
+    pr.name,
+    pr.age,
+    pr.gender,
+    pr.phone,
+    pr.created_at
+  FROM public.patient_registry pr
+  WHERE pr.phone LIKE (p_primary_phone || '-family-%')
+  ORDER BY pr.created_at ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_patient_family_members(TEXT) TO authenticated, service_role, anon;

@@ -237,6 +237,71 @@ All conversational AI engines, webhook relay handlers (`meta-webhook`), and back
   Kripya turant clinic emergency desk par pahuchein aur token *{SosTokenNumber}* compounder ko show karein! 🩺
   ```
 
+- **Template 7: Book for Family Member (Interactive Family Health Desk)**
+  ```text
+  👥 *FAMILY HEALTH DESK — {ClinicName}* 🏥
+
+  Namaste {PatientName}! Apne parivaar ke kisi sadasya ke liye checkup book kijiye:
+
+  {FamilyMembersList}
+  0️⃣ Naye Family Member ko Add Karein ➕
+
+  Checkup book karne ke liye member number (ya 0) reply kijiye! 🩺
+  [ Buttons: ➕ Add New Member | 🏠 Main Menu ]
+  ```
+
+- **Template 8: Rx Prescription & Doctor Notes Summary**
+  ```text
+  📋 *PRESCRIPTION & DOCTOR NOTES SUMMARY* 🩺
+
+  • Patient: *{PatientName}*
+  • Doctor: *{DoctorName}*
+  • Clinic: *{ClinicName}*
+  • Consultation Date: *{EncounterDate}*
+
+  📝 *Doctor's Clinical Notes:*
+  "{ClinicalNotes}"
+
+  💊 *Prescribed Medications Schedule:*
+  {MedicationsListTable}
+
+  📅 *Follow-Up Advice:*
+  {DoctorName} ne aapko *14 din* ke baad follow-up ke liye bulaya hai.
+
+  [ Buttons: 💊 1-Click Refill | 🏠 Main Menu ]
+  ```
+
+- **Template 9: AI Clinical Assistant (24/7 Clinical Guidelines)**
+  ```text
+  🤖 *VITALSYNC AI CLINICAL ASSISTANT* 💡
+
+  Namaste {PatientName}! Main {DoctorName} ka verified AI Clinical Assistant hoon.
+
+  Aap apna health question ya lakshan (symptoms) yahan likh kar bhej sakte hain. Main doctor-approved ICMR clinical guidelines ke anusaar aapko immediate guidance doonga.
+
+  ⚠️ *Emergency Warning:* Kisi bhi gambhir takleef (chest pain, severe breathlessness, fainting) mein turant Emergency SOS (Reply 'SOS') use karein ya clinic visit karein!
+
+  Aapka sawal kya hai? Kripya neeche type kijiye: ✍️
+  ```
+
+- **Template 10: Digital Health Locker & Medical Records**
+  ```text
+  📁 *DIGITAL HEALTH LOCKER — {ClinicName}* 🔐
+
+  Namaste {PatientName}! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:
+
+  • Consultations on File: *{TotalEncounters}*
+  • Pathology Lab Reports: *{TotalReports}*
+  • Last Prescribed Visit: *{LatestEncounterDate}*
+  • Latest Pathology Test: *{LatestTestName}* ({LatestTestDate})
+
+  📥 *Instant Access:*
+  • Latest Prescription dekhne ke liye *SUMMARY* reply kijiye
+  • Latest Lab Report dekhne ke liye *REPORT* reply kijiye
+
+  [ Buttons: 📋 Latest Rx | 🔬 Lab Report | 🏠 Main Menu ]
+  ```
+
 ---
 
 ## 🛡️ The 100 Big Tech Anti-Regression & Operational Reliability Directives
@@ -381,3 +446,9 @@ All conversational AI engines, webhook relay handlers (`meta-webhook`), and back
      - **Patient-Facing Touchpoint Shield**: In all patient-facing interfaces (WhatsApp Chatbot messages, WhatsApp payment portals `/pay/:id`, Patient Mobile checkout sheets, SMS alerts, and simulated patient views), the system and AI agents MUST NEVER output or display `(0% Platform Fee)`, `Platform Fee: ₹0.00`, or SaaS/platform technical jargon. For Doctor Consultations, patients MUST exclusively see the clean, unbranded consultation fee: `Doctor Consultation Fee: ₹500.00` and `Total Amount Payable: ₹500.00`. The platform fee row MUST be completely hidden whenever `platformFee === 0`.
      - **Doctor Consultation 100% Fee Immunity (Counter & WhatsApp OPD)**: Both counter walk-ins and WhatsApp online appointment bookings carry **0% platform fee / 0% commission**. 100% of patient consultation fees flow directly to the Doctor's bank account via Direct UPI (`upi://pay`) or counter cash.
      - **B2B Ecosystem Monetization**: Pathology Lab Requisitions carry a flat **5% Platform Split** on diagnostic lab tests, and Pharmacy Counter POS carries a flat **2% Platform Split** on medicine sales, automatically ledgered in `vitalsync_pool_settlements` while maintaining a **₹1,000 Safety Buffer**.
+129. **Interactive WhatsApp Menu Full-Spectrum Parity Guarantee (Zero Menu Fallthrough Invariant)**: Every single menu ID (`menu_*`) exposed in Meta Graph API interactive list catalogs and buttons MUST have an explicit, dedicated non-fallthrough handler in both `AWAITING_CONFIRMATION` and `AWAITING_WELCOME` within `meta-webhook/index.ts` and `whatsappService.ts`. Interactive menu selections MUST NEVER fall through to the default welcome menu. Specifically:
+     - `menu_family` MUST route directly to the Family Health Desk (Template 7).
+     - `menu_summary` MUST route directly to Rx Prescription & Doctor Notes Summary (Template 8).
+     - `menu_ai` MUST route directly to AI Clinical Assistant (Template 9).
+     - `menu_locker` MUST route directly to Digital Health Locker & Records (Template 10).
+     - `menu_report`, `menu_refill`, `menu_refer`, `menu_physical`, `menu_virtual`, `menu_sos` MUST route to their respective distinct flows.

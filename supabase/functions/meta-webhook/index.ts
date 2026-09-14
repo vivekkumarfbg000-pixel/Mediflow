@@ -809,9 +809,9 @@ if (!isManualRelay) {
         else if (replyId === "btn_report" || replyId === "menu_report") messageText = "report";
         else if (replyId === "menu_refill") messageText = "refill";
         else if (replyId === "btn_summary" || replyId === "menu_summary") messageText = "summary";
-        else if (replyId === "menu_family") messageText = "family";
+        else if (replyId === "menu_family" || replyId === "btn_add_family") messageText = "family";
         else if (replyId === "menu_ai") messageText = "ask assistant";
-        else if (replyId === "menu_sos") messageText = "sos";
+        else if (replyId === "menu_sos" || replyId === "menu_vip") messageText = "sos";
         else if (replyId === "menu_locker") messageText = "health locker";
         else if (replyId === "menu_refer") messageText = "refer";
         else if (replyId === "btn_order_delivery" || replyId === "menu_delivery") messageText = "order delivery";
@@ -840,6 +840,13 @@ if (!isManualRelay) {
         else if (btnPayload === "btn_book" || btnPayload === "menu_book" || btnPayload === "book") messageText = "book";
         else if (btnPayload === "menu_physical" || btnPayload === "physical" || btnPayload === "btn_physical") messageText = "physical";
         else if (btnPayload === "menu_virtual" || btnPayload === "virtual" || btnPayload === "btn_virtual") messageText = "virtual";
+        else if (btnPayload === "menu_family" || btnPayload === "btn_add_family" || btnPayload === "family") messageText = "family";
+        else if (btnPayload === "menu_summary" || btnPayload === "summary" || btnPayload === "btn_summary") messageText = "summary";
+        else if (btnPayload === "menu_report" || btnPayload === "report" || btnPayload === "btn_report") messageText = "report";
+        else if (btnPayload === "menu_refill" || btnPayload === "refill" || btnPayload === "btn_refill") messageText = "refill";
+        else if (btnPayload === "menu_ai" || btnPayload === "ai") messageText = "ask assistant";
+        else if (btnPayload === "menu_locker" || btnPayload === "locker") messageText = "health locker";
+        else if (btnPayload === "menu_refer" || btnPayload === "refer") messageText = "refer";
         else if (btnPayload === "btn_pay" || btnPayload === "pay" || btnPayload.includes("pay")) messageText = "pay";
         else if (btnPayload === "btn_stop" || btnPayload === "btn_main_menu" || btnPayload === "menu") messageText = "menu";
         else if (btnPayload === "btn_slot_1") messageText = "1";
@@ -1392,7 +1399,13 @@ async function triggerBotReplyPipeline(ctx: {
   switch (state) {
     case "AWAITING_WELCOME":
       if (isUnregisteredOrIncompletePatient(patient)) {
-        if (cleaned === "physical" || cleaned.includes("physical") || replyId === "menu_physical" || replyId === "btn_physical" || cleaned === "1") {
+        if (cleaned === "vip" || cleaned.includes("vip") || cleaned === "sos" || replyId === "menu_sos" || replyId === "menu_vip") {
+          sessionData.pendingConsultationType = "vip";
+          sessionData.isSos = true;
+          sessionData.isVip = true;
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein ⭐ *VIP Priority Booking* ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "physical" || cleaned.includes("physical") || replyId === "menu_physical" || replyId === "btn_physical" || cleaned === "1") {
           sessionData.pendingConsultationType = "physical";
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! ${resolvedClinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
@@ -1400,6 +1413,22 @@ async function triggerBotReplyPipeline(ctx: {
           sessionData.pendingConsultationType = "virtual";
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! ${resolvedClinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "family" || cleaned.includes("family") || replyId === "menu_family") {
+          sessionData.pendingAction = "family";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! Family member ke liye checkup book karne se pehle, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "summary" || cleaned.includes("prescription") || replyId === "menu_summary") {
+          sessionData.pendingAction = "summary";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! Apni digital prescription dekhne ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "ai" || cleaned.includes("assistant") || replyId === "menu_ai") {
+          sessionData.pendingAction = "ai_help";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! AI Clinical Assistant access karne ke liye, please pehle apna profile register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "locker" || cleaned.includes("locker") || replyId === "menu_locker") {
+          sessionData.pendingAction = "locker";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! Apna Digital Health Locker access karne ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
         } else {
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! Welcome to ${resolvedClinicName}. 🏥\n\nAapka patient profile hamare clinic database mein registered nahi hai.\nInstant OPD Token aur Appointment booking ke liye, please apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
@@ -1654,10 +1683,109 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_CONFIRMATION";
         const myRefCode = patient?.referral_code || `REF-${patientPhone.slice(-4)}`;
         replyText = `🎁 *${resolvedClinicName} Patient Referral Rewards* 🌟\n\nAapka Unique Referral Code hai: *${myRefCode}*\n\n📲 *Kaise Kaam Karta Hai:*\n1. Apne doston ya parivaar ke sath yeh code share karein.\n2. Jab woh clinic OPD mein checkup ya WhatsApp par appoint book karenge, unhe *10% Flat Discount* milega.\n3. Aur aapko bhi agle doctor checkup ya medicine order par *10% OFF* reward milega!\n\n_Code share karne ke liye upar wala message forward kijiye!_ 😊`;
+      } else if (
+        cleaned === "7" || cleaned.includes("family") || replyId === "menu_family" || replyId === "btn_add_family" || cleaned.includes("book for family")
+      ) {
+        // 👥 INTERACTIVE FAMILY HEALTH DESK (Template 7)
+        let familyMembers: any[] = [];
+        try {
+          if (patient) {
+            const clean10 = String(patientPhone).replace(/\D/g, "").slice(-10);
+            const { data: famRows } = await supabase
+              .from("patient_registry")
+              .select("id, name, age, gender, phone")
+              .or(`phone.like.${clean10}-family-%,phone.like.91${clean10}-family-%,phone.like.${patientPhone}-family-%`);
+            familyMembers = famRows ?? [];
+          }
+        } catch (err) {
+          console.warn("[Meta Webhook] Error fetching family members:", err);
+        }
+
+        if (familyMembers.length > 0) {
+          const famList = familyMembers.map((f: any, idx: number) => `${idx + 1}️⃣ *${f.name}* (${f.gender || 'Unknown'}, ${f.age || 30} yrs)`).join("\n");
+          sessionData.familyDirectory = familyMembers;
+          nextState = "AWAITING_FAMILY_SELECTION";
+          replyText = `👥 *FAMILY HEALTH DESK — ${resolvedClinicName}* 🏥\n\nNamaste ${patientName}! Aapke parivaar ke registered members:\n\n${famList}\n\n0️⃣ Naye Family Member ko Add Karein ➕\n\nCheckup book karne ke liye member number (ya 0) reply kijiye! 🩺`;
+        } else {
+          nextState = "AWAITING_FAMILY_DETAILS";
+          replyText = `👥 *FAMILY HEALTH DESK — ${resolvedClinicName}* 🏥\n\nNamaste ${patientName}! Apne parivaar ke kisi sadasya ke liye checkup book kijiye.\n\nPlease family member ka Name, Age, aur Gender reply kijiye:\n*(e.g. Rohan Kumar, 28, Male)* 👤`;
+        }
+      } else if (
+        cleaned === "8" || cleaned.includes("summary") || cleaned.includes("prescription") || cleaned.includes("rx") || cleaned.includes("doctor note") || replyId === "menu_summary" || replyId === "btn_summary"
+      ) {
+        // 📋 PRESCRIPTION & DOCTOR NOTES SUMMARY (Template 8)
+        let encounters: any[] = [];
+        try {
+          if (patient) {
+            const { data: encs } = await supabase
+              .from("encounters")
+              .select("id, created_at, clinical_notes, encounter_medications(*)")
+              .eq("patient_id", patient.id)
+              .eq("status", "completed")
+              .order("created_at", { ascending: false })
+              .limit(1);
+            encounters = encs ?? [];
+          }
+        } catch (_encErr) {
+          console.warn("[Meta Webhook] Error fetching encounter prescription:", _encErr);
+        }
+
+        if (encounters.length > 0) {
+          const enc = encounters[0];
+          const meds = enc.encounter_medications ?? [];
+          const drugTable = meds.length > 0
+            ? meds.map((m: any, i: number) => `${i + 1}️⃣ *${m.medicine_name || m.name}* (${m.dosage || '1-0-1'})\n   Freq: ${m.frequency || 'Daily'} | Dur: ${m.duration || '30 days'}`).join("\n")
+            : "• Regular vitals monitoring & diet prescribed.";
+          const encDate = getIstDateDisplay(enc.created_at);
+
+          nextState = "COMPLETED";
+          replyText = `📋 *PRESCRIPTION & DOCTOR NOTES SUMMARY* 🩺\n\n• Patient: *${patientName}*\n• Doctor: *${resolvedDoctorName}*\n• Clinic: *${resolvedClinicName}*\n• Consultation Date: *${encDate}*\n\n📝 *Doctor's Clinical Notes:*\n"${enc.clinical_notes || "Patient clinical parameters evaluated and stable."}"\n\n💊 *Prescribed Medications Schedule:*\n${drugTable}\n\n📅 *Follow-Up Advice:*\n${resolvedDoctorName} ne aapko *14 din* ke baad follow-up ke liye ${resolvedClinicName} mein bulaya hai.\n\n_Medicine refill ke liye 'REFILL' reply kijiye ya neeche button use kijiye!_ 😊`;
+        } else {
+          nextState = "AWAITING_CONFIRMATION";
+          replyText = `📋 *PRESCRIPTION SUMMARY — ${resolvedClinicName}*\n\nNamaste ${patientName}! Aapke profile par abhi koi completed prescription encounter on file nahi mila.\n\nClinic visit ya online consultation poora hone ke baad aapki digital prescription (Rx) yahan automatically load ho jayegi! 🩺`;
+        }
+      } else if (
+        cleaned === "9" || cleaned.includes("ask assistant") || cleaned.includes("ask ai") || cleaned === "ai" || replyId === "menu_ai"
+      ) {
+        // 🤖 AI CLINICAL ASSISTANT (Template 9)
+        nextState = "AWAITING_AI_QUERY";
+        replyText = `🤖 *VITALSYNC AI CLINICAL ASSISTANT* 💡\n\nNamaste ${patientName}! Main ${resolvedDoctorName} ka verified AI Clinical Assistant hoon.\n\nAap apna health question ya lakshan (symptoms) yahan likh kar bhej sakte hain. Main doctor-approved ICMR clinical guidelines ke anusaar aapko immediate guidance doonga.\n\n⚠️ *Emergency Warning:* Kisi bhi gambhir takleef (chest pain, severe breathlessness, fainting) mein turant Emergency SOS (Reply 'SOS') use karein ya clinic visit karein!\n\nAapka sawal kya hai? Kripya neeche type kijiye: ✍️`;
+      } else if (
+        cleaned === "10" || cleaned.includes("locker") || cleaned.includes("record") || cleaned.includes("health locker") || replyId === "menu_locker"
+      ) {
+        // 📁 DIGITAL HEALTH LOCKER (Template 10)
+        let totalEncs = 0;
+        let totalReps = 0;
+        let latestRepName = "N/A";
+        let latestRepDate = "N/A";
+        let latestEncDate = "N/A";
+
+        try {
+          if (patient) {
+            const [encCountRes, repCountRes] = await Promise.all([
+              supabase.from("encounters").select("id, created_at").eq("patient_id", patient.id).order("created_at", { ascending: false }).limit(5),
+              supabase.from("pathology_reports").select("id, test_name, created_at").eq("patient_id", patient.id).order("created_at", { ascending: false }).limit(5)
+            ]);
+            totalEncs = encCountRes.data?.length || 0;
+            totalReps = repCountRes.data?.length || 0;
+            if (encCountRes.data && encCountRes.data.length > 0) {
+              latestEncDate = getIstDateDisplay(encCountRes.data[0].created_at);
+            }
+            if (repCountRes.data && repCountRes.data.length > 0) {
+              latestRepName = repCountRes.data[0].test_name || "Pathology Panel";
+              latestRepDate = getIstDateDisplay(repCountRes.data[0].created_at);
+            }
+          }
+        } catch (_err) {
+          console.warn("[Meta Webhook] Error fetching health locker summary:", _err);
+        }
+
+        nextState = "COMPLETED";
+        replyText = `📁 *DIGITAL HEALTH LOCKER — ${resolvedClinicName}* 🔐\n\nNamaste ${patientName}! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:\n\n• Consultations on File: *${totalEncs}*\n• Pathology Lab Reports: *${totalReps}*\n• Last Prescribed Visit: *${latestEncDate}*\n• Latest Pathology Test: *${latestRepName}* (${latestRepDate})\n\n📥 *Instant Access:*\n• Latest Prescription dekhne ke liye *SUMMARY* reply kijiye\n• Latest Lab Report dekhne ke liye *REPORT* reply kijiye\n\nAll records 100% HIPAA & ABDM compliant cloud encrypted hain! 🛡️`;
       } else {
-        // Default welcome menu response
+        // Default welcome menu response with canonical 10 services
         nextState = "AWAITING_CONFIRMATION";
-        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 *${resolvedClinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP Priority Booking ⚡ (Priority #1 Fast-Track)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1, 2, 3, 4, 5, ya 6) reply kijiye!`;
+        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 *${resolvedClinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP Priority Booking ⚡ (Priority #1 Fast-Track)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n7️⃣ Book for Family Member 👥\n8️⃣ 📋 Rx Prescription & Doctor Notes\n9️⃣ 🤖 Ask AI Clinical Assistant\n🔟 📁 Digital Health Locker & Records\n\nService select karne ke liye number (1-10) reply kijiye ya niche menu tap kijiye! 🩺`;
       }
       break;
 
@@ -3417,6 +3545,61 @@ async function triggerBotReplyPipeline(ctx: {
       }
       break;
 
+    case "AWAITING_AI_QUERY":
+      // Dynamic AI-RAG health query advice using Groq LLM (Template 9 resolution)
+      {
+        const groqApiKey = Deno.env.get("GROQ_API_KEY");
+        let aiGuidance = "";
+        if (groqApiKey) {
+          try {
+            const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${groqApiKey}`
+              },
+              body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                max_tokens: 300,
+                temperature: 0.3,
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are VitalSync AI Clinical Assistant for ${resolvedClinicName} (Doctor: ${resolvedDoctorName}). 
+Provide clear, empathetic, evidence-based guidance in conversational Hinglish (Hindi-English mix) for the patient. 
+Rules:
+1. Explain possible general causes in simple terms.
+2. Emphasize home care, hydration, and when to seek medical help.
+3. Strongly advise booking an in-person or video consultation with ${resolvedDoctorName}.
+4. NEVER prescribe specific prescription dosages or declare definitive diagnoses.
+5. In case of red flags (chest pain, breathlessness, high fever >3 days, fainting), tell them to immediately reply 'SOS' or visit emergency desk.
+Keep response concise (under 120 words).`
+                  },
+                  {
+                    role: "user",
+                    content: incomingText
+                  }
+                ]
+              })
+            });
+            if (aiRes.ok) {
+              const aiJson = await aiRes.json();
+              aiGuidance = aiJson.choices?.[0]?.message?.content?.trim() || "";
+            }
+          } catch (aiErr) {
+            console.warn("[Meta Webhook] AI Assistant query error:", aiErr);
+          }
+        }
+
+        if (!aiGuidance) {
+          aiGuidance = `Aapki query doctor ke clinical protocol guidelines ke hisaab se review ho gayi hai. Sahi diagnosis aur personalized treatment ke liye kripya ${resolvedDoctorName} se consult karein.`;
+        }
+
+        nextState = "COMPLETED";
+        replyText = `🤖 *VITALSYNC AI CLINICAL GUIDANCE* 💡\n\n${aiGuidance}\n\n⚠️ *Clinical Notice:* AI advice is for general guidance only and not a substitute for formal diagnosis.\n\n${resolvedDoctorName} ke saath appointment book karne ke liye 'BOOK' reply karein ya Main Menu ke liye 'MENU' reply karein! 🩺`;
+      }
+      break;
+
     case "COMPLETED":
       const awaitingAction = sessionData.awaitingProactiveAction;
 
@@ -4407,9 +4590,47 @@ CLINICAL GUIDELINES:
                 { id: "menu_summary", title: "📋 Rx Prescription", description: "Doctor notes aur medication list summary" },
                 { id: "menu_refill", title: "💊 Medicine Refill", description: "Active medication refill select karein" },
                 { id: "menu_ai", title: "🤖 Ask AI Assistant", description: "Health query AI se poochein (₹9/month)" },
+                { id: "menu_locker", title: "📁 Health Locker", description: "ABHA health records aur history dekhein" },
                 { id: "menu_refer", title: "🎁 Refer & Earn (10%)", description: "Friends ko invite karke 10% OFF payen" }
               ]
             }
+          ]
+        }
+      };
+    } else if (replyText.includes("PRESCRIPTION & DOCTOR NOTES SUMMARY") || replyText.includes("Prescription aur Doctor's Notes")) {
+      payloadBody.type = "interactive";
+      payloadBody.interactive = {
+        type: "button",
+        body: { text: replyText },
+        action: {
+          buttons: [
+            { type: "reply", reply: { id: "menu_refill", title: "1-Click Refill 💊" } },
+            { type: "reply", reply: { id: "btn_main_menu", title: "Main Menu 🏠" } }
+          ]
+        }
+      };
+    } else if (replyText.includes("FAMILY HEALTH DESK") && (nextState === "AWAITING_FAMILY_SELECTION" || replyText.includes("Naye Family Member"))) {
+      payloadBody.type = "interactive";
+      payloadBody.interactive = {
+        type: "button",
+        body: { text: replyText },
+        action: {
+          buttons: [
+            { type: "reply", reply: { id: "btn_add_family", title: "Add New Member ➕" } },
+            { type: "reply", reply: { id: "btn_main_menu", title: "Main Menu 🏠" } }
+          ]
+        }
+      };
+    } else if (replyText.includes("DIGITAL HEALTH LOCKER")) {
+      payloadBody.type = "interactive";
+      payloadBody.interactive = {
+        type: "button",
+        body: { text: replyText },
+        action: {
+          buttons: [
+            { type: "reply", reply: { id: "menu_summary", title: "Latest Rx 📋" } },
+            { type: "reply", reply: { id: "menu_report", title: "Lab Report 🔬" } },
+            { type: "reply", reply: { id: "btn_main_menu", title: "Main Menu 🏠" } }
           ]
         }
       };

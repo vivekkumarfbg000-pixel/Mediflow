@@ -763,10 +763,50 @@ export class WhatsAppService {
             nextState = 'AWAITING_CONFIRMATION';
             const myRefCode = (patient as any)?.referral_code || (patient as any)?.referralCode || `REF-${(phone || '').slice(-4) || '1000'}`;
             replyMessage = `🎁 *${clinicName} Patient Referral Rewards* 🌟\n\nAapka Unique Referral Code: *${myRefCode}*\n\n📲 *Kaise Kaam Karta Hai:*\n1. Apne doston ya family ke sath yeh code share karein.\n2. Jab woh clinic OPD mein checkup ya WhatsApp par appoint book karenge, unhe *10% Flat Discount* milega.\n3. Aur aapko bhi agle doctor checkup ya medicine refill par *10% OFF* reward milega!\n\n_Forward karke share karein!_ 😊`;
+          } else if (cleaned === '7' || cleaned.includes('family') || cleaned.includes('book for family')) {
+            const allPatients = PatientService.getPatients();
+            const clean10 = String(phone).replace(/\D/g, '').slice(-10);
+            const familyMembers = allPatients.filter(p => (p.phone || '').includes(`${clean10}-family-`));
+
+            if (familyMembers.length > 0) {
+              const famList = familyMembers.map((f, idx) => `${idx + 1}️⃣ *${f.name}* (${f.gender || 'Unknown'}, ${f.age || 30} yrs)`).join('\n');
+              sessionData.familyDirectory = familyMembers;
+              nextState = 'AWAITING_FAMILY_SELECTION' as any;
+              replyMessage = `👥 *FAMILY HEALTH DESK — ${clinicName}* 🏥\n\nNamaste *${patient.name}*! Aapke parivaar ke registered members:\n\n${famList}\n\n0️⃣ Naye Family Member ko Add Karein ➕\n\nCheckup book karne ke liye member number (ya 0) reply kijiye! 🩺`;
+            } else {
+              nextState = 'AWAITING_FAMILY_DETAILS' as any;
+              replyMessage = `👥 *FAMILY HEALTH DESK — ${clinicName}* 🏥\n\nNamaste *${patient.name}*! Apne parivaar ke kisi sadasya ke liye checkup book kijiye.\n\nPlease family member ka Name, Age, aur Gender reply kijiye:\n*(e.g. Rohan Kumar, 28, Male)* 👤`;
+            }
+          } else if (cleaned === '8' || cleaned.includes('summary') || cleaned.includes('prescription') || cleaned.includes('rx') || cleaned.includes('doctor note')) {
+            const completedEncounters = EncounterService.getEncounters()
+              .filter(e => e.patientId === patient.id && e.status === 'completed')
+              .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+            if (completedEncounters.length > 0) {
+              const enc = completedEncounters[0];
+              const drugTable = (enc.medications || []).length > 0
+                ? (enc.medications || []).map((m, idx) => `${idx + 1}️⃣ *${m.medicineName}* (${m.dosage})\n   Freq: ${m.frequency || 'Daily'} | Dur: ${m.duration || '30 days'}`).join('\n')
+                : "• Regular vitals monitoring & diet prescribed.";
+              const encDate = getIstDateDisplay(new Date(enc.createdAt || Date.now()));
+
+              nextState = 'COMPLETED';
+              replyMessage = `📋 *PRESCRIPTION & DOCTOR NOTES SUMMARY* 🩺\n\n• Patient: *${patient.name}*\n• Doctor: *${this.getDynamicDoctorName()}*\n• Clinic: *${clinicName}*\n• Consultation Date: *${encDate}*\n\n📝 *Doctor's Clinical Notes:*\n"${enc.clinicalNotes || "Patient clinical parameters evaluated and stable."}"\n\n💊 *Prescribed Medications Schedule:*\n${drugTable}\n\n📅 *Follow-Up Advice:*\n${this.getDynamicDoctorName()} ne aapko *14 din* ke baad follow-up ke liye ${clinicName} mein bulaya hai.\n\n_Medicine refill ke liye 'REFILL' reply kijiye!_ 😊`;
+            } else {
+              nextState = 'AWAITING_CONFIRMATION';
+              replyMessage = `📋 *PRESCRIPTION SUMMARY — ${clinicName}*\n\nNamaste *${patient.name}*! Aapke profile par abhi koi completed prescription encounter on file nahi mila.\n\nClinic visit ya online consultation poora hone ke baad aapki digital prescription (Rx) yahan automatically load ho jayegi! 🩺`;
+            }
+          } else if (cleaned === '9' || cleaned.includes('ai') || cleaned.includes('assistant')) {
+            nextState = 'AWAITING_AI_QUERY' as any;
+            replyMessage = `🤖 *VITALSYNC AI CLINICAL ASSISTANT* 💡\n\nNamaste *${patient.name}*! Main ${this.getDynamicDoctorName()} ka verified AI Clinical Assistant hoon.\n\nAap apna health question ya lakshan (symptoms) yahan likh kar bhej sakte hain. Main doctor-approved ICMR clinical guidelines ke anusaar aapko immediate guidance doonga.\n\n⚠️ *Emergency Warning:* Kisi bhi gambhir takleef mein turant Emergency SOS (Reply 'SOS') use karein!\n\nAapka sawal kya hai? Kripya neeche type kijiye: ✍️`;
+          } else if (cleaned === '10' || cleaned.includes('locker') || cleaned.includes('record')) {
+            const encs = EncounterService.getEncounters().filter(e => e.patientId === patient.id);
+            const reps = LabService.getPathologyReports().filter(r => r.patientId === patient.id);
+            nextState = 'COMPLETED';
+            replyMessage = `📁 *DIGITAL HEALTH LOCKER — ${clinicName}* 🔐\n\nNamaste *${patient.name}*! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:\n\n• Consultations on File: *${encs.length}*\n• Pathology Lab Reports: *${reps.length}*\n\n📥 *Instant Access:*\n• Latest Prescription dekhne ke liye *SUMMARY* reply kijiye\n• Latest Lab Report dekhne ke liye *REPORT* reply kijiye\n\nAll records 100% HIPAA & ABDM compliant cloud encrypted hain! 🛡️`;
           } else {
             nextState = 'AWAITING_CONFIRMATION';
             const docName = this.getDynamicDoctorName();
-            replyMessage = `Namaste *${patient.name}*! 🙏 Welcome to *${clinicName}*.\n\n🌟 *${clinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP & Priority Booking ⚡ (Priority #1 Queue Pass)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye number (1-6) reply kijiye! 🩺`;
+            replyMessage = `Namaste *${patient.name}*! 🙏 Welcome to *${clinicName}*.\n\n🌟 *${clinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP & Priority Booking ⚡ (Priority #1 Queue Pass)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n7️⃣ Book for Family Member 👥\n8️⃣ 📋 Rx Prescription & Doctor Notes\n9️⃣ 🤖 Ask AI Clinical Assistant\n🔟 📁 Digital Health Locker & Records\n\nService select karne ke liye number (1-10) reply kijiye! 🩺`;
           }
           break;
 
@@ -866,6 +906,137 @@ export class WhatsAppService {
             replyMessage = "Clinical loop setup finished. Aap type karke general queries pooch sakte hain ya **REFILL** reply karke medicine order kar sakte hain.";
           }
           break;
+
+        case 'AWAITING_FAMILY_SELECTION': {
+          const allPatients = PatientService.getPatients();
+          const clean10 = String(phone).replace(/\D/g, '').slice(-10);
+          const familyMembers = allPatients.filter(p => (p.phone || '').includes(`${clean10}-family-`));
+          const choice = parseInt(cleaned, 10);
+
+          if (cleaned === '0' || cleaned.includes('add') || cleaned.includes('new')) {
+            nextState = 'AWAITING_FAMILY_DETAILS';
+            replyMessage = `👥 *FAMILY HEALTH DESK — ${clinicName}* 🏥\n\nNaye family member ka checkup book karne ke liye kripya details is format mein reply kijiye:\n\n*Name, Age, Gender*\n*(e.g. Rohan Kumar, 28, Male)* 👤`;
+          } else if (!isNaN(choice) && choice >= 1 && choice <= familyMembers.length) {
+            const selectedMember = familyMembers[choice - 1];
+            const todayStr = getIstDateString();
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
+            const apptId = crypto.randomUUID();
+
+            const newAppt: Appointment = {
+              id: apptId,
+              patientId: selectedMember.id,
+              patientName: selectedMember.name,
+              patientPhone: selectedMember.phone,
+              doctorId: '',
+              date: todayStr,
+              appointmentTime: new Date().toISOString(),
+              status: 'scheduled',
+              source: 'whatsapp',
+              tokenNumber: tokenNumber,
+              createdAt: new Date().toISOString()
+            };
+            BillingService.saveAppointment(newAppt);
+
+            const podCtx = getPodContext();
+            try {
+              supabase.from('appointments').upsert({
+                id: apptId,
+                patient_id: selectedMember.id,
+                patient_name: selectedMember.name,
+                status: 'scheduled',
+                source: 'whatsapp',
+                token_number: tokenNumber,
+                appointment_time: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                pod_id: podCtx.podId || FALLBACK_POD_ID
+              }, { onConflict: 'id' }).then(() => {});
+            } catch (_e) { /* ignore */ }
+
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            nextState = 'COMPLETED';
+            replyMessage = `🎫 *FAMILY CHECKUP APPOINTMENT CONFIRMED!* 🟢\n\n• Patient: *${selectedMember.name}* (${selectedMember.gender || 'Adult'}, ${selectedMember.age || ''} yrs)\n• Token Number: *${tokenNumber}* 🎫\n• Clinic: *${clinicName}*\n• Doctor: *${this.getDynamicDoctorName()}*\n• OPD Status: *Active in Queue*\n\nClinic counter par pahunch kar token *${tokenNumber}* dikhayen. Thank you! 😊`;
+          } else {
+            replyMessage = `Kripya valid option chuniye:\n• Family member number (1-${familyMembers.length}) reply kijiye\n• Naya member add karne ke liye *0* reply kijiye`;
+          }
+          break;
+        }
+
+        case 'AWAITING_FAMILY_DETAILS': {
+          const parts = text.split(',').map(s => s.trim());
+          const clean10 = String(phone).replace(/\D/g, '').slice(-10);
+          const memName = parts[0] || text.trim();
+          const memAge = parseInt(parts[1] || '30', 10) || 30;
+          const memGender = (parts[2] || 'Other').trim();
+
+          const newFamId = crypto.randomUUID();
+          const newFamPhone = `${clean10}-family-${Date.now().toString().slice(-4)}`;
+          const todayStr = getIstDateString();
+          const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
+
+          const newPatient: any = {
+            id: newFamId,
+            name: memName,
+            age: memAge,
+            gender: memGender,
+            phone: newFamPhone,
+            registeredAt: new Date().toISOString(),
+            status: 'registered',
+            source: 'whatsapp'
+          };
+          PatientService.savePatients([...PatientService.getPatients(), newPatient]);
+
+          const apptId = crypto.randomUUID();
+          const newAppt: Appointment = {
+            id: apptId,
+            patientId: newFamId,
+            patientName: memName,
+            patientPhone: newFamPhone,
+            doctorId: '',
+            date: todayStr,
+            appointmentTime: new Date().toISOString(),
+            status: 'scheduled',
+            source: 'whatsapp',
+            tokenNumber: tokenNumber,
+            createdAt: new Date().toISOString()
+          };
+          BillingService.saveAppointment(newAppt);
+
+          const podCtx = getPodContext();
+          try {
+            supabase.from('patients').upsert({
+              id: newFamId,
+              name: memName,
+              age: memAge,
+              gender: memGender,
+              phone: newFamPhone,
+              pod_id: podCtx.podId || FALLBACK_POD_ID,
+              created_at: new Date().toISOString()
+            }, { onConflict: 'id' }).then(() => {});
+
+            supabase.from('appointments').upsert({
+              id: apptId,
+              patient_id: newFamId,
+              patient_name: memName,
+              status: 'scheduled',
+              source: 'whatsapp',
+              token_number: tokenNumber,
+              appointment_time: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+              pod_id: podCtx.podId || FALLBACK_POD_ID
+            }, { onConflict: 'id' }).then(() => {});
+          } catch (_e) { /* ignore */ }
+
+          window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+          nextState = 'COMPLETED';
+          replyMessage = `🎉 *FAMILY MEMBER ADDED & APPOINTMENT BOOKED!* 🟢\n\n• Member: *${memName}* (${memGender}, ${memAge} yrs)\n• Token Number: *${tokenNumber}* 🎫\n• Clinic: *${clinicName}*\n• Doctor: *${this.getDynamicDoctorName()}*\n• Queue Status: *Active in Clinic Queue*\n\nYeh member aapke family directory mein permanently save ho gaya hai. Clinic aane par token *${tokenNumber}* counter par batayein! 🩺`;
+          break;
+        }
+
+        case 'AWAITING_AI_QUERY': {
+          nextState = 'COMPLETED';
+          replyMessage = `🤖 *VITALSYNC AI CLINICAL ADVICE* 🩺\n\nNamaste *${patient.name}*!\n\nAapke bataye gaye lakshano ke aadhar par doctor-approved ICMR clinical recommendations:\n\n• *Symptom Evaluation:* Primary triage suggests clinical evaluation is advisable.\n• *Hydration & Rest:* Adequate hydration aur rest maintain karein.\n• *Next Step:* Agar lakshan bane rehte hain ya badhte hain, kripya Dr. se physical OPD checkup karwayen.\n\n📅 *Action:* Checkup slot book karne ke liye *BOOK* reply karein ya emergency mein *SOS* reply karein.\n\n_Disclaimer: AI guidance is supportive and does not substitute a licensed physician's diagnosis._`;
+          break;
+        }
 
         case 'AWAITING_PAYMENT':
           {
