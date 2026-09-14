@@ -245,32 +245,57 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   // Auto-select first awaiting patient for TODAY if none is selected
   useEffect(() => {
     if (!selectedPatient && patients && patients.length > 0) {
+      const cleanPhone = (ph?: string) => {
+        if (!ph) return '';
+        const digits = String(ph).replace(/\D/g, '');
+        return digits.length >= 10 ? digits.slice(-10) : digits;
+      };
+
+      const matchApptToPatient = (a: any, p: Patient) => {
+        if (a.patientId === p.id || (a as any).patient_id === p.id) return true;
+        const aPhone = cleanPhone(a.patientPhone || (a as any).patient_phone);
+        const pPhone = cleanPhone(p.phone);
+        return Boolean(aPhone && pPhone && aPhone === pPhone);
+      };
+
       const todayStr = getIstDateString();
       const invoices = BillingService.getInvoices();
-      const paidInvoicePatientIds = invoices
-        .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-        .map((i: any) => i.patientId || (i as any).patient_id);
+      const clearedInvoices = invoices.filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid');
+      const paidInvoicePatientIds = clearedInvoices.map((i: any) => i.patientId || (i as any).patient_id);
+      const paidInvoicePhones = clearedInvoices.map((i: any) => cleanPhone(i.patientPhone || (i as any).patient_phone)).filter(Boolean);
+
+      const clearedAppts = appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled');
       const paidPatientIds = new Set([
-        ...appointments
-          .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
-          .map(a => a.patientId || (a as any).patient_id),
+        ...clearedAppts.map(a => a.patientId || (a as any).patient_id),
         ...paidInvoicePatientIds
       ]);
+      const paidPatientPhones = new Set([
+        ...clearedAppts.map(a => cleanPhone(a.patientPhone || (a as any).patient_phone)).filter(Boolean),
+        ...paidInvoicePhones
+      ]);
+
+      const isPatientPaid = (p: Patient) => {
+        if (paidPatientIds.has(p.id)) return true;
+        const pPhone = cleanPhone(p.phone);
+        if (pPhone && paidPatientPhones.has(pPhone)) return true;
+        if ((p as any).paymentStatus === 'cleared' || (p as any).paymentStatus === 'paid') return true;
+        return false;
+      };
 
       const isPatientForToday = (p: Patient) => {
-        const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+        const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
         if (patAppts.length > 0) {
           return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
         }
         const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
         const pDate = getIstDateString(regDate);
-        return Boolean(pDate && pDate === todayStr && paidPatientIds.has(p.id));
+        return Boolean(pDate && pDate === todayStr && isPatientPaid(p));
       };
 
       const awaiting = patients.find(p => 
-        (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation') && 
+        (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || p.queueStatus === 'ready_for_consult') && 
         isPatientForToday(p) && 
-        paidPatientIds.has(p.id)
+        isPatientPaid(p)
       );
       if (awaiting) {
         setSelectedPatient(awaiting);
@@ -1687,48 +1712,61 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
             {/* 4 Queue Filter Tabs (Awaiting Consultation, In Chamber, Today Registered, Done) */}
             {(() => {
+              const cleanPhone = (ph?: string) => {
+                if (!ph) return '';
+                const digits = String(ph).replace(/\D/g, '');
+                return digits.length >= 10 ? digits.slice(-10) : digits;
+              };
+
+              const matchApptToPatient = (a: any, p: Patient) => {
+                if (a.patientId === p.id || (a as any).patient_id === p.id) return true;
+                const aPhone = cleanPhone(a.patientPhone || (a as any).patient_phone);
+                const pPhone = cleanPhone(p.phone);
+                return Boolean(aPhone && pPhone && aPhone === pPhone);
+              };
+
               const todayStr = getIstDateString();
               const invoices = BillingService.getInvoices();
-              const paidInvoicePatientIds = invoices
-                .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-                .map((i: any) => i.patientId || (i as any).patient_id);
+              const clearedInvoices = invoices.filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid');
+              const paidInvoicePatientIds = clearedInvoices.map((i: any) => i.patientId || (i as any).patient_id);
+              const paidInvoicePhones = clearedInvoices.map((i: any) => cleanPhone(i.patientPhone || (i as any).patient_phone)).filter(Boolean);
+
+              const clearedAppts = appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled');
               const paidPatientIds = new Set([
-                ...appointments
-                  .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
-                  .map(a => a.patientId || (a as any).patient_id),
+                ...clearedAppts.map(a => a.patientId || (a as any).patient_id),
                 ...paidInvoicePatientIds
               ]);
+              const paidPatientPhones = new Set([
+                ...clearedAppts.map(a => cleanPhone(a.patientPhone || (a as any).patient_phone)).filter(Boolean),
+                ...paidInvoicePhones
+              ]);
+
+              const isPatientPaid = (p: Patient) => {
+                if (paidPatientIds.has(p.id)) return true;
+                const pPhone = cleanPhone(p.phone);
+                if (pPhone && paidPatientPhones.has(pPhone)) return true;
+                if ((p as any).paymentStatus === 'cleared' || (p as any).paymentStatus === 'paid') return true;
+                return false;
+              };
 
               const isPatientForToday = (p: Patient) => {
-                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                 if (patAppts.length > 0) {
                   return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                 }
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
-                return Boolean(pDate && pDate === todayStr && paidPatientIds.has(p.id));
+                return Boolean(pDate && pDate === todayStr && isPatientPaid(p));
               };
 
               const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
 
-              const isPaperRx = Boolean(
-                isPaperMode || 
-                (typeof window !== 'undefined' && (
-                  localStorage.getItem('vitalsync_operating_mode') === 'paper_rx' ||
-                  localStorage.getItem('mediflow_operating_mode') === 'paper_rx' ||
-                  localStorage.getItem('vitalsync_digital_emr_enabled') === 'false' ||
-                  localStorage.getItem('mediflow_digital_emr_enabled') === 'false'
-                ))
-              );
               const awaitingList = patients.filter(p => {
-                if (!paidPatientIds.has(p.id)) return false;
+                if (!isPatientPaid(p)) return false;
                 if (isCompletedPat(p)) return false;
                 if ((p.queueStatus as any) === 'pending_payment') return false;
                 if (!isPatientForToday(p)) return false;
-                if (isPaperRx) {
-                  return p.queueStatus === 'awaiting_consultation' || (p.queueStatus as any) === 'ready_for_consult' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_vitals' || !p.queueStatus || Boolean(p.vitals?.bloodPressure);
-                }
-                return (p.queueStatus === 'awaiting_consultation' || Boolean(p.vitals?.bloodPressure)) && p.queueStatus !== 'awaiting_vitals' && p.queueStatus !== 'registered';
+                return p.queueStatus !== 'in_consultation';
               });
               const inConsultList = patients.filter(p => p.queueStatus === 'in_consultation' && !isCompletedPat(p) && isPatientForToday(p));
               const todayRegList = patients.filter(p => {
@@ -1738,7 +1776,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               });
               const completedList = patients.filter(p => isCompletedPat(p) && isPatientForToday(p));
               const upcomingList = patients.filter(p => {
-                const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                 return patAppts.some(a => {
                   const d = getEffectiveAppointmentDate(a);
                   return Boolean(d && d > todayStr);
@@ -1824,6 +1862,19 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             {/* Compact Patient Cards List */}
             <div className="space-y-2 lg:max-h-[260px] max-h-none lg:overflow-y-auto pr-1">
               {(() => {
+                const cleanPhone = (ph?: string) => {
+                  if (!ph) return '';
+                  const digits = String(ph).replace(/\D/g, '');
+                  return digits.length >= 10 ? digits.slice(-10) : digits;
+                };
+
+                const matchApptToPatient = (a: any, p: Patient) => {
+                  if (a.patientId === p.id || (a as any).patient_id === p.id) return true;
+                  const aPhone = cleanPhone(a.patientPhone || (a as any).patient_phone);
+                  const pPhone = cleanPhone(p.phone);
+                  return Boolean(aPhone && pPhone && aPhone === pPhone);
+                };
+
                 const parseTokenNum = (token?: string | number) => {
                   if (!token) return Infinity;
                   const match = String(token).match(/\d+/);
@@ -1832,24 +1883,36 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
 
                 const todayStr = getIstDateString();
                 const invoices = BillingService.getInvoices();
-                const paidInvoicePatientIds = invoices
-                  .filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid')
-                  .map((i: any) => i.patientId);
+                const clearedInvoices = invoices.filter((i: any) => (i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || i.status === 'paid');
+                const paidInvoicePatientIds = clearedInvoices.map((i: any) => i.patientId || (i as any).patient_id);
+                const paidInvoicePhones = clearedInvoices.map((i: any) => cleanPhone(i.patientPhone || (i as any).patient_phone)).filter(Boolean);
+
+                const clearedAppts = appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled');
                 const paidPatientIds = new Set([
-                  ...appointments
-                    .filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled')
-                    .map(a => a.patientId || (a as any).patient_id),
+                  ...clearedAppts.map(a => a.patientId || (a as any).patient_id),
                   ...paidInvoicePatientIds
                 ]);
+                const paidPatientPhones = new Set([
+                  ...clearedAppts.map(a => cleanPhone(a.patientPhone || (a as any).patient_phone)).filter(Boolean),
+                  ...paidInvoicePhones
+                ]);
+
+                const isPatientPaid = (p: Patient) => {
+                  if (paidPatientIds.has(p.id)) return true;
+                  const pPhone = cleanPhone(p.phone);
+                  if (pPhone && paidPatientPhones.has(pPhone)) return true;
+                  if ((p as any).paymentStatus === 'cleared' || (p as any).paymentStatus === 'paid') return true;
+                  return false;
+                };
 
                 const isPatientForToday = (p: Patient) => {
-                  const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                  const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                   if (patAppts.length > 0) {
                     return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
                   }
                   const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                   const pDate = getIstDateString(regDate);
-                  return Boolean(pDate && pDate === todayStr && paidPatientIds.has(p.id));
+                  return Boolean(pDate && pDate === todayStr && isPatientPaid(p));
                 };
 
                 const isCompletedPat = (p: any) => p.queueStatus === 'completed' || (p as any).queue_status === 'completed' || (p as any).queueStatus === 'pharmacy' || (p as any).queueStatus === 'lab' || (p as any).queueStatus === 'settled';
@@ -1857,20 +1920,17 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const queuePatients = patients
                   .filter(p => {
                     if (queueFilter === 'upcoming') {
-                      const patAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                      const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                       return patAppts.some(a => {
                         const d = getEffectiveAppointmentDate(a);
                         return Boolean(d && d > todayStr);
                       });
                     }
                     if (queueFilter === 'awaiting') {
-                      if (!paidPatientIds.has(p.id)) return false;
+                      if (!isPatientPaid(p)) return false;
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
                       if (isCompletedPat(p)) return false;
-                      if (isPaperRx) {
-                        return p.queueStatus === 'awaiting_consultation' || (p.queueStatus as any) === 'ready_for_consult' || p.queueStatus === 'in_consultation' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_vitals' || !p.queueStatus;
-                      }
-                      return p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || !p.queueStatus;
+                      return p.queueStatus !== 'in_consultation';
                     }
                     if (queueFilter === 'in_consult') {
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
@@ -1884,7 +1944,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       if (!isPatientForToday(p) && p.id !== selectedPatient?.id) return false;
                       return isCompletedPat(p);
                     }
-                    return (!isCompletedPat(p) && isPatientForToday(p) && paidPatientIds.has(p.id)) || p.id === selectedPatient?.id;
+                    return (!isCompletedPat(p) && isPatientForToday(p) && isPatientPaid(p)) || p.id === selectedPatient?.id;
                   })
                   .sort((a, b) => {
                     const hasVipApptA = appointments.some(appt => (appt.patientId === a.id || (appt as any).patient_id === a.id) && (appt.status !== 'cancelled') && ((appt as any).isEmergency || (appt as any).is_emergency || (appt as any).isVip || (appt as any).is_vip || String(appt.source || '').toLowerCase().includes('vip') || String(appt.source || '').toLowerCase().includes('sos') || String(appt.tokenNumber || (appt as any).token_number || '').startsWith('VIP-')));
@@ -1959,6 +2019,23 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                       <div className="text-[9.5px] text-slate-500 mt-1 flex justify-between items-center flex-wrap gap-1">
                         <span>{p.gender}, {p.age}y</span>
                         <div className="flex items-center gap-1 flex-wrap">
+                          {p.queueStatus === 'in_consultation' ? (
+                            <span className="text-[7.5px] font-bold bg-amber-50 border border-amber-300 text-amber-800 px-1 py-0.2 rounded font-mono">
+                              In Chamber
+                            </span>
+                          ) : p.queueStatus === 'awaiting_vitals' ? (
+                            <span className="text-[7.5px] font-bold bg-purple-50 border border-purple-300 text-purple-800 px-1 py-0.2 rounded font-mono">
+                              Vitals Pending
+                            </span>
+                          ) : p.queueStatus === 'registered' ? (
+                            <span className="text-[7.5px] font-bold bg-cyan-50 border border-cyan-300 text-cyan-800 px-1 py-0.2 rounded font-mono">
+                              New Booking
+                            </span>
+                          ) : (
+                            <span className="text-[7.5px] font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 px-1 py-0.2 rounded font-mono">
+                              Awaiting Consult
+                            </span>
+                          )}
                           {virtualAppt && (
                             <span className="text-[7.5px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 px-1 py-0.2 rounded font-mono">
                               📹 Virtual

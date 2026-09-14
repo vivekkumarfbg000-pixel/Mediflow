@@ -58,12 +58,18 @@ export function isVipBooking(appt: Appointment | any): boolean {
 export function isPendingPayment(appt: Appointment | any): boolean {
   if (!appt) return false;
   const status = String(appt.status || '').toLowerCase();
-  const paymentStatus = String(appt.payment_status || '').toLowerCase();
+  const paymentStatus = String(appt.paymentStatus || appt.payment_status || '').toLowerCase();
 
   // If status is explicitly pending_payment
   if (status === 'pending_payment') {
-    // If payment was already asserted or cleared, it is ready for consult / scheduled
-    if (paymentStatus === 'asserted' || paymentStatus === 'cleared' || paymentStatus === 'paid') {
+    // If payment was already asserted, cleared, paid, or set for clinic counter payment, it clears the gate
+    if (
+      paymentStatus === 'asserted' ||
+      paymentStatus === 'cleared' ||
+      paymentStatus === 'paid' ||
+      paymentStatus === 'pending_counter' ||
+      paymentStatus === 'counter'
+    ) {
       return false;
     }
     return true;

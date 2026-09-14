@@ -1134,6 +1134,8 @@ function isUnregisteredOrIncompletePatient(pat: any): boolean {
   if (!name || name === 'WhatsApp Patient' || name === 'Patient' || name === 'Walk-In Patient' || name === 'VD' || name === 'User') return true;
   if (name.toLowerCase().startsWith('patient (+91') || name.toLowerCase().startsWith('patient (')) return true;
   if (name.length < 2) return true;
+  // If registered at clinic with phone and human name, accept as valid registered patient
+  if (pat.phone && pat.phone.length >= 10) return false;
   const age = Number(pat.age);
   if (!age || isNaN(age) || age <= 0) return true;
   if (!pat.gender || !['male', 'female', 'other'].includes(String(pat.gender).toLowerCase().trim())) return true;
@@ -1154,13 +1156,12 @@ async function triggerBotReplyPipeline(ctx: {
 }) {
   const { session, incomingText, decryptedToken, phoneId, replyId, isScreenshotProcessing = false, messageRaw, connection, waContactName = "" } = ctx;
   const patientPhone = session.patient_phone;
-  const podId = toValidUuid(connection?.pod_id || session.pod_id);
-  const entityId = toValidUuid(connection?.entity_id || session.entity_id, podId);
-  let state = session.current_state;
+  let sessionData = session.session_data || {};
+  let state = session.current_state || "AWAITING_WELCOME";
+  let nextState = state;
+  let replyText = "";
   let cleaned = incomingText.trim().toLowerCase();
 
-  let replyText = "";
-  let sessionData = session?.session_data ?? {};
   if (typeof sessionData === "string") {
     try {
       sessionData = JSON.parse(sessionData);
@@ -1174,7 +1175,6 @@ async function triggerBotReplyPipeline(ctx: {
   if (state === "BOOKING_VIRTUAL" && sessionData.subState) {
     state = sessionData.subState;
   }
-  let nextState = state;
   const chatHistory = Array.isArray(sessionData.chatHistory) ? sessionData.chatHistory : [];
 
   // Parallelize patient profile lookup, consent, doctor profile, and clinic entity in a single fast batch
@@ -1193,7 +1193,7 @@ async function triggerBotReplyPipeline(ctx: {
     const [patRes, consentRes, docRes, entityRes, podRes, sopRes] = await Promise.all([
       session.patient_id
         ? supabase.from("patient_registry").select("*").eq("id", session.patient_id).maybeSingle()
-        : supabase.from("patient_registry").select("*").or(`phone.eq.${clean10},phone.eq.${patientPhone},phone.eq.91${clean10}`).maybeSingle(),
+        : supabase.from("patient_registry").select("*").or(`phone.eq.${clean10},phone.eq.${patientPhone},phone.eq.91${clean10}`).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       session.patient_id
         ? supabase.from("patient_consents").select("*").eq("patient_id", session.patient_id)
         : Promise.resolve({ data: [] }),
@@ -1204,6 +1204,22 @@ async function triggerBotReplyPipeline(ctx: {
     ]);
 
     patient = patRes?.data ?? null;
+    // Defensive phone lookup fallback if session.patient_id was stale or missing
+    if (!patient) {
+      try {
+        const { data: phonePat } = await supabase
+          .from("patient_registry")
+          .select("*")
+          .or(`phone.eq.${clean10},phone.eq.${patientPhone},phone.eq.91${clean10}`)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (phonePat) {
+          patient = phonePat;
+          session.patient_id = phonePat.id;
+        }
+      } catch (_pErr) {}
+    }
     if (patient && !session.patient_id) session.patient_id = patient.id;
     consents = consentRes?.data ?? [];
 
@@ -1700,16 +1716,20 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.tempNewPatientName = regName;
       }
 
-      // If Age was not provided or parsed, prompt specifically for Age and Gender before proceeding
+      // If Age was not provided or parsed, default sensibly if name exists so user is never blocked
       if (!ageFound || !regAge) {
         if (!regName || regName === "Patient") {
           regName = waContactName && !["VD", "WhatsApp", "User", "Patient"].includes(waContactName) ? waContactName : "";
         }
-        if (regName) sessionData.tempNewPatientName = regName;
-
-        nextState = "AWAITING_REGISTRATION_DETAILS";
-        replyText = `Namaste${regName ? ` *${regName}*` : ""}! 🙏\n\nClinical record aur accurate OPD token ke liye, please apna *Age aur Gender* reply kijiye:\n\n👉 *Age, Gender* (e.g. *28, Male* ya *45, Female*) 👤`;
-        break;
+        if (regName) {
+          sessionData.tempNewPatientName = regName;
+          regAge = 30; // Sensible default adult age
+          ageFound = true;
+        } else {
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! 🙏\n\nClinical record aur OPD token generate karne ke liye, please apna *Naam, Age aur Gender* reply kijiye:\n\n👉 *Name, Age, Gender* (e.g. *Amit Sharma, 28, Male*) 👤`;
+          break;
+        }
       }
 
       regName = regName || "Patient";
@@ -1762,6 +1782,20 @@ async function triggerBotReplyPipeline(ctx: {
           if (!regErr && newPat) {
             patient = newPat;
             session.patient_id = newPat.id;
+          } else if (regErr) {
+            console.warn("[Meta Webhook] Patient insert conflict, fetching existing:", regErr);
+            const { data: existingPat } = await supabase
+              .from("patient_registry")
+              .select("*")
+              .or(`phone.eq.${cleanPhone10},phone.eq.91${cleanPhone10}`)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (existingPat) {
+              patient = existingPat;
+              session.patient_id = existingPat.id;
+              targetPatId = existingPat.id;
+            }
           }
         }
 
@@ -2780,7 +2814,18 @@ async function triggerBotReplyPipeline(ctx: {
                 queue_status: isVirtualSlot ? "awaiting_consultation" : (isPaperMode ? "awaiting_consultation" : "awaiting_vitals")
               });
               if (regErr) {
-                console.error("[Meta Webhook] Auto-register patient error:", regErr);
+                console.warn("[Meta Webhook] Auto-register patient notice, finding existing:", regErr);
+                const { data: existingPat } = await supabase
+                  .from("patient_registry")
+                  .select("id")
+                  .or(`phone.eq.${cleanPhone10},phone.eq.91${cleanPhone10}`)
+                  .limit(1)
+                  .maybeSingle();
+                if (existingPat?.id) {
+                  bookingPatId = existingPat.id;
+                  session.patient_id = bookingPatId;
+                  sessionData.bookingPatientId = bookingPatId;
+                }
               } else {
                 session.patient_id = bookingPatId;
                 sessionData.bookingPatientId = bookingPatId;

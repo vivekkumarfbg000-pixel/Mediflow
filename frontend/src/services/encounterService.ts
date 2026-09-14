@@ -8,6 +8,7 @@ import { MASTER_TEST_CATALOG } from './labService';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { Encounter, HistoricalBiomarker, LabRequisition, InventoryHold } from '../types';
+import { cloudStore } from './cloudStore';
 
 export class EncounterService {
   static getEncounters(): Encounter[] {
@@ -250,24 +251,38 @@ export class EncounterService {
         const holdId = crypto.randomUUID();
         const newHold = {
           id: holdId,
+          encounterId: encounterId,
+          encounter_id: encounterId,
           pharmacyId: ctx.pharmacyEntityId || null,
+          pharmacy_id: ctx.pharmacyEntityId || null,
           patientId: newEncounter.patientId,
+          patient_id: newEncounter.patientId,
           patientName: resolvedPatientName,
+          patient_name: resolvedPatientName,
           patientPhone: resolvedPatientPhone,
+          patient_phone: resolvedPatientPhone,
           medicineName: med.medicineName,
+          medicine_name: med.medicineName,
           dosage: med.dosage || '',
           quantity: qty,
           holdStatus: item ? 'held' : 'out_of_stock',
+          hold_status: item ? 'held' : 'out_of_stock',
+          status: item ? 'held' : 'out_of_stock',
           expiryDate: expiry,
+          expiry_date: expiry,
           batchNumber: batch,
+          batch_number: batch,
           podId: ctx.podId,
           pod_id: ctx.podId,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          created_at: new Date().toISOString()
         };
         holds.push(newHold);
+        cloudStore.applyLocalDiff('inventory_holds', newHold);
         
         if (item) {
           item.stock = Math.max(0, item.stock - qty);
+          cloudStore.applyLocalDiff('pharmacy_inventory', item);
         }
       }
       save('inventory_holds', holds);
@@ -326,6 +341,9 @@ export class EncounterService {
       createdAt: new Date().toISOString()
     };
     invoices.push(newInvoice);
+    cloudStore.applyLocalDiff('unified_invoices', newInvoice);
+    cloudStore.applyLocalDiff('encounters', newEncounter);
+    cloudStore.applyLocalDiff('saas_prescriptions', newRxRecord);
     save('unified_invoices', invoices);
 
     if (typeof window !== 'undefined') {
@@ -381,19 +399,22 @@ export class EncounterService {
         // 3. Insert/Upsert into public.inventory_holds for pharmacy POS realtime sync
         try {
           if ((newEncounter.medications || []).length > 0) {
-            const currentHolds = load<any[]>('inventory_holds', []).filter(h => h.encounterId === encounterId);
+            const currentHolds = load<any[]>('inventory_holds', []).filter(h => h.encounterId === encounterId || (h as any).encounter_id === encounterId);
             const dbHolds = currentHolds.map(h => ({
               id: h.id,
               encounter_id: encounterId,
               patient_id: newEncounter.patientId,
-              medicine_name: h.medicineName,
-              quantity: h.quantity,
+              pharmacy_entity_id: ctx.pharmacyEntityId || null,
+              medicine_name: h.medicineName || (h as any).medicine_name,
+              dosage: h.dosage || '',
+              quantity: h.quantity || 1,
               unit: h.unit || 'tablets',
-              expiry_date: h.expiryDate || null,
-              batch_number: h.batchNumber || null,
-              status: 'reserved',
+              expiry_date: h.expiryDate || (h as any).expiry_date || null,
+              batch_number: h.batchNumber || (h as any).batch_number || null,
+              hold_status: h.holdStatus || (h as any).hold_status || 'held',
+              status: h.status || h.holdStatus || 'active',
               pod_id: ctx.podId,
-              created_at: h.createdAt || new Date().toISOString()
+              created_at: h.createdAt || (h as any).created_at || new Date().toISOString()
             }));
             if (dbHolds.length > 0) {
               await supabase.from('inventory_holds').upsert(dbHolds, { onConflict: 'id' });

@@ -4,6 +4,7 @@ import { PatientService } from './patientService';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
 import { getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
+import { cloudStore } from './cloudStore';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
 
 export const MASTER_TEST_CATALOG: DiagnosticTest[] = [
@@ -241,12 +242,18 @@ export class LabService {
       } catch (_e) { /* ignore */ }
     }
 
-    let reqs = load<LabRequisition[]>('lab_requisitions', []);
+    let reqs: LabRequisition[] = [];
+    if (cloudStore.hasCollection('lab_requisitions')) {
+      reqs = cloudStore.getSnapshot<LabRequisition>('lab_requisitions');
+    } else {
+      reqs = load<LabRequisition[]>('lab_requisitions', []);
+    }
     const allPatients = PatientService.getPatients();
     
     // Dynamically resolve patient names and phones if missing
     reqs = reqs.map(r => {
-      const matchP = allPatients.find(p => p.id === r.patientId || (p as any).patient_code === r.patientId);
+      const matchP = cloudStore.getPatientByIdOrPhone(r.patientId || (r as any).patient_id) ||
+                     allPatients.find(p => p.id === r.patientId || (p as any).patient_code === r.patientId);
       if (matchP) {
         return {
           ...r,
@@ -258,17 +265,27 @@ export class LabService {
     });
 
     if (!isDemoAccount) {
-      const currentPodId = getPodContext().podId;
+      const currentPodId = getPodContext().podId || FALLBACK_POD_ID;
       const demoPatientIds = new Set([
         DEMO_PATIENT_ID_1, 
         DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'auto test patient']);
+
+      const isMatchingPod = (itemPod: any, targetPod: string) => {
+        if (!itemPod || itemPod === 'default' || itemPod === 'default-pod') return true;
+        if (itemPod === targetPod) return true;
+        if ((itemPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001' && targetPod === 'VS-V01R') ||
+            (itemPod === 'VS-V01R' && targetPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001')) {
+          return true;
+        }
+        return false;
+      };
+
       reqs = reqs.filter(r => {
         const pod = (r as any).podId || (r as any).pod_id;
-        if (pod && currentPodId && pod !== currentPodId) return false;
-        if (pod && !currentPodId) return false;
+        if (pod && !isMatchingPod(pod, currentPodId)) return false;
         if (!pod && currentPodId) {
           (r as any).podId = currentPodId;
         }
@@ -284,6 +301,9 @@ export class LabService {
 
   static saveLabRequisitions(reqs: LabRequisition[]): void {
     const currentPodId = getPodContext().podId;
+    reqs.forEach(r => {
+      cloudStore.applyLocalDiff('lab_requisitions', r);
+    });
     save('lab_requisitions', reqs);
     notify();
 
@@ -297,6 +317,9 @@ export class LabService {
           dbReqs.push({
             id: r.id,
             encounter_id: r.encounterId || null,
+            patient_id: r.patientId || (r as any).patient_id,
+            patient_name: r.patientName || (r as any).patient_name || null,
+            patient_phone: (r as any).patientPhone || (r as any).patient_phone || null,
             loinc_code: r.testCode || (r as any).loinc_code || (r as any).loincCode || 'LOINC-001',
             test_code: r.testCode || (r as any).loinc_code || (r as any).loincCode || 'LOINC-001',
             test_name: r.testName,
@@ -338,6 +361,9 @@ export class LabService {
       podId: currentPodId,
       createdAt: new Date().toISOString()
     }));
+    newReqs.forEach(r => {
+      cloudStore.applyLocalDiff('lab_requisitions', r);
+    });
     this.saveLabRequisitions([...newReqs, ...existing]);
 
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist new requisitions to Supabase
@@ -369,6 +395,7 @@ export class LabService {
     const idx = requisitions.findIndex(r => r.id === reqId);
     if (idx !== -1) {
       requisitions[idx].status = 'collected';
+      cloudStore.applyLocalDiff('lab_requisitions', requisitions[idx]);
       save('lab_requisitions', requisitions);
 
       const { error } = await supabase.from('lab_requisitions').update({
@@ -473,6 +500,7 @@ export class LabService {
         }
       }
 
+      cloudStore.applyLocalDiff('lab_requisitions', req);
       save('lab_requisitions', requisitions);
 
       supabase.from('lab_requisitions').update({
@@ -491,9 +519,13 @@ export class LabService {
           requisition_id: reqId,
           patient_id: req.patientId,
           patient_name: patient?.name || req.patientName || 'Unknown',
-          biomarker_json: { testCode: req.testCode, testName: req.testName, resultValue },
-          status: 'approved', // lab tech submit = auto-approved at technician level
-          pod_id: getPodContext().podId
+          test_name: req.testName,
+          test_code: req.testCode,
+          barcode: req.barcode,
+          result_data: resultValue,
+          status: 'verified',
+          pod_id: req.podId || getPodContext().podId || FALLBACK_POD_ID,
+          created_at: new Date().toISOString()
         }, { onConflict: 'id' });
 
         // AI extraction and summary update
@@ -579,6 +611,7 @@ export class LabService {
     };
     const existing = this.getLabRequisitions();
     existing.unshift(newReq);
+    cloudStore.applyLocalDiff('lab_requisitions', newReq);
     save('lab_requisitions', existing);
     notify();
 
@@ -603,13 +636,28 @@ export class LabService {
   }
 
   static getPathologyReports(): PathologyReport[] {
-    let reports = load<PathologyReport[]>('pathology_reports', []);
-    const currentPodId = getPodContext().podId;
+    let reports: PathologyReport[] = [];
+    if (cloudStore.hasCollection('pathology_reports')) {
+      reports = cloudStore.getSnapshot<PathologyReport>('pathology_reports');
+    } else {
+      reports = load<PathologyReport[]>('pathology_reports', []);
+    }
+    const currentPodId = getPodContext().podId || FALLBACK_POD_ID;
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+
+    const isMatchingPod = (itemPod: any, targetPod: string) => {
+      if (!itemPod || itemPod === 'default' || itemPod === 'default-pod') return true;
+      if (itemPod === targetPod) return true;
+      if ((itemPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001' && targetPod === 'VS-V01R') ||
+          (itemPod === 'VS-V01R' && targetPod === 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001')) {
+        return true;
+      }
+      return false;
+    };
+
     reports = reports.filter(r => {
       const pod = (r as any).podId || (r as any).pod_id;
-      if (pod && currentPodId && pod !== currentPodId) return false;
-      if (pod && !currentPodId) return false;
+      if (pod && !isMatchingPod(pod, currentPodId)) return false;
       if (!pod && currentPodId) {
         (r as any).podId = currentPodId;
       }
@@ -622,6 +670,9 @@ export class LabService {
   }
 
   static savePathologyReports(reports: PathologyReport[]) {
+    reports.forEach(r => {
+      cloudStore.applyLocalDiff('pathology_reports', r);
+    });
     save('pathology_reports', reports);
     notify();
   }
@@ -632,6 +683,7 @@ export class LabService {
     if (idx !== -1) {
       reports[idx].status = 'approved';
       reports[idx].results = results;
+      cloudStore.applyLocalDiff('pathology_reports', reports[idx]);
       this.savePathologyReports(reports);
 
       writeAuditLog('LAB_REPORT_APPROVED', {

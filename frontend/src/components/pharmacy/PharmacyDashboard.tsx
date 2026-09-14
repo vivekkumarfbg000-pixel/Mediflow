@@ -5,7 +5,7 @@ import { PaymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { safeGetStorageJSON } from '../../utils/storage';
-import { resolveSovereignPodId } from '../../services/podContext';
+import { resolveSovereignPodId, FALLBACK_POD_ID } from '../../services/podContext';
 import { useSpecialization } from '../../context/SpecializationContext';
 import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
@@ -149,7 +149,7 @@ export const PharmacyDashboard: React.FC = () => {
       const currentPodId = resolveSovereignPodId(activePod?.id);
 
       if (currentPodId) {
-        query = query.eq('pod_id', currentPodId);
+        query = query.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
       }
 
       const { data } = await query;
@@ -220,6 +220,7 @@ export const PharmacyDashboard: React.FC = () => {
           }
         }));
       },
+      onEncounterChange: () => syncLocal(),
       onInventoryHoldChange: () => syncLocal(),
       onPharmacyInventoryChange: () => syncLocal(),
       onPatientChange: () => syncLocal(),

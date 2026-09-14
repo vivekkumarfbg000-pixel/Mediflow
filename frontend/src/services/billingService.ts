@@ -4,10 +4,11 @@ import { PatientService } from './patientService';
 import { PaymentService } from './paymentService';
 import { MASTER_TEST_CATALOG } from './labService';
 import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, resolveSovereignPodId } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { FinanceEngine } from './financeEngine';
+import { cloudStore } from './cloudStore';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
@@ -26,7 +27,8 @@ export class BillingService {
       } catch (_e) { /* ignore */ }
     }
 
-    let invoices = load<UnifiedInvoice[]>('unified_invoices', []);
+    const storeInvs = cloudStore.getSnapshot<UnifiedInvoice>('unified_invoices');
+    let invoices = (storeInvs && storeInvs.length > 0) ? [...storeInvs] : load<UnifiedInvoice[]>('unified_invoices', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
@@ -94,6 +96,7 @@ export class BillingService {
 
   static saveAppointments(appointments: Appointment[]): void {
     const currentPodId = getPodContext().podId;
+    appointments.forEach(a => cloudStore.applyLocalDiff('appointments', a));
     save('saas_appointments', appointments);
     save('appointments', appointments);
     notify();
@@ -123,7 +126,12 @@ export class BillingService {
             source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
             appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
             created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
-            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || null
+            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || null,
+            is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
+            is_vip: Boolean(appt.isVip || (appt as any).is_vip),
+            payment_status: (appt as any).paymentStatus || (appt as any).payment_status || 'cleared',
+            problem: (appt as any).problem || (appt as any).chief_complaint || '',
+            chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
           });
         }
 
@@ -146,10 +154,10 @@ export class BillingService {
     if (idx !== -1) {
       invoices[idx].paymentStatus = 'cleared';
       invoices[idx].paymentMethod = paymentMethod;
-      save('unified_invoices', invoices);
+      this.saveUnifiedInvoices(invoices);
       invoiceAmount = invoices[idx].totalAmount || 500;
-      targetPatientId = invoices[idx].patientId || '';
-      targetApptId = invoices[idx].encounterId || '';
+      targetPatientId = invoices[idx].patientId || (invoices[idx] as any).patient_id || '';
+      targetApptId = invoices[idx].encounterId || (invoices[idx] as any).encounter_id || '';
       writeAuditLog('INVOICE_PAYMENT_CLEARED', { invoiceId, paymentMethod, amount: invoices[idx].totalAmount }, invoices[idx].patientId);
     }
 
@@ -174,7 +182,11 @@ export class BillingService {
 
     // Update appointment status and payment_status across local and remote
     const appts = this.getAppointments();
-    const targetAppt = appts.find(a => a.id === targetApptId || a.id === invoiceId);
+    const targetAppt = appts.find(a => 
+      (targetApptId && a.id === targetApptId) || 
+      a.id === invoiceId || 
+      (targetPatientId && (a.patientId === targetPatientId || (a as any).patient_id === targetPatientId) && a.status === 'pending_payment')
+    );
     const isPaperMode = typeof window !== 'undefined' && (
       localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
       localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
@@ -405,7 +417,8 @@ export class BillingService {
       } catch (_e) { /* ignore */ }
     }
 
-    let appts = load<Appointment[]>('saas_appointments', []);
+    const storeAppts = cloudStore.getSnapshot<Appointment>('appointments');
+    let appts = (storeAppts && storeAppts.length > 0) ? [...storeAppts] : load<Appointment[]>('saas_appointments', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
@@ -414,12 +427,13 @@ export class BillingService {
         'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105'
       ]);
       const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
-      const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
+      const effectivePod = resolveSovereignPodId(currentPodId) || FALLBACK_POD_ID;
       appts = appts.filter(a => {
         const pod = (a as any).podId || (a as any).pod_id;
         const src = String(a.source || (a as any).source || '').toLowerCase();
         const isWa = src.includes('whatsapp') || Boolean(a.isVirtual || (a as any).is_virtual);
-        if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID && !isWa) {
+        const isPodMatch = !pod || pod === effectivePod || pod === FALLBACK_POD_ID || effectivePod === FALLBACK_POD_ID || pod === 'default-pod';
+        if (!isPodMatch && !isWa) {
           return false;
         }
         if (!pod && effectivePod) {
@@ -444,6 +458,7 @@ export class BillingService {
     if (currentPodId && !(appt as any).podId && !(appt as any).pod_id) {
       (appt as any).podId = currentPodId;
     }
+    cloudStore.applyLocalDiff('appointments', appt);
     const appts = this.getAppointments();
     const idx = appts.findIndex(a => a.id === appt.id);
     if (idx >= 0) appts[idx] = appt;
@@ -481,7 +496,12 @@ export class BillingService {
             source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
             appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
             created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
-            pod_id: podId
+            pod_id: podId,
+            is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
+            is_vip: Boolean(appt.isVip || (appt as any).is_vip),
+            payment_status: (appt as any).paymentStatus || (appt as any).payment_status || 'cleared',
+            problem: (appt as any).problem || (appt as any).chief_complaint || '',
+            chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
           }, { onConflict: 'id' });
         }
       } catch (dbErr) {
@@ -699,6 +719,32 @@ export class BillingService {
     (newAppt as any).patient_phone = pat?.phone || '';
     this.saveAppointment(newAppt);
 
+    // Save corresponding unified invoice in cloud store
+    const existingUInvoices = this.getUnifiedInvoices();
+    const newUnifiedInv: UnifiedInvoice = {
+      id: newInvoice.id,
+      encounterId: apptId,
+      encounter_id: apptId,
+      patientId: patientId,
+      patient_id: patientId,
+      patientName: pat?.name || 'Patient',
+      patientPhone: pat?.phone || '',
+      tokenNumber: tokenNumber,
+      token_number: tokenNumber,
+      doctorFee: consultFee,
+      doctor_fee: consultFee,
+      labFee: 0,
+      pharmacyFee: 0,
+      platformFee: source === 'whatsapp' ? 15 : 0,
+      totalAmount: source === 'whatsapp' ? consultFee + 15 : consultFee,
+      paymentStatus: 'pending',
+      paymentMethod: 'cash',
+      podId: ctx.podId || FALLBACK_POD_ID,
+      createdAt: new Date().toISOString()
+    } as any;
+    existingUInvoices.push(newUnifiedInv);
+    this.saveUnifiedInvoices(existingUInvoices);
+
     const runInit = async () => {
       let resolvedDoctorId: string | null = null; // BUG-04 FIX: No hardcoded demo fallback
       try {
@@ -728,6 +774,10 @@ export class BillingService {
         await supabase.from('appointments').upsert({
           id: apptId,
           patient_id: patientId,
+          patient_name: pat?.name || 'Patient',
+          patient_phone: pat?.phone || '',
+          token_number: tokenNumber,
+          source: source,
           doctor_id: resolvedDoctorId,
           status: 'pending_payment',
           appointment_time: `${effectiveDate}T10:00:00.000Z`,
@@ -739,7 +789,9 @@ export class BillingService {
 
         await supabase.from('unified_invoices').upsert({
           id: newInvoice.id,
+          encounter_id: apptId,
           patient_id: patientId,
+          token_number: tokenNumber,
           doctor_fee: consultFee,
           lab_fee: 0,
           pharmacy_fee: 0,

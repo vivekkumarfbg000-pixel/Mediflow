@@ -15,6 +15,7 @@ import type {
   MedicineImportRow,
   FinancialLedgerEntry
 } from '../types';
+import { cloudStore } from './cloudStore';
 
 export class PharmacyService {
   private static readonly AI_BASE = (() => {
@@ -377,6 +378,11 @@ export class PharmacyService {
       }
     ];
 
+    const storeInv = cloudStore.getSnapshot<PharmacyInventoryItem>('pharmacy_inventory');
+    if (storeInv && storeInv.length > 0) {
+      return storeInv;
+    }
+
     const stored = load<PharmacyInventoryItem[]>('pharmacy_inventory', []);
     if (stored.length > 0) {
       return stored;
@@ -403,6 +409,7 @@ export class PharmacyService {
   }
 
   static savePharmacyInventory(items: PharmacyInventoryItem[]) {
+    items.forEach(i => cloudStore.applyLocalDiff('pharmacy_inventory', i));
     save('pharmacy_inventory', items);
     notify();
 
@@ -729,7 +736,8 @@ export class PharmacyService {
       } catch (_e) { /* ignore */ }
     }
 
-    let holds = load<InventoryHold[]>('inventory_holds', []);
+    const storeHolds = cloudStore.getSnapshot<InventoryHold>('inventory_holds');
+    let holds = (storeHolds && storeHolds.length > 0) ? [...storeHolds] : load<InventoryHold[]>('inventory_holds', []);
     const allPatients = PatientService.getPatients();
     holds = holds.map(h => {
       const matchP = allPatients.find(p => p.id === h.patientId || (p as any).patient_code === h.patientId);
@@ -763,6 +771,7 @@ export class PharmacyService {
     const idx = holds.findIndex(h => h.id === holdId);
     if (idx !== -1) {
       holds[idx].holdStatus = 'dispensed';
+      cloudStore.applyLocalDiff('inventory_holds', holds[idx]);
       save('inventory_holds', holds);
 
       supabase.from('inventory_holds').update({

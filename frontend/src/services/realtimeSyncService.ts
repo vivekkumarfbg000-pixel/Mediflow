@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { load, save, clearStorageCache, notify, broadcastStorageMutation } from './apiHelper';
 import { getIstDateString } from '../utils/dateUtils';
 import { getPodContext, FALLBACK_POD_ID, resolveSovereignPodId } from './podContext';
+import { cloudStore, type CollectionName } from './cloudStore';
 
 export interface RealtimeSubscriptionHandlers {
   onAppointmentChange?: (payload: any) => void;
@@ -21,6 +22,9 @@ export interface RealtimeSubscriptionHandlers {
   onChronicCohortChange?: (payload: any) => void;
   onPharmacyInventoryChange?: (payload: any) => void;
   onReagentInventoryChange?: (payload: any) => void;
+  onWabaConnectionChange?: (payload: any) => void;
+  onReferralRewardChange?: (payload: any) => void;
+  onLabTestBillChange?: (payload: any) => void;
   onStatusChange?: (status: 'connected' | 'reconnecting' | 'disconnected') => void;
 }
 
@@ -29,6 +33,7 @@ export class RealtimeSyncService {
   private static activeChannel: any = null;
   private static heartbeatTimer: any = null;
   private static reconnectTimer: any = null;
+  private static channelDisconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private static lastPingSuccess = Date.now();
   private static currentStatus: 'connected' | 'reconnecting' | 'disconnected' = 'disconnected';
   
@@ -72,32 +77,58 @@ export class RealtimeSyncService {
     if (record.lab_fee !== undefined) normalized.labFee = typeof record.lab_fee === 'string' ? parseFloat(record.lab_fee) : record.lab_fee;
     if (record.pharmacy_fee !== undefined) normalized.pharmacyFee = typeof record.pharmacy_fee === 'string' ? parseFloat(record.pharmacy_fee) : record.pharmacy_fee;
     if (record.platform_fee !== undefined) normalized.platformFee = typeof record.platform_fee === 'string' ? parseFloat(record.platform_fee) : record.platform_fee;
-    if (record.payment_status !== undefined) normalized.paymentStatus = record.payment_status;
-    if (record.payment_method !== undefined) normalized.paymentMethod = record.payment_method;
-    if (record.is_virtual !== undefined) {
-      normalized.isVirtual = record.is_virtual === true;
-      normalized.is_virtual = record.is_virtual === true;
+    if (record.payment_status !== undefined || record.paymentStatus !== undefined) {
+      const ps = record.payment_status || record.paymentStatus;
+      normalized.paymentStatus = ps;
+      normalized.payment_status = ps;
     }
-    if (record.virtual_date !== undefined) normalized.virtualDate = record.virtual_date;
-    if (record.virtual_time !== undefined) normalized.virtualTime = record.virtual_time;
-    if (record.virtual_meeting_url !== undefined) normalized.virtualMeetingUrl = record.virtual_meeting_url;
-    if (record.appointment_time !== undefined) {
-      normalized.appointmentTime = record.appointment_time;
-      normalized.appointment_time = record.appointment_time;
+    if (record.payment_method !== undefined || record.paymentMethod !== undefined) {
+      const pm = record.payment_method || record.paymentMethod;
+      normalized.paymentMethod = pm;
+      normalized.payment_method = pm;
+    }
+    if (record.is_virtual !== undefined || record.isVirtual !== undefined) {
+      const isV = record.is_virtual === true || record.isVirtual === true;
+      normalized.isVirtual = isV;
+      normalized.is_virtual = isV;
+    }
+    if (record.virtual_date !== undefined || record.virtualDate !== undefined) {
+      const vd = record.virtual_date || record.virtualDate;
+      normalized.virtualDate = vd;
+      normalized.virtual_date = vd;
+    }
+    if (record.virtual_time !== undefined || record.virtualTime !== undefined) {
+      const vt = record.virtual_time || record.virtualTime;
+      normalized.virtualTime = vt;
+      normalized.virtual_time = vt;
+    }
+    if (record.virtual_meeting_url !== undefined || record.virtualMeetingUrl !== undefined) {
+      const vmu = record.virtual_meeting_url || record.virtualMeetingUrl;
+      normalized.virtualMeetingUrl = vmu;
+      normalized.virtual_meeting_url = vmu;
+    }
+    if (record.appointment_time !== undefined || record.appointmentTime !== undefined) {
+      const at = record.appointment_time || record.appointmentTime;
+      normalized.appointmentTime = at;
+      normalized.appointment_time = at;
     }
     if (record.date !== undefined) {
       normalized.date = record.date;
-    } else if (record.appointment_time) {
-      normalized.date = getIstDateString(record.appointment_time);
-    } else if (record.virtual_date) {
-      normalized.date = record.virtual_date;
+    } else if (record.appointment_time || record.appointmentTime) {
+      normalized.date = getIstDateString(record.appointment_time || record.appointmentTime);
+    } else if (record.virtual_date || record.virtualDate) {
+      normalized.date = record.virtual_date || record.virtualDate;
     }
     if (record.time !== undefined) {
       normalized.time = record.time;
-    } else if (record.virtual_time) {
-      normalized.time = record.virtual_time;
+    } else if (record.virtual_time || record.virtualTime) {
+      normalized.time = record.virtual_time || record.virtualTime;
     }
-    if (record.patient_phone !== undefined) normalized.patientPhone = record.patient_phone;
+    if (record.patient_phone !== undefined || record.patientPhone !== undefined) {
+      const pp = record.patient_phone || record.patientPhone;
+      normalized.patientPhone = pp;
+      normalized.patient_phone = pp;
+    }
     if (record.biomarker_json !== undefined) normalized.biomarkerJson = record.biomarker_json;
     if (record.report_file_url !== undefined) normalized.reportFileUrl = record.report_file_url;
     if (record.test_code !== undefined) normalized.testCode = record.test_code;
@@ -115,7 +146,19 @@ export class RealtimeSyncService {
     if (record.rejection_reason !== undefined) normalized.rejectionReason = record.rejection_reason;
     if (record.revisit_scheduled_at !== undefined) normalized.revisitScheduledAt = record.revisit_scheduled_at;
     if (record.revisit_note !== undefined) normalized.revisitNote = record.revisit_note;
-    if (record.is_emergency !== undefined) normalized.isEmergency = record.is_emergency === true;
+    if (record.is_emergency !== undefined || record.isEmergency !== undefined) {
+      const isEm = record.is_emergency === true || record.isEmergency === true;
+      normalized.isEmergency = isEm;
+      normalized.is_emergency = isEm;
+    }
+    if (record.is_vip !== undefined || record.isVip !== undefined) {
+      const isV = record.is_vip === true || record.isVip === true;
+      normalized.isVip = isV;
+      normalized.is_vip = isV;
+    }
+    if (record.source !== undefined) {
+      normalized.source = record.source;
+    }
     if (record.medicine_name !== undefined) {
       normalized.medicineName = record.medicine_name;
       if (!normalized.name) normalized.name = record.medicine_name;
@@ -211,16 +254,37 @@ export class RealtimeSyncService {
     if (record.appointment_id !== undefined) normalized.appointmentId = record.appointment_id;
 
     // Encounters & Digital Prescriptions CDC Normalization (Rule 1)
-    if (record.diagnostic_tests !== undefined) normalized.diagnosticTests = record.diagnostic_tests;
-    if (record.clinical_notes !== undefined) normalized.clinicalNotes = record.clinical_notes;
-    if (record.extracted_medicines !== undefined) normalized.extractedMedicines = record.extracted_medicines;
-    if (record.extracted_tests !== undefined) normalized.extractedTests = record.extracted_tests;
+    if (record.medications !== undefined) {
+      normalized.medications = record.medications;
+      if (!normalized.extractedMedicines) normalized.extractedMedicines = record.medications;
+    }
+    if (record.extracted_medicines !== undefined || record.extractedMedicines !== undefined) {
+      const em = record.extracted_medicines || record.extractedMedicines;
+      normalized.extractedMedicines = em;
+      normalized.extracted_medicines = em;
+      if (!normalized.medications) normalized.medications = em;
+    }
+    if (record.diagnostic_tests !== undefined || record.diagnosticTests !== undefined) {
+      const dt = record.diagnostic_tests || record.diagnosticTests;
+      normalized.diagnosticTests = dt;
+      normalized.diagnostic_tests = dt;
+    }
+    if (record.clinical_notes !== undefined || record.clinicalNotes !== undefined) {
+      const cn = record.clinical_notes || record.clinicalNotes;
+      normalized.clinicalNotes = cn;
+      normalized.clinical_notes = cn;
+    }
+    if (record.extracted_tests !== undefined || record.extractedTests !== undefined) {
+      const et = record.extracted_tests || record.extractedTests;
+      normalized.extractedTests = et;
+      normalized.extracted_tests = et;
+    }
 
     return normalized;
   }
 
   // Synchronously auto-ingest incoming Postgres CDC payloads into apiHelper load/save storage
-  // Uses 250ms debounced batching to prevent UI thrashing during bulk operations
+  // Uses 250ms debounced batching for telemetry while immediately flushing clinical workflows (<10ms)
   private static autoIngestPayload(tableName: string, payload: any) {
     try {
       // Update heartbeat — this CDC event proves the WebSocket is alive
@@ -231,9 +295,27 @@ export class RealtimeSyncService {
       existing.push(payload);
       this.cdcBuffer.set(tableName, existing);
 
-      // Debounced flush
-      if (this.flushTimer) clearTimeout(this.flushTimer);
-      this.flushTimer = setTimeout(() => this.flushBuffer(), this.CDC_DEBOUNCE_MS);
+      // Rule 1: Immediate clinical workflow tables flush synchronously for instant 0ms cross-console triage
+      const IMMEDIATE_FLUSH_TABLES = new Set([
+        'appointments',
+        'patient_registry',
+        'encounters',
+        'saas_prescriptions',
+        'prescriptions',
+        'medicine_bills',
+        'lab_requisitions',
+        'inventory_holds',
+        'unified_invoices'
+      ]);
+
+      if (IMMEDIATE_FLUSH_TABLES.has(tableName)) {
+        if (this.flushTimer) clearTimeout(this.flushTimer);
+        this.flushBuffer();
+      } else {
+        // Debounced flush for high-frequency telemetry / ledgers
+        if (this.flushTimer) clearTimeout(this.flushTimer);
+        this.flushTimer = setTimeout(() => this.flushBuffer(), this.CDC_DEBOUNCE_MS);
+      }
     } catch (e) {
       console.warn('[RealtimeSync] Auto-ingest payload warning:', e);
     }
@@ -265,6 +347,7 @@ export class RealtimeSyncService {
           'whatsapp_sessions': ['whatsapp_sessions'],
           'medicine_bills': ['medicine_bills'],
           'lab_requisitions': ['lab_requisitions'],
+          'lab_test_bills': ['lab_test_bills'],
           'inventory_holds': ['inventory_holds'],
           'pathology_reports': ['pathology_reports', 'full_lab_reports'],
           'lab_reports': ['full_lab_reports', 'pathology_reports'],
@@ -275,11 +358,52 @@ export class RealtimeSyncService {
           'clinic_sops': ['clinic_sops'],
           'chronic_care_cohorts': ['chronic_care_cohorts'],
           'pharmacy_inventory': ['pharmacy_inventory', 'mediflow_inventory'],
-          'reagent_inventory': ['reagents', 'reagent_inventory']
+          'reagent_inventory': ['reagents', 'reagent_inventory'],
+          'waba_connections': ['waba_connections'],
+          'patient_referral_rewards': ['patient_referral_rewards']
         };
 
         const storageKeys = storageMap[tableName];
         if (!storageKeys) return;
+
+        // Synchronize patient sub-maps (tokens_map, vitals_map, queue_status_map) directly on patient_registry CDC
+        if (tableName === 'patient_registry') {
+          try {
+            const tokensMap = load<Record<string, string>>('tokens_map', {});
+            const vitalsMap = load<Record<string, any>>('vitals_map', {});
+            const queueStatusMap = load<Record<string, string>>('queue_status_map', {});
+            let mapsUpdated = false;
+
+            for (const payload of deduped) {
+              const rawRecord = payload.new;
+              if (!rawRecord || !rawRecord.id) continue;
+              if (rawRecord.token_number || rawRecord.tokenNumber) {
+                tokensMap[rawRecord.id] = String(rawRecord.token_number || rawRecord.tokenNumber);
+                mapsUpdated = true;
+              }
+              if (rawRecord.vitals) {
+                vitalsMap[rawRecord.id] = rawRecord.vitals;
+                mapsUpdated = true;
+              }
+              if (rawRecord.queue_status || rawRecord.queueStatus) {
+                queueStatusMap[rawRecord.id] = rawRecord.queue_status || rawRecord.queueStatus;
+                mapsUpdated = true;
+              }
+            }
+            if (mapsUpdated) {
+              save('tokens_map', tokensMap);
+              save('vitals_map', vitalsMap);
+              save('queue_status_map', queueStatusMap);
+            }
+          } catch (_e) {}
+        // 🌟 SOVEREIGN CLOUD STORE INGESTION: Apply live CDC diff in <5ms
+        const colName = (tableName === 'patient_registry' ? 'patients' : tableName) as CollectionName;
+        for (const payload of deduped) {
+          const rawRecord = payload.new || payload.old;
+          if (!rawRecord) continue;
+          const record = this.normalizeRecord(rawRecord);
+          cloudStore.ingestCdcFrame(colName, payload.eventType, record);
+        }
 
         // Single read-modify-write per table
         for (const storageKey of storageKeys) {
@@ -309,7 +433,7 @@ export class RealtimeSyncService {
         // Single event dispatch per table
         notify();
         window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: tableName } }));
-        if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'vitalsync_pool_settlements'].includes(tableName)) {
+        if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'lab_test_bills', 'vitalsync_pool_settlements'].includes(tableName)) {
           window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { table: tableName } }));
         }
       });
@@ -348,7 +472,14 @@ export class RealtimeSyncService {
         const isFiltered = Boolean(currentPodId);
 
         const buildQuery = (tableName: string) => {
-          let q = supabase.from(tableName).select('*').order('created_at', { ascending: false }).limit(60);
+          let q = supabase.from(tableName).select('*').limit(60);
+          if (tableName === 'whatsapp_sessions') {
+            q = q.order('last_interaction', { ascending: false });
+          } else if (tableName === 'pharmacy_inventory' || tableName === 'reagent_inventory') {
+            q = q.order('updated_at', { ascending: false });
+          } else {
+            q = q.order('created_at', { ascending: false });
+          }
           if (isFiltered && currentPodId !== FALLBACK_POD_ID) {
             q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
           }
@@ -363,6 +494,7 @@ export class RealtimeSyncService {
           sessionsRes,
           medBillsRes,
           labReqsRes,
+          labBillsRes,
           reportsRes,
           poolRes,
           sopsRes,
@@ -380,6 +512,7 @@ export class RealtimeSyncService {
           buildQuery('whatsapp_sessions'),
           buildQuery('medicine_bills'),
           buildQuery('lab_requisitions'),
+          buildQuery('lab_test_bills'),
           buildQuery('pathology_reports'),
           buildQuery('vitalsync_pool_settlements'),
           buildQuery('clinic_sops'),
@@ -391,60 +524,37 @@ export class RealtimeSyncService {
           buildQuery('reagent_inventory')
         ]);
 
-        const handleTableSync = (res: PromiseSettledResult<any>, tableName: string, storageKeys: string[]) => {
+        const handleTableSync = (res: PromiseSettledResult<any>, tableName: string, storageKeys: string[], colName: CollectionName) => {
           if (res.status === 'fulfilled' && res.value && Array.isArray(res.value.data)) {
             const normalized = res.value.data.map((r: any) => this.normalizeRecord(r));
 
-            // Sovereign Cloud Authority: Check offline WAL outbox for pending unsynced records
-            let pendingWalRecords: any[] = [];
-            try {
-              const rawMemOutbox = localStorage.getItem('wal_mem_outbox');
-              if (rawMemOutbox) {
-                const outbox = JSON.parse(rawMemOutbox);
-                if (Array.isArray(outbox)) {
-                  pendingWalRecords = outbox
-                    .filter((entry: any) => !entry.synced && (entry.table === tableName || entry.tableName === tableName) && entry.data)
-                    .map((entry: any) => this.normalizeRecord(entry.data));
-                }
-              }
-            } catch (_e) {
-              /* ignore outbox parse error */
-            }
-
-            // Merge: Authoritative Cloud Records + Pending Unsynced WAL Records
-            // (Zombies not in cloud and not in pending WAL are definitively pruned)
-            const finalDataset = [...normalized];
-            if (pendingWalRecords.length > 0) {
-              pendingWalRecords.forEach(pending => {
-                if (pending && pending.id && !finalDataset.some(m => m.id === pending.id)) {
-                  finalDataset.push(pending);
-                }
-              });
-            }
+            // 🌟 AUTHORITATIVE CLOUD SSOT: Replaces obsolete records; prevents zombie resurrection
+            cloudStore.setAuthoritativeCloudCollection(colName, normalized);
 
             for (const key of storageKeys) {
               clearStorageCache(key);
-              save(key, finalDataset, true);
+              save(key, normalized, false);
             }
           }
         };
 
-        handleTableSync(apptsRes, 'appointments', ['saas_appointments', 'appointments']);
-        handleTableSync(patsRes, 'patient_registry', ['patients', 'patient_registry']);
-        handleTableSync(invoicesRes, 'unified_invoices', ['unified_invoices', 'saas_invoices']);
-        handleTableSync(ledgersRes, 'financial_ledgers', ['financial_ledgers']);
-        handleTableSync(sessionsRes, 'whatsapp_sessions', ['whatsapp_sessions']);
-        handleTableSync(medBillsRes, 'medicine_bills', ['medicine_bills']);
-        handleTableSync(labReqsRes, 'lab_requisitions', ['lab_requisitions']);
-        handleTableSync(reportsRes, 'pathology_reports', ['pathology_reports', 'full_lab_reports']);
-        handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements']);
-        handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops']);
-        handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts']);
-        handleTableSync(encountersRes, 'encounters', ['encounters']);
-        handleTableSync(rxRes, 'saas_prescriptions', ['saas_prescriptions', 'prescriptions']);
-        handleTableSync(holdsRes, 'inventory_holds', ['inventory_holds']);
-        handleTableSync(pharmacyRes, 'pharmacy_inventory', ['pharmacy_inventory', 'mediflow_inventory']);
-        handleTableSync(reagentsRes, 'reagent_inventory', ['reagents', 'reagent_inventory']);
+        handleTableSync(apptsRes, 'appointments', ['saas_appointments', 'appointments'], 'appointments');
+        handleTableSync(patsRes, 'patient_registry', ['patients', 'patient_registry'], 'patients');
+        handleTableSync(invoicesRes, 'unified_invoices', ['unified_invoices', 'saas_invoices'], 'unified_invoices');
+        handleTableSync(ledgersRes, 'financial_ledgers', ['financial_ledgers'], 'financial_ledgers');
+        handleTableSync(sessionsRes, 'whatsapp_sessions', ['whatsapp_sessions'], 'whatsapp_sessions');
+        handleTableSync(medBillsRes, 'medicine_bills', ['medicine_bills'], 'medicine_bills');
+        handleTableSync(labReqsRes, 'lab_requisitions', ['lab_requisitions'], 'lab_requisitions');
+        handleTableSync(labBillsRes, 'lab_test_bills', ['lab_test_bills'], 'lab_test_bills');
+        handleTableSync(reportsRes, 'pathology_reports', ['pathology_reports', 'full_lab_reports'], 'pathology_reports');
+        handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements'], 'clinic_sops');
+        handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops'], 'clinic_sops');
+        handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts'], 'chronic_care_cohorts');
+        handleTableSync(encountersRes, 'encounters', ['encounters'], 'encounters');
+        handleTableSync(rxRes, 'saas_prescriptions', ['saas_prescriptions', 'prescriptions'], 'saas_prescriptions');
+        handleTableSync(holdsRes, 'inventory_holds', ['inventory_holds'], 'inventory_holds');
+        handleTableSync(pharmacyRes, 'pharmacy_inventory', ['pharmacy_inventory', 'mediflow_inventory'], 'pharmacy_inventory');
+        handleTableSync(reagentsRes, 'reagent_inventory', ['reagents', 'reagent_inventory'], 'reagent_inventory');
 
         this.lastHydrationTime = Date.now();
         broadcastStorageMutation();
@@ -464,6 +574,12 @@ export class RealtimeSyncService {
   static subscribeToLiveClinicUpdates(handlers: RealtimeSubscriptionHandlers) {
     this.subscribers.add(handlers);
     
+    // Clear pending graceful disconnect timer if a new subscriber mounted
+    if (this.channelDisconnectTimer) {
+      clearTimeout(this.channelDisconnectTimer);
+      this.channelDisconnectTimer = null;
+    }
+
     // Notify immediate current status
     handlers.onStatusChange?.(this.currentStatus);
 
@@ -476,14 +592,20 @@ export class RealtimeSyncService {
 
     return () => {
       this.subscribers.delete(handlers);
+      // Enterprise Singleton Invariant: Keep connection alive across transient React unmounts
       if (this.subscribers.size === 0 && this.activeChannel) {
-        try {
-          supabase.removeChannel(this.activeChannel);
-          this.activeChannel = null;
-        } catch (_e) {
-          /* ignore removeChannel error */
-        }
-        this.updateStatus('disconnected');
+        if (this.channelDisconnectTimer) clearTimeout(this.channelDisconnectTimer);
+        this.channelDisconnectTimer = setTimeout(() => {
+          if (this.subscribers.size === 0 && this.activeChannel) {
+            try {
+              supabase.removeChannel(this.activeChannel);
+              this.activeChannel = null;
+            } catch (_e) {
+              /* ignore removeChannel error */
+            }
+            this.updateStatus('disconnected');
+          }
+        }, 30_000); // 30-second graceful buffer for seamless tab transitions
       }
     };
   }
@@ -518,6 +640,15 @@ export class RealtimeSyncService {
           console.log('[RealtimeSync] Lab Requisition change detected:', payload);
           this.autoIngestPayload('lab_requisitions', payload);
           this.subscribers.forEach(s => s.onLabRequisitionChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lab_test_bills' },
+        (payload) => {
+          console.log('[RealtimeSync] Lab Test Bill change detected:', payload);
+          this.autoIngestPayload('lab_test_bills', payload);
+          this.subscribers.forEach(s => (s as any).onLabTestBillChange?.(payload));
         }
       )
       .on(
@@ -653,6 +784,24 @@ export class RealtimeSyncService {
           console.log('[RealtimeSync] Reagent Inventory change detected:', payload);
           this.autoIngestPayload('reagent_inventory', payload);
           this.subscribers.forEach(s => s.onReagentInventoryChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'waba_connections' },
+        (payload) => {
+          console.log('[RealtimeSync] WABA Connection change detected:', payload);
+          this.autoIngestPayload('waba_connections', payload);
+          this.subscribers.forEach(s => s.onWabaConnectionChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'patient_referral_rewards' },
+        (payload) => {
+          console.log('[RealtimeSync] Referral Reward change detected:', payload);
+          this.autoIngestPayload('patient_referral_rewards', payload);
+          this.subscribers.forEach(s => s.onReferralRewardChange?.(payload));
         }
       )
       .subscribe((status, err) => {

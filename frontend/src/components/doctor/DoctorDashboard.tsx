@@ -8,6 +8,7 @@ import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID,
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import { safeGetStorageJSON } from '../../utils/storage';
+import { cloudStore } from '../../services/cloudStore';
 import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop, UnifiedInvoice, Invoice } from '../../types';
 import { 
   Trash2, 
@@ -520,8 +521,16 @@ export const DoctorDashboard: React.FC = () => {
           } catch (_e) {}
 
           if (apptsRes.data.length === 0) {
-            BillingService.saveAppointments(pendingWalAppts);
-            setAppointments(pendingWalAppts);
+            const currentAppts = BillingService.getAppointments();
+            const safeMerged = [...currentAppts];
+            pendingWalAppts.forEach(p => {
+              if (p && p.id && !safeMerged.some(m => m.id === p.id)) {
+                safeMerged.push(p);
+              }
+            });
+            if (safeMerged.length > 0) {
+              setAppointments(safeMerged);
+            }
           } else {
             const dbAppts: Appointment[] = apptsRes.data.map((a: any, idx: number) => {
               const resolvedName = (a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') 
@@ -534,9 +543,17 @@ export const DoctorDashboard: React.FC = () => {
                 patient_id: a.patient_id,
                 patientName: resolvedName,
                 patient_name: resolvedName,
+                patientPhone: a.patient_phone || a.patientPhone || '',
+                patient_phone: a.patient_phone || a.patientPhone || '',
                 doctorId: a.doctor_id,
                 doctor_id: a.doctor_id,
                 status: a.status || 'scheduled',
+                paymentStatus: a.payment_status || a.paymentStatus || 'completed',
+                payment_status: a.payment_status || a.paymentStatus || 'completed',
+                isEmergency: a.is_emergency === true || a.isEmergency === true,
+                is_emergency: a.is_emergency === true || a.isEmergency === true,
+                isVip: a.is_vip === true || a.isVip === true,
+                is_vip: a.is_vip === true || a.isVip === true,
                 tokenNumber: String(a.token_number || (a as any).tokenNumber || ('T-' + String(idx + 1).padStart(2, '0'))),
                 token_number: String(a.token_number || (a as any).tokenNumber || ('T-' + String(idx + 1).padStart(2, '0'))),
                 date: apptDate,
@@ -547,27 +564,29 @@ export const DoctorDashboard: React.FC = () => {
                 virtual_date: a.virtual_date || apptDate,
                 virtualTime: a.virtual_time || '10:00 AM',
                 virtual_time: a.virtual_time || '10:00 AM',
+                virtualMeetingUrl: a.virtual_meeting_url,
                 virtual_meeting_url: a.virtual_meeting_url,
-                source: a.source || (a.is_virtual ? 'whatsapp' : 'counter')
+                source: a.source || (a.is_virtual ? 'whatsapp' : 'counter'),
+                podId: a.pod_id || a.podId,
+                pod_id: a.pod_id || a.podId,
+                problem: a.problem || a.chief_complaint || '',
+                chief_complaint: a.chief_complaint || a.problem || ''
               } as any;
             });
 
-            // Authoritative Cloud SSOT + Pending Unsynced WAL: Prune zombie/cancelled records
-            const finalMerged = [...dbAppts];
-            pendingWalAppts.forEach(p => {
-              if (p && p.id && !finalMerged.some(m => m.id === p.id)) {
-                finalMerged.push(p);
-              }
-            });
-            BillingService.saveAppointments(finalMerged);
-            setAppointments(finalMerged);
+            // Authoritative Cloud SSOT: Update cloudStore snapshot and prune dead records
+            cloudStore.setInitialCloudSnapshot('appointments', dbAppts);
+            BillingService.saveAppointments(dbAppts);
+            setAppointments(dbAppts);
           }
         }
 
         if (ledgersRes.data !== undefined && ledgersRes.data !== null) {
           if (ledgersRes.data.length === 0) {
-            BillingService.saveFinancialLedgers([]);
-            setFinancialLedgers([]);
+            const existingLedgers = BillingService.getFinancialLedgers();
+            if (existingLedgers && existingLedgers.length > 0) {
+              setFinancialLedgers(existingLedgers);
+            }
           } else {
             const dbLedgers: FinancialLedgerEntry[] = ledgersRes.data.map((fl: any) => {
               const resolvedPatName = (fl.patient_name && fl.patient_name !== 'Patient' && fl.patient_name !== 'WhatsApp Patient') ? fl.patient_name : (patNameMap.get(fl.patient_id) || patNameMap.get(fl.patientId) || 'Patient');
@@ -595,6 +614,7 @@ export const DoctorDashboard: React.FC = () => {
               } as any;
             });
 
+            cloudStore.setInitialCloudSnapshot('financial_ledgers', dbLedgers);
             BillingService.saveFinancialLedgers(dbLedgers);
             setFinancialLedgers(dbLedgers);
           }
@@ -602,8 +622,10 @@ export const DoctorDashboard: React.FC = () => {
 
         if (invoicesRes.data !== undefined && invoicesRes.data !== null) {
           if (invoicesRes.data.length === 0) {
-            BillingService.saveUnifiedInvoices([]);
-            BillingService.saveInvoices([]);
+            const existingUnified = BillingService.getUnifiedInvoices();
+            if (existingUnified && existingUnified.length > 0) {
+              // Preserve existing local invoices
+            }
           } else {
             const normalizedInvoices: UnifiedInvoice[] = invoicesRes.data.map((i: any) => {
               const patName = (Array.isArray(i.patient) ? i.patient[0]?.name : i.patient?.name) ||
@@ -652,6 +674,7 @@ export const DoctorDashboard: React.FC = () => {
               } as any;
             });
 
+            cloudStore.setInitialCloudSnapshot('invoices', normalizedInvoices);
             BillingService.saveUnifiedInvoices(normalizedInvoices);
 
             const saasInvs: Invoice[] = normalizedInvoices.map(u => ({
@@ -669,9 +692,10 @@ export const DoctorDashboard: React.FC = () => {
 
         if (patientsRes.data !== undefined && patientsRes.data !== null) {
           if (patientsRes.data.length === 0) {
-            setPatients([]);
-            setSelectedPatient(null);
-            api.savePatients([]);
+            const existingPatients = api.getPatients();
+            if (existingPatients && existingPatients.length > 0) {
+              setPatients(existingPatients);
+            }
           } else {
             const dbPatients: Patient[] = patientsRes.data.map((p: any) => ({
               id: p.id,
@@ -699,6 +723,7 @@ export const DoctorDashboard: React.FC = () => {
               createdAt: p.created_at || new Date().toISOString()
             } as any));
 
+            cloudStore.setInitialCloudSnapshot('patients', dbPatients);
             api.savePatients(dbPatients);
             setPatients(dbPatients);
             setSelectedPatient(prev => prev ? (dbPatients.find(p => p.id === prev.id) || prev) : prev);
@@ -707,8 +732,10 @@ export const DoctorDashboard: React.FC = () => {
 
         if (sessionsRes.data !== undefined && sessionsRes.data !== null) {
           if (sessionsRes.data.length === 0) {
-            WhatsAppService.saveWhatsAppSessions([]);
-            setWhatsAppSessions([]);
+            const existingSessions = WhatsAppService.getWhatsAppSessions();
+            if (existingSessions && existingSessions.length > 0) {
+              setWhatsAppSessions(existingSessions);
+            }
           } else {
             const formattedList = sessionsRes.data.map((dbSession: any) => ({
               id: dbSession.id,
@@ -721,8 +748,16 @@ export const DoctorDashboard: React.FC = () => {
               sessionData: dbSession.session_data || {},
               session_data: dbSession.session_data || {}
             }));
-            WhatsAppService.saveWhatsAppSessions(formattedList);
-            setWhatsAppSessions(formattedList);
+
+            const existingSessions = WhatsAppService.getWhatsAppSessions() || [];
+            const mergedSessions = [...formattedList];
+            existingSessions.forEach(s => {
+              if (!mergedSessions.some(ms => ms.id === s.id || (s.patientPhone && ms.patientPhone === s.patientPhone))) {
+                mergedSessions.push(s);
+              }
+            });
+            WhatsAppService.saveWhatsAppSessions(mergedSessions);
+            setWhatsAppSessions(mergedSessions);
           }
         }
       }).catch(err => {
@@ -777,8 +812,16 @@ export const DoctorDashboard: React.FC = () => {
     const debouncedSync = () => {
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
       syncDebounceTimer = setTimeout(() => {
-        syncDashboardData();
-      }, 400);
+        const registered = api.getPatients();
+        setPatients(registered);
+        setSelectedPatient(prev => prev ? (registered.find(p => p.id === prev.id) || prev) : prev);
+        setAppointments(api.getAppointments());
+        setPharmacyInventory(api.getPharmacyInventory());
+        setWhatsAppOrders(api.getWhatsAppDrugOrders());
+        setPathologyReports(api.getPathologyReports());
+        setFinancialLedgers(api.getFinancialLedgers());
+        setWhatsAppSessions(api.getWhatsAppSessions());
+      }, 50);
     };
 
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
@@ -864,7 +907,9 @@ export const DoctorDashboard: React.FC = () => {
       onClinicSopChange: () => debouncedSync(),
       onSaaSInvoiceChange: () => debouncedSync(),
       onSaaSPrescriptionChange: () => debouncedSync(),
-      onInventoryHoldChange: () => debouncedSync()
+      onInventoryHoldChange: () => debouncedSync(),
+      onChronicCohortChange: () => debouncedSync(),
+      onLabTestBillChange: () => debouncedSync()
     });
 
     const apiUnsub = api.subscribe(debouncedSync);

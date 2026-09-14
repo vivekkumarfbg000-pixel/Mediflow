@@ -1,9 +1,10 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
-import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, resolveSovereignPodId } from './podContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import type { Patient, PatientVitals } from '../types';
+import { cloudStore } from './cloudStore';
 
 export interface PhysicalConsent {
   id: string;
@@ -29,6 +30,7 @@ export class PatientService {
       if (currentPodId && !(p as any).podId && !(p as any).pod_id) {
         (p as any).podId = currentPodId;
       }
+      cloudStore.applyLocalDiff('patients', p);
     });
     save('patients', patients);
     save('patient_registry', patients);
@@ -72,12 +74,18 @@ export class PatientService {
       (patient as any).podId = currentPodId;
     }
     const patients = this.getPatients();
-    const idx = patients.findIndex(p => p.id === patient.id);
+    const cleanTargetPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
+    const idx = patients.findIndex(p => 
+      p.id === patient.id || 
+      (cleanTargetPhone.length >= 10 && (p.phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone)
+    );
     if (idx >= 0) {
-      patients[idx] = { ...patients[idx], ...patient };
+      patients[idx] = { ...patients[idx], ...patient, id: patients[idx].id };
+      patient.id = patients[idx].id;
     } else {
       patients.push(patient);
     }
+    cloudStore.applyLocalDiff('patients', patient);
     this.savePatients(patients);
 
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist single patient mutation to Supabase
@@ -117,7 +125,8 @@ export class PatientService {
     })();
   }
   static getPatients(): Patient[] {
-    let rawPatients = load<Patient[]>('patients', []);
+    const storePats = cloudStore.getSnapshot<Patient>('patients');
+    let rawPatients = (storePats && storePats.length > 0) ? [...storePats] : load<Patient[]>('patients', []);
     if (rawPatients.length === 0) {
       rawPatients = load<Patient[]>('patient_registry', []);
     }
@@ -127,7 +136,7 @@ export class PatientService {
     const demoIds = new Set([DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, 'pat-101', 'pat-102', 'pat-103', 'pat-104', 'pat-105']);
     const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'john doe', 'auto test patient']);
     
-    const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
+    const effectivePod = resolveSovereignPodId(currentPodId) || FALLBACK_POD_ID;
     rawPatients = rawPatients.filter(p => {
       const pod = (p as any).podId || (p as any).pod_id;
       if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
@@ -239,6 +248,7 @@ export class PatientService {
     });
 
     if (tokensChanged) {
+      todayPatients.forEach(p => cloudStore.applyLocalDiff('patients', p));
       save('tokens_map', tokensMap);
       save('patients', rawPatients);
       save('saas_appointments', appts);
@@ -386,6 +396,45 @@ export class PatientService {
     save('tokens_map', tokensMap);
     save('queue_status_map', queueStatusMap);
 
+    // Also update patients and patient_registry local cache arrays
+    const rawPatients = load<Patient[]>('patients', []);
+    const pIdx = rawPatients.findIndex(p => p.id === patientId);
+    if (pIdx >= 0) {
+      rawPatients[pIdx].vitals = vitals;
+      rawPatients[pIdx].tokenNumber = token;
+      rawPatients[pIdx].queueStatus = nextStatus;
+      save('patients', rawPatients);
+    }
+    const rawRegistry = load<Patient[]>('patient_registry', []);
+    const regIdx = rawRegistry.findIndex(p => p.id === patientId);
+    if (regIdx >= 0) {
+      rawRegistry[regIdx].vitals = vitals;
+      rawRegistry[regIdx].tokenNumber = token;
+      rawRegistry[regIdx].queueStatus = nextStatus;
+      save('patient_registry', rawRegistry);
+    }
+
+    // 🌟 ENTERPRISE REALTIME DUAL-SYNC: Update local appointments
+    const todayStr = getIstDateString();
+    const appts = load<any[]>('saas_appointments', []);
+    let apptUpdated = false;
+    appts.forEach(a => {
+      const matchId = a.patientId === patientId || (a as any).patient_id === patientId;
+      const aDate = getEffectiveAppointmentDate(a);
+      if (matchId && (aDate === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr || !a.status || a.status === 'scheduled')) {
+        a.status = 'ready_for_consult';
+        a.tokenNumber = token;
+        (a as any).token_number = token;
+        a.vitals = vitals;
+        (a as any).patient_vitals = vitals;
+        apptUpdated = true;
+      }
+    });
+    if (apptUpdated) {
+      save('saas_appointments', appts);
+      save('appointments', appts);
+    }
+
     // Optimistic UI state update
     syncStatusMap[patientId] = 'pending';
     save('sync_status_map', syncStatusMap);
@@ -416,15 +465,21 @@ export class PatientService {
     
     notify();
 
-    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry in Supabase
+    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry and appointments in Supabase
     (async () => {
       try {
-        await supabase.from('patient_registry').update({
-          vitals: vitals,
-          token_number: token,
-          queue_status: nextStatus,
-          updated_at: new Date().toISOString()
-        }).eq('id', patientId);
+        await Promise.all([
+          supabase.from('patient_registry').update({
+            vitals: vitals,
+            token_number: token,
+            queue_status: nextStatus,
+            updated_at: new Date().toISOString()
+          }).eq('id', patientId),
+          supabase.from('appointments').update({
+            status: 'ready_for_consult',
+            token_number: token
+          }).eq('patient_id', patientId)
+        ]);
       } catch (err) {
         console.warn('[PatientService] updatePatientVitalsAndToken direct update notice:', err);
       }
@@ -526,6 +581,27 @@ export class PatientService {
       save('patient_registry', rawRegistry);
     }
 
+    // 🌟 ENTERPRISE REALTIME DUAL-SYNC: Update local appointments
+    const todayStr = getIstDateString();
+    const appts = load<any[]>('saas_appointments', []);
+    let apptUpdated = false;
+    const targetApptStatus = status === 'in_consultation' ? 'in_consult' : status === 'completed' ? 'completed' : status === 'awaiting_consultation' ? 'ready_for_consult' : undefined;
+
+    if (targetApptStatus) {
+      appts.forEach(a => {
+        const matchId = a.patientId === patientId || (a as any).patient_id === patientId;
+        const aDate = getEffectiveAppointmentDate(a);
+        if (matchId && (aDate === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr || !a.status || a.status === 'scheduled' || a.status === 'ready_for_consult')) {
+          a.status = targetApptStatus;
+          apptUpdated = true;
+        }
+      });
+      if (apptUpdated) {
+        save('saas_appointments', appts);
+        save('appointments', appts);
+      }
+    }
+
     // Optimistic UI state update
     syncStatusMap[patientId] = 'pending';
     save('sync_status_map', syncStatusMap);
@@ -544,13 +620,23 @@ export class PatientService {
     });
     save('sync_queue', queue);
 
-    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry in Supabase
+    // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry and appointments in Supabase
     (async () => {
       try {
-        await supabase.from('patient_registry').update({
-          queue_status: status,
-          updated_at: new Date().toISOString()
-        }).eq('id', patientId);
+        const updates: Promise<any>[] = [
+          supabase.from('patient_registry').update({
+            queue_status: status,
+            updated_at: new Date().toISOString()
+          }).eq('id', patientId)
+        ];
+        if (targetApptStatus) {
+          updates.push(
+            supabase.from('appointments').update({
+              status: targetApptStatus
+            }).eq('patient_id', patientId)
+          );
+        }
+        await Promise.all(updates);
       } catch (err) {
         console.warn('[PatientService] updatePatientQueueStatus direct update notice:', err);
       }
@@ -568,14 +654,18 @@ export class PatientService {
   }
 
   static generateNextTokenNumber(targetDate?: string, isSos: boolean = false): string {
+    // 1. Primary SSOT: Query in-memory reactive cloudStore
+    const storeAppts = cloudStore.getSnapshot<Appointment>('appointments');
+    const storePatients = cloudStore.getSnapshot<Patient>('patients');
+
     const appointments = load<any[]>('saas_appointments', []);
     const directAppts = safeGetStorageJSON<any[]>('appointments', []);
     const localAppts = safeGetStorageJSON<any[]>('mediflow_appointments', []);
-    const allAppts = [...appointments, ...directAppts, ...localAppts];
+    const allAppts = storeAppts.length > 0 ? storeAppts : [...appointments, ...directAppts, ...localAppts];
 
     const patients = load<any[]>('patients', []);
     const registryPatients = safeGetStorageJSON<any[]>('patient_registry', []);
-    const allPatients = [...patients, ...registryPatients];
+    const allPatients = storePatients.length > 0 ? storePatients : [...patients, ...registryPatients];
 
     const dateStr = targetDate || getIstDateString();
 
@@ -649,6 +739,27 @@ export class PatientService {
     const nextVal = maxVal + 1;
     const baseToken = `T-${nextVal.toString().padStart(2, '0')}`;
     return isSos ? `${baseToken} E` : baseToken;
+  }
+
+  static async generateNextTokenNumberAsync(targetDate?: string, isSos: boolean = false): Promise<string> {
+    const currentPodId = getPodContext().podId;
+    const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
+    const dateStr = targetDate || getIstDateString();
+
+    try {
+      const { data, error } = await supabase.rpc('generate_next_token_number', {
+        p_virtual_date: dateStr,
+        p_pod_id: effectivePod
+      });
+      if (!error && data) {
+        const token = String(data);
+        return isSos ? `${token} E` : token;
+      }
+    } catch (_rpcErr) {
+      console.warn('[PatientService] RPC generate_next_token_number fallback to cloudStore:', _rpcErr);
+    }
+
+    return this.generateNextTokenNumber(targetDate, isSos);
   }
 
   private static isUUID(str?: string): boolean {

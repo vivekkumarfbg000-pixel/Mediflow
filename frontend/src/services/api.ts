@@ -807,7 +807,7 @@ class MediflowApiService {
 
         // Patients
         if (dbPatients && dbPatients.length > 0) {
-          const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin', 'refraction'].includes(this.simulatedRole);
+          const isClinicalRole = ['doctor', 'compounder', 'receptionist', 'admin', 'platform_admin', 'refraction', 'pharmacy', 'lab_technician'].includes(this.simulatedRole);
           const incomingPatients: Patient[] = dbPatients
             .filter((p: any) => isClinicalRole || activePatientIds.has(p.id))
             .map((p: any) => ({
@@ -1145,6 +1145,7 @@ class MediflowApiService {
             }
           });
           this.save('saas_appointments', mergedAppts);
+          this.save('appointments', mergedAppts);
         }
 
         this.isSyncing = false;

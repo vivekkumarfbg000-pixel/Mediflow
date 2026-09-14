@@ -14,6 +14,7 @@ import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
 import { WhatsAppService } from '../../services/whatsappService';
 import { load } from '../../services/apiHelper';
+import { cloudStore } from '../../services/cloudStore';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
@@ -140,7 +141,7 @@ export const CompounderDashboard: React.FC = () => {
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
   const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
-  const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming'>('today');
+  const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming' | 'pending_clearance'>('today');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
   const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
   const [billingSubTab, setBillingSubTab] = useState<'billing' | 'ocr_scan' | 'ot_daycare'>('billing');
@@ -1125,6 +1126,67 @@ export const CompounderDashboard: React.FC = () => {
     });
   }, [categorizedAppts.upcomingAdvanceBookings, patients, dataRevision]);
 
+  const pendingClearanceAppointments = useMemo(() => {
+    return (categorizedAppts.pendingPaymentGate || []).map((appt, idx) => {
+      const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
+      const patDisplayName = (appt.patientName && appt.patientName !== 'WhatsApp Patient' && appt.patientName !== 'Patient')
+        ? appt.patientName
+        : (p?.name && p.name !== 'WhatsApp Patient')
+        ? p.name
+        : ((appt as any).patient_name || p?.name || 'WhatsApp Patient');
+      return {
+        ...appt,
+        patientName: patDisplayName,
+        patientPhone: appt.patientPhone || (appt as any).patient_phone || p?.phone || '',
+        tokenNumber: appt.tokenNumber || (appt as any).token_number || `T-${String(idx + 1).padStart(2, '0')}`,
+        isVip: isVipBooking(appt),
+        is_vip: isVipBooking(appt)
+      };
+    });
+  }, [categorizedAppts.pendingPaymentGate, patients, dataRevision]);
+
+  const handleConfirmPendingCounterPayment = useCallback(async (appt: Appointment) => {
+    try {
+      const updatedAppts = appointments.map(a => {
+        if (a.id === appt.id) {
+          return {
+            ...a,
+            status: 'ready_for_consult',
+            paymentStatus: 'cleared',
+            payment_status: 'cleared'
+          } as Appointment;
+        }
+        return a;
+      });
+      setAppointments(updatedAppts);
+      BillingService.saveAppointments(updatedAppts);
+
+      // Persist status change to Supabase
+      await supabase.from('appointments').update({
+        status: 'ready_for_consult',
+        payment_status: 'cleared'
+      }).eq('id', appt.id);
+
+      const patId = appt.patientId || (appt as any).patient_id;
+      if (patId) {
+        await supabase.from('patient_registry').update({
+          queue_status: 'awaiting_consultation'
+        }).eq('id', patId);
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Counter Payment Verified! 💵',
+          message: `${appt.patientName || 'Patient'} (Token #${appt.tokenNumber}) cleared into Doctor Queue.`,
+          type: 'success'
+        }
+      }));
+      setDataRevision(prev => prev + 1);
+    } catch (err) {
+      console.error('[CompounderDashboard] Error confirming pending payment:', err);
+    }
+  }, [appointments]);
+
   const inChamberAppointment = useMemo(() => {
     return appointments.find(a => a.status === 'in_consult');
   }, [appointments, dataRevision]);
@@ -1525,11 +1587,44 @@ export const CompounderDashboard: React.FC = () => {
   }, [patients, currentTime, dataRevision]);
 
   const sosEmergencyAppointment = useMemo(() => {
-    return appointments.find(a => 
-      (a.source === 'whatsapp_sos' || a.source === 'whatsapp_vip' || (a as any).isEmergency || (a as any).is_emergency || (a as any).is_vip || (a as any).isVip || String(a.tokenNumber || '').startsWith('VIP-')) &&
-      a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment'
-    );
-  }, [appointments, dataRevision]);
+    const todayStr = getIstDateString();
+    // Filter active emergencies that are for today and have not yet been taken into or completed consultation
+    const activeEmergencies = (categorizedAppts.emergencyVipPriority || []).filter(a => {
+      const aDate = getEffectiveAppointmentDate(a);
+      if (aDate && aDate !== todayStr) return false;
+      const st = String(a.status || '').toLowerCase();
+      const p = patients.find(pt => pt.id === a.patientId || pt.id === (a as any).patient_id || (pt.phone && a.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(a.patientPhone).replace(/\D/g, '').slice(-10)));
+      const qStatus = String(p?.queueStatus || (p as any)?.queue_status || '').toLowerCase();
+      const isFinished = st === 'completed' || st === 'cancelled' || qStatus === 'completed' || qStatus === 'settled';
+      const isInChamber = st === 'in_consult' || st === 'in_consultation' || qStatus === 'in_consultation';
+      return !isFinished && !isInChamber;
+    });
+
+    // Real-time sorting: latest emergency arrives with highest priority on top
+    const sorted = [...activeEmergencies].sort((a, b) => {
+      const tA = new Date(a.appointmentTime || a.createdAt || (a as any).created_at || 0).getTime();
+      const tB = new Date(b.appointmentTime || b.createdAt || (b as any).created_at || 0).getTime();
+      return tB - tA; // Newest active emergency on top
+    });
+
+    const raw = sorted[0];
+    if (!raw) return null;
+    const p = patients.find(pt => pt.id === raw.patientId || pt.id === (raw as any).patient_id || (pt.phone && raw.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(raw.patientPhone).replace(/\D/g, '').slice(-10)));
+    const resolvedName = (raw.patientName && raw.patientName !== 'WhatsApp Patient' && raw.patientName !== 'Patient')
+      ? raw.patientName
+      : (p?.name && p.name !== 'WhatsApp Patient')
+      ? p.name
+      : ((raw as any).patient_name || p?.name || 'Emergency Patient');
+    const resolvedPhone = raw.patientPhone || (raw as any).patient_phone || p?.phone || '';
+    const resolvedToken = raw.tokenNumber || (raw as any).token_number || p?.tokenNumber || (p as any)?.token_number || 'VIP-01';
+
+    return {
+      ...raw,
+      patientName: resolvedName,
+      patientPhone: resolvedPhone,
+      tokenNumber: resolvedToken
+    };
+  }, [categorizedAppts.emergencyVipPriority, patients, dataRevision]);
 
   const lowStockItems = useMemo(() => {
     const inv = api.getPharmacyInventory();
@@ -1832,22 +1927,32 @@ export const CompounderDashboard: React.FC = () => {
             createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
             created_at: a.created_at || a.appointment_time || new Date().toISOString(),
             appointmentTime: a.appointment_time,
-            appointment_time: a.appointment_time
+            appointment_time: a.appointment_time,
+            paymentStatus: a.payment_status || a.paymentStatus || 'completed',
+            payment_status: a.payment_status || a.paymentStatus || 'completed',
+            isEmergency: a.is_emergency === true || a.isEmergency === true,
+            is_emergency: a.is_emergency === true || a.isEmergency === true,
+            isVip: a.is_vip === true || a.isVip === true,
+            is_vip: a.is_vip === true || a.isVip === true,
+            podId: a.pod_id || a.podId,
+            pod_id: a.pod_id || a.podId,
+            problem: a.problem || a.chief_complaint || '',
+            chief_complaint: a.chief_complaint || a.problem || ''
           };
         });
 
-        // Authoritative Cloud SSOT + Pending Unsynced WAL: Prune zombie/cancelled records
-        const mergedApptsList = [...mapped];
-        pendingWalAppts.forEach(p => {
-          if (p && p.id && !mergedApptsList.some(m => m.id === p.id)) {
-            mergedApptsList.push(p);
-          }
-        });
-        setAppointments(mergedApptsList as any);
-        BillingService.saveAppointments(mergedApptsList as any);
+        // Authoritative Cloud SSOT: Update cloudStore snapshot and prune dead records
+        cloudStore.setInitialCloudSnapshot('appointments', mapped);
+        setAppointments(mapped as any);
+        BillingService.saveAppointments(mapped as any);
       } else if (apptRes.data !== undefined && apptRes.data !== null && apptRes.data.length === 0) {
-        setAppointments(pendingWalAppts as any);
-        BillingService.saveAppointments(pendingWalAppts as any);
+        const existing = api.getAppointments() || [];
+        if (existing.length > 0) {
+          setAppointments(existing);
+        } else if (pendingWalAppts.length > 0) {
+          setAppointments(pendingWalAppts as any);
+          BillingService.saveAppointments(pendingWalAppts as any);
+        }
       }
       setDataRevision(prev => prev + 1);
     } catch (err) {
@@ -1885,7 +1990,7 @@ export const CompounderDashboard: React.FC = () => {
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
         console.log('[CompounderDashboard] Realtime Appointment update:', payload);
-        fetchLiveAppointments();
+        syncData();
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
             title: '📅 NEW APPOINTMENT BOOKED! 🟢',
@@ -1894,19 +1999,25 @@ export const CompounderDashboard: React.FC = () => {
           }
         }));
       },
-      onPatientChange: () => fetchLiveAppointments(),
-      onMedicineBillChange: () => fetchLiveAppointments(),
-      onLabRequisitionChange: () => fetchLiveAppointments(),
-      onFinancialLedgerChange: () => fetchLiveAppointments(),
-      onUnifiedInvoiceChange: () => fetchLiveAppointments(),
-      onWhatsAppSessionChange: () => fetchLiveAppointments(),
-      onPathologyReportChange: () => fetchLiveAppointments(),
-      onPoolSettlementChange: () => fetchLiveAppointments(),
-      onClinicSopChange: () => fetchLiveAppointments(),
-      onSaaSInvoiceChange: () => fetchLiveAppointments(),
-      onSaaSPrescriptionChange: () => fetchLiveAppointments(),
-      onInventoryHoldChange: () => fetchLiveAppointments(),
-      onChronicCohortChange: () => fetchLiveAppointments()
+      onPatientChange: () => syncData(),
+      onMedicineBillChange: () => syncData(),
+      onLabRequisitionChange: () => syncData(),
+      onLabTestBillChange: () => syncData(),
+      onFinancialLedgerChange: () => syncData(),
+      onUnifiedInvoiceChange: () => syncData(),
+      onWhatsAppSessionChange: () => syncData(),
+      onPathologyReportChange: () => syncData(),
+      onPoolSettlementChange: () => syncData(),
+      onClinicSopChange: () => syncData(),
+      onSaaSInvoiceChange: () => syncData(),
+      onSaaSPrescriptionChange: () => syncData(),
+      onInventoryHoldChange: () => syncData(),
+      onChronicCohortChange: () => syncData(),
+      onEncounterChange: () => syncData(),
+      onPharmacyInventoryChange: () => syncData(),
+      onReagentInventoryChange: () => syncData(),
+      onReferralRewardChange: () => syncData(),
+      onWabaConnectionChange: () => syncData()
     });
 
     return () => {
@@ -1914,7 +2025,7 @@ export const CompounderDashboard: React.FC = () => {
       window.removeEventListener('visibilitychange', handleFocus);
       unsubscribe();
     };
-  }, [fetchLiveAppointments]);
+  }, [fetchLiveAppointments, syncData]);
   
   // Real-time Network Resilience State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -2074,27 +2185,11 @@ export const CompounderDashboard: React.FC = () => {
     window.addEventListener('mediflow-state-change', syncData);
     window.addEventListener('storage', syncData);
     const unsubscribeApi = api.subscribe(syncData);
-    const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
-      onPatientChange: () => syncData(),
-      onAppointmentChange: () => syncData(),
-      onUnifiedInvoiceChange: () => syncData(),
-      onMedicineBillChange: () => syncData(),
-      onLabRequisitionChange: () => syncData(),
-      onPathologyReportChange: () => syncData(),
-      onFinancialLedgerChange: () => syncData(),
-      onWhatsAppSessionChange: () => syncData(),
-      onClinicSopChange: () => syncData(),
-      onPoolSettlementChange: () => syncData(),
-      onEncounterChange: () => syncData(),
-      onInventoryHoldChange: () => syncData(),
-      onSaaSPrescriptionChange: () => syncData(),
-    });
 
     return () => {
       window.removeEventListener('mediflow-state-change', syncData);
       window.removeEventListener('storage', syncData);
       unsubscribeApi();
-      unsubscribeRealtime();
     };
   }, [syncData]);
 
@@ -3312,8 +3407,21 @@ export const CompounderDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     handleCallPatientChamber(sosEmergencyAppointment.patientName || 'Emergency Patient', sosEmergencyAppointment.tokenNumber || 'SOS');
+                    try {
+                      const updatedAppt = { ...sosEmergencyAppointment, status: 'ready_for_consult' as const };
+                      BillingService.saveAppointment(updatedAppt as any);
+                      const patId = sosEmergencyAppointment.patientId || (sosEmergencyAppointment as any).patient_id;
+                      if (patId) {
+                        const targetPat = patients.find(p => p.id === patId);
+                        if (targetPat) {
+                          PatientService.savePatient({ ...targetPat, queueStatus: 'awaiting_consultation' });
+                        }
+                      }
+                      syncData();
+                      fetchLiveAppointments();
+                    } catch (_err) {}
                     setActiveTab('opd_patients');
                     setOpdSubTab('today_queue');
                   }}
@@ -4290,11 +4398,17 @@ export const CompounderDashboard: React.FC = () => {
                       <div>
                         <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                           <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                          {opdQueueFilter === 'today' ? "Today's Appointments Queue" : "Upcoming WhatsApp Advance Bookings"}
+                          {opdQueueFilter === 'today' 
+                            ? "Today's Appointments Queue" 
+                            : opdQueueFilter === 'pending_clearance'
+                            ? "Pending Clearance (WhatsApp & Counter Gate)"
+                            : "Upcoming WhatsApp Advance Bookings"}
                         </h2>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           {opdQueueFilter === 'today' 
                             ? "Active OPD patient token stream, clinical vitals intake, and chamber triage." 
+                            : opdQueueFilter === 'pending_clearance'
+                            ? "Bookings awaiting cash or UPI payment verification before releasing token into active doctor chamber queue."
                             : "Patient bookings registered for upcoming dates via WhatsApp Bot & online portals."}
                         </p>
                       </div>
@@ -4311,7 +4425,7 @@ export const CompounderDashboard: React.FC = () => {
                           <span>🖨️ Print OPD Register (PDF)</span>
                         </button>
 
-                        {/* 1-Tap Switcher: Today's Live Queue vs Upcoming Advance Bookings */}
+                        {/* 1-Tap Switcher: Today's Live Queue vs Upcoming Advance Bookings vs Pending Clearance */}
                         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
                           <button
                             type="button"
@@ -4328,6 +4442,24 @@ export const CompounderDashboard: React.FC = () => {
                               opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}>
                               {activeOpdAppointments.length}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setOpdQueueFilter('pending_clearance')}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                              opdQueueFilter === 'pending_clearance'
+                                ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white shadow-sm font-black'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                            <span>Pending Clearance</span>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                              opdQueueFilter === 'pending_clearance' ? 'bg-white/25 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200'
+                            }`}>
+                              {pendingClearanceAppointments.length}
                             </span>
                           </button>
 
@@ -4354,7 +4486,11 @@ export const CompounderDashboard: React.FC = () => {
 
                 <div className="space-y-4">
                   {(() => {
-                    const confirmedAppts = opdQueueFilter === 'today' ? activeOpdAppointments : upcomingAdvanceBookings;
+                    const confirmedAppts = opdQueueFilter === 'today' 
+                      ? activeOpdAppointments 
+                      : opdQueueFilter === 'pending_clearance'
+                      ? pendingClearanceAppointments
+                      : upcomingAdvanceBookings;
 
                     if (confirmedAppts.length === 0) {
                       return (
@@ -4364,6 +4500,12 @@ export const CompounderDashboard: React.FC = () => {
                               <Activity className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
                               <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No active tokens in today's OPD queue.</p>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Walk-in registrations and WhatsApp bookings for today will appear here.</p>
+                            </>
+                          ) : opdQueueFilter === 'pending_clearance' ? (
+                            <>
+                              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-70 shrink-0" />
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">All bookings cleared!</p>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">No appointments pending payment clearance. All WhatsApp/online tokens have been confirmed.</p>
                             </>
                           ) : (
                             <>
@@ -4583,8 +4725,20 @@ export const CompounderDashboard: React.FC = () => {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            {/* If appointment is pending payment (whatsapp booking unpaid) */}
-                            {invoice && invoice.status === 'unpaid' ? (
+                            {/* If appointment is in Pending Clearance (WhatsApp booking or gate-pending) */}
+                            {opdQueueFilter === 'pending_clearance' || appt.status === 'pending_payment' || (appt as any).payment_status === 'pending_payment' || (appt as any).paymentStatus === 'pending_payment' ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmPendingCounterPayment(appt)}
+                                  className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer border-0 shadow-sm flex items-center gap-1 active:scale-95"
+                                  title="Confirm payment collection and release token into Doctor Chamber"
+                                >
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  <span>Clear & Confirm (₹{currentConsultFee})</span>
+                                </button>
+                              </div>
+                            ) : invoice && invoice.status === 'unpaid' ? (
                               <div className="flex gap-2">
                                 <button
                                   onClick={async () => {

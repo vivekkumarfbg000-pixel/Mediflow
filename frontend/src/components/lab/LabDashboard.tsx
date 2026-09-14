@@ -219,8 +219,10 @@ export const LabDashboard: React.FC = () => {
         const { data, error } = await query;
         if (!error && data) {
           if (data.length === 0) {
-            setRequisitions([]);
-            LabService.saveLabRequisitions([]);
+            const existingReqs = LabService.getLabRequisitions();
+            if (existingReqs && existingReqs.length > 0) {
+              setRequisitions(existingReqs);
+            }
           } else {
             const mapped: LabRequisition[] = data.map((r: any) => ({
               id: r.id,
@@ -237,8 +239,15 @@ export const LabDashboard: React.FC = () => {
               reagentDeductions: r.reagent_deductions || [],
               createdAt: r.created_at || new Date().toISOString()
             }));
-            setRequisitions(mapped);
-            LabService.saveLabRequisitions(mapped);
+            const existingReqs = LabService.getLabRequisitions() || [];
+            const mergedReqs = [...mapped];
+            existingReqs.forEach(r => {
+              if (!mergedReqs.some(mr => mr.id === r.id)) {
+                mergedReqs.push(r);
+              }
+            });
+            setRequisitions(mergedReqs);
+            LabService.saveLabRequisitions(mergedReqs);
           }
         }
       } catch (err) {
@@ -257,6 +266,10 @@ export const LabDashboard: React.FC = () => {
 
     const unsubscribeApi = api.subscribe(sync);
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onEncounterChange: () => {
+        sync();
+        fetchLiveRequisitions();
+      },
       onLabRequisitionChange: () => {
         sync();
         fetchLiveRequisitions();
@@ -266,7 +279,11 @@ export const LabDashboard: React.FC = () => {
       onUnifiedInvoiceChange: () => sync(),
       onPathologyReportChange: () => sync(),
       onFinancialLedgerChange: () => sync(),
-      onAppointmentChange: () => sync()
+      onAppointmentChange: () => sync(),
+      onLabTestBillChange: () => {
+        sync();
+        fetchLiveRequisitions();
+      }
     });
 
     return () => {
