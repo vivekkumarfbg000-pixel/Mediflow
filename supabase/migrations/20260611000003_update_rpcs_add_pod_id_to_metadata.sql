@@ -92,27 +92,44 @@ BEGIN
         ELSE 'compounder'
     END;
 
-    -- Create entity as pending approval
-    INSERT INTO public.entities (pod_id, entity_type, name, address, phone, status, is_active)
-    VALUES (v_pod_id, p_partner_type, p_partner_name, p_partner_address, p_partner_phone, 'pending', TRUE)
-    RETURNING id INTO v_entity_id;
+    -- Check if entity already exists for this pod and entity_type
+    SELECT id INTO v_entity_id 
+    FROM public.entities 
+    WHERE pod_id = v_pod_id AND entity_type = p_partner_type
+    LIMIT 1;
+
+    IF v_entity_id IS NULL THEN
+        INSERT INTO public.entities (pod_id, entity_type, name, address, phone, status, is_active)
+        VALUES (v_pod_id, p_partner_type, p_partner_name, p_partner_address, p_partner_phone, 'pending', TRUE)
+        RETURNING id INTO v_entity_id;
+    ELSE
+        UPDATE public.entities
+        SET name = COALESCE(p_partner_name, name),
+            address = COALESCE(p_partner_address, address),
+            phone = COALESCE(p_partner_phone, phone)
+        WHERE id = v_entity_id;
+    END IF;
 
     SELECT COALESCE(raw_user_meta_data->>'display_name', p_partner_name)
     INTO v_display_name 
     FROM auth.users 
     WHERE id = auth.uid();
 
-    INSERT INTO public.profiles (id, entity_id, role, display_name)
-    VALUES (auth.uid(), v_entity_id, v_role, COALESCE(v_display_name, p_partner_name))
+    INSERT INTO public.profiles (id, entity_id, pod_id, role, display_name)
+    VALUES (auth.uid(), v_entity_id, v_pod_id, v_role, COALESCE(v_display_name, p_partner_name))
     ON CONFLICT (id) DO UPDATE 
-    SET entity_id = EXCLUDED.entity_id, role = EXCLUDED.role, display_name = EXCLUDED.display_name;
+    SET entity_id = EXCLUDED.entity_id,
+        pod_id = EXCLUDED.pod_id,
+        role = EXCLUDED.role,
+        display_name = EXCLUDED.display_name;
 
     UPDATE auth.users
     SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object(
         'clinic_code', p_clinic_code,
         'partner_type', p_partner_type,
         'role', v_role,
-        'pod_id', v_pod_id
+        'pod_id', v_pod_id,
+        'entity_id', v_entity_id
     )
     WHERE id = auth.uid();
 

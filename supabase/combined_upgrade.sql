@@ -7014,3 +7014,87 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_patient_family_members(TEXT) TO authenticated, service_role, anon;
+
+-- =============================================================================
+-- VitalSync Idempotent Partner Network RPC: join_clinic_network
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.join_clinic_network(
+  p_clinic_code TEXT,
+  p_partner_type TEXT,
+  p_partner_name TEXT,
+  p_partner_phone TEXT,
+  p_partner_address TEXT
+)
+RETURNS TABLE (entity_id UUID)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $fn$
+DECLARE
+  v_pod_id UUID;
+  v_entity_id UUID;
+  v_role TEXT;
+  v_display_name TEXT;
+BEGIN
+  SELECT id INTO v_pod_id
+  FROM public.pods
+  WHERE clinic_code = upper(trim(p_clinic_code)) AND is_active = TRUE
+  LIMIT 1;
+
+  IF v_pod_id IS NULL THEN
+    RAISE EXCEPTION 'Clinic network code not found or inactive.';
+  END IF;
+
+  v_role := CASE
+    WHEN p_partner_type = 'pharmacy' THEN 'pharmacist'
+    WHEN p_partner_type = 'lab' THEN 'lab_technician'
+    ELSE 'compounder'
+  END;
+
+  SELECT id INTO v_entity_id
+  FROM public.entities
+  WHERE pod_id = v_pod_id AND entity_type = p_partner_type
+  LIMIT 1;
+
+  IF v_entity_id IS NULL THEN
+    INSERT INTO public.entities (pod_id, entity_type, name, address, phone, status, is_active)
+    VALUES (v_pod_id, p_partner_type, p_partner_name, p_partner_address, p_partner_phone, 'pending', TRUE)
+    RETURNING id INTO v_entity_id;
+  ELSE
+    UPDATE public.entities
+    SET name = COALESCE(p_partner_name, name),
+        address = COALESCE(p_partner_address, address),
+        phone = COALESCE(p_partner_phone, phone)
+    WHERE id = v_entity_id;
+  END IF;
+
+  SELECT COALESCE(raw_user_meta_data->>'display_name', p_partner_name)
+  INTO v_display_name
+  FROM auth.users
+  WHERE id = auth.uid();
+
+  INSERT INTO public.profiles (id, entity_id, pod_id, role, display_name)
+  VALUES (auth.uid(), v_entity_id, v_pod_id, v_role, COALESCE(v_display_name, p_partner_name))
+  ON CONFLICT (id) DO UPDATE
+  SET entity_id = EXCLUDED.entity_id,
+      pod_id = EXCLUDED.pod_id,
+      role = EXCLUDED.role,
+      display_name = EXCLUDED.display_name;
+
+  UPDATE auth.users
+  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object(
+    'clinic_code', p_clinic_code,
+    'partner_type', p_partner_type,
+    'role', v_role,
+    'pod_id', v_pod_id,
+    'entity_id', v_entity_id
+  )
+  WHERE id = auth.uid();
+
+  RETURN QUERY SELECT v_entity_id;
+END;
+$fn$;
+
+REVOKE EXECUTE ON FUNCTION public.join_clinic_network(TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.join_clinic_network(TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+NOTIFY pgrst, 'reload schema';
+
