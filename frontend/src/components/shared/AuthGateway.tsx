@@ -352,7 +352,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   // New Redesigned Sign-up States
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [registrationStep, setRegistrationStep] = useState(1);
+  const [registrationStep, setRegistrationStep] = useState<number>(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      const savedStep = sessionStorage.getItem('vitalsync_reg_step');
+      if (savedStep) {
+        const parsed = parseInt(savedStep, 10);
+        if (!isNaN(parsed) && parsed >= 1 && parsed <= 3) return parsed;
+      }
+    }
+    return 1;
+  });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [tosAccepted, setTosAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -377,7 +386,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [otpResending, setOtpResending] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpAttempts, setOtpAttempts] = useState(0);
-  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState<string>(() => {
+    if (typeof sessionStorage !== 'undefined') {
+      return sessionStorage.getItem('vitalsync_reg_email') || '';
+    }
+    return '';
+  });
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // 60-second OTP Resend Countdown Timer
@@ -1214,6 +1228,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setRegisteredClinicCode(finalCode);
     if (typeof window !== 'undefined') {
       (window as any).__mediflow_registering = false;
+      sessionStorage.removeItem('vitalsync_is_registering');
+      sessionStorage.removeItem('vitalsync_reg_step');
+      sessionStorage.removeItem('vitalsync_reg_email');
     }
 
     // Dispatch automated real-time WhatsApp & webhook alert to Founder (+91-9608032073)
@@ -1385,7 +1402,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       // Tier-1 Sandbox & Confirm Detection Invariant:
       // Whitelisted demo accounts or environments with confirmation disabled bypass OTP
       const isDemoAccount = cleanEmail === 'doctor@mediflow.com' || cleanEmail === 'demo@mediflow.com';
-      const isAutoConfirmed = Boolean(authData.session?.user?.email_confirmed_at || authData.user?.email_confirmed_at);
+      const isAutoConfirmed = Boolean(
+        authData.session?.user?.email_confirmed_at || 
+        authData.user?.email_confirmed_at || 
+        activeSession?.user?.email_confirmed_at
+      );
 
       if (isDemoAccount || isAutoConfirmed) {
         await completeClinicRegistration(authData.user.id, cleanEmail, finalDisplayName, activeSession);
@@ -1394,6 +1415,11 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // Live practitioner signup: Transition to in-flow 6-digit OTP verification
       setRegisteredEmail(cleanEmail);
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('vitalsync_reg_email', cleanEmail);
+        sessionStorage.setItem('vitalsync_reg_step', '3');
+        sessionStorage.setItem('vitalsync_is_registering', 'true');
+      }
       setRegistrationStep(3);
       setOtpDigits(['', '', '', '', '', '']);
       setResendCooldown(60);

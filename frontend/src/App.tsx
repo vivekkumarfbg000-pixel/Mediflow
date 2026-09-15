@@ -1527,7 +1527,11 @@ export default function App() {
 
   // 1. Session Loading Gate & Active Profile Resolution Hold
   // Prevent premature evaluation of email verification or intermediate routes before the profile finishes resolving
-  if (isLoadingSession || (session && (!activeProfile || activeProfile.id !== session.user?.id))) {
+  const isRegistering = (typeof window !== 'undefined' && Boolean((window as any).__mediflow_registering)) ||
+    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vitalsync_is_registering') === 'true') ||
+    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'register' && !activeProfile);
+
+  if (!isRegistering && (isLoadingSession || (session && (!activeProfile || activeProfile.id !== session.user?.id)))) {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
@@ -1538,7 +1542,7 @@ export default function App() {
     isDemoUser || 
     Boolean(session?.user?.email_confirmed_at || (session?.user as any)?.confirmed_at || activeProfile?.email_verified);
 
-  if (session && !isEmailVerified) {
+  if (!isRegistering && session && !isEmailVerified) {
     return (
       <ToastProvider>
         <EmailVerificationModal
@@ -1554,10 +1558,10 @@ export default function App() {
   // 2. Landing Page & Local Single-Domain Routing
   // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
-    if (session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
+    if (!isRegistering && session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
-    if (session && activeProfile && new URLSearchParams(window.location.search).get('landing') !== 'true') {
+    if (session && activeProfile && !isRegistering && new URLSearchParams(window.location.search).get('landing') !== 'true') {
       // Authenticated user on local / single-domain environment: Render Dashboard Workspace
       return (
         <ToastProvider>
@@ -1618,11 +1622,11 @@ export default function App() {
     isPwaLaunch;
 
   if (isSingleDomain) {
-    if (session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
+    if (!isRegistering && session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
-    if (!session || !activeProfile) {
-      if (isConsoleRequested) {
+    if (!session || !activeProfile || isRegistering) {
+      if (isConsoleRequested || isRegistering) {
         return (
           <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
             <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
@@ -1741,7 +1745,7 @@ export default function App() {
   }
 
   // 6. Dashboard Domain Gated View (app.vitalsync.in / app.localhost)
-  if (isDashboardSubdomain && (!session || !activeProfile)) {
+  if (isDashboardSubdomain && (!session || !activeProfile || isRegistering)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
