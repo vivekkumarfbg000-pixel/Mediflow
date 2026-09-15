@@ -544,8 +544,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <MessageSquare className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Zero App Download — 100% Native WhatsApp</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Patients never download complex apps. Everything runs on 1-Tap native WhatsApp buttons for tokens, digital prescriptions, lab PDF downloads, and 1-click medicine refill orders.</p>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Zero App Download for Patients — Connect Via WhatsApp</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">Patients never download separate apps. They connect directly with the clinic via 1-Tap native WhatsApp buttons for tokens, prescriptions, and lab reports, while clinic staff manage care on the full VitalSync Cloud EMR.</p>
               </div>
             </div>
           </div>

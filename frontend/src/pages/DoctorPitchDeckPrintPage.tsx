@@ -343,7 +343,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-[10px] font-bold text-teal-700 tracking-tight mt-0.5">
-                      Your Clinic. Now a Hospital. • Clinic Freedom. Hospital Revenue. On WhatsApp.
+                      Your Clinic. Now a Hospital. • Clinic Freedom. Hospital Revenue. Powered by WhatsApp Patient Engagement.
                     </p>
                   </div>
                 </div>
@@ -370,7 +370,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </h1>
                 
                 <p className="text-sm md:text-base font-bold text-teal-800 tracking-tight">
-                  Clinic Freedom. Hospital Revenue. On WhatsApp.
+                  Clinic Freedom. Hospital Revenue. Powered by WhatsApp Patient Engagement.
                 </p>
                 
                 <p className="text-xs text-slate-700 leading-relaxed font-normal">
@@ -866,7 +866,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             </div>
 
             <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
-              <span className="text-slate-800 font-bold">Zero app downloads. 100% of communication happens on native WhatsApp.</span>
+              <span className="text-slate-800 font-bold">Zero app downloads for patients. 100% of patient communication happens on native WhatsApp.</span>
               <span className="text-teal-800 font-black">Chronic Care Loop →</span>
             </div>
           </section>
