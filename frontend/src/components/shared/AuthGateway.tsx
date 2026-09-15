@@ -412,6 +412,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [partnerType, setPartnerType] = useState<'pharmacy' | 'lab' | 'compounder'>('pharmacy');
   const [validatingCode, setValidatingCode] = useState(false);
   const [validatedClinicName, setValidatedClinicName] = useState<string | null>(null);
+  const [partnerJoinSubmitted, setPartnerJoinSubmitted] = useState(false);
 
   // Clear form errors and states when switching context
   const handleTabSelect = (tab: 'signin' | 'register' | 'join' | 'ops' | 'forgot') => {
@@ -419,6 +420,17 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       return;
     }
     setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        if (tab === 'signin') {
+          url.searchParams.delete('tab');
+        } else {
+          url.searchParams.set('tab', tab);
+        }
+        window.history.replaceState({}, document.title, url.toString());
+      } catch (_e) { /* ignore */ }
+    }
     setEmail('');
     setPassword('');
     setErrorMsg(null);
@@ -431,6 +443,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setOtpError(null);
     setOtpAttempts(0);
     setResendCooldown(0);
+    setPartnerJoinSubmitted(false);
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_registering = false;
+      sessionStorage.removeItem('vitalsync_is_registering');
+      sessionStorage.removeItem('vitalsync_reg_step');
+      sessionStorage.removeItem('vitalsync_reg_email');
+    }
   };
 
   const handleJoinSubModeSelect = (mode: 'signin' | 'register') => {
@@ -438,6 +457,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       return;
     }
     setJoinSubMode(mode);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'join');
+        window.history.replaceState({}, document.title, url.toString());
+      } catch (_e) { /* ignore */ }
+    }
     setErrorMsg(null);
     setActiveErrorCode(null);
     setValidationErrors({});
@@ -448,6 +474,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setOtpError(null);
     setOtpAttempts(0);
     setResendCooldown(0);
+    setPartnerJoinSubmitted(false);
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_registering = false;
+      sessionStorage.removeItem('vitalsync_is_registering');
+      sessionStorage.removeItem('vitalsync_reg_step');
+      sessionStorage.removeItem('vitalsync_reg_email');
+    }
   };
 
   const recordAttempt = (attemptEmail: string, success: boolean, err?: any) => {
@@ -1470,11 +1503,30 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
 
     try {
-      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+      let verifyData: any = null;
+      let verifyError: any = null;
+
+      const res1 = await supabase.auth.verifyOtp({
         email: targetEmail,
         token: code,
         type: 'signup'
       });
+
+      if (res1.error) {
+        // Resilient fallback: Try type 'email' in case Supabase OTP template uses email type
+        const res2 = await supabase.auth.verifyOtp({
+          email: targetEmail,
+          token: code,
+          type: 'email'
+        });
+        if (res2.error) {
+          verifyError = res1.error;
+        } else {
+          verifyData = res2.data;
+        }
+      } else {
+        verifyData = res1.data;
+      }
 
       if (verifyError) {
         setOtpAttempts(prev => prev + 1);
@@ -1636,6 +1688,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     if (typeof window !== 'undefined') {
       (window as any).__mediflow_registering = true;
     }
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('vitalsync_is_registering', 'true');
+    }
 
     const cleanEmail = email.trim();
     const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
@@ -1647,6 +1702,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         setErrorMsg(rateCheck.message || 'Too many join requests. Please try again later.');
         setActiveErrorCode('ERR_RATE_LIMIT_EXCEEDED');
         setLoading(false);
+        if (typeof window !== 'undefined') {
+          (window as any).__mediflow_registering = false;
+          sessionStorage.removeItem('vitalsync_is_registering');
+        }
         return;
       }
 
@@ -1752,11 +1811,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       if (typeof window !== 'undefined') {
         localStorage.setItem('vitalsync_cached_profile', JSON.stringify(profile));
         (window as any).__mediflow_registering = false;
+        sessionStorage.removeItem('vitalsync_is_registering');
       }
 
-      // 5. Notify app of authentication success!
+      // 5. Notify app of authentication success or show confirmation card!
       if (activeSession) {
         onAuthSuccess(activeSession, profile);
+      } else {
+        setPartnerJoinSubmitted(true);
       }
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -1771,6 +1833,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       const err = _err as any;
       if (typeof window !== 'undefined') {
         (window as any).__mediflow_registering = false;
+        sessionStorage.removeItem('vitalsync_is_registering');
       }
       console.error('[Mediflow Auth] Partner join failed:', err);
       setErrorMsg(err.message || 'Partner registration failed.');
@@ -2058,16 +2121,32 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             onClick={async () => {
               if (typeof window !== 'undefined') {
                 (window as any).__mediflow_registering = false;
+                sessionStorage.removeItem('vitalsync_is_registering');
+                sessionStorage.removeItem('vitalsync_reg_step');
+                sessionStorage.removeItem('vitalsync_reg_email');
               }
               const { data: { session } } = await supabase.auth.getSession();
               const { data: { user }, error: userErr } = await supabase.auth.getUser();
               if (session?.user && user && !userErr) {
-                const { data: profile } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('id', user.id)
-                  .single();
-                if (profile) onAuthSuccess(session, profile);
+                let profile: any = null;
+                try {
+                  const { data } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .maybeSingle();
+                  profile = data;
+                } catch (_e) { /* ignore */ }
+
+                const finalProf = profile || {
+                  id: user.id,
+                  role: 'doctor',
+                  display_name: `${firstName} ${lastName}`.trim() || 'Dr. Clinician',
+                  email: user.email,
+                  clinic_code: registeredClinicCode,
+                  clinicCode: registeredClinicCode
+                };
+                onAuthSuccess(session, finalProf);
               }
             }}
             className="w-full py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
@@ -3612,6 +3691,45 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       Next: Partner Details <ArrowRight className="h-4 w-4" />
                     </button>
 
+                  </div>
+                ) : partnerJoinSubmitted ? (
+                  <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-5 space-y-4 text-center animate-fade-in">
+                    <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shadow-sm">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-slate-900">Join Request Submitted! ⏳</h4>
+                      <p className="text-xs text-slate-600 font-medium">
+                        Your application to join <strong className="text-slate-900">{validatedClinicName || clinicCode}</strong> has been submitted.
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-xl p-3 border border-emerald-100 text-left space-y-1.5 text-[11px]">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Clinic Network:</span>
+                        <span className="font-mono font-bold text-slate-800">{clinicCode}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Role:</span>
+                        <span className="font-semibold text-slate-800 capitalize">{partnerType === 'pharmacy' ? 'Pharmacy POS' : partnerType === 'lab' ? 'Pathology Lab' : 'Compounder'}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-600">
+                        <span>Status:</span>
+                        <span className="font-bold text-amber-600">Pending Doctor Approval 🟡</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Once the clinic doctor approves your account, you will be able to sign in directly with your email and password.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPartnerJoinSubmitted(false);
+                        handleTabSelect('signin');
+                      }}
+                      className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      Return to Sign In
+                    </button>
                   </div>
                 ) : (
                   <form onSubmit={handlePartnerJoin} className="space-y-3.5 animate-fade-in">

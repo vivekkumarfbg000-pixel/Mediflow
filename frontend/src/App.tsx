@@ -547,6 +547,21 @@ const setCrossDomainCookie = (active: boolean) => {
   }
 };
 
+export const getIsRegisteringActive = (profile?: any): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (Boolean((window as any).__mediflow_registering)) return true;
+    if (typeof sessionStorage !== 'undefined') {
+      if (sessionStorage.getItem('vitalsync_is_registering') === 'true') return true;
+      if (sessionStorage.getItem('vitalsync_reg_step') === '3') return true;
+      if (Boolean(sessionStorage.getItem('mediflow_oauth_onboarding_temp'))) return true;
+    }
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if ((tab === 'register' || tab === 'join') && (!profile || !profile.id)) return true;
+  } catch (_e) { /* ignore */ }
+  return false;
+};
+
 export default function App() {
   const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal' | 'pitch' | 'card'>(() => {
     if (typeof window !== 'undefined') {
@@ -765,7 +780,7 @@ export default function App() {
       watchdogTriggered.current = false;
       return;
     }
-    if (typeof window !== 'undefined' && (window as any).__mediflow_registering) return;
+    if (getIsRegisteringActive(activeProfile)) return;
     if (watchdogTriggered.current) return;
     
     const timer = setTimeout(() => {
@@ -850,7 +865,7 @@ export default function App() {
   const checkAndCompleteOnboarding = async (currentSession: any, currentProfile: any): Promise<any> => {
     if (!currentSession?.user || !currentProfile) return currentProfile;
     
-    if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
+    if (getIsRegisteringActive(currentProfile)) {
       console.log('[Mediflow Onboarding] Registration in progress inside AuthGateway. Deferring automatic onboarding.');
       return currentProfile;
     }
@@ -1150,7 +1165,7 @@ export default function App() {
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
       } else {
-        if (typeof window !== 'undefined' && (window as any).__mediflow_registering) {
+        if (getIsRegisteringActive(activeProfile)) {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
         }
@@ -1527,11 +1542,9 @@ export default function App() {
 
   // 1. Session Loading Gate & Active Profile Resolution Hold
   // Prevent premature evaluation of email verification or intermediate routes before the profile finishes resolving
-  const isRegistering = (typeof window !== 'undefined' && Boolean((window as any).__mediflow_registering)) ||
-    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('vitalsync_is_registering') === 'true') ||
-    (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'register' && !activeProfile);
+  const isRegistering = getIsRegisteringActive(activeProfile);
 
-  if (!isRegistering && (isLoadingSession || (session && (!activeProfile || activeProfile.id !== session.user?.id)))) {
+  if (!isRegistering && isLoadingSession) {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
@@ -1558,7 +1571,7 @@ export default function App() {
   // 2. Landing Page & Local Single-Domain Routing
   // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
-    if (!isRegistering && session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
+    if (!isRegistering && isLoadingSession) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
     if (session && activeProfile && !isRegistering && new URLSearchParams(window.location.search).get('landing') !== 'true') {
@@ -1584,7 +1597,7 @@ export default function App() {
       );
     }
     const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || new URLSearchParams(window.location.search).get('tab') !== null;
-    if (isConsoleRequested && (!session || !activeProfile)) {
+    if ((isConsoleRequested || isRegistering) && (!session || !activeProfile || isRegistering)) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
@@ -1622,11 +1635,11 @@ export default function App() {
     isPwaLaunch;
 
   if (isSingleDomain) {
-    if (!isRegistering && session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
+    if (!isRegistering && isLoadingSession) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
     if (!session || !activeProfile || isRegistering) {
-      if (isConsoleRequested || isRegistering) {
+      if (isConsoleRequested || isRegistering || (session && !activeProfile)) {
         return (
           <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
             <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
@@ -1657,7 +1670,7 @@ export default function App() {
 
   // 3. Super Admin Dashboard Subdomain Routing
   if (isAdminSubdomain) {
-    if (session && (!activeProfile || activeProfile.id !== session.user?.id || isLoadingSession)) {
+    if (isLoadingSession) {
       return <FullPageLoader message="Verifying operations credentials..." />;
     }
 
