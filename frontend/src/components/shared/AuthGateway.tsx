@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
 import { supabase, isMissingEnv } from '../../lib/supabaseClient';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
-  Users, Zap, UserPlus, ExternalLink
+  Users, Zap, UserPlus, ExternalLink, RotateCw, CheckCircle2, KeyRound, Edit3
 } from 'lucide-react';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
@@ -14,6 +14,23 @@ import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import { FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { FounderNotificationService } from '../../services/founderNotificationService';
 import { checkRateLimit, recordRateLimitAttempt, verifyAuthActionAllowed } from '../../utils/rateLimiter';
+
+// Tier-1 SecOps: Disposable & Burner Email Domain Filter (30+ providers)
+export const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  'tempmail.com', 'mailinator.com', '10minutemail.com', 'guerrillamail.com', 'trashmail.com',
+  'yopmail.com', 'throwawaymail.com', 'sharklasers.com', 'getairmail.com', 'dispostable.com',
+  'fakemailgenerator.com', 'mohmal.com', 'crazymailing.com', 'armyspy.com', 'cuvox.de',
+  'dayrep.com', 'einrot.com', 'fleckens.hu', 'gustr.com', 'jourrapide.com', 'rhyta.com',
+  'superrito.com', 'teleworm.us', 'temp-mail.org', 'tempmail.net', 'temp-mail.io',
+  'burnermail.io', 'mailnesia.com', 'trashmail.net', 'mytemp.email', 'tempail.com',
+  'fakeinbox.com', 'emailondeck.com', 'guerrillamailblock.com'
+]);
+
+export const isDisposableEmail = (emailStr: string): boolean => {
+  if (!emailStr || !emailStr.includes('@')) return false;
+  const domain = emailStr.trim().toLowerCase().split('@')[1];
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain);
+};
 
 interface LoginAttempt {
   email: string;
@@ -353,6 +370,25 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
 
+  // 6-Digit Email OTP Verification States (Stripe / Linear Grade)
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpAttempts, setOtpAttempts] = useState(0);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // 60-second OTP Resend Countdown Timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown(prev => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   // Google OAuth Onboarding States
   const [sessionWithNoProfile, setSessionWithNoProfile] = useState<any | null>(null);
   const [oauthOnboardingRole, setOauthOnboardingRole] = useState<'doctor' | 'partner' | null>(null);
@@ -377,6 +413,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setRegistrationStep(1);
     setTosAccepted(false);
     setResetSent(false);
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtpError(null);
+    setOtpAttempts(0);
+    setResendCooldown(0);
   };
 
   const handleJoinSubModeSelect = (mode: 'signin' | 'register') => {
@@ -390,6 +430,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setRegistrationStep(1);
     setTosAccepted(false);
     setResetSent(false);
+    setOtpDigits(['', '', '', '', '', '']);
+    setOtpError(null);
+    setOtpAttempts(0);
+    setResendCooldown(0);
   };
 
   const recordAttempt = (attemptEmail: string, success: boolean, err?: any) => {
@@ -1086,10 +1130,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim()) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
       errors.email = 'Email address is required';
-    } else if (!emailRegex.test(email.trim())) {
+    } else if (!emailRegex.test(cleanEmail)) {
       errors.email = 'Enter a valid email address';
+    } else if (isDisposableEmail(cleanEmail)) {
+      errors.email = 'Disposable or temporary emails are not permitted. Please use your professional email.';
     }
 
     if (!password) {
@@ -1131,6 +1178,119 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Atomic Clinic Provisioning and Session Synthesis (Post-Verification)
+  const completeClinicRegistration = async (
+    targetUserId: string,
+    targetEmail: string,
+    displayNameToUse: string,
+    existingSession?: any
+  ) => {
+    // 1. Call the register_clinic_network RPC function immediately
+    let rpcData: any = null;
+    try {
+      const { data: res, error: rpcError } = await supabase.rpc('register_clinic_network', {
+        p_clinic_name: clinicName.trim(),
+        p_clinic_phone: phone.trim().replace(/\D/g, '').slice(-10),
+        p_clinic_address: address.trim(),
+        p_specialization: specialization
+      });
+      if (!rpcError) {
+        rpcData = res;
+      }
+    } catch (_rpcErr) {
+      console.warn('[Mediflow Auth] Optional register_clinic_network RPC warning:', _rpcErr);
+    }
+
+    // Clear pending registration flag asynchronously in background (non-blocking)
+    supabase.auth.updateUser({
+      data: { pending_registration: false }
+    }).catch(() => { /* ignore */ });
+
+    // 2. Show registration success screen with generated clinic code!
+    const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
+    const finalCode = generatedCode || generateVitalSyncClinicCode(clinicName, 1);
+    setRegisteredClinicCode(finalCode);
+    if (typeof window !== 'undefined') {
+      (window as any).__mediflow_registering = false;
+    }
+
+    // Dispatch automated real-time WhatsApp & webhook alert to Founder (+91-9608032073)
+    FounderNotificationService.notifyOnAccountCreated({
+      doctorName: displayNameToUse,
+      clinicName: clinicName.trim(),
+      phone: phone.trim(),
+      email: targetEmail,
+      clinicCode: finalCode,
+      specialization: specialization,
+      city: address.trim() || 'Line Bazar, Purnea',
+      source: 'auth_gateway_signup'
+    }).catch(err => {
+      console.warn('[AuthGateway] Founder notification dispatch notice:', err);
+    });
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Clinic Registered successfully! 🎉',
+        message: `Welcome ${displayNameToUse}! Your clinic code ${finalCode} is active.`,
+        type: 'success'
+      }
+    }));
+
+    // Fetch profile to resolve newly created entity_id
+    let entityId = null;
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('entity_id')
+        .eq('id', targetUserId)
+        .maybeSingle();
+      if (prof?.entity_id) entityId = prof.entity_id;
+    } catch (_e) { /* ignore */ }
+
+    // 3. Automatically log the doctor into the workspace with deterministic clinicCode!
+    const synthesizedProfile = {
+      id: targetUserId,
+      entity_id: entityId,
+      role: 'doctor',
+      display_name: displayNameToUse,
+      email: targetEmail,
+      clinic_code: finalCode,
+      clinicCode: finalCode
+    };
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vitalsync_cached_profile', JSON.stringify(synthesizedProfile));
+      localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify({
+        id: entityId || targetUserId,
+        name: clinicName.trim(),
+        clinicCode: finalCode,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      }));
+      localStorage.setItem('vitalsync_active_pod', JSON.stringify({
+        id: entityId || targetUserId,
+        name: clinicName.trim(),
+        clinic_code: finalCode,
+        clinicCode: finalCode,
+        health_score: 100,
+        is_verified_for_billing: true,
+        platform_fee_percent: 2.5
+      }));
+    }
+
+    let activeSess = existingSession;
+    if (!activeSess) {
+      try {
+        const { data: sessData } = await supabase.auth.getSession();
+        activeSess = sessData?.session;
+      } catch { /* ignore */ }
+    }
+
+    if (activeSess) {
+      onAuthSuccess(activeSess, synthesizedProfile);
+    }
   };
 
   const handleClinicRegister = async (e: React.FormEvent) => {
@@ -1211,10 +1371,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       let activeSession = authData.session;
       if (!activeSession) {
-        // Attempt immediate signInWithPassword to obtain authenticated session for RPC onboarding
         try {
           const { data: signInRes } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email: cleanEmail,
             password
           });
           activeSession = signInRes?.session;
@@ -1223,102 +1382,35 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }
 
-      // 2. Call the register_clinic_network RPC function immediately
-      let rpcData: any = null;
-      try {
-        const { data: res, error: rpcError } = await supabase.rpc('register_clinic_network', {
-          p_clinic_name: clinicName.trim(),
-          p_clinic_phone: phone.trim().replace(/\D/g, '').slice(-10),
-          p_clinic_address: address.trim(),
-          p_specialization: specialization
-        });
-        if (!rpcError) {
-          rpcData = res;
-        }
-      } catch (_rpcErr) {
-        console.warn('[Mediflow Auth] Optional register_clinic_network RPC warning:', _rpcErr);
+      // Tier-1 Sandbox & Confirm Detection Invariant:
+      // Whitelisted demo accounts or environments with confirmation disabled bypass OTP
+      const isDemoAccount = cleanEmail === 'doctor@mediflow.com' || cleanEmail === 'demo@mediflow.com';
+      const isAutoConfirmed = Boolean(authData.session?.user?.email_confirmed_at || authData.user?.email_confirmed_at);
+
+      if (isDemoAccount || isAutoConfirmed) {
+        await completeClinicRegistration(authData.user.id, cleanEmail, finalDisplayName, activeSession);
+        return;
       }
 
-      // Clear pending registration flag asynchronously in background (non-blocking)
-      supabase.auth.updateUser({
-        data: { pending_registration: false }
-      }).catch(() => { /* ignore */ });
-
-      // 4. Show registration success screen with generated clinic code!
-      const generatedCode = Array.isArray(rpcData) ? rpcData[0]?.clinic_code : rpcData?.clinic_code;
-      const finalCode = generatedCode || generateVitalSyncClinicCode(clinicName, 1);
-      setRegisteredClinicCode(finalCode);
-      if (typeof window !== 'undefined') {
-        (window as any).__mediflow_registering = false;
-      }
-
-      // Dispatch automated real-time WhatsApp & webhook alert to Founder (+91-9608032073)
-      FounderNotificationService.notifyOnAccountCreated({
-        doctorName: finalDisplayName,
-        clinicName: clinicName.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        clinicCode: finalCode,
-        specialization: specialization,
-        city: address.trim() || 'Line Bazar, Purnea',
-        source: 'auth_gateway_signup'
-      }).catch(err => {
-        console.warn('[AuthGateway] Founder notification dispatch notice:', err);
-      });
+      // Live practitioner signup: Transition to in-flow 6-digit OTP verification
+      setRegisteredEmail(cleanEmail);
+      setRegistrationStep(3);
+      setOtpDigits(['', '', '', '', '', '']);
+      setResendCooldown(60);
+      setOtpError(null);
+      setOtpAttempts(0);
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Clinic Registered successfully! 🎉',
-          message: `Welcome ${finalDisplayName}! Your clinic code ${finalCode} is active.`,
-          type: 'success'
+          title: 'Verification Code Dispatched 📩',
+          message: `A 6-digit confirmation code was sent to ${cleanEmail}. Please verify to activate your clinic.`,
+          type: 'info'
         }
       }));
 
-      // Fetch profile to resolve newly created entity_id
-      let entityId = null;
-      try {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('entity_id')
-          .eq('id', authData.user.id)
-          .maybeSingle();
-        if (prof?.entity_id) entityId = prof.entity_id;
-      } catch (_e) { /* ignore */ }
-
-      // 5. Automatically log the doctor into the workspace with deterministic clinicCode!
-      const synthesizedProfile = {
-        id: authData.user.id,
-        entity_id: entityId,
-        role: 'doctor',
-        display_name: finalDisplayName,
-        email: email.trim(),
-        clinic_code: finalCode,
-        clinicCode: finalCode
-      };
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('vitalsync_cached_profile', JSON.stringify(synthesizedProfile));
-        localStorage.setItem('vitalsync_cached_active_pod', JSON.stringify({
-          id: entityId || authData.user.id,
-          name: clinicName.trim(),
-          clinicCode: finalCode,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        }));
-        localStorage.setItem('vitalsync_active_pod', JSON.stringify({
-          id: entityId || authData.user.id,
-          name: clinicName.trim(),
-          clinic_code: finalCode,
-          clinicCode: finalCode,
-          health_score: 100,
-          is_verified_for_billing: true,
-          platform_fee_percent: 2.5
-        }));
-      }
-
-      if (activeSession) {
-        onAuthSuccess(activeSession, synthesizedProfile);
-      }
+      setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 150);
 
     } catch (_err) {
       const err = _err as any;
@@ -1329,6 +1421,153 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       setErrorMsg(err.message || 'Clinic registration failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 6-Digit Email OTP Verification & Resend Handlers (Silicon Valley Tier-1 Standard)
+  const handleVerifyOtp = async (tokenOverride?: string) => {
+    const code = (tokenOverride || otpDigits.join('')).trim();
+    if (code.length < 6) {
+      setOtpError('Please enter all 6 digits of your verification code.');
+      return;
+    }
+
+    if (otpAttempts >= 5) {
+      setOtpError('Too many invalid attempts. Please request a fresh verification code.');
+      return;
+    }
+
+    setOtpVerifying(true);
+    setOtpError(null);
+
+    const targetEmail = registeredEmail || email.trim();
+    const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
+
+    try {
+      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+        email: targetEmail,
+        token: code,
+        type: 'signup'
+      });
+
+      if (verifyError) {
+        setOtpAttempts(prev => prev + 1);
+        throw verifyError;
+      }
+
+      const verifiedUser = verifyData?.user || (await supabase.auth.getUser()).data.user;
+      if (!verifiedUser) {
+        throw new Error('Verification completed but user record could not be loaded. Please sign in.');
+      }
+
+      // Provision clinic network atomically
+      await completeClinicRegistration(
+        verifiedUser.id,
+        targetEmail,
+        finalDisplayName,
+        verifyData?.session
+      );
+    } catch (err: any) {
+      console.error('[Mediflow Auth] OTP Verification failed:', err);
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('expired') || msg.toLowerCase().includes('invalid')) {
+        setOtpError('Invalid or expired 6-digit code. Please check your inbox or click Resend.');
+      } else {
+        setOtpError(msg || 'Verification failed. Please try again.');
+      }
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || otpResending) return;
+
+    const targetEmail = registeredEmail || email.trim();
+    setOtpResending(true);
+    setOtpError(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: targetEmail
+      });
+
+      if (error) throw error;
+
+      setResendCooldown(60);
+      setOtpAttempts(0);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'New Code Sent 📩',
+          message: `A fresh 6-digit verification code has been dispatched to ${targetEmail}.`,
+          type: 'success'
+        }
+      }));
+    } catch (err: any) {
+      console.warn('[Mediflow Auth] Resend OTP error:', err);
+      if (err.message?.toLowerCase().includes('rate limit') || err.status === 429) {
+        setOtpError('Email rate limit reached. Please wait a minute before requesting another code.');
+      } else {
+        setOtpError(err.message || 'Could not resend code. Please try again later.');
+      }
+    } finally {
+      setOtpResending(false);
+    }
+  };
+
+  const handleOtpDigitChange = (index: number, val: string) => {
+    const char = val.replace(/\D/g, '').slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = char;
+    setOtpDigits(newDigits);
+    setOtpError(null);
+
+    if (char && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+
+    if (char && index === 5) {
+      const fullCode = newDigits.join('');
+      if (fullCode.length === 6 && !newDigits.includes('')) {
+        handleVerifyOtp(fullCode);
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      if (!otpDigits[index] && index > 0) {
+        const newDigits = [...otpDigits];
+        newDigits[index - 1] = '';
+        setOtpDigits(newDigits);
+        otpInputRefs.current[index - 1]?.focus();
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text');
+    const digitsOnly = pasteData.replace(/\D/g, '').slice(0, 6);
+    if (!digitsOnly) return;
+
+    const newDigits = ['', '', '', '', '', ''];
+    for (let i = 0; i < digitsOnly.length; i++) {
+      newDigits[i] = digitsOnly[i];
+    }
+    setOtpDigits(newDigits);
+    setOtpError(null);
+
+    const nextIndex = Math.min(digitsOnly.length, 5);
+    otpInputRefs.current[nextIndex]?.focus();
+
+    if (digitsOnly.length === 6) {
+      handleVerifyOtp(digitsOnly);
     }
   };
 
@@ -2725,7 +2964,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 </button>
 
               </div>
-            ) : (
+            ) : registrationStep === 2 ? (
               <form onSubmit={handleClinicRegister} className="space-y-3.5 animate-fade-in">
                 <div className="flex items-center gap-2 text-slate-500 pb-1">
                   <button
@@ -2852,6 +3091,124 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Register Clinic Network <ArrowRight className="h-4 w-4" /></>}
                 </button>
               </form>
+            ) : (
+              /* STEP 3: 6-DIGIT EMAIL OTP VERIFICATION SCREEN (SILICON VALLEY TIER-1 STANDARD) */
+              <div className="space-y-4 animate-fade-in font-sans">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegistrationStep(1);
+                      setOtpError(null);
+                    }}
+                    className="text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-cyan-600 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" /> Edit Details
+                  </button>
+                  <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100 flex items-center gap-1">
+                    <Shield className="h-3 w-3 text-indigo-500" /> Step 3: Security Verification
+                  </span>
+                </div>
+
+                <div className="text-center space-y-1.5 py-1">
+                  <div className="mx-auto w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-200/80 flex items-center justify-center text-indigo-600 shadow-sm shadow-indigo-100 mb-2">
+                    <KeyRound className="h-6 w-6 animate-pulse-subtle" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                    Verify Your Clinical Email
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium px-2">
+                    We have dispatched a 6-digit confirmation code to:
+                  </p>
+                  <div className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-xl text-xs font-bold font-mono text-slate-800">
+                    <Mail className="h-3.5 w-3.5 text-indigo-600" />
+                    <span>{registeredEmail || email.trim()}</span>
+                  </div>
+                </div>
+
+                {/* 6-Box PIN Inputs */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center block">
+                    Enter 6-Digit Verification Code
+                  </label>
+                  <div className="flex items-center justify-center gap-2 sm:gap-2.5">
+                    {otpDigits.map((digit, idx) => (
+                      <input
+                        key={`vs-otp-digit-${idx}`}
+                        ref={(el) => { otpInputRefs.current[idx] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        onPaste={idx === 0 ? handleOtpPaste : undefined}
+                        className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-black font-mono rounded-2xl border transition-all duration-200 outline-none select-all ${
+                          digit
+                            ? 'bg-indigo-50/50 border-indigo-500 text-indigo-900 ring-2 ring-indigo-500/20 shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                        } ${otpError ? 'border-rose-400 bg-rose-50/20' : ''}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {otpError && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2 text-xs font-semibold text-rose-700 animate-shake">
+                    <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
+                    <span>{otpError}</span>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="space-y-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleVerifyOtp()}
+                    disabled={otpVerifying || otpDigits.join('').length < 6}
+                    className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-indigo-650 hover:from-cyan-500 hover:to-indigo-550 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-cyan-500/15 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-sans"
+                  >
+                    {otpVerifying ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Verifying Code...
+                      </>
+                    ) : (
+                      <>
+                        Verify & Activate Clinic <CheckCircle2 className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center justify-between text-xs text-slate-500 px-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRegistrationStep(1);
+                        setOtpError(null);
+                      }}
+                      className="text-[11px] text-slate-500 hover:text-slate-800 font-medium underline cursor-pointer"
+                    >
+                      Wrong email?
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0 || otpResending}
+                      className="text-[11px] font-bold text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      {otpResending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RotateCw className={`h-3.5 w-3.5 ${resendCooldown > 0 ? 'opacity-40' : ''}`} />
+                      )}
+                      {resendCooldown > 0 ? `Resend Code (${resendCooldown}s)` : 'Resend Code'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
