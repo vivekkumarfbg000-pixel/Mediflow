@@ -94,6 +94,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         } catch (_pErr) {}
       }
 
+      if (!profilePodId && (activeProfile as any)?.user_metadata?.pod_id) {
+        profilePodId = (activeProfile as any).user_metadata.pod_id;
+      }
+
       let podData: any = null;
       let mappedEntity: Entity | null = null;
 
@@ -173,14 +177,19 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
         }
       }
 
-      // 4. Fallback: If no pod via entity or profile, query get_all_tenant_pods from Supabase
+      // 4. Fallback: Only for whitelisted demo accounts or unauthenticated preview
       if (!podData) {
-        const { data: allPods } = await supabase.rpc('get_all_tenant_pods');
-        if (allPods && Array.isArray(allPods) && allPods.length > 0) {
-          const v01rPod = allPods.find((p: any) => p.clinic_code === 'VS-V01R' || p.id === FALLBACK_POD_ID);
-          const activeDbPod = v01rPod || allPods.find((p: any) => p.is_active !== false) || allPods[0];
-          if (activeDbPod) {
-            podData = activeDbPod;
+        const userEmail = (activeProfile?.email || '').toLowerCase();
+        const isDemoUser = !userEmail || userEmail === 'doctor@mediflow.com' || userEmail === 'demo@mediflow.com';
+        
+        if (isDemoUser) {
+          const { data: allPods } = await supabase.rpc('get_all_tenant_pods');
+          if (allPods && Array.isArray(allPods) && allPods.length > 0) {
+            const v01rPod = allPods.find((p: any) => p.clinic_code === 'VS-V01R' || p.id === FALLBACK_POD_ID);
+            const activeDbPod = v01rPod || allPods.find((p: any) => p.is_active !== false) || allPods[0];
+            if (activeDbPod) {
+              podData = activeDbPod;
+            }
           }
         }
       }
