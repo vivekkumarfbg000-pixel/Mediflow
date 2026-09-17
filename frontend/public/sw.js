@@ -1,7 +1,7 @@
 // Mediflow Connected Care Ecosystem v2.3 - PWA Service Worker
 // Standard Stale-While-Revalidate static cache engine for 100% resilient offline clinical desks.
 
-const CACHE_NAME = 'mediflow-cache-v8';
+const CACHE_NAME = 'mediflow-cache-v9';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

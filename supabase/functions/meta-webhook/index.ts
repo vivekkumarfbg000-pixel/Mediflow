@@ -3148,6 +3148,7 @@ async function triggerBotReplyPipeline(ctx: {
               is_virtual: isVirtualSlot,
               is_emergency: isSosBookingSession,
               virtual_date: selectedDate,
+              appointment_date: selectedDate,
               virtual_time: slotText,
               virtual_meeting_url: isVirtualSlot ? `https://meet.jit.si/vitalsync-consult-${newApptId}` : null,
               pod_id: safePodId,
@@ -3537,13 +3538,16 @@ async function triggerBotReplyPipeline(ctx: {
         if (effectiveApptId) {
           const isBookingToday = (sessionData.selectedDate === todayIst) || (resolvedApptDate === todayIst);
           const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : (isBookingToday ? "ready_for_consult" : "scheduled"));
+          const effectiveBookingDate = sessionData.selectedDate || resolvedApptDate || todayIst;
           await supabase
             .from("appointments")
             .update({ 
               status: finalStatus, 
               payment_status: "asserted", 
               token_number: String(tokenNumber),
-              is_emergency: isSosBooking
+              is_emergency: isSosBooking,
+              virtual_date: effectiveBookingDate,
+              appointment_date: effectiveBookingDate
             })
             .eq("id", effectiveApptId);
         }

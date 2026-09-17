@@ -873,9 +873,52 @@ Dhyan rakhein aur jaldi theek hon!`;
    */
   static async compressImageForVision(imageSource: string | File): Promise<{ base64Data: string; mimeType: string }> {
     return new Promise((resolve) => {
+      let isResolved = false;
+      const safeResolve = (val: { base64Data: string; mimeType: string }) => {
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timeoutId);
+          resolve(val);
+        }
+      };
+
+      // 4-second fail-safe timeout — guarantees the UI will NEVER hang even on corrupted files
+      const timeoutId = setTimeout(() => {
+        if (typeof imageSource === 'string') {
+          const raw = imageSource.replace(/^data:[^;]+;base64,/, '');
+          safeResolve({ mimeType: 'image/jpeg', base64Data: raw });
+        } else {
+          safeResolve({ mimeType: 'image/jpeg', base64Data: '' });
+        }
+      }, 4000);
+
       try {
+        // Direct bypass for PDF documents (Canvas cannot decode application/pdf)
+        if (typeof imageSource === 'string' && imageSource.startsWith('data:application/pdf')) {
+          const clean = imageSource.replace(/^data:application\/pdf;base64,/, '');
+          safeResolve({ mimeType: 'application/pdf', base64Data: clean });
+          return;
+        }
+
+        if (imageSource instanceof File && (imageSource.type === 'application/pdf' || (imageSource.name || '').toLowerCase().endsWith('.pdf'))) {
+          const pdfReader = new FileReader();
+          pdfReader.onload = () => {
+            const res = (pdfReader.result as string) || '';
+            safeResolve({ mimeType: 'application/pdf', base64Data: res.replace(/^data:[^;]+;base64,/, '') });
+          };
+          pdfReader.onerror = () => safeResolve({ mimeType: 'application/pdf', base64Data: '' });
+          pdfReader.readAsDataURL(imageSource);
+          return;
+        }
+
         const reader = new FileReader();
         const processDataUrl = (dataUrl: string) => {
+          // If dataUrl turned out to be a PDF
+          if (dataUrl.startsWith('data:application/pdf')) {
+            safeResolve({ mimeType: 'application/pdf', base64Data: dataUrl.replace(/^data:application\/pdf;base64,/, '') });
+            return;
+          }
+
           const img = new Image();
           img.onload = () => {
             try {
@@ -898,7 +941,7 @@ Dhyan rakhein aur jaldi theek hon!`;
                 ctx.drawImage(img, 0, 0, width, height);
                 const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
                 const base64Clean = compressedDataUrl.replace(/^data:image\/jpeg;base64,/, '');
-                resolve({ base64Data: base64Clean, mimeType: 'image/jpeg' });
+                safeResolve({ base64Data: base64Clean, mimeType: 'image/jpeg' });
                 return;
               }
             } catch (_canvasErr) {
@@ -906,17 +949,17 @@ Dhyan rakhein aur jaldi theek hon!`;
             }
             const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
-              resolve({ mimeType: matches[1], base64Data: matches[2] });
+              safeResolve({ mimeType: matches[1], base64Data: matches[2] });
             } else {
-              resolve({ mimeType: 'image/jpeg', base64Data: dataUrl.replace(/^data:[^;]+;base64,/, '') });
+              safeResolve({ mimeType: 'image/jpeg', base64Data: dataUrl.replace(/^data:[^;]+;base64,/, '') });
             }
           };
           img.onerror = () => {
             const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
-              resolve({ mimeType: matches[1], base64Data: matches[2] });
+              safeResolve({ mimeType: matches[1], base64Data: matches[2] });
             } else {
-              resolve({ mimeType: 'image/jpeg', base64Data: dataUrl.replace(/^data:[^;]+;base64,/, '') });
+              safeResolve({ mimeType: 'image/jpeg', base64Data: dataUrl.replace(/^data:[^;]+;base64,/, '') });
             }
           };
           img.src = dataUrl;
@@ -926,17 +969,17 @@ Dhyan rakhein aur jaldi theek hon!`;
           if (imageSource.startsWith('data:')) {
             processDataUrl(imageSource);
           } else {
-            resolve({ mimeType: 'image/jpeg', base64Data: imageSource.replace(/^data:[^;]+;base64,/, '') });
+            safeResolve({ mimeType: 'image/jpeg', base64Data: imageSource.replace(/^data:[^;]+;base64,/, '') });
           }
         } else if (imageSource instanceof File || (imageSource as any) instanceof Blob) {
           reader.onload = () => processDataUrl(reader.result as string);
-          reader.onerror = () => resolve({ mimeType: 'image/jpeg', base64Data: '' });
+          reader.onerror = () => safeResolve({ mimeType: 'image/jpeg', base64Data: '' });
           reader.readAsDataURL(imageSource as any);
         } else {
-          resolve({ mimeType: 'image/jpeg', base64Data: '' });
+          safeResolve({ mimeType: 'image/jpeg', base64Data: '' });
         }
       } catch (_err) {
-        resolve({ mimeType: 'image/jpeg', base64Data: '' });
+        safeResolve({ mimeType: 'image/jpeg', base64Data: '' });
       }
     });
   }

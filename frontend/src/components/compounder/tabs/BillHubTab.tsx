@@ -866,7 +866,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           supabase.from('patient_registry').update({
             is_chronic: true,
             chronic_conditions: Array.from(currentConditions)
-          }).eq('id', patientObj.id).then(() => {});
+          }).eq('id', patientObj.id).then(() => {}).catch(err => console.warn('[BillHubTab] Supabase patient update notice:', err));
 
           window.dispatchEvent(new CustomEvent('mediflow-chronic-update', {
             detail: { patientId: patientObj.id, condition: conditionName }
@@ -911,7 +911,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         (matchedAppt as any).queue_status = 'completed';
         (matchedAppt as any).queueStatus = 'completed';
         BillingService.saveAppointments(allAppts);
-        supabase.from('appointments').update({ status: 'completed' }).eq('id', matchedAppt.id).then(() => {});
+        supabase.from('appointments').update({ status: 'completed' }).eq('id', matchedAppt.id).then(() => {}).catch(err => console.warn('[BillHubTab] Supabase appointment update notice:', err));
       }
 
       setSelectedPatient(patientObj);

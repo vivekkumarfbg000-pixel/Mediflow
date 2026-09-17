@@ -1191,6 +1191,13 @@ export const CompounderDashboard: React.FC = () => {
 
         const invId = (existingInvs && existingInvs.length > 0) ? existingInvs[0].id : consultInvId;
 
+        const isUpi = String(appt.source || '').toLowerCase().includes('whatsapp') ||
+                      appt.payment_status === 'asserted' ||
+                      (appt as any).paymentStatus === 'asserted' ||
+                      String((appt as any).payment_method || '').toLowerCase() === 'upi' ||
+                      String((appt as any).paymentMethod || '').toLowerCase() === 'upi';
+        const paymentMode = isUpi ? 'upi' : 'cash';
+
         await supabase.from('unified_invoices').upsert({
           id: invId,
           encounter_id: appt.id,
@@ -1198,7 +1205,7 @@ export const CompounderDashboard: React.FC = () => {
           doctor_fee: consultFee,
           total_amount: consultFee,
           payment_status: 'cleared',
-          payment_method: 'cash',
+          payment_method: paymentMode,
           created_at: nowISO,
           pod_id: currentPodId
         }, { onConflict: 'id' });
@@ -1213,8 +1220,8 @@ export const CompounderDashboard: React.FC = () => {
           gross_amount: consultFee,
           net_payout: consultFee,
           transaction_type: 'consultation',
-          payment_mode: 'cash',
-          payment_method: 'cash',
+          payment_mode: paymentMode,
+          payment_method: paymentMode,
           payment_status: 'cleared',
           platform_fee_deducted: 0,
           created_at: nowISO,
@@ -1983,8 +1990,8 @@ export const CompounderDashboard: React.FC = () => {
             created_at: a.created_at || a.appointment_time || new Date().toISOString(),
             appointmentTime: a.appointment_time,
             appointment_time: a.appointment_time,
-            paymentStatus: a.payment_status || a.paymentStatus || 'completed',
-            payment_status: a.payment_status || a.paymentStatus || 'completed',
+            paymentStatus: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
+            payment_status: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
             isEmergency: a.is_emergency === true || a.isEmergency === true,
             is_emergency: a.is_emergency === true || a.isEmergency === true,
             isVip: a.is_vip === true || a.isVip === true,
@@ -4577,8 +4584,17 @@ export const CompounderDashboard: React.FC = () => {
                         appt.payment_status === 'cleared' || 
                         (appt as any).paymentStatus === 'cleared' || 
                         appt.payment_status === 'paid' || 
-                        (appt as any).paymentStatus === 'paid'
-                      ) && appt.status !== 'pending_payment';
+                        (appt as any).paymentStatus === 'paid' ||
+                        appt.payment_status === 'completed' ||
+                        (appt as any).paymentStatus === 'completed'
+                      ) && 
+                      appt.payment_status !== 'asserted' &&
+                      (appt as any).paymentStatus !== 'asserted' &&
+                      appt.payment_status !== 'unverified' &&
+                      (appt as any).paymentStatus !== 'unverified' &&
+                      appt.payment_status !== 'pending_verification' &&
+                      (appt as any).paymentStatus !== 'pending_verification' &&
+                      appt.status !== 'pending_payment';
 
                       const hasVitalsRecorded = Boolean(
                         (patient.vitals && (patient.vitals.bloodPressure || patient.vitals.pulseRate || patient.vitals.temperature || patient.vitals.spO2 || Object.keys(patient.vitals).length > 0)) ||
