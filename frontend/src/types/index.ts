@@ -45,7 +45,7 @@ export interface Patient {
   abhaId?: string;
   vitals?: PatientVitals;
   tokenNumber?: string;
-  queueStatus?: 'registered' | 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed';
+  queueStatus?: 'registered' | 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed' | 'sos_priority';
   pastReportsSummary?: string;
   createdAt: string;
   registeredAt?: string;
@@ -267,6 +267,8 @@ export interface UnifiedInvoice {
   paymentStatus: 'pending' | 'cleared' | 'disputed';
   payment_status?: string;
   paymentMethod?: string;
+  referralCode?: string;
+  referralDiscount?: number;
   type?: string;
   createdAt: string;
 }
@@ -452,6 +454,8 @@ export interface PathologyReport {
   compounderScanned: boolean;
   results?: string;
   timestamp: string;
+  createdAt?: string;
+  created_at?: string;
   reportUrl?: string;
   fileUrl?: string;
   pdfUrl?: string;

@@ -639,8 +639,6 @@ export class WhatsAppService {
         'MEDICINE_ORDERING',
         'AWAITING_FAMILY_DETAILS',
         'AWAITING_FAMILY_SELECTION',
-        'AWAITING_FAMILY_MEMBERS',
-        'AWAITING_NEW_MEMBER_DETAILS',
         'AWAITING_AI_QUERY',
         'AWAITING_RESCHEDULE_TIME'
       ];
@@ -1646,9 +1644,23 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             const effectivePat = currentPat || patient;
             const myRefCode = (effectivePat as any)?.referral_code || (effectivePat as any)?.referralCode || `REF-${(phone || '').slice(-4) || '1000'}`;
             replyMessage = `🎁 *${this.getDynamicClinicName()} Patient Referral Rewards* 🌟\n\nAapka Unique Referral Code: *${myRefCode}*\n\n📲 *Kaise Kaam Karta Hai:*\n1. Apne doston ya family ke sath yeh code share karein.\n2. Jab woh clinic OPD mein checkup ya WhatsApp par appoint book karenge, unhe *10% Flat Discount* milega.\n3. Aur aapko bhi agle doctor checkup ya medicine refill par *10% OFF* reward milega!\n\n_Forward karke share karein!_ 😊`;
-          } else if (cleaned === '7' || cleaned.includes('family')) {
-            nextState = 'AWAITING_FAMILY_MEMBERS' as any;
-            replyMessage = `👥 *FAMILY HEALTH DESK — ${this.getDynamicClinicName()}* 🏥\n\nNamaste ${(currentPat || patient)?.name || 'Patient'}! Apne parivaar ke kisi sadasya ke liye checkup book kijiye:\n\n0️⃣ Naye Family Member ko Add Karein ➕\n\nCheckup book karne ke liye member number (ya 0) reply kijiye! 🩺`;
+          } else if (cleaned === '7' || cleaned.includes('family') || cleaned.includes('book for family')) {
+            const allPatients = PatientService.getPatients();
+            const clean10 = String(phone).replace(/\D/g, '').slice(-10);
+            const familyMembers = allPatients.filter(p => (p.phone || '').includes(`${clean10}-family-`));
+            const effPat = currentPat || patient;
+            const patName = effPat?.name || 'Patient';
+            const clinicName = this.getDynamicClinicName();
+
+            if (familyMembers.length > 0) {
+              const famList = familyMembers.map((f, idx) => `${idx + 1}️⃣ *${f.name}* (${f.gender || 'Unknown'}, ${f.age || 30} yrs)`).join('\n');
+              sessionData.familyDirectory = familyMembers;
+              nextState = 'AWAITING_FAMILY_SELECTION' as any;
+              replyMessage = `👥 *FAMILY HEALTH DESK — ${clinicName}* 🏥\n\nNamaste *${patName}*! Aapke parivaar ke registered members:\n\n${famList}\n\n0️⃣ Naye Family Member ko Add Karein ➕\n\nCheckup book karne ke liye member number (ya 0) reply kijiye! 🩺`;
+            } else {
+              nextState = 'AWAITING_FAMILY_DETAILS' as any;
+              replyMessage = `👥 *FAMILY HEALTH DESK — ${clinicName}* 🏥\n\nNamaste *${patName}*! Apne parivaar ke kisi sadasya ke liye checkup book kijiye.\n\nPlease family member ka Name, Age, aur Gender reply kijiye:\n*(e.g. Rohan Kumar, 28, Male)* 👤`;
+            }
           } else if (cleaned === '8' || cleaned.includes('summary') || cleaned.includes('prescription') || cleaned.includes('rx')) {
             const completedEncounters = EncounterService.getEncounters()
               .filter(e => e.patientId === (currentPat || patient)?.id && e.status === 'completed')
@@ -1657,7 +1669,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             if (completedEncounters.length > 0) {
               const enc = completedEncounters[0];
               const drugTable = (enc.medications || []).map(m => `• ${m.medicineName} (${m.dosage}) - Freq: ${m.frequency} for ${m.duration}`).join('\n');
-              const encDate = getIstDateDisplay(enc.createdAt || new Date().toISOString());
+              const encDate = getIstDateDisplay(new Date(enc.createdAt || Date.now()));
               replyMessage = `📋 *PRESCRIPTION & DOCTOR NOTES SUMMARY* 🩺\n\n• Patient: *${(currentPat || patient)?.name || 'Patient'}*\n• Doctor: *${this.getDynamicDoctorName()}*\n• Clinic: *${this.getDynamicClinicName()}*\n• Consultation Date: *${encDate}*\n\n📝 *Doctor's Clinical Notes:*\n"${enc.clinicalNotes || 'Patient clinical parameters evaluated and stable.'}"\n\n💊 *Prescribed Medications Schedule:*\n${drugTable || '• As advised by doctor'}\n\n📅 *Follow-Up Advice:*\n${this.getDynamicDoctorName()} ne aapko *14 din* ke baad follow-up ke liye bulaya hai.`;
             } else {
               replyMessage = "Aapke profile par koi completed consultation encounter nahi mila.";
@@ -1668,8 +1680,11 @@ Dr. ${docLastName} se report review ke liye option chuniye:
           } else if (cleaned === '10' || cleaned.includes('locker') || cleaned.includes('record')) {
             const encs = EncounterService.getEncounters().filter(e => e.patientId === (currentPat || patient)?.id);
             const reps = LabService.getPathologyReports().filter(r => r.patientId === (currentPat || patient)?.id);
+            const lastEncDate = encs[0]?.createdAt ? getIstDateDisplay(new Date(encs[0].createdAt)) : 'Recently';
+            const repTimestamp = reps[0]?.timestamp || (reps[0] as any)?.createdAt || (reps[0] as any)?.created_at;
+            const lastRepDate = repTimestamp ? getIstDateDisplay(new Date(repTimestamp)) : 'N/A';
             nextState = 'COMPLETED';
-            replyMessage = `📁 *DIGITAL HEALTH LOCKER — ${this.getDynamicClinicName()}* 🔐\n\nNamaste ${(currentPat || patient)?.name || 'Patient'}! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:\n\n• Consultations on File: *${encs.length}*\n• Pathology Lab Reports: *${reps.length}*\n• Last Prescribed Visit: *${encs[0]?.createdAt ? getIstDateDisplay(encs[0].createdAt) : 'Recently'}*\n• Latest Pathology Test: *${reps[0]?.testName || 'None'}* (${reps[0]?.createdAt ? getIstDateDisplay(reps[0].createdAt) : 'N/A'})\n\n📥 *Instant Access:*\n• Latest Prescription dekhne ke liye *SUMMARY* reply kijiye\n• Latest Lab Report dekhne ke liye *REPORT* reply kijiye`;
+            replyMessage = `📁 *DIGITAL HEALTH LOCKER — ${this.getDynamicClinicName()}* 🔐\n\nNamaste ${(currentPat || patient)?.name || 'Patient'}! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:\n\n• Consultations on File: *${encs.length}*\n• Pathology Lab Reports: *${reps.length}*\n• Last Prescribed Visit: *${lastEncDate}*\n• Latest Pathology Test: *${reps[0]?.testName || 'None'}* (${lastRepDate})\n\n📥 *Instant Access:*\n• Latest Prescription dekhne ke liye *SUMMARY* reply kijiye\n• Latest Lab Report dekhne ke liye *REPORT* reply kijiye`;
           } else {
             nextState = 'AWAITING_CONFIRMATION';
             const patName = currentPat?.name || patient?.name || "Patient";

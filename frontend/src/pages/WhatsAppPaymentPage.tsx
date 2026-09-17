@@ -296,9 +296,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             }
 
             // Sync doctor consultation fee to financial ledgers (USP Rule 6: Doctor Consultation Fee Immunity Protocol)
+            const finalDocFee = Number(invoice?.doctor_fee) || 500;
             if (invoiceId) {
               try {
-                const finalDocFee = Number(invoice?.doctor_fee) || 500;
                 await supabase.from('financial_ledgers').upsert({
                   id: `tx-doc-${invoiceId}`,
                   invoice_id: invoiceId,

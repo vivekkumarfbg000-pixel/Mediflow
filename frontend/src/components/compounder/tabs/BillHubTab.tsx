@@ -1050,7 +1050,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         <tr><td style="padding:6px 0;color:#64748b">Pharmacy Items Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.pharmacySub || 0).toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.labSub || 0).toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">GST Amount (5% Pharm / 18% Lab):</td><td style="text-align:right;font-weight:600">₹${(billingLedger.totalGst || 0).toFixed(2)}</td></tr>
-        ${(b2bReferralDiscount || 0) > 0 ? `<tr><td style="padding:6px 0;color:#64748b">B2B Referral (10%):</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(b2bReferralDiscount || 0).toFixed(2)}</td></tr>` : ''}
+        ${(billingLedger.b2bReferralDiscount || 0) > 0 ? `<tr><td style="padding:6px 0;color:#64748b">B2B Referral (10%):</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(billingLedger.b2bReferralDiscount || 0).toFixed(2)}</td></tr>` : ''}
         <tr><td style="padding:6px 0;color:#64748b">Discount Input:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(discountInput || 0).toFixed(2)}</td></tr>
         <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Grand Total Paid:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${(billingLedger.finalTotal || 0).toFixed(2)}</td></tr>`;
     }
@@ -1240,8 +1240,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         platformFee: isPureCounterConsult ? 0 : parseFloat(((billingLedger.labSub * 0.05) + (billingLedger.pharmacySub * 0.02)).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
         upiQrPayload: dynamicUpiPayload || PaymentService.generateDirectUpiPayload(billingLedger.finalTotal, unifiedInvoiceId).upiDeepLink,
-        referralCode: typeof isValidReferral !== 'undefined' ? (isValidReferral ? referralCode.trim().toUpperCase() : undefined) : undefined,
-        referralDiscount: typeof isValidReferral !== 'undefined' ? (isValidReferral ? b2bReferralDiscount : undefined) : ((b2bReferralDiscount || 0) > 0 ? b2bReferralDiscount : undefined),
+        referralCode: referralCode ? referralCode.trim().toUpperCase() : undefined,
+        referralDiscount: (billingLedger.b2bReferralDiscount || 0) > 0 ? billingLedger.b2bReferralDiscount : undefined,
         paymentStatus: 'cleared',
         paymentMethod: paymentMethod,
         createdAt: new Date().toISOString()
