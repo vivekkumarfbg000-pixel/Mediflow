@@ -1517,7 +1517,6 @@ Keep the tone professional, clinical, objective, and precise.`;
     }));
 
     // Find the next patient in today's active queue
-    const todayStr = getIstDateString();
     const allAppts = api.getAppointments();
 
     const isPatientForToday = (p: Patient) => {

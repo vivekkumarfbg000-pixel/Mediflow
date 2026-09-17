@@ -1046,7 +1046,7 @@ Rules:
       let parsedResult: any = null;
 
       // ── TIER 1: Direct Google Gemini Vision API (Client Key / Vercel Injected) ──
-      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any)?.GEMINI_API_KEY;
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.GEMINI_API_KEY;
       if (!parsedResult && geminiKey && base64Data) {
         const candidateModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
         const parts: any[] = [

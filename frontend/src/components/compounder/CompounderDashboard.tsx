@@ -1145,6 +1145,145 @@ export const CompounderDashboard: React.FC = () => {
     });
   }, [categorizedAppts.pendingPaymentGate, patients, dataRevision]);
 
+  const fetchLiveAppointments = useCallback(async () => {
+    try {
+      const podId = resolveSovereignPodId();
+      let apptQuery = supabase
+        .from('appointments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (podId && podId !== 'default-pod') {
+        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+      }
+
+      let patQuery = supabase
+        .from('patient_registry')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (podId && podId !== 'default-pod') {
+        patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
+      }
+
+      const [apptRes, patRes] = await Promise.all([apptQuery, patQuery]);
+
+      const patMap = new Map<string, any>();
+      if (patRes.data && patRes.data.length > 0) {
+        patRes.data.forEach((p: any) => {
+          if (p.id) patMap.set(p.id, p);
+        });
+        const localPatients = api.getPatients();
+        const mergedMap = new Map<string, Patient>();
+        localPatients.forEach(p => mergedMap.set(p.id, p));
+        patRes.data.forEach((dbP: any) => {
+          const existing = mergedMap.get(dbP.id);
+          mergedMap.set(dbP.id, {
+            ...(existing || {}),
+            id: dbP.id,
+            name: dbP.name || (existing?.name) || 'Patient',
+            phone: dbP.phone || (existing?.phone) || '',
+            age: dbP.age || (existing?.age) || 30,
+            gender: dbP.gender || (existing?.gender) || 'Male',
+            patientCode: dbP.patient_code || dbP.patientCode || existing?.patientCode,
+            abhaId: dbP.abha_id || dbP.abhaId || existing?.abhaId,
+            vitals: dbP.vitals || existing?.vitals,
+            queueStatus: dbP.queue_status || dbP.queueStatus || existing?.queueStatus || 'registered',
+            tokenNumber: dbP.token_number || dbP.tokenNumber || existing?.tokenNumber,
+            registeredAt: dbP.created_at || (existing as any)?.registeredAt || (existing as any)?.createdAt
+          } as any);
+        });
+        const mergedList = Array.from(mergedMap.values());
+        setPatients(mergedList);
+        api.savePatients(mergedList);
+      } else {
+        setPatients(api.getPatients());
+      }
+
+      let pendingWalAppts: any[] = [];
+      try {
+        const rawMem = localStorage.getItem('wal_mem_outbox');
+        if (rawMem) {
+          const outbox = JSON.parse(rawMem);
+          if (Array.isArray(outbox)) {
+            pendingWalAppts = outbox
+              .filter((e: any) => !e.synced && (e.table === 'appointments' || e.tableName === 'appointments') && e.data)
+              .map((e: any) => e.data);
+          }
+        }
+      } catch (_e) {}
+
+      if (apptRes.data && apptRes.data.length > 0) {
+        const mapped = apptRes.data.map((a: any, idx: number) => {
+          const patInfo = patMap.get(a.patient_id) || {};
+          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || patInfo.tokenNumber || ('T-' + String(idx + 1).padStart(2, '0')));
+          const resolvedName = (patInfo.name && patInfo.name !== 'WhatsApp Patient' && patInfo.name !== 'Patient')
+            ? patInfo.name
+            : ((a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') ? a.patient_name : (patInfo.name || 'WhatsApp Patient'));
+          const resolvedPhone = patInfo.phone || a.patient_phone || '';
+          const apptDate = getEffectiveAppointmentDate(a);
+          return {
+            id: a.id,
+            patientId: a.patient_id,
+            patient_id: a.patient_id,
+            doctorId: a.doctor_id,
+            doctor_id: a.doctor_id,
+            status: a.status || 'scheduled',
+            isVirtual: a.is_virtual === true,
+            is_virtual: a.is_virtual === true,
+            date: apptDate,
+            virtualDate: a.virtual_date || apptDate,
+            virtual_date: a.virtual_date || apptDate,
+            appointmentDate: apptDate,
+            appointment_date: apptDate,
+            virtualTime: a.virtual_time || '10:00 AM',
+            virtual_time: a.virtual_time || '10:00 AM',
+            virtualMeetingUrl: a.virtual_meeting_url,
+            virtual_meeting_url: a.virtual_meeting_url,
+            tokenNumber: resolvedToken,
+            token_number: resolvedToken,
+            source: a.source || (a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical'),
+            patientName: resolvedName,
+            patient_name: resolvedName,
+            patientPhone: resolvedPhone,
+            patient_phone: resolvedPhone,
+            patientAge: patInfo.age || 30,
+            patientGender: patInfo.gender || 'Male',
+            createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
+            created_at: a.created_at || a.appointment_time || new Date().toISOString(),
+            appointmentTime: a.appointment_time,
+            appointment_time: a.appointment_time,
+            paymentStatus: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
+            payment_status: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
+            isEmergency: a.is_emergency === true || a.isEmergency === true,
+            is_emergency: a.is_emergency === true || a.isEmergency === true,
+            isVip: a.is_vip === true || a.isVip === true,
+            is_vip: a.is_vip === true || a.isVip === true,
+            podId: a.pod_id || a.podId,
+            pod_id: a.pod_id || a.podId,
+            problem: a.problem || a.chief_complaint || '',
+            chief_complaint: a.chief_complaint || a.problem || ''
+          };
+        });
+
+        // Authoritative Cloud SSOT: Update cloudStore snapshot and prune dead records
+        cloudStore.setInitialCloudSnapshot('appointments', mapped);
+        setAppointments(mapped as any);
+        BillingService.saveAppointments(mapped as any);
+      } else if (apptRes.data !== undefined && apptRes.data !== null && apptRes.data.length === 0) {
+        const existing = api.getAppointments() || [];
+        if (existing.length > 0) {
+          setAppointments(existing);
+        } else if (pendingWalAppts.length > 0) {
+          setAppointments(pendingWalAppts as any);
+          BillingService.saveAppointments(pendingWalAppts as any);
+        }
+      }
+      setDataRevision(prev => prev + 1);
+    } catch (err) {
+      console.warn('[CompounderDashboard] Error fetching live appointments:', err);
+    }
+  }, []);
+
   const handleConfirmPendingCounterPayment = useCallback(async (appt: Appointment) => {
     try {
       const updatedAppts = appointments.map(a => {
@@ -1884,145 +2023,6 @@ export const CompounderDashboard: React.FC = () => {
   // Vernacular Dosage Assistant States
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
   const [dosageTemplate, setDosageTemplate] = useState<'od' | 'bd' | 'tds' | 'sos'>('od');
-
-  const fetchLiveAppointments = useCallback(async () => {
-    try {
-      const podId = resolveSovereignPodId();
-      let apptQuery = supabase
-        .from('appointments')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (podId && podId !== 'default-pod') {
-        apptQuery = apptQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
-      }
-
-      let patQuery = supabase
-        .from('patient_registry')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (podId && podId !== 'default-pod') {
-        patQuery = patQuery.or(`pod_id.eq.${podId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
-      }
-
-      const [apptRes, patRes] = await Promise.all([apptQuery, patQuery]);
-
-      const patMap = new Map<string, any>();
-      if (patRes.data && patRes.data.length > 0) {
-        patRes.data.forEach((p: any) => {
-          if (p.id) patMap.set(p.id, p);
-        });
-        const localPatients = api.getPatients();
-        const mergedMap = new Map<string, Patient>();
-        localPatients.forEach(p => mergedMap.set(p.id, p));
-        patRes.data.forEach((dbP: any) => {
-          const existing = mergedMap.get(dbP.id);
-          mergedMap.set(dbP.id, {
-            ...(existing || {}),
-            id: dbP.id,
-            name: dbP.name || (existing?.name) || 'Patient',
-            phone: dbP.phone || (existing?.phone) || '',
-            age: dbP.age || (existing?.age) || 30,
-            gender: dbP.gender || (existing?.gender) || 'Male',
-            patientCode: dbP.patient_code || dbP.patientCode || existing?.patientCode,
-            abhaId: dbP.abha_id || dbP.abhaId || existing?.abhaId,
-            vitals: dbP.vitals || existing?.vitals,
-            queueStatus: dbP.queue_status || dbP.queueStatus || existing?.queueStatus || 'registered',
-            tokenNumber: dbP.token_number || dbP.tokenNumber || existing?.tokenNumber,
-            registeredAt: dbP.created_at || (existing as any)?.registeredAt || (existing as any)?.createdAt
-          } as any);
-        });
-        const mergedList = Array.from(mergedMap.values());
-        setPatients(mergedList);
-        api.savePatients(mergedList);
-      } else {
-        setPatients(api.getPatients());
-      }
-
-      let pendingWalAppts: any[] = [];
-      try {
-        const rawMem = localStorage.getItem('wal_mem_outbox');
-        if (rawMem) {
-          const outbox = JSON.parse(rawMem);
-          if (Array.isArray(outbox)) {
-            pendingWalAppts = outbox
-              .filter((e: any) => !e.synced && (e.table === 'appointments' || e.tableName === 'appointments') && e.data)
-              .map((e: any) => e.data);
-          }
-        }
-      } catch (_e) {}
-
-      if (apptRes.data && apptRes.data.length > 0) {
-        const mapped = apptRes.data.map((a: any, idx: number) => {
-          const patInfo = patMap.get(a.patient_id) || {};
-          const resolvedToken = String(a.token_number || patInfo.token_number || (a as any).tokenNumber || (patInfo as any).token || patInfo.tokenNumber || ('T-' + String(idx + 1).padStart(2, '0')));
-          const resolvedName = (patInfo.name && patInfo.name !== 'WhatsApp Patient' && patInfo.name !== 'Patient')
-            ? patInfo.name
-            : ((a.patient_name && a.patient_name !== 'Patient' && a.patient_name !== 'WhatsApp Patient') ? a.patient_name : (patInfo.name || 'WhatsApp Patient'));
-          const resolvedPhone = patInfo.phone || a.patient_phone || '';
-          const apptDate = getEffectiveAppointmentDate(a);
-          return {
-            id: a.id,
-            patientId: a.patient_id,
-            patient_id: a.patient_id,
-            doctorId: a.doctor_id,
-            doctor_id: a.doctor_id,
-            status: a.status || 'scheduled',
-            isVirtual: a.is_virtual === true,
-            is_virtual: a.is_virtual === true,
-            date: apptDate,
-            virtualDate: a.virtual_date || apptDate,
-            virtual_date: a.virtual_date || apptDate,
-            appointmentDate: apptDate,
-            appointment_date: apptDate,
-            virtualTime: a.virtual_time || '10:00 AM',
-            virtual_time: a.virtual_time || '10:00 AM',
-            virtualMeetingUrl: a.virtual_meeting_url,
-            virtual_meeting_url: a.virtual_meeting_url,
-            tokenNumber: resolvedToken,
-            token_number: resolvedToken,
-            source: a.source || (a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical'),
-            patientName: resolvedName,
-            patient_name: resolvedName,
-            patientPhone: resolvedPhone,
-            patient_phone: resolvedPhone,
-            patientAge: patInfo.age || 30,
-            patientGender: patInfo.gender || 'Male',
-            createdAt: a.created_at || a.appointment_time || new Date().toISOString(),
-            created_at: a.created_at || a.appointment_time || new Date().toISOString(),
-            appointmentTime: a.appointment_time,
-            appointment_time: a.appointment_time,
-            paymentStatus: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
-            payment_status: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
-            isEmergency: a.is_emergency === true || a.isEmergency === true,
-            is_emergency: a.is_emergency === true || a.isEmergency === true,
-            isVip: a.is_vip === true || a.isVip === true,
-            is_vip: a.is_vip === true || a.isVip === true,
-            podId: a.pod_id || a.podId,
-            pod_id: a.pod_id || a.podId,
-            problem: a.problem || a.chief_complaint || '',
-            chief_complaint: a.chief_complaint || a.problem || ''
-          };
-        });
-
-        // Authoritative Cloud SSOT: Update cloudStore snapshot and prune dead records
-        cloudStore.setInitialCloudSnapshot('appointments', mapped);
-        setAppointments(mapped as any);
-        BillingService.saveAppointments(mapped as any);
-      } else if (apptRes.data !== undefined && apptRes.data !== null && apptRes.data.length === 0) {
-        const existing = api.getAppointments() || [];
-        if (existing.length > 0) {
-          setAppointments(existing);
-        } else if (pendingWalAppts.length > 0) {
-          setAppointments(pendingWalAppts as any);
-          BillingService.saveAppointments(pendingWalAppts as any);
-        }
-      }
-      setDataRevision(prev => prev + 1);
-    } catch (err) {
-      console.warn('[CompounderDashboard] Error fetching live appointments:', err);
-    }
-  }, []);
 
   useEffect(() => {
     const handleCompounderTabChange = (e: Event) => {
