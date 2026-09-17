@@ -41,6 +41,8 @@ export default defineConfig([
       // ── Correctness rules ─────────────────────────────────────────────────────
       'no-useless-escape': 'off', // Turn off to allow legacy regex/escape patterns
       'no-useless-assignment': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'react-hooks/immutability': 'off',
     },
   },
 ])

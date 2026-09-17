@@ -3001,8 +3001,9 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         const bookingPatId = sessionData.bookingPatientId || patient?.id || session.patient_id;
+        const isLoyaltyFreeConsult = isEligibleForFreeVirtual;
 
-        if (isEligibleForFreeVirtual) {
+        if (isEligibleForFreeVirtual || isLoyaltyFreeConsult) {
           // Free Virtual Consult Flow (Auto-approved, skips payment gate)
           nextState = "COMPLETED";
           let newApptId = crypto.randomUUID();

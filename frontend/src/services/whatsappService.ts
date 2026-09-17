@@ -283,7 +283,7 @@ export class WhatsAppService {
       
       // Check if patient exists in registry (flexible 10-digit matching)
       const incomingLast10 = (phone || '').replace(/\D/g, '').slice(-10);
-      let patient = PatientService.getPatients().find(p => {
+      const patient = PatientService.getPatients().find(p => {
         const pDigits = (p.phone || '').replace(/\D/g, '').slice(-10);
         return pDigits === incomingLast10;
       });
@@ -1431,7 +1431,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             if (uniqueMeds.length > 0) {
               nextState = 'AWAITING_REFILL_CHOICE' as any;
               sessionData.refillOptions = uniqueMeds;
-              replyMessage = `💊 *${this.getDynamicClinicName()} Refill Center* \n\nAapki pre-authorized chronic medicine list ready hai. Refill select karne ke liye corresponding option number (1, 2, etc.) reply karein, ya direct brand/generic name type karein:\n\n` + 
+              replyMessage = `💊 *${this.getDynamicClinicName()} Refill Center (10% OFF)* \n\nAapki pre-authorized chronic medicine list ready hai. Refill select karne ke liye corresponding option number (1, 2, etc.) reply karein, ya direct brand/generic name type karein:\n\n` + 
                 uniqueMeds.map((med, idx) => `*${idx + 1}* - ${med}`).join('\n');
             } else {
               nextState = 'MEDICINE_ORDERING';
