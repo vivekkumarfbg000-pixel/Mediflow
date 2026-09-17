@@ -6,11 +6,13 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f62fe" />
+    <meta name="theme-color" content="#090d16" />
     
     <!-- Mobile Web App Capable (Hides browser URL bar when launched as PWA) -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="application-name" content="VitalSync" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="VitalSync" />
     
@@ -120,16 +122,17 @@
         }
       }
 
-      // 1. 4.5-Second Liveness Watchdog Timer: Protects against silent JS deadlocks and boot stalls
+      // 1. 7.5-Second Liveness Watchdog Timer: Protects against silent JS deadlocks without false alarms on background tabs
       var bootWatchdogTimer = setTimeout(function() {
         if (window.__mediflow_startup_healthy) return;
+        if (typeof document !== 'undefined' && document.hidden) return; // Tab was opened in background; do NOT trigger false purge
         var root = document.getElementById('root');
         var hasReactMounted = root && root.children && root.children.length > 0;
         if (!hasReactMounted) {
-          console.warn('[VitalSync Boot Watchdog] Root mount timeout (4.5s) — bundle did not initialize.');
-          handleFatalBootError('Application Boot Timeout (4.5s stall) — bundle did not mount', null);
+          console.warn('[VitalSync Boot Watchdog] Root mount timeout (7.5s) — bundle did not initialize.');
+          handleFatalBootError('Application Boot Timeout (7.5s stall) — bundle did not mount', null);
         }
-      }, 4500);
+      }, 7500);
 
       // 2. Vite Dynamic Chunk Preload Failure Auto-Healer
       window.addEventListener('vite:preloadError', function(event) {

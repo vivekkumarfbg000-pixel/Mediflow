@@ -925,6 +925,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       setActiveErrorCode('ERR_NETWORK_FAILURE');
     }, 20000);
 
+    // DEV Quick bypass for demo credentials
+    if (import.meta.env.DEV) {
+      const demoAcct = DEMO_ACCOUNTS.find(a => a.email.toLowerCase() === cleanEmail.toLowerCase());
+      if (demoAcct) {
+        clearTimeout(handlerTimeout);
+        handleDemoBypass(demoAcct);
+        return;
+      }
+    }
+
     try {
       // 1. Enforce strict sliding-window rate limit & account lockout protection
       const rateCheck = await verifyAuthActionAllowed('login', cleanEmail);
@@ -2646,6 +2656,27 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               </svg>
               Continue with Google
             </button>
+
+            {import.meta.env.DEV && (
+              <div className="pt-2 border-t border-dashed border-slate-200">
+                <div className="text-[9px] font-bold text-indigo-600 uppercase tracking-wider mb-2 text-center">
+                  ⚡ Dev 1-Tap Quick Demo Logins
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {DEMO_ACCOUNTS.map(account => (
+                    <button
+                      key={account.role}
+                      type="button"
+                      onClick={() => handleDemoBypass(account)}
+                      className="px-2.5 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-[10px] font-bold text-slate-700 hover:text-indigo-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
+                    >
+                      <span>{account.icon}</span>
+                      <span>{account.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <p className="text-center text-[10px] text-slate-500 font-medium">
               Are you a partner (pharmacist/lab)? Use the{' '}

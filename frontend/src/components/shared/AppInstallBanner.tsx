@@ -10,7 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 export const AppInstallBanner: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isVisible, setIsVisible] = useState<boolean>(true);
+  const [isVisible, setIsVisible] = useState<boolean>(false);
   const [showIosModal, setShowIosModal] = useState<boolean>(false);
   const [showDesktopModal, setShowDesktopModal] = useState<boolean>(false);
   const [isIos, setIsIos] = useState<boolean>(false);
@@ -18,18 +18,34 @@ export const AppInstallBanner: React.FC = () => {
   const [isReady, setIsReady] = useState<boolean>(false); // Tracks if native prompt is captured
 
   useEffect(() => {
-    // 1. Initial State Check from Window (in case event fired before React hydration)
-    if (typeof window !== 'undefined') {
-      try {
-        if (sessionStorage.getItem('vitalsync_app_install_snoozed') === 'true') {
-          setIsVisible(false);
-        }
-      } catch (_e) { /* ignore */ }
+    // 1. Check standalone PWA mode immediately
+    if (typeof window === 'undefined') return;
 
-      if ((window as any).deferredPwaPrompt) {
-        setDeferredPrompt((window as any).deferredPwaPrompt);
-        setIsReady(true);
-      }
+    const isStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true ||
+      document.referrer.includes('android-app://') ||
+      window.location.search.includes('source=pwa');
+
+    if (isStandalone) {
+      setIsInstalled(true);
+      setIsVisible(false);
+      return;
+    }
+
+    // Check if user previously snoozed or installed
+    const isSnoozed = sessionStorage.getItem('vitalsync_app_install_snoozed') === 'true';
+    const hasInstalled = localStorage.getItem('vitalsync_pwa_installed') === 'true';
+    if (isSnoozed || hasInstalled) {
+      setIsVisible(false);
+    } else {
+      // Delay showing banner slightly so initial content renders smoothly without layout jump
+      setTimeout(() => setIsVisible(true), 1500);
+    }
+
+    if ((window as any).deferredPwaPrompt) {
+      setDeferredPrompt((window as any).deferredPwaPrompt);
+      setIsReady(true);
     }
 
     // 2. Register Service Worker to meet PWA criteria
@@ -41,18 +57,7 @@ export const AppInstallBanner: React.FC = () => {
       });
     }
 
-    // 3. Check standalone PWA mode
-    const isStandalone = 
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as any).standalone === true ||
-      document.referrer.includes('android-app://');
-
-    if (isStandalone) {
-      setIsInstalled(true);
-      return;
-    }
-
-    // 4. Detect iOS User-Agent
+    // 3. Detect iOS User-Agent
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIos(isIosDevice);
@@ -101,6 +106,11 @@ export const AppInstallBanner: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
+    if (isIos) {
+      setShowIosModal(true);
+      return;
+    }
+
     const promptInstance = deferredPrompt || (window as any).deferredPwaPrompt;
 
     // 1. Direct Native Browser PWA Install Prompt
@@ -111,6 +121,9 @@ export const AppInstallBanner: React.FC = () => {
         if (choiceResult && choiceResult.outcome === 'accepted') {
           setIsVisible(false);
           setIsInstalled(true);
+          try {
+            localStorage.setItem('vitalsync_pwa_installed', 'true');
+          } catch (_e) {}
           return;
         }
       } catch (err) {
@@ -120,7 +133,7 @@ export const AppInstallBanner: React.FC = () => {
 
     // 2. Direct Fallback: Open Live Dashboard Web App directly
     if (typeof window !== 'undefined') {
-      window.location.href = 'https://app.vitalsync.in/?source=pwa';
+      window.location.href = '/?console=true&source=pwa';
     }
   };
 

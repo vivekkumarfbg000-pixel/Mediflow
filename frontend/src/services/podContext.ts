@@ -56,6 +56,26 @@ export function isDemoMode(): boolean {
   } catch (_e) { return false; }
 }
 
+export interface PodContext {
+  /** User's Supabase auth UID */
+  userId:          string | null;
+  /** The entity the user belongs to (clinic / lab / pharmacy) */
+  entityId:        string;
+  /** The multi-tenant pod that isolates this clinic's data */
+  podId:           string;
+  /** The doctor's user ID (if role === 'doctor') */
+  doctorId:        string | null;
+  /** Lab entity ID within the pod */
+  labEntityId:     string;
+  /** Pharmacy entity ID within the pod */
+  pharmacyEntityId: string;
+  /** True once a successful Supabase profile fetch has completed */
+  loaded:          boolean;
+}
+
+// Module-scoped live context cache (initialized safely)
+let _ctx: PodContext | null = null;
+
 /**
  * Resolves the active clinic's Sovereign Pod ID across all consoles.
  * Strict Resolution Hierarchy:
@@ -97,26 +117,10 @@ export function resolveSovereignPodId(forcedPodId?: string): string {
 
 /** Guard: throws if pod context is not resolved yet. Use before critical DB writes. */
 export function assertPodLoaded(label?: string): void {
-  if (!_ctx.loaded) {
+  const ctx = getPodContext();
+  if (!ctx.loaded) {
     console.warn(`[Mediflow PodContext] assertPodLoaded failed${label ? ` (${label})` : ''} — context not resolved yet.`);
   }
-}
-
-export interface PodContext {
-  /** User's Supabase auth UID */
-  userId:          string | null;
-  /** The entity the user belongs to (clinic / lab / pharmacy) */
-  entityId:        string;
-  /** The multi-tenant pod that isolates this clinic's data */
-  podId:           string;
-  /** The doctor's user ID (if role === 'doctor') */
-  doctorId:        string | null;
-  /** Lab entity ID within the pod */
-  labEntityId:     string;
-  /** Pharmacy entity ID within the pod */
-  pharmacyEntityId: string;
-  /** True once a successful Supabase profile fetch has completed */
-  loaded:          boolean;
 }
 
 function getInitialPodContext(): PodContext {
@@ -158,12 +162,15 @@ function getInitialPodContext(): PodContext {
   };
 }
 
-let _ctx: PodContext = getInitialPodContext();
+_ctx = getInitialPodContext();
 
 let _resolvePromise: Promise<PodContext> | null = null;
 
 /** Read the current Sovereign Pod context synchronously. */
 export function getPodContext(): PodContext {
+  if (!_ctx) {
+    _ctx = getInitialPodContext();
+  }
   return _ctx;
 }
 

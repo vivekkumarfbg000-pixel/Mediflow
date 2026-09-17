@@ -64,15 +64,33 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
   isPaperMode: propIsPaperMode,
 }) => {
   /* ─── State Management ─────────────────────────────────────────── */
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [labReqs, setLabReqs] = useState<LabRequisition[]>([]);
-  const [inventoryHolds, setInventoryHolds] = useState<InventoryHold[]>([]);
-  const [financials, setFinancials] = useState<FinancialLedgerEntry[]>([]);
-  const [sessions, setSessions] = useState<WhatsAppSession[]>([]);
-  const [reagents, setReagents] = useState<any[]>([]);
-  const [pharmacyInventory, setPharmacyInventory] = useState<any[]>([]);
-  const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>([]);
+  const [patients, setPatients] = useState<Patient[]>(() => {
+    try { return api.getPatients() || []; } catch { return []; }
+  });
+  const [appointments, setAppointments] = useState<any[]>(() => {
+    try { return api.getAppointments() || []; } catch { return []; }
+  });
+  const [labReqs, setLabReqs] = useState<LabRequisition[]>(() => {
+    try { return api.getLabRequisitions() || []; } catch { return []; }
+  });
+  const [inventoryHolds, setInventoryHolds] = useState<InventoryHold[]>(() => {
+    try { return api.getInventoryHolds() || []; } catch { return []; }
+  });
+  const [financials, setFinancials] = useState<FinancialLedgerEntry[]>(() => {
+    try { return api.getFinancialLedgers() || []; } catch { return []; }
+  });
+  const [sessions, setSessions] = useState<WhatsAppSession[]>(() => {
+    try { return api.getWhatsAppSessions() || []; } catch { return []; }
+  });
+  const [reagents, setReagents] = useState<any[]>(() => {
+    try { return api.getReagentStocks() || []; } catch { return []; }
+  });
+  const [pharmacyInventory, setPharmacyInventory] = useState<any[]>(() => {
+    try { return api.getPharmacyInventory() || []; } catch { return []; }
+  });
+  const [pathologyReports, setPathologyReports] = useState<PathologyReport[]>(() => {
+    try { return api.getPathologyReports() || []; } catch { return []; }
+  });
   const [chronicCohorts, setChronicCohorts] = useState<ChronicCohortRecord[]>([]);
 
   const effectivePatients = propPatients !== undefined ? propPatients : patients;
@@ -85,14 +103,12 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [pulse, setPulse] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 700);
-    return () => clearTimeout(timer);
+    // Immediate synchronous hydration; no artificial lag
+    setIsLoading(false);
   }, []);
 
   /* ─── Digital Clock + Pulse ──────────────────────────── */

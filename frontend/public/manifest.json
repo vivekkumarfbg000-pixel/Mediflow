@@ -6,9 +6,42 @@
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "any",
   "background_color": "#090d16",
-  "theme_color": "#0f62fe",
+  "theme_color": "#090d16",
+  "categories": [
+    "medical",
+    "productivity",
+    "health"
+  ],
+  "shortcuts": [
+    {
+      "name": "Doctor EMR",
+      "short_name": "Doctor",
+      "description": "Open Doctor EMR Consultation Desk",
+      "url": "/?console=true&tab=doctor&source=pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Compounder Desk",
+      "short_name": "Compounder",
+      "description": "Open Compounder OPD Token Desk",
+      "url": "/?console=true&tab=compounder&source=pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Pharmacy POS",
+      "short_name": "Pharmacy",
+      "description": "Open Pharmacy Dispensing POS",
+      "url": "/?console=true&tab=pharmacy&source=pwa",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

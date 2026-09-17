@@ -1642,7 +1642,8 @@ export default function App() {
         </ToastProvider>
       );
     }
-    const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || new URLSearchParams(window.location.search).get('tab') !== null;
+    const consoleQuery = new URLSearchParams(window.location.search).get('console');
+    const isConsoleRequested = Boolean(consoleQuery) || new URLSearchParams(window.location.search).get('tab') !== null;
     if ((isConsoleRequested || isRegistering) && (!session || !activeProfile || isRegistering)) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
@@ -1676,7 +1677,8 @@ export default function App() {
   // - If session exists: Fall through and render the dashboard workspace.
   // - Otherwise: Render the Landing Page.
   const isSingleDomain = !isLandingPageDomain && !isDashboardSubdomain && !isAdminSubdomain;
-  const isConsoleRequested = new URLSearchParams(window.location.search).get('console') === 'true' || 
+  const consoleQueryFallback = new URLSearchParams(window.location.search).get('console');
+  const isConsoleRequested = Boolean(consoleQueryFallback) || 
     new URLSearchParams(window.location.search).get('tab') !== null ||
     isPwaLaunch;
 

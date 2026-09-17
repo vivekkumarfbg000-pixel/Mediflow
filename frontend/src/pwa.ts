@@ -35,14 +35,11 @@ export class PwaSyncManager {
           });
       });
 
-      // Reload page once when new service worker takes control so clients never run stale cached code
-      let isRefreshing = false;
+      // Graceful Service Worker activation without abrupt page reloads during active clinical sessions
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!isRefreshing) {
-          isRefreshing = true;
-          console.log('[PWA-Client] New Service Worker active. Reloading application client to bust stale cache...');
-          window.location.reload();
-        }
+        console.log('[PWA-Client] Service Worker controller updated. Preserving active session state.');
+        // Notify the application of update availability without dropping consultation or form context
+        window.dispatchEvent(new CustomEvent('vitalsync-sw-updated'));
       });
     }
 

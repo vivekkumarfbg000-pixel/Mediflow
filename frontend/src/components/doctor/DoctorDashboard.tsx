@@ -92,7 +92,17 @@ const ChronicCareTab = safeLazy(() => import('./tabs/ChronicCareTab').then(m => 
 export const DoctorDashboard: React.FC = () => {
   const { activePod, activeEntity, activeProfile } = useClinic();
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'>('pod_view');
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['pod_view', 'chronic']));
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = useState<boolean>(() => {
     try {
@@ -1607,50 +1617,9 @@ Keep the tone professional, clinical, objective, and precise.`;
   };
 
 
-  // ROUTER CONTROLLER: Render Active Tab Contents
-  const renderTabContent = () => {
-    return (
-      <React.Suspense fallback={
-        <div className="glass-panel p-12 text-center text-slate-500 rounded-2xl">
-          <RefreshCw className="w-5 h-5 animate-spin text-primary mx-auto" />
-          <p className="text-xs mt-2 font-medium">Loading clinical workspace...</p>
-        </div>
-      }>
-        {(() => {
-          switch (activeTab) {
-            case 'pod_view':
-              return (
-                <PodCommandCenter 
-                  hideHeader={true}
-                  hideFinancialOverview={true}
-                  hideFulfillmentWidgets={true}
-                  appointments={appointments}
-                  patients={patients}
-                  isPaperMode={!isDigitalEmrEnabled}
-                  onOpenChronicCare={() => setActiveTab('chronic')}
-                  onStartConsultation={(patient: Patient) => {
-                    setNotes('');
-                    setHinglishSummary('');
-                    setMedications([]);
-                    setSelectedTests([]);
-                    setRefractionRx(EMPTY_REFRACTION_RX);
-
-                    setSelectedPatient(patient);
-                    setActiveTab('consultation');
-                    api.updatePatientQueueStatus(patient.id, 'in_consultation');
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        title: 'Consultation Initialized! 🩺',
-                        message: `Directly navigated to Consultation worksheet for ${patient.name}.`,
-                        type: 'success'
-                      }
-                    }));
-                  }}
-                />
-              );
-            case 'virtual_schedule':
-              return (() => {
-                const todayStr = getIstDateString();
+  // ── RENDER VIRTUAL SCHEDULE VIEW ──
+  const renderVirtualScheduleView = () => {
+    const todayStr = getIstDateString();
 
                 // ── Compute Virtual Appointment Segments ──
                 const allVirtual = appointments.filter((a: Appointment) =>
@@ -2151,46 +2120,96 @@ Keep the tone professional, clinical, objective, and precise.`;
                     )}
                   </div>
                 );
-              })();
-            case 'consultation':
-              if (!isDigitalEmrEnabled) {
-                return (
-                  <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xl text-center space-y-5 animate-fade-in text-slate-800 dark:text-white">
-                    <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                      <FileText className="w-8 h-8" />
-                    </div>
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-mono uppercase tracking-widest px-3 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-extrabold rounded-full">
-                        Physical Paper Rx Mode Active
-                      </span>
-                      <h3 className="text-xl font-black text-slate-800 dark:text-white">
-                        Doctor Screenless OPD Is On
-                      </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
-                        In this mode, you write physical prescriptions on your normal clinic pad. The compounder desk instantly scans your written Rx, creates the bill, and sends it to the patient's WhatsApp. No computer typing required during OPD!
-                      </p>
-                    </div>
-                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleDigitalEmr(true)}
-                        className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs rounded-xl shadow-md hover:from-indigo-700 hover:to-violet-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-0"
-                      >
-                        <Laptop className="w-4 h-4" />
-                        Switch to Digital EMR Mode
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('pod_view')}
-                        className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer border-0"
-                      >
-                        Return to Clinic Dashboard
-                      </button>
-                    </div>
+  };
+
+  // ROUTER CONTROLLER: Render Active Tab Contents with Persistent Keep-Alive Shell
+  const renderTabContent = () => {
+    return (
+      <div className="w-full relative pb-20">
+        <React.Suspense fallback={
+          <div className="glass-panel p-12 text-center text-slate-500 rounded-2xl">
+            <RefreshCw className="w-5 h-5 animate-spin text-primary mx-auto" />
+            <p className="text-xs mt-2 font-medium">Loading clinical workspace...</p>
+          </div>
+        }>
+          {/* 1. Clinic Dashboard / Pod View */}
+          {visitedTabs.has('pod_view') && (
+            <div key="tab-pane-pod_view" style={{ display: activeTab === 'pod_view' ? 'block' : 'none' }}>
+              <PodCommandCenter 
+                hideHeader={true}
+                hideFinancialOverview={true}
+                hideFulfillmentWidgets={true}
+                appointments={appointments}
+                patients={patients}
+                isPaperMode={!isDigitalEmrEnabled}
+                onOpenChronicCare={() => setActiveTab('chronic')}
+                onStartConsultation={(patient: Patient) => {
+                  setNotes('');
+                  setHinglishSummary('');
+                  setMedications([]);
+                  setSelectedTests([]);
+                  setRefractionRx(EMPTY_REFRACTION_RX);
+
+                  setSelectedPatient(patient);
+                  setActiveTab('consultation');
+                  api.updatePatientQueueStatus(patient.id, 'in_consultation');
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Consultation Initialized! 🩺',
+                      message: `Directly navigated to Consultation worksheet for ${patient.name}.`,
+                      type: 'success'
+                    }
+                  }));
+                }}
+              />
+            </div>
+          )}
+
+          {/* 2. Virtual Schedule & Care Loop */}
+          {visitedTabs.has('virtual_schedule') && (
+            <div key="tab-pane-virtual_schedule" style={{ display: activeTab === 'virtual_schedule' ? 'block' : 'none' }}>
+              {renderVirtualScheduleView()}
+            </div>
+          )}
+
+          {/* 3. Consultation Queue */}
+          {visitedTabs.has('consultation') && (
+            <div key="tab-pane-consultation" style={{ display: activeTab === 'consultation' ? 'block' : 'none' }}>
+              {!isDigitalEmrEnabled ? (
+                <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xl text-center space-y-5 animate-fade-in text-slate-800 dark:text-white">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <FileText className="w-8 h-8" />
                   </div>
-                );
-              }
-              return (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-mono uppercase tracking-widest px-3 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-extrabold rounded-full">
+                      Physical Paper Rx Mode Active
+                    </span>
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white">
+                      Doctor Screenless OPD Is On
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto">
+                      In this mode, you write physical prescriptions on your normal clinic pad. The compounder desk instantly scans your written Rx, creates the bill, and sends it to the patient's WhatsApp. No computer typing required during OPD!
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleDigitalEmr(true)}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-xs rounded-xl shadow-md hover:from-indigo-700 hover:to-violet-700 transition-all cursor-pointer flex items-center justify-center gap-2 border-0"
+                    >
+                      <Laptop className="w-4 h-4" />
+                      Switch to Digital EMR Mode
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('pod_view')}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer border-0"
+                    >
+                      Return to Clinic Dashboard
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <ConsultationTab
                   isPaperMode={!isDigitalEmrEnabled}
                   patients={patients}
@@ -2244,123 +2263,115 @@ Keep the tone professional, clinical, objective, and precise.`;
                   activeDoctorProfile={activeDoctorProfile}
                   activeProfile={activeDoctorProfile}
                 />
-              );
-            case 'financials':
-              return (
-                <FinancialsTab
-                  financialLedgers={financialLedgers}
-                  financialSearch={financialSearch}
-                  setFinancialSearch={setFinancialSearch}
-                  activePod={activePod}
-                  activeEntity={activeEntity}
-                />
-              );
-            case 'patients':
-              return (
-                <PatientsDirectoryTab
-                  patients={patients}
-                  patientSearchQuery={patientSearchQuery}
-                  setPatientSearchQuery={setPatientSearchQuery}
-                  selectedDirectoryPatient={selectedDirectoryPatient}
-                  setSelectedDirectoryPatient={setSelectedDirectoryPatient}
-                  newPatientName={newPatientName}
-                  setNewPatientName={setNewPatientName}
-                  newPatientPhone={newPatientPhone}
-                  setNewPatientPhone={setNewPatientPhone}
-                  newPatientAge={newPatientAge}
-                  setNewPatientAge={setNewPatientAge}
-                  newPatientGender={newPatientGender}
-                  setNewPatientGender={setNewPatientGender}
-                  patientRAGSummary={patientRAGSummary}
-                  setPatientRAGSummary={setPatientRAGSummary}
-                />
-              );
-            case 'whatsapp':
-              return (
-                <WhatsAppTab
-                  whatsAppSessions={whatsAppSessions}
-                  setWhatsAppSessions={setWhatsAppSessions}
-                  patients={patients}
-                  activeWabaConnection={activeWabaConnection}
-                  setActiveWabaConnection={setActiveWabaConnection}
-                  wabaFormOpen={wabaFormOpen}
-                  setWabaFormOpen={setWabaFormOpen}
-                  wabaPhoneId={wabaPhoneId}
-                  setWabaPhoneId={setWabaPhoneId}
-                  wabaIdVal={wabaIdVal}
-                  setWabaIdVal={setWabaIdVal}
-                  wabaNumber={wabaNumber}
-                  setWabaNumber={setWabaNumber}
-                  wabaTokenVal={wabaTokenVal}
-                  setWabaTokenVal={setWabaTokenVal}
-                  chatSearch={chatSearch}
-                  setChatSearch={setChatSearch}
-                  selectedChatSession={selectedChatSession}
-                  setSelectedChatSession={setSelectedChatSession}
-                  manualChatMsg={manualChatMsg}
-                  setManualChatMsg={setManualChatMsg}
-                  activePod={activePod}
-                  telemetryLogs={[]}
-                />
-              );
-            case 'sop':
-              return (
-                <SopConfigTab
-                  sopFile={sopFile}
-                  setSopFile={setSopFile}
-                  sopText={sopText}
-                  setSopText={setSopText}
-                  isExtractingSop={isExtractingSop}
-                  setIsExtractingSop={setIsExtractingSop}
-                  extractionLogs={extractionLogs}
-                  setExtractionLogs={setExtractionLogs}
-                  extractedConfig={extractedConfig}
-                  setExtractedConfig={setExtractedConfig}
-                  customSopFileName={customSopFileName}
-                  setCustomSopFileName={setCustomSopFileName}
-                  sopActiveSubTab={sopActiveSubTab}
-                  setSopActiveSubTab={setSopActiveSubTab}
-                />
-              );
-            case 'chronic':
-              return (
-                <ChronicCareTab
-                  onSelectPatient={(patientId: string) => {
-                    const pat = patients.find(p => p.id === patientId);
-                    if (pat) {
-                      setSelectedPatient(pat);
-                      setActiveTab('consultation');
-                    }
-                  }}
-                />
-              );
+              )}
+            </div>
+          )}
 
-            default:
-              return (
-                <PodCommandCenter 
-                  hideHeader={true}
-                  hideFinancialOverview={true}
-                  hideFulfillmentWidgets={true}
-                  appointments={appointments}
-                  patients={patients}
-                  isPaperMode={!isDigitalEmrEnabled}
-                  onOpenChronicCare={() => setActiveTab('chronic')}
-                  onStartConsultation={(patient: Patient) => {
-                    setNotes('');
-                    setHinglishSummary('');
-                    setMedications([]);
-                    setSelectedTests([]);
-                    setRefractionRx(EMPTY_REFRACTION_RX);
-
-                    setSelectedPatient(patient);
+          {/* 4. Chronic Care Cockpit */}
+          {visitedTabs.has('chronic') && (
+            <div key="tab-pane-chronic" style={{ display: activeTab === 'chronic' ? 'block' : 'none' }}>
+              <ChronicCareTab
+                onSelectPatient={(patientId: string) => {
+                  const pat = patients.find(p => p.id === patientId);
+                  if (pat) {
+                    setSelectedPatient(pat);
                     setActiveTab('consultation');
-                    api.updatePatientQueueStatus(patient.id, 'in_consultation');
-                  }}
-                />
-              );
-          }
-        })()}
-      </React.Suspense>
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {/* 5. Financials Tab */}
+          {visitedTabs.has('financials') && (
+            <div key="tab-pane-financials" style={{ display: activeTab === 'financials' ? 'block' : 'none' }}>
+              <FinancialsTab
+                financialLedgers={financialLedgers}
+                financialSearch={financialSearch}
+                setFinancialSearch={setFinancialSearch}
+                activePod={activePod}
+                activeEntity={activeEntity}
+              />
+            </div>
+          )}
+
+          {/* 6. Patients Directory Tab */}
+          {visitedTabs.has('patients') && (
+            <div key="tab-pane-patients" style={{ display: activeTab === 'patients' ? 'block' : 'none' }}>
+              <PatientsDirectoryTab
+                patients={patients}
+                patientSearchQuery={patientSearchQuery}
+                setPatientSearchQuery={setPatientSearchQuery}
+                selectedDirectoryPatient={selectedDirectoryPatient}
+                setSelectedDirectoryPatient={setSelectedDirectoryPatient}
+                newPatientName={newPatientName}
+                setNewPatientName={setNewPatientName}
+                newPatientPhone={newPatientPhone}
+                setNewPatientPhone={setNewPatientPhone}
+                newPatientAge={newPatientAge}
+                setNewPatientAge={setNewPatientAge}
+                newPatientGender={newPatientGender}
+                setNewPatientGender={setNewPatientGender}
+                patientRAGSummary={patientRAGSummary}
+                setPatientRAGSummary={setPatientRAGSummary}
+              />
+            </div>
+          )}
+
+          {/* 7. WhatsApp Tab */}
+          {visitedTabs.has('whatsapp') && (
+            <div key="tab-pane-whatsapp" style={{ display: activeTab === 'whatsapp' ? 'block' : 'none' }}>
+              <WhatsAppTab
+                whatsAppSessions={whatsAppSessions}
+                setWhatsAppSessions={setWhatsAppSessions}
+                patients={patients}
+                activeWabaConnection={activeWabaConnection}
+                setActiveWabaConnection={setActiveWabaConnection}
+                wabaFormOpen={wabaFormOpen}
+                setWabaFormOpen={setWabaFormOpen}
+                wabaPhoneId={wabaPhoneId}
+                setWabaPhoneId={setWabaPhoneId}
+                wabaIdVal={wabaIdVal}
+                setWabaIdVal={setWabaIdVal}
+                wabaNumber={wabaNumber}
+                setWabaNumber={setWabaNumber}
+                wabaTokenVal={wabaTokenVal}
+                setWabaTokenVal={setWabaTokenVal}
+                chatSearch={chatSearch}
+                setChatSearch={setChatSearch}
+                selectedChatSession={selectedChatSession}
+                setSelectedChatSession={setSelectedChatSession}
+                manualChatMsg={manualChatMsg}
+                setManualChatMsg={setManualChatMsg}
+                activePod={activePod}
+                telemetryLogs={[]}
+              />
+            </div>
+          )}
+
+          {/* 8. SOP Config Tab */}
+          {visitedTabs.has('sop') && (
+            <div key="tab-pane-sop" style={{ display: activeTab === 'sop' ? 'block' : 'none' }}>
+              <SopConfigTab
+                sopFile={sopFile}
+                setSopFile={setSopFile}
+                sopText={sopText}
+                setSopText={setSopText}
+                isExtractingSop={isExtractingSop}
+                setIsExtractingSop={setIsExtractingSop}
+                extractionLogs={extractionLogs}
+                setExtractionLogs={setExtractionLogs}
+                extractedConfig={extractedConfig}
+                setExtractedConfig={setExtractedConfig}
+                customSopFileName={customSopFileName}
+                setCustomSopFileName={setCustomSopFileName}
+                sopActiveSubTab={sopActiveSubTab}
+                setSopActiveSubTab={setSopActiveSubTab}
+              />
+            </div>
+          )}
+        </React.Suspense>
+      </div>
     );
   };
 
@@ -2756,7 +2767,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 lg:pb-12 space-y-5 animate-fade-in text-slate-800" 
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-36 lg:pb-28 space-y-5 animate-fade-in text-slate-800" 
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
       onTouchStart={handleTouchStart} 
       onTouchEnd={handleTouchEnd}
@@ -2876,10 +2887,12 @@ Keep the tone professional, clinical, objective, and precise.`;
             return [
               { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard, badge: 0 },
               ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList, badge: 0 }] : []),
+              { id: 'chronic',           label: 'Chronic Care 💊',      icon: HeartPulse, badge: 0 },
               { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video, badge: vBadge },
               { id: 'financials',        label: 'Finances',               icon: CreditCard, badge: 0 },
               { id: 'patients',          label: 'Patient Directory',      icon: Users, badge: 0 },
-              { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare, badge: 0 }
+              { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare, badge: 0 },
+              { id: 'sop',               label: 'Clinic SOPs',            icon: Settings, badge: 0 }
             ];
           })().map(tab => {
             const Icon = tab.icon;
@@ -2928,78 +2941,134 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
       )}
 
+      {/* Unified Chronic Care & Virtual Video Sub-Switcher */}
+      {(activeTab === 'chronic' || activeTab === 'virtual_schedule') && (
+        <div className="flex items-center justify-center my-1 animate-fade-in">
+          <div className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('chronic')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'chronic'
+                  ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/60 dark:border-white/10'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <HeartPulse className="w-4 h-4 text-emerald-500" />
+              <span>Chronic Disease Care & Refill Cockpit 💊</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('virtual_schedule')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'virtual_schedule'
+                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-white/10'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Video className="w-4 h-4 text-blue-500" />
+              <span>Virtual Consultations & Evening Reviews 💻</span>
+              {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length > 0 && (
+                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-500 text-white rounded-full leading-none">
+                  {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Tab Render Container */}
       <div className="w-full">
         {renderTabContent()}
       </div>
 
-      {/* Contextual Floating Action Button (FAB) for Mobile Viewports - Removed */}
-
+      {/* ── DOCTOR RESPONSIVE SHORTCUT DOCK / FOOTER ── */}
       {/* Mobile Sticky Bottom Navigation Footer (lg:hidden) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 px-3 py-2 flex items-center justify-around lg:hidden shadow-2xl">
-        <button
-          onClick={() => setActiveTab('pod_view')}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
-            activeTab === 'pod_view' 
-              ? 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
-          }`}
-        >
-          <LayoutDashboard className="w-4 h-4" />
-          <span>Pod View</span>
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 px-2 py-1.5 flex items-center justify-around lg:hidden shadow-2xl overflow-x-auto">
+        {(() => {
+          const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
+          const dockTabs = [
+            { id: 'pod_view',          label: 'Pod',         icon: LayoutDashboard, badge: 0 },
+            ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consult', icon: Stethoscope, badge: 0 }] : []),
+            { id: 'chronic',           label: 'Care Club',   icon: HeartPulse,      badge: 0 },
+            { id: 'virtual_schedule',  label: 'Virtual',     icon: Video,           badge: vBadge },
+            { id: 'patients',          label: 'Patients',    icon: Users,           badge: 0 },
+            { id: 'financials',        label: 'Finances',    icon: CreditCard,      badge: 0 },
+            { id: 'whatsapp',          label: 'Inbox',       icon: MessageSquare,   badge: 0 }
+          ];
+          return dockTabs.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`relative flex flex-col items-center gap-0.5 text-[9px] font-bold py-1 px-2 rounded-xl transition-all cursor-pointer border-0 shrink-0 ${
+                  isActive
+                    ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
+                }`}
+              >
+                <div className="relative">
+                  <Icon className="w-4 h-4" />
+                  {item.badge > 0 && (
+                    <span className="absolute -top-1 -right-2 px-1 py-0.2 text-[8px] font-bold bg-rose-500 text-white rounded-full leading-none animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.id === 'chronic' && !isActive && (
+                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                  )}
+                </div>
+                <span>{item.label}</span>
+              </button>
+            );
+          });
+        })()}
+      </div>
 
-        <button
-          onClick={() => setActiveTab('consultation')}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
-            activeTab === 'consultation' 
-              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
-          }`}
-        >
-          <Stethoscope className="w-4 h-4" />
-          <span>Consult</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('virtual_schedule')}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
-            activeTab === 'virtual_schedule' 
-              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
-          }`}
-        >
-          <Video className="w-4 h-4" />
-          <span>Virtual</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('patients')}
-          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
-            activeTab === 'patients' 
-              ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>Patients</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('chronic')}
-          className={`relative flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
-            activeTab === 'chronic' 
-              ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 shadow-xs' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
-          }`}
-        >
-          <span className="relative">
-            <HeartPulse className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500" />
-          </span>
-          <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">Care Club</span>
-        </button>
+      {/* Desktop Floating Shortcut Pill Dock (>= lg) */}
+      <div className="hidden lg:flex fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-2xl rounded-full p-1.5 items-center gap-1">
+        {(() => {
+          const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
+          const desktopDockTabs = [
+            { id: 'pod_view',          label: 'Pod Matrix',       icon: LayoutDashboard, badge: 0 },
+            ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'OPD Queue', icon: ClipboardList, badge: 0 }] : []),
+            { id: 'chronic',           label: 'Chronic Care 💊',  icon: HeartPulse,      badge: 0 },
+            { id: 'virtual_schedule',  label: 'Virtual Reviews',  icon: Video,           badge: vBadge },
+            { id: 'patients',          label: 'Patients',         icon: Users,           badge: 0 },
+            { id: 'financials',        label: 'Finances',         icon: CreditCard,      badge: 0 },
+            { id: 'whatsapp',          label: 'WhatsApp',         icon: MessageSquare,   badge: 0 },
+            { id: 'sop',               label: 'SOP Config',       icon: Settings,        badge: 0 }
+          ];
+          return desktopDockTabs.map(item => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 border border-indigo-500'
+                    : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+                title={item.label}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-zinc-400'}`} />
+                <span>{item.label}</span>
+                {item.badge > 0 && (
+                  <span className={`px-1.5 py-0.2 text-[9px] font-mono rounded-full leading-tight ${
+                    isActive ? 'bg-white text-indigo-700' : 'bg-rose-500 text-white animate-pulse'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          });
+        })()}
       </div>
 
       {/* Desktop Enterprise Status Footer */}
