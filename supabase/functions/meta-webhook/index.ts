@@ -3511,14 +3511,8 @@ async function triggerBotReplyPipeline(ctx: {
       } else if (/\b(pay|clear|paid|done|confirm|status)\b/i.test(cleaned) || replyId === "btn_pay" || replyId === "btn_paid") {
         if (invoiceId) {
           try {
-            await supabase.rpc('process_invoice_settlement', {
-              p_invoice_id: invoiceId,
-              p_payment_method: 'upi',
-              p_amount_paid: Number(feeAmount) || 500,
-              p_gateway_reference_id: sessionData.rzpPaymentLinkId || 'wa_asserted'
-            });
+            await supabase.from("unified_invoices").update({ payment_status: "pending_verification", payment_method: "upi" }).eq("id", invoiceId);
           } catch (_e) {}
-          await supabase.from("unified_invoices").update({ payment_status: "cleared", payment_method: "upi" }).eq("id", invoiceId);
         }
 
         let effectiveApptId = apptId;
@@ -3541,7 +3535,8 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         if (effectiveApptId) {
-          const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : "scheduled");
+          const isBookingToday = (sessionData.selectedDate === todayIst) || (resolvedApptDate === todayIst);
+          const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : (isBookingToday ? "ready_for_consult" : "scheduled"));
           await supabase
             .from("appointments")
             .update({ 
@@ -3553,28 +3548,8 @@ async function triggerBotReplyPipeline(ctx: {
             .eq("id", effectiveApptId);
         }
 
-        // Insert real-time financial ledger entry for doctor consultation (0% platform deduction)
-        if (invoiceId) {
-          try {
-            await supabase.from("financial_ledgers").insert({
-              invoice_id: invoiceId,
-              source_entity_id: entityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
-              destination_entity_id: entityId || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002",
-              transaction_type: "appointment_fee",
-              gross_amount: Number(feeAmount) || 500,
-              commission_rate: 0,
-              net_payout: Number(feeAmount) || 500,
-              payment_status: "cleared",
-              settled_at: new Date().toISOString(),
-              platform_fee_deducted: 0,
-              gateway_disbursed_net: Number(feeAmount) || 500,
-              payment_method: "upi",
-              pod_id: podId
-            });
-          } catch (_fErr) {
-            console.error("[Meta Webhook] Financial ledger insert error:", _fErr);
-          }
-        }
+        // Bug 2 Protocol: Do NOT commit to financial_ledgers on patient assertion!
+        // Financial ledger entry is created only when compounder clicks "Verify Payment" at the clinic desk.
 
         if (bookingPatId) {
           try {

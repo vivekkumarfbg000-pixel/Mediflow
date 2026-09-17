@@ -141,7 +141,7 @@ export const CompounderDashboard: React.FC = () => {
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
   const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
-  const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming' | 'pending_clearance'>('today');
+  const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming'>('today');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
   const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
   const [billingSubTab, setBillingSubTab] = useState<'billing' | 'ocr_scan' | 'ot_daycare'>('billing');
@@ -440,7 +440,7 @@ export const CompounderDashboard: React.FC = () => {
 
   const handlePrintOpdRegister = useCallback((targetDate: string) => {
     const template = api.getPrescriptionTemplate();
-    const allAppts = BillingService.getAppointments();
+    const allAppts = appointments && appointments.length > 0 ? appointments : BillingService.getAppointments();
     const allPatients = PatientService.getPatients();
 
     // Filter appointments for the target date (excluding cancelled)
@@ -596,7 +596,7 @@ export const CompounderDashboard: React.FC = () => {
     setTimeout(() => {
       printWindow.print();
     }, 400);
-  }, [activePod]);
+  }, [activePod, appointments]);
 
   // Realtime 1-sec clock ticker for live dilation countdowns
   useEffect(() => {
@@ -1218,6 +1218,7 @@ export const CompounderDashboard: React.FC = () => {
           payment_status: 'cleared',
           platform_fee_deducted: 0,
           created_at: nowISO,
+          settled_at: nowISO,
           pod_id: currentPodId
         }, { onConflict: 'id' });
       } catch (fErr) {
@@ -1229,16 +1230,17 @@ export const CompounderDashboard: React.FC = () => {
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Counter Payment Verified! 💵',
-          message: `${appt.patientName || 'Patient'} (Token #${appt.tokenNumber}) cleared into Doctor Queue.`,
+          title: 'Payment Verified! 💵',
+          message: `${appt.patientName || 'Patient'} (Token #${appt.tokenNumber}) verified & recorded in Financial Ledger.`,
           type: 'success'
         }
       }));
       setDataRevision(prev => prev + 1);
+      fetchLiveAppointments();
     } catch (err) {
       console.error('[CompounderDashboard] Error confirming pending payment:', err);
     }
-  }, [appointments, activePod, activeProfile]);
+  }, [appointments, activePod, activeProfile, fetchLiveAppointments]);
 
   const inChamberAppointment = useMemo(() => {
     return appointments.find(a => a.status === 'in_consult');
@@ -2045,6 +2047,7 @@ export const CompounderDashboard: React.FC = () => {
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
         console.log('[CompounderDashboard] Realtime Appointment update:', payload);
+        fetchLiveAppointments();
         syncDataRef.current();
         // Appointments sync silently into the live OPD queue without popup banners
       },
@@ -4453,15 +4456,11 @@ export const CompounderDashboard: React.FC = () => {
                           <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
                           {opdQueueFilter === 'today' 
                             ? "Today's Appointments Queue" 
-                            : opdQueueFilter === 'pending_clearance'
-                            ? "Pending Clearance (WhatsApp & Counter Gate)"
-                            : "Upcoming WhatsApp Advance Bookings"}
+                            : "Scheduled Advance Bookings"}
                         </h2>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           {opdQueueFilter === 'today' 
                             ? "Active OPD patient token stream, clinical vitals intake, and chamber triage." 
-                            : opdQueueFilter === 'pending_clearance'
-                            ? "Bookings awaiting cash or UPI payment verification before releasing token into active doctor chamber queue."
                             : "Patient bookings registered for upcoming dates via WhatsApp Bot & online portals."}
                         </p>
                       </div>
@@ -4470,7 +4469,10 @@ export const CompounderDashboard: React.FC = () => {
                         {/* 🖨️ Print / Save OPD Register (PDF) Button */}
                         <button
                           type="button"
-                          onClick={() => setShowOpdRegisterPrintModal(true)}
+                          onClick={() => {
+                            fetchLiveAppointments();
+                            setShowOpdRegisterPrintModal(true);
+                          }}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95"
                           title="Print or Save Date-wise OPD Consultation Register as PDF"
                         >
@@ -4478,7 +4480,7 @@ export const CompounderDashboard: React.FC = () => {
                           <span>🖨️ Print OPD Register (PDF)</span>
                         </button>
 
-                        {/* 1-Tap Switcher: Today's Live Queue vs Upcoming Advance Bookings vs Pending Clearance */}
+                        {/* 1-Tap Switcher: Today's Live Queue vs Scheduled Advance Bookings */}
                         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
                           <button
                             type="button"
@@ -4500,24 +4502,6 @@ export const CompounderDashboard: React.FC = () => {
 
                           <button
                             type="button"
-                            onClick={() => setOpdQueueFilter('pending_clearance')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                              opdQueueFilter === 'pending_clearance'
-                                ? 'bg-gradient-to-r from-amber-600 to-rose-600 text-white shadow-sm font-black'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            <CreditCard className="w-3.5 h-3.5 shrink-0" />
-                            <span>Pending Clearance</span>
-                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                              opdQueueFilter === 'pending_clearance' ? 'bg-white/25 text-white' : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200'
-                            }`}>
-                              {pendingClearanceAppointments.length}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
                             onClick={() => setOpdQueueFilter('upcoming')}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
                               opdQueueFilter === 'upcoming'
@@ -4526,7 +4510,7 @@ export const CompounderDashboard: React.FC = () => {
                             }`}
                           >
                             <Calendar className="w-3.5 h-3.5 shrink-0" />
-                            <span>Upcoming Bookings</span>
+                            <span>Scheduled Appointments</span>
                             <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
                               opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}>
@@ -4541,8 +4525,6 @@ export const CompounderDashboard: React.FC = () => {
                   {(() => {
                     const confirmedAppts = opdQueueFilter === 'today' 
                       ? activeOpdAppointments 
-                      : opdQueueFilter === 'pending_clearance'
-                      ? pendingClearanceAppointments
                       : upcomingAdvanceBookings;
 
                     if (confirmedAppts.length === 0) {
@@ -4553,12 +4535,6 @@ export const CompounderDashboard: React.FC = () => {
                               <Activity className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
                               <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No active tokens in today's OPD queue.</p>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Walk-in registrations and WhatsApp bookings for today will appear here.</p>
-                            </>
-                          ) : opdQueueFilter === 'pending_clearance' ? (
-                            <>
-                              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-70 shrink-0" />
-                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">All bookings cleared!</p>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">No appointments pending payment clearance. All WhatsApp/online tokens have been confirmed.</p>
                             </>
                           ) : (
                             <>
@@ -4596,6 +4572,13 @@ export const CompounderDashboard: React.FC = () => {
 
                       // Find matching consult invoice
                       const invoice = api.getInvoices().find(i => i.appointmentId === appt.id && i.type === 'consult');
+                      const consultFee = Number((appt as any).fee || (appt as any).doctor_fee || (appt as any).consultationFee || 500);
+                      const isPaymentVerified = (
+                        appt.payment_status === 'cleared' || 
+                        (appt as any).paymentStatus === 'cleared' || 
+                        appt.payment_status === 'paid' || 
+                        (appt as any).paymentStatus === 'paid'
+                      ) && appt.status !== 'pending_payment';
 
                       const hasVitalsRecorded = Boolean(
                         (patient.vitals && (patient.vitals.bloodPressure || patient.vitals.pulseRate || patient.vitals.temperature || patient.vitals.spO2 || Object.keys(patient.vitals).length > 0)) ||
@@ -4665,14 +4648,16 @@ export const CompounderDashboard: React.FC = () => {
                                 {patient.phone}
                               </span>
                               
-                              <span className={`flex items-center gap-1.5 px-2 py-0.2 rounded border text-[8px] font-bold uppercase tracking-wider ${
-                                appt.status === 'ready_for_consult'
-                                  ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/10'
+                              <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded border text-[8px] font-bold uppercase tracking-wider ${
+                                !isPaymentVerified
+                                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 animate-pulse'
+                                  : appt.status === 'ready_for_consult'
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                                   : appt.status === 'completed'
-                                  ? 'bg-indigo-500/5 text-indigo-600 border-indigo-500/10'
-                                  : 'bg-amber-500/5 text-amber-600 border-amber-500/10'
+                                  ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20'
+                                  : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
                               }`}>
-                                {appt.status === 'ready_for_consult' ? 'Paid & Active' : appt.status}
+                                {!isPaymentVerified ? '⚠️ Payment Not Verified' : appt.status === 'ready_for_consult' ? 'Paid & Active 🟢' : appt.status}
                               </span>
 
                               {opdQueueFilter === 'upcoming' && (() => {
@@ -4778,17 +4763,17 @@ export const CompounderDashboard: React.FC = () => {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            {/* If appointment is in Pending Clearance (WhatsApp booking or gate-pending) */}
-                            {opdQueueFilter === 'pending_clearance' || appt.status === 'pending_payment' || (appt as any).payment_status === 'pending_payment' || (appt as any).paymentStatus === 'pending_payment' ? (
+                            {/* If payment is not yet verified by compounder (e.g. WhatsApp assertion or counter collection needed) */}
+                            {!isPaymentVerified ? (
                               <div className="flex flex-wrap items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={() => handleConfirmPendingCounterPayment(appt)}
-                                  className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer border-0 shadow-sm flex items-center gap-1 active:scale-95"
-                                  title="Confirm payment collection and release token into Doctor Chamber"
+                                  className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white font-bold rounded-lg uppercase tracking-wider text-[9px] transition-all cursor-pointer border-0 shadow-sm flex items-center gap-1 active:scale-95"
+                                  title="Verify payment collection and record into Financial Ledger"
                                 >
                                   <CheckCircle2 className="h-3 w-3" />
-                                  <span>Clear & Confirm (₹{currentConsultFee})</span>
+                                  <span>Verify Payment (₹{consultFee}) ✅</span>
                                 </button>
                               </div>
                             ) : invoice && invoice.status === 'unpaid' ? (
@@ -7824,7 +7809,8 @@ export const CompounderDashboard: React.FC = () => {
 
               {/* Statistics Pill Strip */}
               {(() => {
-                const dayAppts = BillingService.getAppointments().filter(a => {
+                const allAppts = appointments && appointments.length > 0 ? appointments : BillingService.getAppointments();
+                const dayAppts = allAppts.filter(a => {
                   if (a.status === 'cancelled') return false;
                   return getEffectiveAppointmentDate(a) === registerSelectedDate;
                 });
@@ -7851,7 +7837,8 @@ export const CompounderDashboard: React.FC = () => {
             <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3">
               <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
                 {(() => {
-                  const dayAppts = BillingService.getAppointments().filter(a => {
+                  const allAppts = appointments && appointments.length > 0 ? appointments : BillingService.getAppointments();
+                  const dayAppts = allAppts.filter(a => {
                     if (a.status === 'cancelled') return false;
                     return getEffectiveAppointmentDate(a) === registerSelectedDate;
                   });

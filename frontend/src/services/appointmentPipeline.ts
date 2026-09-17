@@ -68,7 +68,9 @@ export function isPendingPayment(appt: Appointment | any): boolean {
       paymentStatus === 'cleared' ||
       paymentStatus === 'paid' ||
       paymentStatus === 'pending_counter' ||
-      paymentStatus === 'counter'
+      paymentStatus === 'counter' ||
+      paymentStatus === 'unverified' ||
+      paymentStatus === 'pending_verification'
     ) {
       return false;
     }
