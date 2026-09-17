@@ -203,8 +203,31 @@ export class RealtimeSyncService {
     if (record.condition !== undefined) normalized.condition = record.condition;
     if (record.tags !== undefined) normalized.tags = record.tags;
     if (record.medical_history !== undefined) normalized.medicalHistory = record.medical_history;
-    if (record.eye_dilation_status !== undefined) normalized.eyeDilationStatus = record.eye_dilation_status;
-    if (record.dilation_timestamp !== undefined) normalized.dilationTimestamp = record.dilation_timestamp;
+    if (record.eye_dilation_status !== undefined || record.eyeDilationStatus !== undefined) {
+      const eds = record.eye_dilation_status || record.eyeDilationStatus;
+      normalized.eyeDilationStatus = eds;
+      normalized.eye_dilation_status = eds;
+    }
+    if (record.dilation_timestamp !== undefined || record.dilationTimestamp !== undefined) {
+      const dt = record.dilation_timestamp || record.dilationTimestamp;
+      normalized.dilationTimestamp = dt;
+      normalized.dilation_timestamp = dt;
+    }
+    if (record.dilation_eye !== undefined || record.dilationEye !== undefined) {
+      const de = record.dilation_eye || record.dilationEye;
+      normalized.dilationEye = de;
+      normalized.dilation_eye = de;
+    }
+    if (record.dilation_drop !== undefined || record.dilationDrop !== undefined) {
+      const dd = record.dilation_drop || record.dilationDrop;
+      normalized.dilationDrop = dd;
+      normalized.dilation_drop = dd;
+    }
+    if (record.appointment_date !== undefined || record.appointmentDate !== undefined) {
+      const apptDate = record.appointment_date || record.appointmentDate;
+      normalized.appointmentDate = apptDate;
+      normalized.appointment_date = apptDate;
+    }
     if (record.registered_at !== undefined) normalized.registeredAt = record.registered_at;
     if (record.past_reports_summary !== undefined) normalized.pastReportsSummary = record.past_reports_summary;
     if (record.referral_code !== undefined) normalized.referralCode = record.referral_code;

@@ -67,6 +67,8 @@ export interface Patient {
   };
   eyeDilationStatus?: 'not_started' | 'in_progress' | 'ready' | 'completed';
   dilationTimestamp?: string;
+  dilationEye?: 'RE' | 'LE' | 'BE'; // Right Eye, Left Eye, Both Eyes
+  dilationDrop?: string; // e.g. "Tropicamide 1%", "Cyclopentolate"
 }
 
 export interface ClinicStaff {

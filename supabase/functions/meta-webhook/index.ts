@@ -3516,8 +3516,20 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `⏳ *Direct UPI Verification Pending*\n\nHumne aapka 12-digit UTR *${utr}* note kar liya hai.\n\nBank se settlement SMS sync hote hi token automatic confirm ho jayega! Tab tak aap 2 mins wait karein ya **STATUS** reply karein. 🤝`;
         }
 
-      // 3. User asserting payment (Direct UPI or 1-tap button)
-      } else if (/\b(pay|clear|paid|done|confirm|status)\b/i.test(cleaned) || replyId === "btn_pay" || replyId === "btn_paid") {
+      // 3. User asserting payment (Direct UPI, 1-tap button, or Hindi/Hinglish confirmation)
+      // Expanded regex captures Tier 2/3 city Hinglish replies: "payment ho gaya", "paise bhej diye",
+      // "bhej diya", "kar diya", "transfer ho gaya", "send kiya", "done hai" etc.
+      } else if (
+        /\b(pay|payment|clear|paid|done|confirm|status|hogaya|ho\s+gaya|bhejdiya|bhej\s+diya|kardiya|kar\s+diya|paise|transfer|sendkiya|send\s+kiya|kiya|kardiya|sent|upi|gpay|phonepay|phonepe|paytm|neft|imps)\b/i.test(cleaned) ||
+        cleaned.includes("payment") ||
+        cleaned.includes("pay") ||
+        cleaned.includes("bhej") ||
+        cleaned.includes("gaya") ||
+        cleaned.includes("paise") ||
+        cleaned.includes("diya") ||
+        replyId === "btn_pay" ||
+        replyId === "btn_paid"
+      ) {
         if (invoiceId) {
           try {
             await supabase.from("unified_invoices").update({ payment_status: "pending_verification", payment_method: "upi" }).eq("id", invoiceId);
