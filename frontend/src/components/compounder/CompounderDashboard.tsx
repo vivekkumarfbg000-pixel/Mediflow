@@ -2046,13 +2046,7 @@ export const CompounderDashboard: React.FC = () => {
       onAppointmentChange: (payload) => {
         console.log('[CompounderDashboard] Realtime Appointment update:', payload);
         syncDataRef.current();
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: '📅 NEW APPOINTMENT BOOKED! 🟢',
-            message: 'A patient has booked a physical or virtual visit on WhatsApp.',
-            type: 'info'
-          }
-        }));
+        // Appointments sync silently into the live OPD queue without popup banners
       },
       onPatientChange: () => syncDataRef.current(),
       onMedicineBillChange: () => syncDataRef.current(),

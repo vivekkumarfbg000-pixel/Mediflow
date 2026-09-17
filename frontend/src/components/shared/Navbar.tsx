@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../../services/api';
 import { useSpecialization } from '../../context/SpecializationContext';
 
@@ -139,6 +140,28 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
     window.addEventListener('vitalsync-realtime-status', handleStatus);
     return () => window.removeEventListener('vitalsync-realtime-status', handleStatus);
+  }, []);
+
+  // Body scroll lock when mobile navigation drawer is active (Rule Step 5)
+  useEffect(() => {
+    if (isMobileDrawerOpen && typeof document !== 'undefined') {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isMobileDrawerOpen]);
+
+  // Listen to ecosystem sidebar toggle events across mobile & desktop viewports
+  useEffect(() => {
+    const handleSidebarToggle = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setIsMobileDrawerOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
+    return () => window.removeEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
   }, []);
 
   useEffect(() => {
@@ -323,7 +346,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'saas_admin', name: 'Platform Operations', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
   ];
 
-  const doctorClinicalModules = ['doctor', 'compounder', 'lab', 'pharmacy', 'patient', 'refraction'];
+  const doctorClinicalModules = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
   const clinicalModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'];
   const adminModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
 
@@ -332,13 +355,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     'ophthalmologist': doctorClinicalModules,
     'general_physician': doctorClinicalModules,
     'physician': doctorClinicalModules,
-    'compounder': ['compounder', 'billing'],
-    'receptionist': ['compounder', 'billing'],
-    'staff': ['compounder', 'billing'],
-    'lab_technician': ['lab'],
-    'lab': ['lab'],
-    'pharmacist': ['pharmacy'],
-    'pharmacy': ['pharmacy'],
+    'compounder': ['compounder', 'billing', 'doctor'],
+    'receptionist': ['compounder', 'billing', 'doctor'],
+    'staff': ['compounder', 'billing', 'doctor'],
+    'lab_technician': ['lab', 'doctor'],
+    'lab': ['lab', 'doctor'],
+    'pharmacist': ['pharmacy', 'doctor'],
+    'pharmacy': ['pharmacy', 'doctor'],
     'patient': ['patient'],
     'admin': adminModulesList,
     'platform_admin': adminModulesList,
@@ -348,8 +371,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     'refraction': ['refraction', 'doctor'],
   };
 
-  const activeUserRole = (activeProfile?.role || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole) || '').toLowerCase();
-  const allowedList = allowedRolesMap[activeUserRole] || (['admin', 'platform_admin', 'saas_admin'].includes(activeUserRole) ? adminModulesList : clinicalModulesList);
+  const userProfileRole = (activeProfile?.role || '').toLowerCase();
+  const activeUserRole = userProfileRole || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole).toLowerCase();
+  const allowedList = allowedRolesMap[activeUserRole] || (['admin', 'platform_admin', 'saas_admin', 'doctor'].includes(activeUserRole) ? adminModulesList : clinicalModulesList);
 
   const visibleRoles = isBypassMode 
     ? roles 
@@ -758,19 +782,25 @@ export const Navbar: React.FC<NavbarProps> = ({
       )}
 
       {/* Mobile Drawer Slide-over Panel Sheet */}
-      {isMobileDrawerOpen && (
-        <div className="md:hidden fixed inset-0 z-[100] flex animate-fade-in">
+      {isMobileDrawerOpen && typeof document !== 'undefined' && createPortal(
+        <div className="md:hidden fixed inset-0 z-[99999] flex animate-fade-in pointer-events-auto">
           {/* Drawer Backdrop Overlay */}
           <div 
-            className="fixed inset-0 bg-white/40 backdrop-blur-xs transition-opacity duration-300"
-            onClick={() => setIsMobileDrawerOpen(false)}
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMobileDrawerOpen(false);
+            }}
           />
 
           {/* Drawer Content Sheet */}
-          <aside className="relative flex flex-col w-72 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md h-full p-5 shadow-2xl animate-slide-in-left z-50 border-r border-slate-200/50 dark:border-white/5 overflow-y-auto no-scrollbar">
+          <aside 
+            onClick={(e) => e.stopPropagation()}
+            className="relative flex flex-col w-72 bg-white dark:bg-slate-950 backdrop-blur-xl h-full p-5 shadow-2xl animate-slide-in-left z-10 border-r border-slate-200/60 dark:border-white/10 overflow-y-auto no-scrollbar"
+          >
             <div className="flex-1 space-y-6">
               {/* Header inside drawer */}
-              <div className="flex items-center justify-between border-b border-slate-200/60 pb-4">
+              <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center h-9 w-9 shrink-0">
                     <BrandMark size={32} title="VitalSync logo" />
@@ -790,7 +820,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={handleToggleTheme}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleTheme();
+                    }}
                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg text-slate-600 dark:text-zinc-300 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border-0 outline-none"
                     aria-label="Toggle Dark Mode"
                     title="Toggle Dark Mode"
@@ -800,7 +833,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                   <button 
                     type="button"
-                    onClick={() => setIsMobileDrawerOpen(false)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMobileDrawerOpen(false);
+                    }}
                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-lg text-slate-550 dark:text-zinc-400 transition-all cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center border-0 outline-none"
                   >
                     <X className="h-5 w-5" />
@@ -810,12 +846,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               {/* Active Workspace */}
               {activePod && (
-                <div className="p-3 bg-white border border-slate-200/50 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                  <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider">Active Workspace</span>
-                  <span className="block text-xs font-semibold text-slate-800 truncate">{activeEntity?.name}</span>
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 rounded-lg space-y-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                  <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider">Active Workspace</span>
+                  <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">{activeEntity?.name}</span>
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
-                    Code: <span className="font-semibold text-slate-700 font-mono">{activePod.clinicCode}</span>
+                    Code: <span className="font-semibold text-slate-700 dark:text-zinc-200 font-mono">{activePod.clinicCode}</span>
                   </div>
                 </div>
               )}
@@ -823,68 +859,73 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Modules Switcher */}
               {visibleRoles.length > 1 && (
                 <div className="space-y-1.5 pt-2">
-                  <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
+                  <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
                   {visibleRoles.map((r) => {
                     const Icon = r.icon;
                     const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
                     return (
                       <button
                         key={r.id}
-                        onClick={() => {
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (r.id === 'doctor' && activeDoctorTab === 'sop') {
                             window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
                           }
                           onChangeRole(r.id as UserRole);
                           setIsMobileDrawerOpen(false);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
                           isActive
-                            ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                            ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                            : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 hover:bg-slate-100/60 dark:hover:bg-white/5'
                         }`}
                       >
                         {isActive && (
                           <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
                         )}
                         <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                          isActive ? 'text-indigo-600' : 'text-slate-600 group-hover:text-slate-600'
+                          isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-700'
                         }`} />
-                        <span className="flex-1 text-left">{r.name}</span>
+                        <span className="flex-1 text-left font-semibold">{r.name}</span>
                       </button>
                     );
                   })}
                 </div>
               )}
                 
-                {currentRole === 'doctor' && (
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'sop' }));
-                      setIsMobileDrawerOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
-                      activeDoctorTab === 'sop'
-                        ? 'bg-indigo-50/80 text-indigo-600 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-                    }`}
-                  >
-                    {activeDoctorTab === 'sop' && (
-                      <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
-                    )}
-                    <FileText className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                      activeDoctorTab === 'sop' ? 'text-indigo-600' : 'text-slate-600 group-hover:text-slate-600'
-                    }`} />
-                    <span className="flex-1 text-left">Clinic SOP</span>
-                  </button>
-                )}
-              </div>
+              {currentRole === 'doctor' && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'sop' }));
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
+                    activeDoctorTab === 'sop'
+                      ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 hover:bg-slate-100/60 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {activeDoctorTab === 'sop' && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
+                  )}
+                  <FileText className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                    activeDoctorTab === 'sop' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-700'
+                  }`} />
+                  <span className="flex-1 text-left font-semibold">Clinic SOP</span>
+                </button>
+              )}
+            </div>
 
             {/* Bottom active profile and workspace actions inside drawer */}
-            <div className="space-y-3 pt-4 border-t border-slate-200/60">
+            <div className="space-y-3 pt-4 border-t border-slate-200/60 dark:border-white/10">
               {/* Log Out Action for Mobile Drawer (Full Width) */}
               <button
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setIsMobileDrawerOpen(false);
                   onSignOut();
                 }}
@@ -911,7 +952,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <div className="border border-slate-200/60 dark:border-white/5 rounded-lg overflow-hidden bg-white/80 dark:bg-slate-900/40 shadow-[0_1px_2px_rgba(0,0,0,0.02)] w-full">
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setProfileModalInitialTab('profile');
                         setIsProfileModalOpen(true);
                         setIsMobileDrawerOpen(false);
@@ -926,124 +968,133 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
 
                     <div className="p-2 space-y-2 border-t border-slate-200/40 dark:border-white/5 bg-transparent w-full">
-                        {/* 1. Appearance / Dark Mode Tile */}
-                        <button
-                          type="button"
-                          onClick={handleToggleTheme}
-                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                        >
-                          <span className="flex items-center gap-2">
-                            {isDark ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
-                            Appearance & Theme
-                          </span>
-                          <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-mono text-[9px]">
-                            {isDark ? 'Dark' : 'Light'}
-                          </span>
-                        </button>
+                      {/* 1. Appearance / Dark Mode Tile */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleTheme();
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          {isDark ? <Sun className="h-3.5 w-3.5 text-amber-400" /> : <Moon className="h-3.5 w-3.5 text-indigo-500" />}
+                          Appearance & Theme
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-mono text-[9px]">
+                          {isDark ? 'Dark' : 'Light'}
+                        </span>
+                      </button>
 
-                        {/* 2. Doctor Identity Profile Button */}
-                        <button
+                      {/* 2. Doctor Identity Profile Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfileModalInitialTab('profile');
+                          setIsProfileModalOpen(true);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                          Doctor Profile & License
+                        </span>
+                        <ChevronRight className="h-3 w-3 text-slate-400" />
+                      </button>
+
+                      {/* 3. Clinic Pod Workspace Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfileModalInitialTab('clinic');
+                          setIsProfileModalOpen(true);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                          Clinic Pod & Storefront
+                        </span>
+                        <ChevronRight className="h-3 w-3 text-slate-400" />
+                      </button>
+
+                      {/* 4. Display & Vernacular Preferences Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfileModalInitialTab('preferences');
+                          setIsProfileModalOpen(true);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Settings className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+                          Vernacular & Display
+                        </span>
+                        <ChevronRight className="h-3 w-3 text-slate-400" />
+                      </button>
+
+                      {/* 5. Security & Password Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProfileModalInitialTab('security');
+                          setIsProfileModalOpen(true);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2">
+                          <ShieldCheck className="h-3.5 w-3.5 text-rose-500" />
+                          Security & Password
+                        </span>
+                        <ChevronRight className="h-3 w-3 text-slate-400" />
+                      </button>
+
+                      {/* Dev Bypass Trigger — DEV ONLY */}
+                      {import.meta.env.DEV && (
+                        <button 
                           type="button"
-                          onClick={() => {
-                            setProfileModalInitialTab('profile');
-                            setIsProfileModalOpen(true);
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleBypass(!isBypassMode);
                             setIsMobileDrawerOpen(false);
                           }}
-                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                          className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                            isBypassMode 
+                              ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
+                              : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
+                          }`}
                         >
-                          <span className="flex items-center gap-2">
-                            <User className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                            Doctor Profile & License
-                          </span>
-                          <ChevronRight className="h-3 w-3 text-slate-400" />
+                          {isBypassMode ? (
+                            <>
+                              <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
+                              Bypass Active
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="h-3 w-3 text-slate-600" />
+                              Secure Mode [DEV]
+                            </>
+                          )}
                         </button>
-
-                        {/* 3. Clinic Pod Workspace Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileModalInitialTab('clinic');
-                            setIsProfileModalOpen(true);
-                            setIsMobileDrawerOpen(false);
-                          }}
-                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                        >
-                          <span className="flex items-center gap-2">
-                            <FileText className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                            Clinic Pod & Storefront
-                          </span>
-                          <ChevronRight className="h-3 w-3 text-slate-400" />
-                        </button>
-
-                        {/* 4. Display & Vernacular Preferences Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileModalInitialTab('preferences');
-                            setIsProfileModalOpen(true);
-                            setIsMobileDrawerOpen(false);
-                          }}
-                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                        >
-                          <span className="flex items-center gap-2">
-                            <Settings className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                            Vernacular & Display
-                          </span>
-                          <ChevronRight className="h-3 w-3 text-slate-400" />
-                        </button>
-
-                        {/* 5. Security & Password Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProfileModalInitialTab('security');
-                            setIsProfileModalOpen(true);
-                            setIsMobileDrawerOpen(false);
-                          }}
-                          className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-white/5 text-[10px] font-bold text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
-                        >
-                          <span className="flex items-center gap-2">
-                            <ShieldCheck className="h-3.5 w-3.5 text-rose-500" />
-                            Security & Password
-                          </span>
-                          <ChevronRight className="h-3 w-3 text-slate-400" />
-                        </button>
-
-                        {/* Dev Bypass Trigger — DEV ONLY */}
-                        {import.meta.env.DEV && (
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              onToggleBypass(!isBypassMode);
-                              setIsMobileDrawerOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-center gap-2 px-2.5 py-1.5 rounded-md border text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                              isBypassMode 
-                                ? 'bg-amber-50/60 border-amber-200/60 text-amber-700 shadow-sm' 
-                                : 'bg-white border-slate-200/60 text-slate-500 hover:text-slate-700'
-                            }`}
-                          >
-                            {isBypassMode ? (
-                              <>
-                                <ShieldAlert className="h-3 w-3 text-amber-600 animate-pulse" />
-                                Bypass Active
-                              </>
-                            ) : (
-                              <>
-                                <ShieldCheck className="h-3 w-3 text-slate-600" />
-                                Secure Mode [DEV]
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
-            </aside>
-          </div>
-        )}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>,
+        document.body
+      )}
 
       {/* Premium Floating Root-Level Mobile Bottom Navigation Dock (Outside <main>) */}
       <div 

@@ -322,8 +322,8 @@ function AppContent({
         );
       default:
         return (
-          <ErrorBoundary fallbackTitle="Compounder Dashboard">
-            <CompounderDashboard />
+          <ErrorBoundary fallbackTitle="Doctor Consultation Dashboard">
+            <DoctorDashboard />
           </ErrorBoundary>
         );
     }
@@ -603,6 +603,41 @@ export default function App() {
 
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     if (typeof window !== 'undefined') {
+      // 1. Route detection (e.g. /doctor, /compounder, /pharmacy, /lab, /admin)
+      const path = window.location.pathname.toLowerCase();
+      if (path.includes('doctor')) return 'doctor';
+      if (path.includes('compounder')) return 'compounder';
+      if (path.includes('pharmacy')) return 'pharmacy';
+      if (path.includes('lab')) return 'lab';
+      if (path.includes('admin')) return 'saas_admin';
+
+      // 2. Query parameter detection (e.g. ?role=doctor or ?console=doctor)
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryRole = (searchParams.get('role') || searchParams.get('console') || '').toLowerCase();
+      if (queryRole === 'doctor') return 'doctor';
+      if (queryRole === 'compounder') return 'compounder';
+      if (queryRole === 'pharmacy') return 'pharmacy';
+      if (queryRole === 'lab') return 'lab';
+      if (queryRole === 'saas_admin' || queryRole === 'admin') return 'saas_admin';
+
+      // 3. Synchronously inspect cached profile role (eliminates 2-4s cold start flash)
+      try {
+        const cachedStr = localStorage.getItem('vitalsync_cached_profile');
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (cached?.role) {
+            const role = String(cached.role).toLowerCase();
+            if (role === 'doctor' || role === 'general_physician' || role === 'ophthalmologist' || role === 'physician') return 'doctor';
+            if (role === 'compounder' || role === 'receptionist' || role === 'staff') return 'compounder';
+            if (role === 'pharmacist' || role === 'pharmacy') return 'pharmacy';
+            if (role === 'lab_technician' || role === 'lab') return 'lab';
+            if (role === 'admin' || role === 'platform_admin' || role === 'saas_admin') return 'saas_admin';
+            if (role === 'patient') return 'patient';
+          }
+        }
+      } catch (_e) { /* ignore storage errors */ }
+
+      // 4. Saved active role in localStorage
       const saved = localStorage.getItem('vitalsync_active_role') as UserRole;
       if (saved) return saved;
     }

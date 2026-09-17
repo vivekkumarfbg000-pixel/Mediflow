@@ -843,23 +843,8 @@ export const DoctorDashboard: React.FC = () => {
               type: 'error'
             }
           }));
-        } else if (payload.new?.source === 'counter' || payload.new?.status === 'ready_for_consult') {
-          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: {
-              title: '🩺 Patient Ready for Consult! 🟢',
-              message: `Token #${payload.new?.token_number || ''} (${payload.new?.patient_name || 'Walk-in Patient'}) is ready in OPD Queue.`,
-              type: 'success'
-            }
-          }));
-        } else {
-          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: {
-              title: '📅 New WhatsApp Appointment! 🟢',
-              message: 'A patient has booked a consultation via WhatsApp.',
-              type: 'info'
-            }
-          }));
         }
+        // Non-emergency appointments sync silently via debouncedSync() without intrusive popup banners
       },
       onPatientChange: () => debouncedSync(),
       onMedicineBillChange: () => debouncedSync(),

@@ -102,7 +102,9 @@ const DEFAULT_DURATION = 2600; // Swift 2.6s auto-dismiss
 // Intelligent Noise Gate: drops noisy background automated/telemetry toasts
 const NOISE_FILTER_KEYWORDS = [
   'forecast', 'copilot', 'telemetry', 'cache', 'pwa', 'recording started',
-  'ping', 'status check', 'template copied', 'draft stored'
+  'ping', 'status check', 'template copied', 'draft stored',
+  'patient ready', 'ready for consult', 'appointment booked', 'new appointment',
+  'opd queue', 'whatsapp appointment'
 ];
 
 function isNoisyToast(message: string, title?: string): boolean {
@@ -146,7 +148,7 @@ function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: str
       aria-live={toast.variant === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
       className={`
-        relative flex items-center gap-3 px-4 py-2.5 rounded-full
+        pointer-events-auto relative flex items-center gap-3 px-4 py-2.5 rounded-full
         ${config.bgClass} ${config.borderClass}
         border backdrop-blur-2xl
         transition-all duration-300 ease-out
@@ -269,7 +271,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast }}>
       {children}
       {toasts.length > 0 && typeof document !== 'undefined' && createPortal(
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[999999] pointer-events-auto flex flex-col items-center gap-2 max-w-[90vw] animate-slide-down">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[999999] pointer-events-none flex flex-col items-center gap-2 max-w-[90vw] animate-slide-down">
           {toasts.map(t => (
             <ToastItem key={t.id} toast={t} onDismiss={dismiss} />
           ))}
