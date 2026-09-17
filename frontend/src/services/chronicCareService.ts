@@ -172,6 +172,17 @@ export class ChronicCareService {
    */
   public static detectChronicCondition(prescriptionText: string, diagnosisText: string): ChronicConditionProtocol | null {
     const combined = `${prescriptionText} ${diagnosisText}`.toLowerCase();
+
+    // High-precision clinical keyword and acronym matching
+    if (/\b(diabet|t2dm|dm2|sugar|hyperglycem|glycem)\b/i.test(combined)) return CHRONIC_PROTOCOLS.DIABETES;
+    if (/\b(hypertens|htn|high\s*bp|blood\s*pressure)\b/i.test(combined)) return CHRONIC_PROTOCOLS.HYPERTENSION;
+    if (/\b(thyroid|hypothyroid|tsh|goiter)\b/i.test(combined)) return CHRONIC_PROTOCOLS.THYROID;
+    if (/\b(cad|ihd|cardiac|stent|dyslipid|cholesterol|angina|infarct)\b/i.test(combined)) return CHRONIC_PROTOCOLS.CARDIAC;
+    if (/\b(asthma|copd|bronch|wheez)\b/i.test(combined)) return CHRONIC_PROTOCOLS.RESPIRATORY;
+    if (/\b(arthrit|joint\s*pain|osteoarth|rheumatoid)\b/i.test(combined)) return CHRONIC_PROTOCOLS.ARTHRITIS;
+    if (/\b(ckd|kidney|creatinine|renal)\b/i.test(combined)) return CHRONIC_PROTOCOLS.CKD;
+    if (/\b(epilep|seizur|fits|convuls)\b/i.test(combined)) return CHRONIC_PROTOCOLS.EPILEPSY;
+
     for (const key of Object.keys(CHRONIC_PROTOCOLS)) {
       const protocol = CHRONIC_PROTOCOLS[key];
       if (combined.includes(protocol.name.toLowerCase()) || combined.includes(protocol.code.toLowerCase())) {
@@ -368,10 +379,114 @@ export class ChronicCareService {
           monthly_medicine_spend: record.monthlyMedicineSpend || 1200
         }], { onConflict: 'id' });
 
+      if (record.patientId) {
+        try {
+          await supabase
+            .from('patient_registry')
+            .update({
+              is_chronic: true,
+              chronic_conditions: [record.conditionName || 'Type-2 Diabetes Mellitus']
+            })
+            .eq('id', record.patientId);
+        } catch (_regErr) {
+          console.warn('[ChronicCareService] patient_registry update notice:', _regErr);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mediflow-chronic-update', {
+          detail: { patientId: record.patientId, conditionCode: record.conditionCode }
+        }));
+        window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      }
+
       return !error;
     } catch (err) {
       console.error('[ChronicCareService] Registration error:', err);
       return false;
+    }
+  }
+
+  /**
+   * Universal Auto-Ingest: Automatically detect chronic condition from EMR or Paper consultation,
+   * register in chronic cohorts, update registry, dispatch ICMR diet guide, and trigger real-time sync.
+   */
+  public static async autoIngestFromEncounter(params: {
+    patientId: string;
+    patientName: string;
+    patientPhone?: string;
+    doctorId?: string;
+    diagnosis?: string;
+    clinicalNotes?: string;
+    medications: Array<{ medicineName?: string; name?: string; dosage?: string; frequency?: string; count?: number }>;
+    isChronic?: boolean;
+    chronicConditions?: string[];
+  }): Promise<{ enrolled: boolean; protocol?: ChronicConditionProtocol; daysSupply?: number }> {
+    try {
+      const medText = (params.medications || []).map(m => m.medicineName || m.name || '').join(' ');
+      const diagText = `${params.diagnosis || ''} ${params.clinicalNotes || ''} ${(params.chronicConditions || []).join(' ')}`;
+      const detectedProto = this.detectChronicCondition(medText, diagText);
+
+      const isChronic = Boolean(
+        detectedProto || 
+        params.isChronic || 
+        (params.chronicConditions && params.chronicConditions.length > 0)
+      );
+
+      if (!isChronic) {
+        return { enrolled: false };
+      }
+
+      const proto = detectedProto || CHRONIC_PROTOCOLS.DIABETES;
+      const firstDosage = params.medications?.[0]?.dosage || '1-0-1';
+      const totalDaysSupply = this.calculateDaysSupply(firstDosage, 30);
+      const nextRefill = getIstOffsetDateString(Math.max(1, totalDaysSupply - 5));
+      const nextRetest = getIstOffsetDateString(proto.retestFrequencyDays || 75);
+
+      const registered = await this.registerChronicPatient({
+        patientId: params.patientId,
+        patientName: params.patientName,
+        patientPhone: params.patientPhone || '',
+        doctorId: params.doctorId,
+        conditionCode: proto.code,
+        conditionName: proto.name,
+        medications: (params.medications || []).map(m => ({
+          name: m.medicineName || m.name || '',
+          dosage: m.dosage || '1-0-1',
+          frequency: m.frequency || 'Twice daily'
+        })),
+        daysSupply: totalDaysSupply,
+        dispensedAt: new Date().toISOString(),
+        nextRefillDate: nextRefill,
+        nextRetestDate: nextRetest,
+        retestTestCode: proto.mandatoryRetestCode,
+        retestTestName: proto.mandatoryRetestName,
+        adherenceScore: 100.0,
+        status: 'active',
+        monthlyMedicineSpend: 1500
+      });
+
+      // Auto-dispatch ICMR / ADA diet chart on WhatsApp
+      if (params.patientPhone) {
+        await this.dispatchConditionDietGuide(
+          params.patientPhone,
+          proto.code,
+          params.patientName
+        );
+      }
+
+      // Emit real-time synchronization events
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mediflow-chronic-update', {
+          detail: { patientId: params.patientId, conditionCode: proto.code, conditionName: proto.name }
+        }));
+        window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      }
+
+      return { enrolled: registered, protocol: proto, daysSupply: totalDaysSupply };
+    } catch (err) {
+      console.error('[ChronicCareService] autoIngestFromEncounter error:', err);
+      return { enrolled: false };
     }
   }
 

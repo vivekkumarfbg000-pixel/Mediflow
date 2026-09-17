@@ -203,43 +203,18 @@ export class PaperModeService {
 
     // D: Auto-Ingest into chronic_care_cohorts & Sovereign Pod Realtime CDC
     try {
-      const medText = (params.medications || []).map(m => m.medicineName || (m as any).name || '').join(' ');
-      const diagText = `${params.diagnosis || ''} ${(params.chronicConditions || []).join(' ')}`;
-      const detectedProto = ChronicCareService.detectChronicCondition(medText, diagText);
-
-      if (params.isChronic || detectedProto || (params.chronicConditions && params.chronicConditions.length > 0)) {
-        const proto = detectedProto || CHRONIC_PROTOCOLS.DIABETES;
-        const totalDaysSupply = ChronicCareService.calculateDaysSupply((params.medications?.[0]?.dosage || '1-0-1'), 30);
-        
-        await ChronicCareService.registerChronicPatient({
-          patientId: params.patientId,
-          patientName: params.patientName,
-          patientPhone: params.patientPhone || '',
-          doctorId: params.doctorName || '',
-          conditionCode: proto.code,
-          conditionName: proto.name,
-          medications: (params.medications || []).map(m => ({
-            name: m.medicineName || (m as any).name || '',
-            dosage: m.dosage || '1-0-1',
-            frequency: m.frequency || 'Twice daily'
-          })),
-          daysSupply: totalDaysSupply,
-          dispensedAt: new Date().toISOString(),
-          nextRefillDate: getIstOffsetDateString(Math.max(1, totalDaysSupply - 5)),
-          nextRetestDate: getIstOffsetDateString(proto.retestFrequencyDays),
-          retestTestCode: proto.mandatoryRetestCode,
-          retestTestName: proto.mandatoryRetestName,
-          adherenceScore: 100.0,
-          status: 'active',
-          monthlyMedicineSpend: 1500
-        });
-        console.log('[PaperMode] ✅ Auto-ingested chronic patient into chronic_care_cohorts');
-
-        // Automatically dispatch condition diet guide on WhatsApp
-        if (params.patientPhone) {
-          ChronicCareService.dispatchConditionDietGuide(params.patientPhone, proto.code, params.patientName);
-        }
-      }
+      await ChronicCareService.autoIngestFromEncounter({
+        patientId: params.patientId,
+        patientName: params.patientName,
+        patientPhone: params.patientPhone || '',
+        doctorId: params.doctorName || '',
+        diagnosis: params.diagnosis || '',
+        clinicalNotes: (params.chronicConditions || []).join(' '),
+        medications: params.medications || [],
+        isChronic: params.isChronic,
+        chronicConditions: params.chronicConditions
+      });
+      console.log('[PaperMode] ✅ Auto-ingested chronic patient into chronic_care_cohorts via unified autoIngestFromEncounter');
     } catch (cohortErr: any) {
       console.warn('[PaperMode] Chronic cohort auto-ingestion notice:', cohortErr?.message);
     }

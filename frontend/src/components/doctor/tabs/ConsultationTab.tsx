@@ -1098,6 +1098,24 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           diagnosticTests: selectedTests
         });
         api.updatePatientQueueStatus(selectedPatient.id, 'completed');
+
+        // Auto-Ingest into Chronic Care Cohorts & Patient Registry from EMR Consultation
+        try {
+          const { ChronicCareService } = await import('../../../services/chronicCareService');
+          await ChronicCareService.autoIngestFromEncounter({
+            patientId: selectedPatient.id,
+            patientName: selectedPatient.name,
+            patientPhone: selectedPatient.phone || '',
+            doctorId: activeDoctorProfile?.id || clinicProfile?.doctorId || FALLBACK_DOCTOR_ID,
+            diagnosis: selectedPatient.diagnosis || '',
+            clinicalNotes: notes,
+            medications: finalMedications,
+            isChronic: selectedPatient.is_chronic || selectedPatient.isChronic,
+            chronicConditions: selectedPatient.chronicConditions || []
+          });
+        } catch (_chronicErr) {
+          console.warn('[ConsultationTab] EMR chronic auto-ingest notice:', _chronicErr);
+        }
       }
 
       // 4. Reset local procedure, follow-up and editing states

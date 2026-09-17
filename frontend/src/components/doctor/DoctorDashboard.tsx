@@ -1444,40 +1444,47 @@ Keep the tone professional, clinical, objective, and precise.`;
       detail: { entity: 'appointments', action: 'completed', patientId: selectedPatient.id }
     }));
 
-    // Auto-Ingest into Chronic Care Cohorts if chronic medications or diagnoses detected
+    // Auto-Ingest into Chronic Care Cohorts & Patient Registry from EMR Consultation
     try {
-      const { ChronicCareService, CHRONIC_PROTOCOLS } = await import('../../services/chronicCareService');
-      const medText = finalMedications.map((m: any) => m.medicineName).join(' ');
-      const diagText = `${finalNotes} ${selectedPatient.diagnosis || ''}`;
-      const detectedProto = ChronicCareService.detectChronicCondition(medText, diagText);
+      const { ChronicCareService } = await import('../../services/chronicCareService');
+      const result = await ChronicCareService.autoIngestFromEncounter({
+        patientId: selectedPatient.id,
+        patientName: selectedPatient.name,
+        patientPhone: selectedPatient.phone || '',
+        doctorId: activeDoctorProfile?.id || getPodContext().doctorId || FALLBACK_DOCTOR_ID,
+        diagnosis: selectedPatient.diagnosis || '',
+        clinicalNotes: finalNotes,
+        medications: finalMedications,
+        isChronic: selectedPatient.is_chronic || selectedPatient.isChronic,
+        chronicConditions: selectedPatient.chronicConditions || []
+      });
 
-      if (detectedProto || selectedPatient.is_chronic) {
-        const proto = detectedProto || CHRONIC_PROTOCOLS.DIABETES;
-        const totalDaysSupply = ChronicCareService.calculateDaysSupply((finalMedications[0]?.dosage || '1-0-1'), 30);
-        await ChronicCareService.registerChronicPatient({
-          patientId: selectedPatient.id,
-          patientName: selectedPatient.name,
-          patientPhone: selectedPatient.phone || '',
-          doctorId: activeDoctorProfile?.id || getPodContext().doctorId || FALLBACK_DOCTOR_ID,
-          conditionCode: proto.code,
-          conditionName: proto.name,
-          medications: finalMedications.map((m: any) => ({
-            name: m.medicineName,
-            dosage: m.dosage || '1-0-1',
-            frequency: m.frequency || 'Twice daily'
-          })),
-          daysSupply: totalDaysSupply,
-          dispensedAt: new Date().toISOString(),
-          nextRefillDate: getIstDateString(),
-          nextRetestDate: getIstDateString(),
-          retestTestCode: proto.mandatoryRetestCode,
-          retestTestName: proto.mandatoryRetestName,
-          adherenceScore: 100.0,
-          status: 'active',
-          monthlyMedicineSpend: 1500
-        });
+      if (result.enrolled && result.protocol) {
+        // Update local patient object state
+        selectedPatient.is_chronic = true;
+        selectedPatient.isChronic = true;
+        if (!selectedPatient.chronicConditions) selectedPatient.chronicConditions = [];
+        if (!selectedPatient.chronicConditions.includes(result.protocol.name)) {
+          selectedPatient.chronicConditions.push(result.protocol.name);
+        }
+        setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { 
+          ...p, 
+          is_chronic: true, 
+          isChronic: true, 
+          chronicConditions: selectedPatient.chronicConditions 
+        } : p));
+
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: '🌟 Chronic Cohort Enrolled (EMR Mode)',
+            message: `${selectedPatient.name} enrolled into ${result.protocol.name} Cohort. ICMR Diet Guide & Day-${Math.max(1, (result.daysSupply || 30) - 5)} refill tracking active!`,
+            type: 'success'
+          }
+        }));
       }
-    } catch (_chronicErr) { /* ignore */ }
+    } catch (_chronicErr) {
+      console.warn('[DoctorDashboard] EMR chronic auto-ingest notice:', _chronicErr);
+    }
 
     // Dynamic WhatsApp auto-dispatch matching core business USP (Non-blocking background delivery)
     (async () => {
