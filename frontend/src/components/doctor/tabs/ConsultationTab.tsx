@@ -1664,7 +1664,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
         output_type: 'COMPARATIVE_TREND',
         status: 'SUCCESS',
         created_at: new Date().toISOString(),
-        model_used: 'gemini-1.5-flash',
+        model_used: 'gemini-2.5-flash',
         duration_ms: 1000
       });
 

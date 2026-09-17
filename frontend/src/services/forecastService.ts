@@ -1103,12 +1103,11 @@ DOCTOR_NOTES: [any additional instructions, follow-up notes, or NONE]`;
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.GEMINI_API_KEY;
       if (!parsedResult && geminiKey && base64Data) {
         const candidateModels = [
-          'gemini-2.0-flash',
-          'gemini-1.5-flash',
           'gemini-2.5-flash',
           'gemini-flash-latest',
           'gemini-2.5-flash-lite',
-          'gemini-flash-lite-latest'
+          'gemini-flash-lite-latest',
+          'gemini-2.0-flash'
         ];
         const visionParts: any[] = [
           { text: pass1Prompt },
