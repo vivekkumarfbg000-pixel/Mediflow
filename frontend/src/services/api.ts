@@ -1974,14 +1974,7 @@ class MediflowApiService {
     return ForecastService.saveAgentTaskPipeline(pipeline);
   }
 
-  async parsePrescriptionOCR(imageUri: string): Promise<{
-    patientName: string;
-    patientPhone?: string;
-    patientAge: number;
-    patientGender: 'Male' | 'Female' | 'Other';
-    medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
-    diagnosticTests: DiagnosticTest[];
-  }> {
+  async parsePrescriptionOCR(imageUri: string): Promise<any> {
     return ForecastService.parsePrescriptionOCR(imageUri);
   }
 

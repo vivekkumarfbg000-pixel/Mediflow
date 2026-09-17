@@ -117,6 +117,9 @@ export class PatientService {
           patient_code: patient.patientCode || null,
           vitals: patient.vitals || null,
           queue_status: patient.queueStatus || 'registered',
+          address: patient.address || (patient as any).patient_address || null,
+          is_chronic: patient.isChronic || (patient as any).is_chronic || false,
+          welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,
           pod_id: podId
         }, { onConflict: 'id' });
       } catch (err) {
@@ -871,6 +874,9 @@ export class PatientService {
           token_number: newPatient.tokenNumber,
           patient_code: newPatient.patientCode,
           queue_status: resolvedQueueStatus,
+          address: newPatient.address || (newPatient as any).patient_address || null,
+          is_chronic: newPatient.isChronic || (newPatient as any).is_chronic || false,
+          welcome_sent_at: newPatient.welcomeSentAt || (newPatient as any).welcome_sent_at || null,
           pod_id: currentPodId || null
         }, { onConflict: 'id' });
       } catch (err) {
@@ -896,6 +902,9 @@ export class PatientService {
         token_number: newPatient.tokenNumber,
         patient_code: newPatient.patientCode,
         queue_status: resolvedQueueStatus,
+        address: newPatient.address || (newPatient as any).patient_address || null,
+        is_chronic: newPatient.isChronic || (newPatient as any).is_chronic || false,
+        welcome_sent_at: newPatient.welcomeSentAt || (newPatient as any).welcome_sent_at || null,
         registered_at_entity: (getPodContext().entityId && getPodContext().entityId !== FALLBACK_ENTITY_ID) ? getPodContext().entityId : null,
         pod_id: currentPodId
       },
@@ -918,7 +927,70 @@ export class PatientService {
     notify();
     this.processSyncQueue();
 
+    // 🌟 Dispatch welcome message to new patients (asynchronous, non-blocking)
+    this.checkAndDispatchWelcomeMessage(newPatient).catch(err => {
+      console.warn('[PatientService] Auto welcome dispatch notice:', err);
+    });
+
     return newPatient;
+  }
+
+  /**
+   * Dispatches the locked Hinglish welcome onboarding WhatsApp message
+   * ONLY to NEW patients who have not yet received it.
+   */
+  static async checkAndDispatchWelcomeMessage(patient: Patient): Promise<boolean> {
+    if (!patient || !patient.phone) return false;
+    const cleanPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length < 10) return false;
+
+    // Guard 1: Local memory / cache check
+    if (patient.welcomeSentAt || (patient as any).welcome_sent_at) {
+      return false;
+    }
+
+    try {
+      // Guard 2: Supabase database check to prevent duplicate sends across consoles
+      const { data: dbPat } = await supabase
+        .from('patient_registry')
+        .select('id, welcome_sent_at')
+        .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone},id.eq.${patient.id}`)
+        .maybeSingle();
+
+      if (dbPat?.welcome_sent_at) {
+        patient.welcomeSentAt = dbPat.welcome_sent_at;
+        (patient as any).welcome_sent_at = dbPat.welcome_sent_at;
+        return false;
+      }
+
+      // Dispatch locked welcome template
+      const { PaperModeService } = await import('./paperModeService');
+      const clinicName = (getPodContext() as any)?.clinicName || 'VitalSync Smart PolyClinic';
+
+      PaperModeService.dispatchWelcomeWhatsApp({
+        patientPhone: patient.phone,
+        patientName: patient.name,
+        patientId: patient.id,
+        clinicName
+      });
+
+      const now = new Date().toISOString();
+      patient.welcomeSentAt = now;
+      (patient as any).welcome_sent_at = now;
+
+      // Persist locally and remotely
+      this.savePatient(patient);
+      await supabase
+        .from('patient_registry')
+        .update({ welcome_sent_at: now })
+        .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone},id.eq.${patient.id}`);
+
+      console.log(`[PatientService] ✅ Onboarding welcome template dispatched to new patient ${patient.name} (${cleanPhone})`);
+      return true;
+    } catch (err) {
+      console.warn('[PatientService] checkAndDispatchWelcomeMessage error (non-fatal):', err);
+    }
+    return false;
   }
 
   static bulkRegisterPatients(patientList: Array<Omit<Patient, 'id' | 'createdAt'> & { id?: string }>): Patient[] {

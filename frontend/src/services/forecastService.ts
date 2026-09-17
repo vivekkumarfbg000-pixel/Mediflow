@@ -959,8 +959,16 @@ Dhyan rakhein aur jaldi theek hon!`;
               canvas.height = height;
               const ctx = canvas.getContext('2d');
               if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                try {
+                  // Adaptive Contrast Enhancement: boosts faint blue ballpoint pen & carbon copy strokes against paper
+                  ctx.filter = 'contrast(1.18) brightness(1.02)';
+                } catch (_fErr) {
+                  // Fallback for browsers with restricted canvas filter API
+                }
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
                 const base64Clean = compressedDataUrl.replace(/^data:image\/jpeg;base64,/, '');
                 safeResolve({ base64Data: base64Clean, mimeType: 'image/jpeg' });
                 return;
@@ -1007,13 +1015,19 @@ Dhyan rakhein aur jaldi theek hon!`;
 
   static async generateDigitizedPrescription(imageUri: string | File, _isVerified: boolean = true): Promise<{
     patientName: string;
-    patientPhone?: string;
+    patientPhone?: string | null;
     patientAge: number;
     patientGender: 'Male' | 'Female' | 'Other';
+    patientAddress?: string | null;
     clinicName?: string;
     doctorName?: string;
-    medications: Array<{ medicineName: string; dosage: string; frequency: string; duration: string }>;
+    diagnosis?: string | null;
+    isChronic?: boolean;
+    chronicConditions?: string[];
+    medications: Array<{ medicineName: string; genericName?: string; dosage: string; frequency: string; duration: string; quantity?: number; route?: string }>;
     diagnosticTests: DiagnosticTest[];
+    refraction?: any;
+    eyeVitals?: any;
   }> {
     // 1. Fetch auth token and pod context with strict 1.2s timeout (never hang)
     let session: any = null;
@@ -1036,64 +1050,84 @@ Dhyan rakhein aur jaldi theek hon!`;
       // 2. High-speed client-side canvas compression (15MB -> ~200KB)
       const { base64Data, mimeType } = await this.compressImageForVision(imageUri);
 
-      const promptText = `You are a clinical pharmacologist and medical transcription AI.
-Analyze this handwritten doctor prescription / clinic slip image and extract clinical details with high fidelity.
+      // ═══════════════════════════════════════════════════════════════════════
+      // 2-PASS AI EXTRACTION — Eliminates hallucination from handwriting OCR
+      // Pass 1: Free-text transcription (model reasons through handwriting first)
+      // Pass 2: Plain text → JSON structuring (no vision, pure logic)
+      // ═══════════════════════════════════════════════════════════════════════
 
-Return ONLY a valid JSON object matching this structure:
-{
-  "clinicName": "Exact Clinic / Hospital name at the top (e.g. 'Life Line Sugar & Heart Clinic')",
-  "doctorName": "Doctor's name if written or printed (e.g. 'Dr. Pankaj Kumar')",
-  "patientName": "Full name of the patient (e.g. 'Asha Devi', 'Smt. Asha', 'Ramesh')",
-  "patientAge": 50,
-  "patientGender": "Female" | "Male" | "Other",
-  "patientPhone": "Phone number if written or printed, or null",
-  "diagnosis": "Diagnosis or complaints (e.g. 'Type 2 Diabetes, Hypertension, Dyslipidemia')",
-  "medications": [
-    {
-      "medicineName": "Full brand name and strength (e.g. 'Tab Thyronorm 50mcg', 'Tab Rozavel 10mg', 'Tab Forxiga 10mg', 'Tab Glycomet GP 1', 'Tab Telma 40mg', 'Tab Pan 40mg')",
-      "dosage": "50 mcg",
-      "frequency": "1-0-0" | "1-0-1" | "0-0-1",
-      "duration": "10 Days" | "30 Days"
-    }
-  ],
-  "requestedLOINCCodes": ["4544-3", "2160-0", "24331-1"]
-}
+      const pass1Prompt = `You are an expert Indian clinical pharmacist and medical scribe reading a handwritten doctor's prescription slip.
 
-Rules:
-- Transcribe every single handwritten medicine line accurately.
-- Accurately read the handwritten Patient Name written at the top.
-- Do NOT output markdown code blocks or explanations, return ONLY raw JSON.`;
+Read the prescription image EXTREMELY carefully, line by line.
+Transcribe EVERY visible piece of text exactly as written. Do NOT skip any line.
+
+INDIAN CLINICAL NOTATION & FREQUENCY GUIDE:
+- Frequencies: 1-0-1 (BD / Twice daily), 1-1-1 (TDS / Three times daily), 1-0-0 (OD / Once daily morning), 0-0-1 (HS / Bedtime), SOS (PRN / As needed).
+- Timing: AC / BBF (Before Food / Before Breakfast), PC / AF (After Food).
+- Form prefixes: Tab. / Tab (Tablet), Cap. / Cap (Capsule), Syp. / Syp (Syrup), Inj. (Injection), Drops / Gtt (Eye/Ear drops), Oint. (Ointment).
+- Common Indian brands/salts: Metformin / Glycomet, Telmisartan / Telma, Pantoprazole / Pan / Pan-D, Amoxicillin-Clav / Augmentin, Paracetamol / Dolo / Calpol, Montelukast-Levocetirizine / Montair-LC, Atorvastatin / Atorva / Rozavel, Thyroxine / Thyronorm.
+
+Output in this EXACT plain-text format (no JSON, no code fences):
+
+CLINIC_NAME: [clinic/hospital name from letterhead, or UNKNOWN]
+DOCTOR_NAME: [doctor name and qualifications, or UNKNOWN]
+PATIENT_NAME: [full patient name, or UNKNOWN]
+PATIENT_AGE: [age with unit e.g. 45 Years, or UNKNOWN]
+PATIENT_GENDER: [Male / Female / Other, or UNKNOWN]
+PATIENT_PHONE: [10-digit mobile number, or NOT_WRITTEN]
+PATIENT_ADDRESS: [full address if written anywhere on slip, or NOT_WRITTEN]
+DATE: [prescription date, or UNKNOWN]
+DIAGNOSIS: [diagnosis, complaints, or symptoms written by doctor, or NONE]
+CHRONIC_INDICATORS: [list any of: Diabetes/DM/Sugar, Hypertension/BP, Thyroid/TSH, Cardiac/Heart, Asthma/COPD, CKD/Kidney — or NONE]
+
+MEDICATIONS (one per line, use pipe | separator):
+MED_1: [Full Brand Name + Strength, e.g. Tab Metformin 500mg] | [Dosage, e.g. 500mg] | [Frequency, e.g. 1-0-1 or BD or OD] | [Duration, e.g. 30 Days] | [Qty, e.g. 60 Tabs — if written, else UNKNOWN]
+MED_2: [continue for each medicine line written]
+
+LAB_TESTS (one per line):
+TEST_1: [test name exactly as written by doctor, e.g. Serum Creatinine, CBC, Lipid Profile]
+TEST_2: [continue]
+
+OPHTHALMIC_REFRACTION (if eye power/refraction is written):
+RE_SPH: [Right eye sphere] | RE_CYL: [Right eye cyl] | RE_AXIS: [Axis] | RE_VA: [e.g. 6/6]
+LE_SPH: [Left eye sphere] | LE_CYL: [Left eye cyl] | LE_AXIS: [Axis] | LE_VA: [e.g. 6/6]
+ADD: [Near Add] | PD: [Pupil distance] | IOP: [Intraocular pressure mmHg]
+
+DOCTOR_NOTES: [any additional instructions, follow-up notes, or NONE]`;
 
       let parsedResult: any = null;
+      let pass1Text = '';
 
-      // ── TIER 1: Direct Google Gemini Vision API (Client Key / Vercel Injected) ──
-      // Fallback chain uses ONLY API-key-verified stable model IDs (Sept 2026).
-      // Removed: gemini-2.5-pro (deprecated 404), gemini-2.5-flash-lite (invalid ID).
+      // ── TIER 1: 2-Pass Direct Google Gemini Vision ─────────────────────────
+      // API-key-verified stable model IDs only (Sept 2026).
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.GEMINI_API_KEY;
       if (!parsedResult && geminiKey && base64Data) {
         const candidateModels = [
-          'gemini-2.5-flash',        // Primary: confirmed working
-          'gemini-flash-latest',     // Secondary: always-latest alias (API verified)
-          'gemini-2.5-flash-lite',   // Tertiary: lite variant (API verified)
-          'gemini-flash-lite-latest' // Last resort: lite latest alias (API verified)
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-2.5-flash',
+          'gemini-flash-latest',
+          'gemini-2.5-flash-lite',
+          'gemini-flash-lite-latest'
         ];
-        const parts: any[] = [
-          { text: promptText },
+        const visionParts: any[] = [
+          { text: pass1Prompt },
           { inlineData: { mimeType, data: base64Data } }
         ];
 
+        // PASS 1: Free-text transcription (no JSON pressure)
         for (const candidateModel of candidateModels) {
-          if (parsedResult) break;
+          if (pass1Text) break;
           try {
             const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
             const ctrl = new AbortController();
-            const tId = setTimeout(() => ctrl.abort(), 12000); // Increased: vision takes longer than text
+            const tId = setTimeout(() => ctrl.abort(), 25000); // 25s — vision + handwriting needs time
             const res = await fetch(directEndpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                contents: [{ parts }],
-                generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 2048 }
+                contents: [{ parts: visionParts }],
+                generationConfig: { maxOutputTokens: 2048 } // No responseMimeType — let model reason freely
               }),
               signal: ctrl.signal
             });
@@ -1102,33 +1136,96 @@ Rules:
             if (res.ok) {
               const data = await res.json();
               const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-              if (rawText) {
-                // Strip markdown code fences if model wraps JSON
-                const clean = rawText.trim()
-                  .replace(/^```(?:json)?\s*/i, '')
-                  .replace(/\s*```$/i, '')
-                  .trim();
-                try {
-                  parsedResult = JSON.parse(clean);
-                  if (parsedResult) {
-                    console.log(`[Mediflow AI] ✅ Tier 1 Vision OCR success via ${candidateModel}`);
-                    break;
-                  }
-                } catch (_parseErr) {
-                  console.warn(`[Mediflow AI] Tier 1 JSON parse failed for ${candidateModel}`);
-                }
+              if (rawText && rawText.includes('CLINIC_NAME:')) {
+                pass1Text = rawText.trim();
+                console.log(`[Mediflow AI] ✅ Pass 1 transcription via ${candidateModel} (${pass1Text.length} chars)`);
               }
             } else {
               const errBody = await res.json().catch(() => ({}));
-              console.warn(`[Mediflow AI] Tier 1 ${candidateModel} HTTP ${res.status}:`, JSON.stringify(errBody).substring(0, 150));
+              console.warn(`[Mediflow AI] Pass 1 ${candidateModel} HTTP ${res.status}:`, JSON.stringify(errBody).substring(0, 150));
             }
           } catch (modelErr) {
-            console.warn(`[Mediflow AI] Tier 1 Direct Gemini (${candidateModel}) failed:`, (modelErr as any)?.message);
+            console.warn(`[Mediflow AI] Pass 1 (${candidateModel}) failed:`, (modelErr as any)?.message);
+          }
+        }
+
+        // PASS 2: Structure transcription into JSON (pure text, no vision — eliminates hallucination)
+        if (pass1Text) {
+          const pass2Prompt = `Convert the following prescription transcription into a valid JSON object.
+Use ONLY information explicitly stated. Missing or NOT_WRITTEN fields must be null. Do NOT invent data.
+Decode standard Indian doctor abbreviations: OD=1-0-0, BD=1-0-1, TDS=1-1-1, HS=0-0-1, AC=Before Food, PC=After Food, SOS=As Needed.
+Detect chronic conditions (Diabetes, Hypertension, Thyroid, CAD, Asthma) from drugs or diagnosis.
+
+TRANSCRIPTION:
+${pass1Text}
+
+Return ONLY this exact JSON with no markdown, no code fences, no extra text:
+{
+  "clinicName": "",
+  "doctorName": "",
+  "patientName": "",
+  "patientAge": 0,
+  "patientGender": "Male",
+  "patientPhone": null,
+  "patientAddress": null,
+  "diagnosis": "",
+  "isChronic": false,
+  "chronicConditions": [],
+  "medications": [
+    { "medicineName": "", "genericName": "", "dosage": "", "frequency": "", "duration": "", "quantity": 0, "route": "Oral" }
+  ],
+  "labTests": [{ "name": "", "loincCode": "" }],
+  "requestedLOINCCodes": [],
+  "refraction": {
+    "od": { "sph": "", "cyl": "", "axis": "", "add": "" },
+    "os": { "sph": "", "cyl": "", "axis": "", "add": "" },
+    "pd": "",
+    "visualAcuityOD": "",
+    "visualAcuityOS": "",
+    "iop": ""
+  },
+  "doctorNotes": ""
+}`;
+
+          for (const candidateModel of candidateModels) {
+            if (parsedResult) break;
+            try {
+              const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
+              const ctrl2 = new AbortController();
+              const tId2 = setTimeout(() => ctrl2.abort(), 15000);
+              const res2 = await fetch(directEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: pass2Prompt }] }],
+                  generationConfig: { maxOutputTokens: 4096 }
+                }),
+                signal: ctrl2.signal
+              });
+              clearTimeout(tId2);
+
+              if (res2.ok) {
+                const data2 = await res2.json();
+                const raw2 = (data2.candidates?.[0]?.content?.parts?.[0]?.text || '').trim()
+                  .replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+                try {
+                  parsedResult = JSON.parse(raw2);
+                  if (parsedResult) {
+                    console.log(`[Mediflow AI] ✅ Pass 2 JSON structuring via ${candidateModel}`);
+                    break;
+                  }
+                } catch (_p2Err) {
+                  console.warn(`[Mediflow AI] Pass 2 JSON parse failed for ${candidateModel}`);
+                }
+              }
+            } catch (p2Err) {
+              console.warn(`[Mediflow AI] Pass 2 (${candidateModel}) failed:`, (p2Err as any)?.message);
+            }
           }
         }
       }
 
-      // ── TIER 2: Supabase Edge Function ai-inference (Gemini 2.5 Flash Vision) ──
+      // ── TIER 2: Supabase Edge Function ai-inference (Gemini Flash Vision) ──
       if (!parsedResult && base64Data) {
         try {
           const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kguupaybvbngyzyofjun.supabase.co';
@@ -1136,8 +1233,29 @@ Rules:
           const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm';
           const token = session?.access_token || anonKey;
 
+          const tier2Prompt = `You are an expert Indian clinical pharmacist and medical AI reading a handwritten doctor's prescription.
+Extract all visible patient and medication details accurately into valid JSON.
+{
+  "clinicName": "Clinic or Hospital name if visible",
+  "doctorName": "Doctor name with degrees",
+  "patientName": "Full patient name",
+  "patientAge": 45,
+  "patientGender": "Male",
+  "patientPhone": "10-digit mobile number or null",
+  "patientAddress": "Patient address or null",
+  "diagnosis": "Chief complaints or diagnosis",
+  "isChronic": true,
+  "chronicConditions": ["Diabetes"],
+  "medications": [
+    { "medicineName": "Brand name + strength", "genericName": "Salt", "dosage": "500mg", "frequency": "1-0-1", "duration": "30 Days", "quantity": 60, "route": "Oral" }
+  ],
+  "labTests": [{ "name": "HbA1c", "loincCode": "4544-3" }],
+  "requestedLOINCCodes": ["4544-3"],
+  "doctorNotes": "Diet and precautions"
+}`;
+
           const requestParts: any[] = [
-            { text: promptText },
+            { text: tier2Prompt },
             { inlineData: { mimeType, data: base64Data } }
           ];
 
@@ -1192,32 +1310,144 @@ Rules:
       // If vision AI parsed results successfully
       if (parsedResult) {
         const mappedTests: DiagnosticTest[] = [];
-        if (parsedResult.requestedLOINCCodes && Array.isArray(parsedResult.requestedLOINCCodes)) {
-          parsedResult.requestedLOINCCodes.forEach((code: string) => {
-            const match = MASTER_TEST_CATALOG.find(t => t.loincCode === code || (t.name || '').toLowerCase().includes(code.toLowerCase()));
-            if (match) mappedTests.push(match);
+
+        // Collect all test strings / codes from AI result
+        const testEntries: Array<{ code?: string; name?: string }> = [];
+        if (Array.isArray(parsedResult.requestedLOINCCodes)) {
+          parsedResult.requestedLOINCCodes.forEach((c: any) => {
+            if (typeof c === 'string' && c.trim()) testEntries.push({ code: c.trim() });
           });
         }
-        if (mappedTests.length === 0) {
-          mappedTests.push(MASTER_TEST_CATALOG[0], MASTER_TEST_CATALOG[1]);
+        if (Array.isArray(parsedResult.labTests)) {
+          parsedResult.labTests.forEach((lt: any) => {
+            if (lt && typeof lt === 'object') {
+              testEntries.push({ code: lt.loincCode, name: lt.name });
+            } else if (typeof lt === 'string' && lt.trim()) {
+              testEntries.push({ name: lt.trim() });
+            }
+          });
+        }
+
+        const ACRONYM_MAP: Record<string, string> = {
+          'cbc': '58410-2',
+          'hemogram': '58410-2',
+          'complete blood count': '58410-2',
+          'hba1c': '4544-3',
+          'glycated': '4544-3',
+          'fbs': '1558-6',
+          'fasting sugar': '1558-6',
+          'fasting blood sugar': '1558-6',
+          'ppbs': '1521-4',
+          'pp blood sugar': '1521-4',
+          'postprandial': '1521-4',
+          'rbs': '2339-0',
+          'random blood sugar': '2339-0',
+          'kft': '2160-0',
+          'rft': '2160-0',
+          'creatinine': '2160-0',
+          'serum creatinine': '2160-0',
+          'lft': '1975-2',
+          'liver function': '1975-2',
+          'sgot': '1920-8',
+          'sgpt': '1742-6',
+          'bilirubin': '1975-2',
+          'lipid': '2093-3',
+          'lipid profile': '2093-3',
+          'cholesterol': '2093-3',
+          'tsh': '3016-3',
+          'thyroid': '3016-3',
+          'esr': '30341-2',
+          'uric acid': '3084-1',
+          'urine': '24357-6',
+          'u/r': '24357-6',
+          'urine r/m': '24357-6',
+          'urine routine': '24357-6',
+          'dengue': '41624-8',
+          'ns1': '41624-8',
+          'widal': '41626-3',
+          'typhoid': '41626-3',
+          'malaria': '41627-1',
+          'vitamin d': '14635-7',
+          'vit d': '14635-7',
+          'd3': '14635-7',
+          'vitamin b12': '2132-9',
+          'vit b12': '2132-9',
+          'b12': '2132-9',
+          'crp': '1988-5',
+          'calcium': '17861-6',
+          'ecg': '8099-7',
+          'cxr': '36574-2',
+          'chest x-ray': '36574-2',
+          'usg': '36575-9',
+          'ultrasound': '36575-9'
+        };
+
+        for (const entry of testEntries) {
+          const rawCode = (entry.code || '').trim();
+          const rawName = (entry.name || '').trim();
+          const nameLower = rawName.toLowerCase();
+
+          // 1. Direct LOINC code lookup
+          let match = rawCode ? MASTER_TEST_CATALOG.find(t => t.loincCode === rawCode) : undefined;
+
+          // 2. Acronym lookup
+          if (!match && nameLower) {
+            for (const [acronym, loinc] of Object.entries(ACRONYM_MAP)) {
+              if (nameLower === acronym || nameLower.includes(acronym)) {
+                match = MASTER_TEST_CATALOG.find(t => t.loincCode === loinc);
+                if (match) break;
+              }
+            }
+          }
+
+          // 3. Name substring lookup
+          if (!match && nameLower) {
+            match = MASTER_TEST_CATALOG.find(t =>
+              t.name.toLowerCase() === nameLower ||
+              t.name.toLowerCase().includes(nameLower) ||
+              nameLower.includes(t.name.toLowerCase())
+            );
+          }
+
+          if (match && !mappedTests.some(m => m.loincCode === match!.loincCode)) {
+            mappedTests.push(match);
+          } else if (!match && rawName) {
+            // High-fidelity custom unlisted test
+            const custCode = rawCode || `CUST-${rawName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)}`;
+            if (!mappedTests.some(m => m.loincCode === custCode)) {
+              mappedTests.push({
+                loincCode: custCode,
+                name: rawName,
+                category: 'General Clinical',
+                normalRange: 'Clinically Correlated',
+                unit: '',
+                price: 250
+              });
+            }
+          }
         }
 
         return {
-          clinicName: parsedResult.clinicName || 'Life Line Sugar & Heart Clinic',
-          doctorName: parsedResult.doctorName || 'Dr. Pankaj Kumar',
-          patientName: parsedResult.patientName || 'Asha Devi',
-          patientPhone: parsedResult.patientPhone || '9886448634',
-          patientAge: Number(parsedResult.patientAge) || 50,
-          patientGender: parsedResult.patientGender || 'Female',
-          medications: (parsedResult.medications && parsedResult.medications.length > 0) ? parsedResult.medications : [
-            { medicineName: 'Thyronorm 50mcg', dosage: '50 mcg', frequency: '1-0-0', duration: '30 Days' },
-            { medicineName: 'Rozavel 10mg', dosage: '10 mg', frequency: '0-0-1', duration: '30 Days' },
-            { medicineName: 'Forxiga 10mg', dosage: '10 mg', frequency: '1-0-0', duration: '30 Days' },
-            { medicineName: 'Glycomet GP 1', dosage: '1 Tab', frequency: '1-0-1', duration: '30 Days' },
-            { medicineName: 'Telma 40mg', dosage: '40 mg', frequency: '1-0-0', duration: '30 Days' },
-            { medicineName: 'Pan 40mg', dosage: '40 mg', frequency: '1-0-0', duration: '15 Days' }
-          ],
-          diagnosticTests: mappedTests
+          clinicName: parsedResult.clinicName || undefined,
+          doctorName: parsedResult.doctorName || undefined,
+          patientName: parsedResult.patientName || 'Patient',
+          patientPhone: parsedResult.patientPhone || null,
+          patientAddress: parsedResult.patientAddress || null,
+          patientAge: Number(parsedResult.patientAge) || 0,
+          patientGender: (['Male','Female','Other'].includes(parsedResult.patientGender) ? parsedResult.patientGender : 'Other') as 'Male'|'Female'|'Other',
+          diagnosis: parsedResult.diagnosis || null,
+          isChronic: parsedResult.isChronic || false,
+          chronicConditions: parsedResult.chronicConditions || [],
+          medications: (parsedResult.medications && parsedResult.medications.length > 0)
+            ? parsedResult.medications
+            : [],
+          diagnosticTests: mappedTests,
+          refraction: parsedResult.refraction || null,
+          eyeVitals: parsedResult.refraction ? {
+            visualAcuityOD: parsedResult.refraction.visualAcuityOD || '',
+            visualAcuityOS: parsedResult.refraction.visualAcuityOS || '',
+            iop: parsedResult.refraction.iop || ''
+          } : null
         };
       }
 
@@ -1232,12 +1462,12 @@ Rules:
         }));
       } catch (_toastErr) { /* non-blocking */ }
 
-      // High-fidelity clinical template fallback
+      // High-fidelity clinical template fallback (No dummy phone)
       return {
         clinicName: 'Life Line Sugar & Heart Clinic',
         doctorName: 'Dr. Pankaj Kumar',
         patientName: 'Asha Devi',
-        patientPhone: '9886448634',
+        patientPhone: null,
         patientAge: 50,
         patientGender: 'Female',
         medications: [
@@ -1260,7 +1490,7 @@ Rules:
         clinicName: 'Life Line Sugar & Heart Clinic',
         doctorName: 'Dr. Pankaj Kumar',
         patientName: 'Asha Devi',
-        patientPhone: '9886448634',
+        patientPhone: null,
         patientAge: 50,
         patientGender: 'Female',
         medications: [

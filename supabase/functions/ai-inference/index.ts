@@ -119,20 +119,18 @@ serve(async (req) => {
 
       // ── Smart Gemini Model Selection & Stable Fallback Chain ──────────────
       // Honor client-requested model first. If deprecated/invalid, skip it.
-      // Fallback chain uses only proven, stable model IDs (Sept 2026+).
-      // Removed: gemini-2.5-pro (deprecated for new users), gemini-flash-latest
-      //          and gemini-2.5-flash-lite (invalid model IDs).
+      // Fallback chain uses high-performance, proven, stable model IDs.
       const DEPRECATED_MODELS = new Set([
         "gemini-2.5-pro",
         "gemini-pro",
-        "gemini-flash-latest",
-        "gemini-2.5-flash-lite",
       ]);
       const STABLE_FALLBACK_CHAIN = [
-        "gemini-2.5-flash",        // Primary: confirmed working (API list verified)
-        "gemini-flash-latest",     // Secondary: always-latest alias (API list verified)
-        "gemini-2.5-flash-lite",   // Tertiary: lite variant (API list verified)
-        "gemini-flash-lite-latest", // Last resort: lite latest alias (API list verified)
+        "gemini-2.0-flash",        // Primary: high-speed multimodal vision & transcription
+        "gemini-1.5-flash",        // Secondary: ultra-stable fallback benchmark
+        "gemini-2.5-flash",        // Tertiary: current production model
+        "gemini-flash-latest",     // Quaternary: dynamic alias
+        "gemini-2.5-flash-lite",   // Low-latency lite variant
+        "gemini-flash-lite-latest" // Last resort: lite latest alias
       ];
       const clientRequestedModel = (model && !DEPRECATED_MODELS.has(model)) ? model : null;
       const candidateModels = (clientRequestedModel && !STABLE_FALLBACK_CHAIN.includes(clientRequestedModel))

@@ -41,6 +41,7 @@ import { BillHubTab } from './tabs/BillHubTab';
 import { InvoiceCard } from '../InvoiceCard';
 import { PatientsDirectoryTab } from '../doctor/tabs/PatientsDirectoryTab';
 import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
+import { PatientProfileModal } from '../shared/PatientProfileModal';
 import { 
   Smartphone, 
   Upload, 
@@ -667,6 +668,7 @@ export const CompounderDashboard: React.FC = () => {
   const [newPatientAge, setNewPatientAge] = useState('');
   const [newPatientGender, setNewPatientGender] = useState<'Male' | 'Female' | 'Other'>('Male');
   const [patientRAGSummary, setPatientRAGSummary] = useState('');
+  const [profileModalPatient, setProfileModalPatient] = useState<Patient | null>(null);
 
   // Active patient in care loop
   const [activePatient, setActivePatientState] = useState<Patient | null>(null);
@@ -1189,6 +1191,10 @@ export const CompounderDashboard: React.FC = () => {
             vitals: dbP.vitals || existing?.vitals,
             queueStatus: dbP.queue_status || dbP.queueStatus || existing?.queueStatus || 'registered',
             tokenNumber: dbP.token_number || dbP.tokenNumber || existing?.tokenNumber,
+            eyeDilationStatus: dbP.eye_dilation_status || dbP.eyeDilationStatus || existing?.eyeDilationStatus,
+            dilationTimestamp: dbP.dilation_timestamp || dbP.dilationTimestamp || existing?.dilationTimestamp,
+            dilationEye: dbP.dilation_eye || dbP.dilationEye || existing?.dilationEye,
+            dilationDrop: dbP.dilation_drop || dbP.dilationDrop || existing?.dilationDrop,
             registeredAt: dbP.created_at || (existing as any)?.registeredAt || (existing as any)?.createdAt
           } as any);
         });
@@ -1605,6 +1611,7 @@ export const CompounderDashboard: React.FC = () => {
             allergies: [],
             chronicConditions: []
           });
+          PatientService.checkAndDispatchWelcomeMessage(targetPatient).catch(console.warn);
         }
       }
 
@@ -6726,7 +6733,20 @@ export const CompounderDashboard: React.FC = () => {
 
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-black text-slate-900 dark:text-white">{p.name}</span>
+                            <span 
+                              onClick={() => setProfileModalPatient(p)}
+                              className="text-xs font-black text-slate-900 dark:text-white cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-colors"
+                              title="Click to view full professional patient dossier"
+                            >
+                              {p.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setProfileModalPatient(p)}
+                              className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold cursor-pointer"
+                            >
+                              View Profile 👤
+                            </button>
                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-mono font-bold ${
                               isWhatsApp
                                 ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
@@ -7981,6 +8001,15 @@ export const CompounderDashboard: React.FC = () => {
 
       {/* Floating 24/7 Mediflow AI Support Widget */}
       <WhatsAppSupportModal userRole="compounder" userName="Compounder Desk" clinicName={clinicTitle} />
+
+      {/* Structural Professional Patient Profile Modal */}
+      {profileModalPatient && (
+        <PatientProfileModal
+          patient={profileModalPatient}
+          isOpen={Boolean(profileModalPatient)}
+          onClose={() => setProfileModalPatient(null)}
+        />
+      )}
     </div>
   );
 };

@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { 
   Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
-  Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send
+  Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send, Phone
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { EncounterService } from '../../../services/encounterService';
@@ -19,6 +20,7 @@ import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ChronicCareService } from '../../../services/chronicCareService';
 import { ForecastService } from '../../../services/forecastService';
+import { PaperModeService } from '../../../services/paperModeService';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
 import { save } from '../../../services/apiHelper';
@@ -97,6 +99,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cash'>('upi');
   const [isClearing, setIsClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Missing Phone Modal State for Paper Mode OCR
+  const [missingPhoneModalData, setMissingPhoneModalData] = useState<{
+    patient: Patient;
+    doctorName: string;
+    clinicName: string;
+    medications: any[];
+    diagnosticTests: any[];
+    prescriptionImageUrl: string | null;
+    isNewPatient: boolean;
+  } | null>(null);
+  const [inputPhone, setInputPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const isEncounterMatchingPatient = (e: any, pat: Patient | null): boolean => {
     if (!pat || !e) return false;
@@ -706,7 +721,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         'Patient Name': digitized.patientName,
         'Age': String(digitized.patientAge),
         'Gender': digitized.patientGender,
-        'Phone': digitized.patientPhone || '9886448634',
+        'Phone': digitized.patientPhone || 'Not on slip (Prompt required)',
         'Clinic': digitized.clinicName || 'Clinic'
       };
 
@@ -715,16 +730,49 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       const medicationsList: any[] = [];
       const diagnosticTestsList: any[] = [];
 
+      // Helper to strip dosage form prefixes and tokenize for hospital-grade inventory matching
+      const cleanMedicineQuery = (raw: string) => {
+        const cleaned = (raw || '')
+          .toLowerCase()
+          .replace(/^(tab(?:let)?\.?|cap(?:sule)?\.?|syp\.?|syrup\.?|inj(?:ection)?\.?|oint(?:ment)?\.?|gtt\.?|drops?\.?|susp(?:ension)?\.?|cream\.?|gel\.?|t\.|c\.|s\.)\s+/i, '')
+          .trim();
+        const tokens = cleaned
+          .replace(/[^a-z0-9]/g, ' ')
+          .split(/\s+/)
+          .filter(t => t.length > 1 && !['mg', 'gm', 'ml', 'tab', 'cap', 'syp', 'od', 'bd', 'tds', 'qid', 'hs', 'sos'].includes(t));
+        return { cleaned, tokens };
+      };
+
       (digitized.medications || []).forEach((m: any) => {
-        const itemLower = (m.medicineName || '').toLowerCase();
-        // Guard genericName — may be undefined for CSV-imported batches
-        const matchedMed = inventory.find(i => 
-          (i.name || '').toLowerCase().includes(itemLower) || 
-          itemLower.includes((i.name || '').toLowerCase()) ||
-          (i.genericName && (i.genericName || '').toLowerCase().includes(itemLower))
-        );
-        const medName = matchedMed ? matchedMed.name : m.medicineName;
-        initialMeds[medName.toLowerCase()] = { selected: true, qty: 10 };
+        const rawName = m.medicineName || '';
+        const { cleaned, tokens } = cleanMedicineQuery(rawName);
+        const genericLower = (m.genericName || '').toLowerCase().trim();
+
+        // 1. Direct name / cleaned name / generic match
+        let matchedMed = inventory.find(i => {
+          const invNameLower = (i.name || '').toLowerCase();
+          const invGenLower = (i.genericName || '').toLowerCase();
+
+          return (
+            invNameLower === cleaned ||
+            invNameLower.includes(cleaned) ||
+            cleaned.includes(invNameLower) ||
+            (invGenLower && (invGenLower === cleaned || invGenLower.includes(cleaned) || cleaned.includes(invGenLower))) ||
+            (genericLower && (invGenLower.includes(genericLower) || invNameLower.includes(genericLower)))
+          );
+        });
+
+        // 2. Token overlap fallback
+        if (!matchedMed && tokens.length > 0) {
+          matchedMed = inventory.find(i => {
+            const invNameLower = (i.name || '').toLowerCase();
+            const invGenLower = (i.genericName || '').toLowerCase();
+            return tokens.some(tok => invNameLower.includes(tok) || invGenLower.includes(tok));
+          });
+        }
+
+        const medName = matchedMed ? matchedMed.name : rawName;
+        initialMeds[medName.toLowerCase()] = { selected: true, qty: m.quantity || 10 };
         structuredData[medName] = `${m.dosage || '1 Tab'} (${m.frequency || '1-0-1'})`;
         medicationsList.push({
           id: `med-ocr-${crypto.randomUUID().substring(0, 4)}`,
@@ -735,9 +783,89 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         });
       });
 
+      const ACRONYM_MAP: Record<string, string> = {
+        'cbc': '58410-2',
+        'hemogram': '58410-2',
+        'complete blood count': '58410-2',
+        'hba1c': '4544-3',
+        'glycated': '4544-3',
+        'fbs': '1558-6',
+        'fasting sugar': '1558-6',
+        'fasting blood sugar': '1558-6',
+        'ppbs': '1521-4',
+        'pp blood sugar': '1521-4',
+        'postprandial': '1521-4',
+        'rbs': '2339-0',
+        'random blood sugar': '2339-0',
+        'kft': '2160-0',
+        'rft': '2160-0',
+        'creatinine': '2160-0',
+        'serum creatinine': '2160-0',
+        'lft': '1975-2',
+        'liver function': '1975-2',
+        'sgot': '1920-8',
+        'sgpt': '1742-6',
+        'bilirubin': '1975-2',
+        'lipid': '2093-3',
+        'lipid profile': '2093-3',
+        'cholesterol': '2093-3',
+        'tsh': '3016-3',
+        'thyroid': '3016-3',
+        'esr': '30341-2',
+        'uric acid': '3084-1',
+        'urine': '24357-6',
+        'u/r': '24357-6',
+        'urine r/m': '24357-6',
+        'urine routine': '24357-6',
+        'dengue': '41624-8',
+        'ns1': '41624-8',
+        'widal': '41626-3',
+        'typhoid': '41626-3',
+        'malaria': '41627-1',
+        'vitamin d': '14635-7',
+        'vit d': '14635-7',
+        'd3': '14635-7',
+        'vitamin b12': '2132-9',
+        'vit b12': '2132-9',
+        'b12': '2132-9',
+        'crp': '1988-5',
+        'calcium': '17861-6',
+        'ecg': '8099-7',
+        'cxr': '36574-2',
+        'chest x-ray': '36574-2',
+        'usg': '36575-9',
+        'ultrasound': '36575-9'
+      };
+
+      const liveCatalog = LabService.getTestCatalog();
+
       (digitized.diagnosticTests || []).forEach((t: any) => {
-        const testCode = t.loincCode || '4544-3';
-        const matchedTest = LabService.getTestCatalog().find(cat => cat.loincCode === testCode || (cat.name || '').toLowerCase().includes((t.name || '').toLowerCase()));
+        const testCode = (t.loincCode || '').trim();
+        const testName = (t.name || '').trim();
+        const testNameLower = testName.toLowerCase();
+
+        // 1. Match by explicit LOINC code
+        let matchedTest = testCode ? liveCatalog.find(cat => cat.loincCode === testCode) : undefined;
+
+        // 2. Match by common clinical acronym
+        if (!matchedTest && testNameLower) {
+          for (const [acronym, loinc] of Object.entries(ACRONYM_MAP)) {
+            if (testNameLower === acronym || testNameLower.includes(acronym)) {
+              matchedTest = liveCatalog.find(cat => cat.loincCode === loinc);
+              if (matchedTest) break;
+            }
+          }
+        }
+
+        // 3. Match by name in catalog
+        if (!matchedTest && testNameLower) {
+          matchedTest = liveCatalog.find(cat =>
+            (cat.name || '').toLowerCase() === testNameLower ||
+            (cat.name || '').toLowerCase().includes(testNameLower) ||
+            testNameLower.includes((cat.name || '').toLowerCase())
+          );
+        }
+
         if (matchedTest) {
           initialTests[matchedTest.loincCode] = true;
           structuredData[matchedTest.name] = `LOINC: ${matchedTest.loincCode}`;
@@ -748,6 +876,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             normalRange: matchedTest.normalRange || "",
             unit: matchedTest.unit || "",
             price: matchedTest.price || 250
+          });
+        } else if (testName) {
+          // Gracefully support custom / unlisted clinical tests without forcing HbA1c
+          const customCode = testCode || `CUST-${testName.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)}`;
+          initialTests[customCode] = true;
+          structuredData[testName] = 'Custom Clinical Test';
+          diagnosticTestsList.push({
+            loincCode: customCode,
+            name: testName,
+            category: t.category || "General Clinical",
+            normalRange: t.normalRange || "Clinically Correlated",
+            unit: t.unit || "",
+            price: typeof t.price === 'number' ? t.price : 250
           });
         }
       });
@@ -761,20 +902,29 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setSelectedTests(initialTests);
 
       // Extract patient details
-      const name = digitized.patientName || 'Asha Devi';
-      const phone = digitized.patientPhone || '9886448634';
-      const age = digitized.patientAge || 50;
+      const name = (digitized.patientName || 'Asha Devi').trim();
+      const rawExtractedPhone = (digitized.patientPhone || '').replace(/\D/g, '').slice(-10);
+      let phone = rawExtractedPhone.length === 10 ? rawExtractedPhone : '';
+      const age = Number(digitized.patientAge) || 50;
       const gender = (digitized.patientGender as any) || 'Female';
 
       setOcrScanStep('Matching with booked appointments & patient registry...');
       await new Promise(r => setTimeout(r, 200));
 
-      const cleanTargetPhone = (phone || '').replace(/\D/g, '').slice(-10);
+      const cleanTargetPhone = phone;
       const allPatients = PatientService.getPatients();
       let patientObj = allPatients.find(p => 
-        (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone ||
-        (p.name || '').toLowerCase() === name.toLowerCase()
+        (cleanTargetPhone && (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone) ||
+        ((p.name || '').toLowerCase() === name.toLowerCase())
       );
+
+      // If matched patient has a phone number on record but the slip did not, adopt the patient's existing phone!
+      if (patientObj && !phone && patientObj.phone) {
+        const existingPhone = patientObj.phone.replace(/\D/g, '').slice(-10);
+        if (existingPhone.length === 10) {
+          phone = existingPhone;
+        }
+      }
 
       // Check if there is an existing appointment today for this patient
       const allAppts = BillingService.getAppointments();
@@ -824,6 +974,72 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         medications: medicationsList,
         diagnosticTests: diagnosticTestsList
       });
+
+      // 1.5A — PAPER MODE: Full persistence to Supabase (image + all extracted fields)
+      const rawDoc = (activePod as any)?.doctor_name;
+      const doctorDisplayName: string = rawDoc
+        ? (rawDoc.startsWith('Dr.') ? rawDoc : `Dr. ${rawDoc}`)
+        : (digitized.doctorName || 'Doctor');
+      const clinicDisplayName: string = (activePod as any)?.name || (activeProfile as any)?.clinicName || digitized.clinicName || 'Clinic';
+      const isNewPatient = !allPatients.find(p =>
+        (phone && (p.phone || '').replace(/\D/g, '').slice(-10) === phone) ||
+        (p.name || '').toLowerCase() === name.toLowerCase()
+      );
+
+      PaperModeService.persistPrescriptionToSupabase({
+        patientId: patientObj.id,
+        patientName: patientObj.name,
+        patientPhone: patientObj.phone || null,
+        patientAddress: (digitized as any).patientAddress || null,
+        doctorName: doctorDisplayName,
+        clinicName: clinicDisplayName,
+        diagnosis: (digitized as any).diagnosis || null,
+        medications: medicationsList,
+        diagnosticTests: diagnosticTestsList,
+        isChronic: (digitized as any).isChronic || false,
+        chronicConditions: (digitized as any).chronicConditions || [],
+        prescriptionImageFile: file || null
+      }).then(({ prescriptionImageUrl }) => {
+        const validPhone = (patientObj.phone || '').replace(/\D/g, '').slice(-10);
+
+        // Q1 Invariant: If phone is missing or incomplete, prompt compounder with popup modal!
+        if (validPhone.length !== 10) {
+          setMissingPhoneModalData({
+            patient: patientObj,
+            doctorName: doctorDisplayName,
+            clinicName: clinicDisplayName,
+            medications: medicationsList,
+            diagnosticTests: diagnosticTestsList,
+            prescriptionImageUrl,
+            isNewPatient
+          });
+          setInputPhone('');
+          setPhoneError('');
+        } else {
+          // 1.5B — PAPER MODE: Dispatch permanent Hinglish welcome WA on new patient creation
+          if (isNewPatient && patientObj.phone) {
+            PaperModeService.dispatchWelcomeWhatsApp({
+              patientPhone: patientObj.phone,
+              patientName: patientObj.name,
+              patientId: patientObj.id,
+              doctorName: doctorDisplayName,
+              clinicName: clinicDisplayName
+            });
+          }
+          // 1.5C — PAPER MODE: Dispatch digital prescription to patient WhatsApp
+          if (patientObj.phone) {
+            PaperModeService.dispatchPrescriptionWhatsApp({
+              patientPhone: patientObj.phone,
+              patientName: patientObj.name,
+              doctorName: doctorDisplayName,
+              clinicName: clinicDisplayName,
+              medications: medicationsList,
+              diagnosticTests: diagnosticTestsList,
+              prescriptionImageUrl
+            });
+          }
+        }
+      }).catch(err => console.warn('[BillHubTab] PaperMode persistence notice:', err));
 
       // 1.5. AI Chronic Condition Detection & Automated Cohort Registration
       try {
@@ -1218,6 +1434,102 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
   };
 
+  // Handle compounder entering missing phone number for OCR scanned prescription
+  const handleSaveMissingPhone = async () => {
+    if (!missingPhoneModalData) return;
+    const clean = inputPhone.replace(/\D/g, '').slice(-10);
+    if (clean.length !== 10) {
+      setPhoneError('Please enter a valid 10-digit Indian mobile number (e.g. 9876543210)');
+      return;
+    }
+
+    const { patient, doctorName, clinicName, medications, diagnosticTests, prescriptionImageUrl, isNewPatient } = missingPhoneModalData;
+
+    try {
+      // 1. Update patient in local storage & memory with phone
+      const updatedPatient: Patient = { ...patient, phone: clean };
+      PatientService.savePatient(updatedPatient);
+      setSelectedPatient(updatedPatient);
+
+      // 2. Also update Supabase patient_registry asynchronously
+      try {
+        await supabase.from('patient_registry')
+          .update({ phone: clean })
+          .eq('id', patient.id);
+        console.log('[BillHubTab] ✅ Patient phone updated in Supabase:', clean);
+      } catch (dbErr) {
+        console.warn('[BillHubTab] Supabase phone update notice:', dbErr);
+      }
+
+      // 3. Dispatch Welcome WhatsApp if new patient
+      if (isNewPatient) {
+        PaperModeService.dispatchWelcomeWhatsApp({
+          patientPhone: clean,
+          patientName: patient.name,
+          patientId: patient.id,
+          doctorName,
+          clinicName
+        });
+      }
+
+      // 4. Dispatch Digital Prescription WhatsApp
+      PaperModeService.dispatchPrescriptionWhatsApp({
+        patientPhone: clean,
+        patientName: patient.name,
+        doctorName,
+        clinicName,
+        medications,
+        diagnosticTests,
+        prescriptionImageUrl
+      });
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'WhatsApp Dispatched! 📱',
+          message: `Health Card & Digital Rx dispatched to +91 ${clean}`,
+          type: 'success'
+        }
+      }));
+
+      setMissingPhoneModalData(null);
+      setInputPhone('');
+      setPhoneError('');
+    } catch (err: any) {
+      console.error('[BillHubTab] Error saving phone:', err);
+      setPhoneError('Failed to dispatch. Please check phone number and try again.');
+    }
+  };
+
+  const handleSkipMissingPhone = () => {
+    setMissingPhoneModalData(null);
+    setInputPhone('');
+    setPhoneError('');
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Prescription Saved',
+        message: 'Patient profile recorded without WhatsApp dispatch. You can add phone anytime.',
+        type: 'info'
+      }
+    }));
+  };
+
+  // Lock body scroll when missing phone modal is open
+  useEffect(() => {
+    if (missingPhoneModalData) {
+      document.body.style.overflow = 'hidden';
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          handleSkipMissingPhone();
+        }
+      };
+      window.addEventListener('keydown', handleEsc);
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleEsc);
+      };
+    }
+  }, [missingPhoneModalData]);
+
   // Clear Payment & Sync Inventory
   const handleClearBill = async () => {
     if (!selectedPatient || !billingLedger) return;
@@ -1367,7 +1679,16 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }));
       }
 
-      // 8. Dispatch Digital Invoice & Medication Advice directly to WhatsApp
+      // 8. Dispatch Digital Invoice — Hinglish bill via PaperModeService (Meta Graph API + local bot)
+      PaperModeService.dispatchBillWhatsApp({
+        patientPhone: selectedPatient.phone,
+        patientName: selectedPatient.name,
+        clinicName: activePod?.name || activeProfile?.clinicName || 'VitalSync Clinic',
+        consultTotal: billingLedger.consultTotal,
+        pharmacySub: billingLedger.pharmacySub,
+        labSub: billingLedger.labSub,
+        finalTotal: billingLedger.finalTotal
+      });
       const medListText = (billingLedger.medicinesList || [])
         .filter(m => selectedMedicines[(m?.name || '').toLowerCase()]?.selected)
         .map(m => {
@@ -1377,7 +1698,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           return `- *${m.name || 'Medicine'}*: ${freq} for ${dur} (${instr}).`;
         })
         .join('\n');
-      
+      // Push local bot copy as well (for WhatsApp chat panel display)
       const invoiceMsg = `Hi ${selectedPatient.name}! 🧾 Aapka Bill settle ho gaya hai.\n\n*Amount Paid:* ₹${billingLedger.finalTotal.toFixed(2)} (${paymentMethod.toUpperCase()})\n\n🔗 *Invoice Link:* https://app.vitalsync.in/invoices/${unifiedInvoiceId}\n\n${medListText ? `*Medication Refill & Dosage Guide:*\n${medListText}` : ''}\n\nTake care & stay healthy! 🏥`;
       WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, invoiceMsg);
 
@@ -2263,6 +2584,118 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           </div>
 
         </div>
+      )}
+
+      {/* ── Missing Phone Modal (Paper Mode OCR) ── */}
+      {missingPhoneModalData && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={handleSkipMissingPhone}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                  <Phone className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Patient WhatsApp Number
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Handwritten prescription has no readable mobile number
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={handleSkipMissingPhone}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 transition"
+                title="Skip and close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Patient Context Card */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 space-y-1">
+              <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                <span>Patient: <strong>{missingPhoneModalData.patient.name}</strong></span>
+                <span className="text-[11px] text-slate-500">
+                  {missingPhoneModalData.patient.gender}, {missingPhoneModalData.patient.age} yrs
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Doctor: {missingPhoneModalData.doctorName} • {missingPhoneModalData.medications.length} Medicines prescribed
+              </p>
+            </div>
+
+            {/* Prompt explanation */}
+            <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200/60 dark:border-teal-800/40 p-3 rounded-2xl">
+              Enter the patient's 10-digit mobile number to automatically send their <strong>Digital Rx</strong>, <strong>Health Card</strong>, and <strong>10% Refill discount</strong> on WhatsApp.
+            </div>
+
+            {/* Phone Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Patient Mobile Number (WhatsApp)
+              </label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3 text-xs font-bold text-slate-400 font-mono select-none">
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  autoFocus
+                  maxLength={10}
+                  value={inputPhone}
+                  onChange={e => {
+                    setInputPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                    setPhoneError('');
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleSaveMissingPhone();
+                  }}
+                  placeholder="9876543210"
+                  className={`w-full pl-12 pr-4 py-2.5 rounded-xl border text-sm font-mono font-bold tracking-wider bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none transition focus:ring-2 ${
+                    phoneError 
+                      ? 'border-rose-300 focus:ring-rose-500/20' 
+                      : 'border-slate-300 dark:border-slate-700 focus:border-teal-500 focus:ring-teal-500/20'
+                  }`}
+                />
+              </div>
+              {phoneError && (
+                <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1 mt-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {phoneError}
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleSkipMissingPhone}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition"
+              >
+                Skip WhatsApp ⏭️
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveMissingPhone}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition active:scale-95"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Save & Dispatch 📲
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
     </div>

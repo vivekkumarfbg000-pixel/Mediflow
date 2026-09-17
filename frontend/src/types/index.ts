@@ -69,6 +69,11 @@ export interface Patient {
   dilationTimestamp?: string;
   dilationEye?: 'RE' | 'LE' | 'BE'; // Right Eye, Left Eye, Both Eyes
   dilationDrop?: string; // e.g. "Tropicamide 1%", "Cyclopentolate"
+  address?: string;
+  isChronic?: boolean;
+  is_chronic?: boolean;
+  welcomeSentAt?: string;
+  welcome_sent_at?: string;
 }
 
 export interface ClinicStaff {

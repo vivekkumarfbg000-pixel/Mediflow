@@ -14,6 +14,7 @@ import { getIstDateString, getIstDateDisplay, getIstOffsetDateString, getEffecti
 import { ClinicalEvidenceService } from '../../../services/clinicalEvidenceService';
 import { AmbientAudioScribeService, type ExtractedScribeData } from '../../../services/ambientAudioScribeService';
 import type { Patient, DiagnosticTest, MedicationRequest, Appointment, PatientVitals } from '../../../types';
+import { PatientProfileModal } from '../../shared/PatientProfileModal';
 import { 
   CheckCircle2, 
   Users, 
@@ -193,6 +194,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   const [appointments, setAppointments] = useState<Appointment[]>(api.getAppointments());
   const [aiHistory, setAiHistory] = useState<any[]>([]);
   const [dataRevision, setDataRevision] = useState(0);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     const refreshData = () => {
@@ -2186,6 +2188,16 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 </span>
               </div>
 
+              {/* Full Medical Profile Dossier Launcher */}
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-2xs cursor-pointer transition-all shrink-0"
+                title="Open Structural Professional Patient Profile"
+              >
+                <Users className="w-3.5 h-3.5" /> Full Profile 👤
+              </button>
+
               {/* Embedded Pre-Checked Vitals Badges (Beside Patient Name) */}
               {compounderVitals && (compounderVitals.bloodPressure || compounderVitals.pulseRate || compounderVitals.temperature || compounderVitals.bloodSugar || compounderVitals.spO2 || compounderVitals.weight) ? (
                 <div className="flex items-center gap-1 flex-wrap">
@@ -3827,6 +3839,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Structured Professional Patient Profile Modal */}
+      {selectedPatient && (
+        <PatientProfileModal
+          patient={selectedPatient}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
       )}
     </div>
   );

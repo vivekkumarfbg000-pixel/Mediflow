@@ -194,6 +194,20 @@ export class RealtimeSyncService {
     if (record.source !== undefined) normalized.source = record.source;
     if (record.vitals !== undefined) normalized.vitals = record.vitals;
     if (record.chronic_conditions !== undefined) normalized.chronicConditions = record.chronic_conditions;
+    if (record.is_chronic !== undefined || record.isChronic !== undefined) {
+      const isC = record.is_chronic === true || record.isChronic === true;
+      normalized.isChronic = isC;
+      normalized.is_chronic = isC;
+    }
+    if (record.welcome_sent_at !== undefined || record.welcomeSentAt !== undefined) {
+      const wsa = record.welcome_sent_at || record.welcomeSentAt;
+      normalized.welcomeSentAt = wsa;
+      normalized.welcome_sent_at = wsa;
+    }
+    if (record.address !== undefined || record.patient_address !== undefined) {
+      const addr = record.address || record.patient_address;
+      normalized.address = addr;
+    }
     if (record.subtotal !== undefined) normalized.subtotal = typeof record.subtotal === 'string' ? parseFloat(record.subtotal) : record.subtotal;
     if (record.gst_amount !== undefined) normalized.gstAmount = typeof record.gst_amount === 'string' ? parseFloat(record.gst_amount) : record.gst_amount;
     if (record.payment_mode !== undefined) normalized.paymentMode = record.payment_mode;

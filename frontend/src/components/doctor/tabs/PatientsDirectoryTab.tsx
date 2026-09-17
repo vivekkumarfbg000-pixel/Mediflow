@@ -9,6 +9,7 @@ import { useClinic } from '../../../context/ClinicContext';
 import { getIstDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
 import type { Patient } from '../../../types';
+import { PatientProfileModal } from '../../shared/PatientProfileModal';
 import { 
   Users, 
   Search, 
@@ -68,6 +69,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   const { activePod } = useClinic();
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     const handleStateChange = () => {
@@ -360,11 +362,20 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   Patient ID: <span className="font-mono text-slate-800 font-bold bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/50">{selectedDirectoryPatient.tokenNumber || 'PAT'}</span> • {selectedDirectoryPatient.gender}, {selectedDirectoryPatient.age} years • Phone: {selectedDirectoryPatient.phone}
                 </p>
               </div>
-              {selectedDirectoryPatient.abhaId && (
-                <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-205 px-2 py-0.5 rounded-full font-bold uppercase font-mono">
-                  ABHA Verified
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                >
+                  <Users className="w-3.5 h-3.5" /> Full Medical Dossier
+                </button>
+                {selectedDirectoryPatient.abhaId && (
+                  <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold uppercase font-mono">
+                    ABHA Verified
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* ── Clinical Encounters & Past Prescriptions Timeline ────────── */}
@@ -1103,6 +1114,15 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
           </div>
         )}
       </div>
+
+      {/* Structured Professional Patient Profile Modal */}
+      {selectedDirectoryPatient && (
+        <PatientProfileModal
+          patient={selectedDirectoryPatient}
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
+      )}
     </div>
   );
 });
