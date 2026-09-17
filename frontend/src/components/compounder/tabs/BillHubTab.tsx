@@ -16,6 +16,7 @@ import { getPodContext } from '../../../services/podContext';
 import { useSpecialization } from '../../../context/SpecializationContext';
 import { useClinic } from '../../../context/ClinicContext';
 import { WhatsAppService } from '../../../services/whatsappService';
+import { WhatsAppTemplateEngine } from '../../../services/WhatsAppTemplateEngine';
 import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ChronicCareService } from '../../../services/chronicCareService';
@@ -1522,9 +1523,20 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         .map((t, idx) => `${idx + 1}. 🔬 *${t.name}* (LOINC: ${t.loincCode})`)
         .join('\n');
 
-      const msg = `Namaste ${selectedPatient.name} ji 🙏,\n\nHere is your official digital e-prescription & dosage guide from *${clinicTitle}* (${docTitle}):\n\n${medRows ? `📋 *PRESCRIBED MEDICINES:*\n${medRows}\n\n` : ''}${testRows ? `🧪 *ADVISED LAB TESTS:*\n${testRows}\n\n` : ''}🔗 *View Digital Record:* https://app.vitalsync.in/prescriptions/${selectedPatient.id}\n\nIf you have any questions, reply directly to this message. Wishing you a swift recovery! 🏥✨`;
-
-      WhatsAppService.pushWhatsAppMessageFromBot(selectedPatient.phone, msg);
+      WhatsAppTemplateEngine.dispatchRxSummary({
+        patientPhone: selectedPatient.phone,
+        patientName: selectedPatient.name,
+        doctorName: docTitle,
+        clinicName: clinicTitle,
+        medications: (billingLedger.medicinesList || []).map(m => ({
+          name: m.name,
+          dosage: (m as any).dosage,
+          frequency: (m as any).frequency || (m as any).freq || '1-0-1',
+          duration: (m as any).duration || (m as any).dur || '5 Days',
+          instructions: (m as any).instructions || (m as any).dosage || 'Take after meals'
+        })),
+        followUpAdvice: '14 din'
+      });
 
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {

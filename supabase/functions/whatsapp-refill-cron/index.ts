@@ -169,19 +169,27 @@ serve(async (req) => {
     for (const cohort of eligible) {
       const waba = wabaByPod.get(cohort.pod_id);
       const clinicName = podNameMap.get(cohort.pod_id) ?? "Your Clinic";
-      const meds = (cohort.medications ?? []) as Array<{ medicineName?: string; name?: string }>;
-      const medList = meds.slice(0, 3).map((m, i) => `${i + 1}. ${m.medicineName ?? m.name ?? "Medicine"}`).join("\n");
+      // ── AGENTS.md Template 5: Day-25 Chronic Medicine Refill (Canonical Hinglish) ──
+      const meds = (cohort.medications ?? []) as Array<{ medicineName?: string; name?: string; dosage?: string }>;
+      const primaryMed = meds[0]?.medicineName ?? meds[0]?.name ?? "Prescribed Medicines";
+      const medDosage = meds[0]?.dosage ?? "Daily";
+      // Compute MRP and 10% VIP discounted price from cohort monthly_medicine_spend
+      const mrpAmount = cohort.monthly_medicine_spend ?? 550;
+      const discountedAmount = Math.round(mrpAmount * 0.9);
 
       const bodyText =
-        `⏰ *${clinicName} Chronic Care Refill Reminder* 💊\n\n` +
-        `Namaste *${cohort.patient_name}*! Aapka ${cohort.condition_name} medicine supply ` +
-        `${cohort.days_supply} din ka complete ho gaya hai.\n\n` +
-        (medList ? `📋 *Aapki Dawaiyan:*\n${medList}\n\n` : "") +
-        `✨ 1-Click Confirm kijiye aur *10% OFF* paiye!\n\nKripya niche select kijiye:`;
+        `Namaste *${cohort.patient_name}* Ji! 🩺\n` +
+        `Aapki *${primaryMed}* dawa agle *5 dino mein khatam* hone wali hai.\n\n` +
+        `${cohort.condition_name} control mein gap na aaye, isliye ${clinicName} Pharmacy ne aapka *1 Month Refill Pack (10% OFF)* ready rakha hai:\n\n` +
+        `• MRP: ~₹${mrpAmount}~\n` +
+        `• Your Price (10% VIP Discount): *₹${discountedAmount}*\n` +
+        `• Dosage: *${medDosage}*\n` +
+        `• Delivery: Free Clinic Counter Pickup ya 24hr Home Delivery\n\n` +
+        `Ek tap mein confirm kijiye! 👇`;
 
       const buttons = [
-        { id: "REFILL_CONFIRM", title: "📦 1-Click Refill" },
-        { id: "SPEAK_DOCTOR", title: "👨‍⚕️ Speak to Doctor" },
+        { id: "CHRONIC_REFILL", title: "📦 1-Click Refill" },
+        { id: "CHRONIC_CONSULT", title: "👨‍⚕️ Speak to Doctor" },
       ];
 
       let dispatchOk = false;

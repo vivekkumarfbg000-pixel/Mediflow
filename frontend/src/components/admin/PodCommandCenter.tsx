@@ -6,6 +6,7 @@ import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ProactiveHealthMonitor } from '../../services/autoHealerAgent';
 import { PatientService } from '../../services/patientService';
 import { WhatsAppService } from '../../services/whatsappService';
+import { WhatsAppTemplateEngine } from '../../services/WhatsAppTemplateEngine';
 import { LabService } from '../../services/labService';
 import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
@@ -1081,10 +1082,18 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
                         type="button"
                         onClick={() => {
                           if (cp.phone) {
-                            WhatsAppService.pushWhatsAppMessageFromBot(
-                              cp.phone,
-                              `Namaste ${cp.name} Ji! 🩺 Aapki chronic dawa ka 1 Month Refill Pack 10% discount ke sath clinic counter par ready hai. Free pickup ya 24hr delivery ke liye confirm karein! 📦`
-                            );
+                            const primaryMed = (cp.chronicConditions && cp.chronicConditions.length > 0)
+                              ? cp.chronicConditions[0]
+                              : 'Prescribed Chronic Medicine';
+                            WhatsAppTemplateEngine.dispatchRefillReminder({
+                              patientPhone: cp.phone,
+                              patientName: cp.name,
+                              medicineName: primaryMed,
+                              mrpAmount: 550,
+                              discountedAmount: 495,
+                              clinicName: 'VitalSync Clinic',
+                              daysLeft: 5
+                            });
                             window.dispatchEvent(new CustomEvent('mediflow-toast', {
                               detail: { title: 'Refill Nudge Sent! 📱', message: `WhatsApp 10% OFF refill reminder sent to ${cp.name}`, type: 'success' }
                             }));

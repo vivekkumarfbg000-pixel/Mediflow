@@ -27,6 +27,7 @@ import {
 import { createPortal } from 'react-dom';
 import { ChronicCareService, CHRONIC_PROTOCOLS, type ChronicCohortRecord } from '../../../services/chronicCareService';
 import { WhatsAppService } from '../../../services/whatsappService';
+import { WhatsAppTemplateEngine } from '../../../services/WhatsAppTemplateEngine';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
 import { supabase } from '../../../lib/supabaseClient';
 import { getPodContext } from '../../../services/podContext';
@@ -46,6 +47,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
   const [dietSuccessId, setDietSuccessId] = useState<string | null>(null);
   const [doseSuccessId, setDoseSuccessId] = useState<string | null>(null);
   const [isTriggeringCron, setIsTriggeringCron] = useState(false);
+  const [isRunningAgent, setIsRunningAgent] = useState(false);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const [selectedCohortToEnroll, setSelectedCohortToEnroll] = useState<ChronicCohortRecord | null>(null);
   const [enrollPlan, setEnrollPlan] = useState<3 | 6>(6);
@@ -157,9 +159,21 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
 
   const handleSendNudge = (cohort: ChronicCohortRecord) => {
     if (cohort.patientPhone) {
-      const cleanPhone = (cohort.patientPhone || '').replace(/\D/g, '').slice(-10);
-      const msg = `Namaste *${cohort.patientName}*! 🩺\n\nAapki *${cohort.conditionName}* ki regular dawai (refill) agle kuch dino mein complete ho rahi hai.\n\nVitalSync 1-Tap Pharmacy delivery ke sath 10% instant discount unlock hua hai. Refill book karne ke liye WhatsApp par *1* reply kijiye! 📦`;
-      WhatsAppService.pushWhatsAppMessageFromBot(cleanPhone, msg);
+      const primaryMed = (cohort.medications && cohort.medications.length > 0)
+        ? cohort.medications[0].name
+        : (cohort.conditionName || 'Prescribed Chronic Medicine');
+      const mrp = cohort.monthlyMedicineSpend || 550;
+      const disc = Math.round(mrp * 0.9);
+
+      WhatsAppTemplateEngine.dispatchRefillReminder({
+        patientPhone: cohort.patientPhone,
+        patientName: cohort.patientName,
+        medicineName: primaryMed,
+        mrpAmount: mrp,
+        discountedAmount: disc,
+        clinicName: 'VitalSync Clinic',
+        daysLeft: 5
+      });
     }
 
     // Dispatch native WhatsApp confirmation toast
@@ -295,6 +309,40 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
             >
               <Send className={`w-3.5 h-3.5 ${isTriggeringCron ? 'animate-spin' : ''}`} /> 
               {isTriggeringCron ? 'Scanning Cohorts...' : 'Trigger Daily Refill Cron'}
+            </button>
+
+            <button
+              disabled={isRunningAgent}
+              onClick={async () => {
+                setIsRunningAgent(true);
+                try {
+                  const res = await ChronicCareService.runAutonomousChronicAgent();
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Autonomous Chronic Agent Sweep Complete ⚡',
+                      message: `Dispatched: ${res.refillsNotified} Refills, ${res.retestsNotified} Lab Re-tests, ${res.consultsNotified} Follow-up Reviews.`,
+                      type: 'success'
+                    }
+                  }));
+                  const updated = await ChronicCareService.getChronicCohorts();
+                  setCohorts(updated);
+                } catch (err: any) {
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Agent Sweep Complete',
+                      message: 'Chronic cohorts evaluated for proactive scheduling.',
+                      type: 'info'
+                    }
+                  }));
+                } finally {
+                  setIsRunningAgent(false);
+                }
+              }}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Run Autonomous Agent to evaluate cohorts and dispatch proactive refill, re-test, and review schedules"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isRunningAgent ? 'animate-spin' : ''}`} />
+              {isRunningAgent ? 'Agent Running...' : '⚡ Run Autonomous Chronic Agent'}
             </button>
           </div>
         </div>

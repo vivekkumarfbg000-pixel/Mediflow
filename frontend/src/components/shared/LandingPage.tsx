@@ -550,7 +550,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Doctor Consultation Fee Immunity (Rule 58)</p>
-                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">100% of patient consultation fees go directly to the Doctor's bank account or counter drawer with 0% platform deductions. VitalSync is 100% free for doctors to adopt with zero software subscription fees.</p>
+                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">100% of patient consultation fees go directly to the Doctor's bank account or counter drawer with 0% platform deductions. First 90 days are 100% Free, followed by a flat ₹999/month operations fee with zero OPD commission.</p>
               </div>
             </div>
 
@@ -707,7 +707,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <span className="flex items-center gap-1 font-semibold text-slate-700">
                 <Check className="h-3 w-3 text-emerald-600" /> WhatsApp Direct Connect
               </span>
-              <span className="font-mono text-teal-700 font-bold">₹0 SaaS Subscription</span>
+              <span className="font-mono text-teal-700 font-bold">90 Days Free • Then ₹999/mo</span>
             </div>
           </div>
         </div>
@@ -2311,7 +2311,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               15-Minute Practice Onboarding
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Launch Your Connected Practice in 3 Simple Steps</h2>
-            <p className="text-slate-500 text-sm font-semibold mt-2">Zero upfront SaaS subscription fees. Zero complex hardware. Practice onboarding in under 15 minutes.</p>
+            <p className="text-slate-500 text-sm font-semibold mt-2">First 90 days 100% Free. Zero complex hardware. Practice onboarding in under 15 minutes.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative text-left">
@@ -2383,8 +2383,70 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Platform Fee Schedule</h2>
             <p className="text-slate-500 text-sm font-semibold mt-2 max-w-2xl mx-auto">
-              VitalSync operates on 0% commission on Doctor OPD (Counter & WhatsApp), with an automated 5% Pathology Lab and 2% Pharmacy Counter B2B split. Zero hidden charges, zero setup fees.
+              VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. We maintain 0% commission on Doctor OPD consultations, alongside transparent B2B splits on partner Pathology Lab (5%) and Pharmacy Counter (2%).
             </p>
+          </div>
+
+          {/* 90-Day Free Pilot & ₹999 Operations Infrastructure Banner */}
+          <div className="mb-12 p-8 rounded-3xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 border border-emerald-500/30 text-white shadow-xl relative overflow-hidden text-left">
+            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+              <Zap className="w-56 h-56 text-teal-400" />
+            </div>
+            
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-7 space-y-3">
+                <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-mono text-[11px] font-bold uppercase tracking-widest">
+                  <Sparkles className="h-3.5 w-3.5" /> 90-Day Risk-Free Clinical Pilot
+                </div>
+                <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-white">
+                  First 90 Days 100% Free · Then Flat ₹999/mo Operations Fee
+                </h3>
+                <p className="text-slate-300 text-xs sm:text-sm font-medium leading-relaxed max-w-xl">
+                  Test the complete WhatsApp agentic care loop, AI scribe, and automated chronic refill engine for 90 days with zero financial commitment. Experience 10x ROI before paying a single rupee.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs text-slate-200">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span><strong>100% Doctor Fee Immunity</strong> (0% OPD Commission)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span><strong>Sub-250ms Outbound WhatsApp</strong> Business Engine</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span><strong>Automated Chronic Care Loop</strong> &amp; 1-Tap Refills</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span><strong>Zero Hardware Required</strong> · Runs on Mobile / PC</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-5 bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/15 text-center flex flex-col justify-between space-y-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 font-mono block">Clinical Operations Plan</span>
+                  <div className="mt-2 flex items-baseline justify-center gap-1.5">
+                    <span className="text-4xl font-extrabold text-white">₹999</span>
+                    <span className="text-xs text-slate-300 font-medium">/ month / clinic</span>
+                  </div>
+                  <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold font-mono">
+                    First 90 Days: ₹0 (Free Trial)
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                  Covers 24/7 Meta WhatsApp API costs, real-time Supabase cloud sync, AI clinical triage, and automated 5-console triad networking.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleGetStartedClick}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                >
+                  Start 90-Day Free Pilot
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
@@ -2610,15 +2672,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               },
               {
                 id: 5,
-                question: "What is the pricing model for doctors adopting VitalSync?",
-                badge: "Rule 58 Immunity",
+                question: "How does VitalSync pricing and the 90-Day Free Pilot work?",
+                badge: "90-Day Free Pilot + ₹999/mo",
                 answer: (
                   <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
                     <p>
-                      <strong className="text-slate-900">VitalSync is 100% free for doctors to adopt.</strong> There are zero software subscription fees, zero onboarding charges, and 0% commission on direct counter doctor consultations (<strong>Doctor Consultation Fee Immunity — Rule 58</strong>).
+                      <strong className="text-slate-900">Every clinic begins with a 100% Free 90-Day Full-Access Clinical Pilot.</strong> There are zero setup fees, zero hardware costs, and zero credit card requirements.
                     </p>
                     <p>
-                      Doctors earn an additional 25%–35% recurring revenue from connected pharmacy and diagnostic lab care coordination splits.
+                      After 90 days of proven clinical ROI and patient retention, clinics continue on our standard <strong className="text-emerald-800">Clinical Operations Fee of flat ₹999/month</strong>. This covers secure cloud database hosting, Meta WhatsApp Business API relays, AI triage inference, and continuous 24/7 autonomous agents.
+                    </p>
+                    <p>
+                      Crucially, under our <strong>Doctor Consultation Fee Immunity (Rule 58)</strong>, VitalSync NEVER takes a single rupee from your patient consultation fees — 100% of your OPD earnings remain 100% yours.
                     </p>
                   </div>
                 )

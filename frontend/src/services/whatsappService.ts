@@ -640,7 +640,8 @@ export class WhatsAppService {
         'AWAITING_FAMILY_DETAILS',
         'AWAITING_FAMILY_SELECTION',
         'AWAITING_AI_QUERY',
-        'AWAITING_RESCHEDULE_TIME'
+        'AWAITING_RESCHEDULE_TIME',
+        'AWAITING_CHRONIC_ACTION'
       ];
       const isExplicitReset = cleaned === '0' || cleaned === 'menu' || cleaned === 'reset' || cleaned === 'restart' || cleaned === 'cancel';
       if (!ACTIVE_INPUT_STATES.includes(session.currentState)) {
@@ -853,6 +854,28 @@ Dr. ${docLastName} se report review ke liye option chuniye:
           } else if (cleaned === 'order delivery' || cleaned === 'delivery') {
             nextState = 'COMPLETED';
             replyMessage = `🚚 *HOME DELIVERY ORDER CONFIRMED* 📦\n\nAapka prescription dawa parcel ${clinicName} Pharmacy counter se process ho gaya hai!\n\n• Delivery Time: Within 2 Hours\n• Delivery Status: Dispatched to Address on File\n\nCompounder packing verify kar rahe hain. Strategic follow-up reminders (7 days, 1 month, 3 months) schedule kar diye gaye hain! Dhanyawad! 🟢`;
+          } else if (
+            cleaned === 'chronic' || 
+            cleaned === 'care' || 
+            cleaned.includes('sugar') || 
+            cleaned.includes('bp') || 
+            cleaned.includes('diabetes') || 
+            cleaned.includes('hypertension') || 
+            cleaned.includes('thyroid') || 
+            cleaned.includes('diet') ||
+            cleaned === 'care desk'
+          ) {
+            nextState = 'AWAITING_CHRONIC_ACTION' as any;
+            const chronicCond = (patient as any)?.chronic_conditions?.[0] || (patient as any)?.chronic_condition || 'Chronic Care';
+            const completed = EncounterService.getEncounters().filter(e => e.patientId === patient.id && e.status === 'completed');
+            const allMeds: string[] = [];
+            completed.forEach(enc => (enc.medications || []).forEach(m => allMeds.push(m.medicineName)));
+            const primaryMed = allMeds[0] || 'Prescribed Regimen';
+
+            sessionData.chronicCondition = chronicCond;
+            sessionData.primaryMed = primaryMed;
+
+            replyMessage = `🩺 *VITALSYNC CHRONIC CARE DESK — ${clinicName}* 🌿\n\nNamaste *${patient.name}* Ji! 🙏\nAapka chronic health profile active clinical surveillance mein hai:\n\n• Condition: *${chronicCond}*\n• Regular Medicine: *${primaryMed}*\n• Remaining Supply: *~5 din baki*\n• Next Diagnostic Re-test: *HbA1c & Fasting Glucose* (Due Soon)\n\nNeeche se apna option chuniye:\n1️⃣ Confirm 1-Click Refill Pack (10% VIP OFF) 💊\n2️⃣ Schedule Doctor Follow-up Review 👨‍⚕️\n3️⃣ Book 90-Day Diagnostic Blood Test (Ghar se sample collection) 🔬\n4️⃣ Condition-Specific ICMR Diet & Lifestyle Plan 🥗\n\nReply *1*, *2*, *3* ya *4* to proceed!`;
           } else {
             nextState = 'AWAITING_CONFIRMATION';
             const isFreeUnlocked = Boolean(patient.isPremiumMember || (patient as any).is_premium_member || (patient.id && BillingService.checkPatientFreeVirtualEligibility(patient.id).isEligible));
@@ -913,6 +936,144 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             replyMessage = `Invalid option. Consultation mode select kijiye:\n\n1️⃣ Physical Clinic OPD Visit 🏥\n2️⃣ Virtual Video Consult 💻\n\nPlease option number (1 ya 2) reply kijiye!`;
           }
           break;
+
+        case 'AWAITING_CHRONIC_ACTION': {
+          if (cleaned === '1' || cleaned.includes('refill') || cleaned.includes('dawa') || cleaned.includes('pack')) {
+            const refillToken = `#REF-${Math.floor(1000 + Math.random() * 9000)}`;
+            const primaryMed = sessionData.primaryMed || 'Metformin 500mg (Glycomet)';
+            const draftBillId = `bill-${Date.now()}`;
+            
+            // Auto-provision Pharmacy draft order with 10% VIP discount
+            try {
+              const inv = PharmacyService.getPharmacyInventory();
+              const matchedItem = inv.find(i => (i.name || '').toLowerCase().includes(primaryMed.toLowerCase()));
+              const basePrice = matchedItem?.price || 500;
+              const discountedPrice = Math.round(basePrice * 0.9);
+
+              const draftBill = {
+                id: draftBillId,
+                patientId: patient.id,
+                patientName: patient.name,
+                patientPhone: phone,
+                items: [{
+                  inventoryItemId: matchedItem?.id || 'inv-refill',
+                  name: primaryMed,
+                  genericName: matchedItem?.genericName || primaryMed,
+                  dosage: '1-0-1',
+                  batchNumber: matchedItem?.batchNumber || 'BATCH-2026-R1',
+                  expiryDate: matchedItem?.expiryDate || '2027-12-31',
+                  quantity: 30,
+                  mrp: basePrice,
+                  sellingPrice: discountedPrice,
+                  discountPercent: 10,
+                  gstPercent: 5,
+                  lineTotal: discountedPrice,
+                  isStockDeducted: false
+                }],
+                subtotal: basePrice,
+                loyaltyDiscountPercent: 10,
+                loyaltyDiscountAmount: basePrice - discountedPrice,
+                itemDiscountAmount: 0,
+                gstAmount: Math.round(discountedPrice * 0.05),
+                totalAmount: discountedPrice + Math.round(discountedPrice * 0.05),
+                paymentMode: 'counter_cash',
+                status: 'draft',
+                source: 'whatsapp_chronic_refill',
+                tokenNumber: refillToken,
+                createdAt: new Date().toISOString()
+              };
+              PharmacyService.saveMedicineBill(draftBill as any);
+            } catch (_e) { /* ignore */ }
+
+            nextState = 'COMPLETED';
+            replyMessage = `🟢 *CHRONIC 1-CLICK REFILL RESERVED!* 💊\n\nNamaste *${patient.name}* Ji! 🙏\n${clinicName} Pharmacy counter par aapka 1 Month Refill Pack reserve ho gaya hai:\n\n• Medicine: *${primaryMed}*\n• Quantity: *1 Month Pack (30 tabs)*\n• Total Price (10% VIP Discount applied): *₹495.00*\n• Order Token: *${refillToken}* 📑\n• Delivery: *Free Clinic Counter Pickup ya 24hr Home Delivery*\n\nPharmacy counter par token *${refillToken}* dikha kar dawai le sakte hain. Stay healthy! 😊`;
+          } else if (cleaned === '2' || cleaned.includes('doctor') || cleaned.includes('review') || cleaned.includes('consult')) {
+            const todayStr = getIstDateString();
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
+            const apptId = crypto.randomUUID();
+            const docName = this.getDynamicDoctorName();
+
+            const chronicAppt: Appointment = {
+              id: apptId,
+              patientId: patient.id,
+              patientName: patient.name,
+              patientPhone: phone,
+              doctorId: '',
+              date: todayStr,
+              appointmentTime: new Date().toISOString(),
+              status: 'scheduled',
+              source: 'whatsapp_chronic_followup',
+              tokenNumber: tokenNumber,
+              createdAt: new Date().toISOString()
+            };
+            BillingService.saveAppointment(chronicAppt);
+
+            try {
+              supabase.from('appointments').upsert({
+                id: apptId,
+                patient_id: patient.id,
+                patient_name: patient.name,
+                status: 'scheduled',
+                source: 'whatsapp_chronic_followup',
+                token_number: tokenNumber,
+                appointment_time: new Date().toISOString(),
+                created_at: new Date().toISOString(),
+                pod_id: getPodContext().podId || FALLBACK_POD_ID
+              }, { onConflict: 'id' }).then(() => {});
+            } catch (_e) { /* ignore */ }
+
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            nextState = 'COMPLETED';
+            replyMessage = `🟢 *CHRONIC FOLLOW-UP CONSULT SCHEDULED!* 🩺\n\nNamaste *${patient.name}*!\n${docName} ke saath aapka chronic review confirm ho gaya hai:\n\n• Token Number: *${tokenNumber}* 🎫\n• Mode: *Physical OPD / Virtual Video Review*\n• Doctor Fee: *₹500.00* (Direct Doctor Consultation)\n• Clinic: *${clinicName}*\n\nCompounder Desk aur Doctor EMR par aapki entry live sync ho gayi hai. Vitals check ke liye clinic aane par token *${tokenNumber}* batayein!`;
+          } else if (cleaned === '3' || cleaned.includes('lab') || cleaned.includes('blood') || cleaned.includes('test')) {
+            const reqId = `req-${Date.now()}`;
+            const podId = getPodContext().podId || FALLBACK_POD_ID;
+
+            try {
+              const newReq = {
+                id: reqId,
+                patientId: patient.id,
+                patientName: patient.name,
+                patientPhone: phone,
+                testName: 'HbA1c & Fasting Glucose Panel',
+                loincCode: '4544-3',
+                status: 'pending',
+                source: 'whatsapp_chronic_retest',
+                createdAt: new Date().toISOString(),
+                podId: podId
+              };
+              LabService.saveLabRequisition(newReq as any);
+              supabase.from('lab_requisitions').upsert({
+                id: reqId,
+                patient_id: patient.id,
+                patient_name: patient.name,
+                patient_phone: phone,
+                test_name: 'HbA1c & Fasting Glucose Panel',
+                loinc_code: '4544-3',
+                status: 'pending',
+                source: 'whatsapp_chronic_retest',
+                pod_id: podId
+              }, { onConflict: 'id' }).then(() => {});
+            } catch (_e) { /* ignore */ }
+
+            nextState = 'COMPLETED';
+            replyMessage = `🔬 *90-DAY BIOMARKER RE-TEST BOOKED!* 🩸\n\nNamaste *${patient.name}* Ji! 🙏\n\n• Test Panel: *HbA1c & Fasting Blood Sugar Panel* (LOINC: 4544-3)\n• Phlebotomist Slot: *Kal Subah 08:00 AM - 09:30 AM* 🏠\n• Sample: *Ghar se Blood Sample Collection*\n• Instructions: *Test se 8 ghante pehle khali pet (fasting) rehna hai*.\n\nTechnician sample collect karne ke baad report shaam tak isi WhatsApp chat par bhej di jayegi! Dhanyawad! 🟢`;
+          } else if (cleaned === '4' || cleaned.includes('diet') || cleaned.includes('lifestyle')) {
+            nextState = 'COMPLETED';
+            const cond = sessionData.chronicCondition || 'DIABETES';
+            let code = 'DIABETES';
+            if (cond.toLowerCase().includes('hyper') || cond.toLowerCase().includes('bp')) code = 'HYPERTENSION';
+            else if (cond.toLowerCase().includes('thyroid')) code = 'THYROID';
+            else if (cond.toLowerCase().includes('ckd') || cond.toLowerCase().includes('kidney')) code = 'CKD';
+
+            const { ChronicCareService } = await import('./chronicCareService');
+            ChronicCareService.dispatchConditionDietGuide(phone, code, patient.name);
+            replyMessage = `🥗 *ICMR DIET & LIFESTYLE PLAN DISPATCHED!* \n\nAapke condition (*${cond}*) ke anusaar doctor-approved diet chart upar message mein send kar diya gaya hai. Follow karein aur healthy rahein! 🌿`;
+          } else {
+            replyMessage = `Invalid option. Kripya *1*, *2*, *3* ya *4* reply kijiye:\n\n1️⃣ 1-Click Medicine Refill (10% OFF)\n2️⃣ Schedule Doctor Follow-up Review\n3️⃣ Book 90-Day Diagnostic Blood Test\n4️⃣ ICMR Diet & Lifestyle Guide`;
+          }
+          break;
+        }
 
         case 'AWAITING_WELCOME':
           if (cleaned === '1' || cleaned.includes('start') || cleaned.includes('yes') || cleaned.includes('ok')) {

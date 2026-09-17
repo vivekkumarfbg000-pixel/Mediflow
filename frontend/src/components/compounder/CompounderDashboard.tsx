@@ -13,6 +13,7 @@ import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
 import { WhatsAppService } from '../../services/whatsappService';
+import { WhatsAppTemplateEngine } from '../../services/WhatsAppTemplateEngine';
 import { load } from '../../services/apiHelper';
 import { cloudStore } from '../../services/cloudStore';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
@@ -852,6 +853,19 @@ export const CompounderDashboard: React.FC = () => {
           console.warn('[CompounderDashboard] Supabase DB vitals sync error:', _dbErr);
         }
       })();
+
+      // 4.1 Dispatch Token Confirmed WhatsApp notification to patient
+      if (vitalsPatient.phone) {
+        WhatsAppTemplateEngine.dispatchTokenConfirmed({
+          patientPhone: vitalsPatient.phone,
+          patientName: vitalsPatient.name,
+          doctorName: template?.doctorName || 'Dr. Pankaj Kumar',
+          tokenNumber: String(assignedToken),
+          aheadCount: Math.max(0, (appointments || []).filter(a => a.status === 'confirmed' || a.status === 'waiting').length),
+          waitMinutes: 15,
+          clinicAddress: template?.clinicAddress || 'Main Road, Clinic Center'
+        });
+      }
 
       // 5. Toast notification & State Refresh
       window.dispatchEvent(new CustomEvent('mediflow-toast', {

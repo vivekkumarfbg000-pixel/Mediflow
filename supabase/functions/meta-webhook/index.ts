@@ -901,6 +901,12 @@ if (!isManualRelay) {
         else if (replyId === "btn_virtual_review" || replyId === "VIRTUAL_REVIEW") messageText = "virtual review";
         else if (replyId === "REFILL_CONFIRM" || replyId === "btn_refill_confirm") messageText = "confirm refill";
         else if (replyId === "SPEAK_DOCTOR" || replyId === "btn_speak_doctor") messageText = "speak to doctor";
+        // ── Chronic Care 1-Tap Buttons (AWAITING_CHRONIC_ACTION paths 1-4) ──
+        else if (replyId === "CHRONIC_REFILL" || replyId === "btn_chronic_refill") messageText = "1";
+        else if (replyId === "CHRONIC_CONSULT" || replyId === "btn_chronic_consult") messageText = "2";
+        else if (replyId === "CHRONIC_RETEST" || replyId === "btn_chronic_retest") messageText = "3";
+        else if (replyId === "CHRONIC_DIET" || replyId === "btn_chronic_diet") messageText = "4";
+        // ─────────────────────────────────────────────────────────────────────
         else if (replyId === "btn_pay") messageText = "pay";
         else if (replyId === "btn_stop" || replyId === "btn_main_menu") messageText = "menu";
         else if (replyId === "btn_slot_1") messageText = "1";
@@ -926,6 +932,12 @@ if (!isManualRelay) {
         else if (btnPayload === "btn_virtual_review" || btnPayload === "VIRTUAL_REVIEW") messageText = "virtual review";
         else if (btnPayload === "REFILL_CONFIRM" || btnPayload === "btn_refill_confirm") messageText = "confirm refill";
         else if (btnPayload === "SPEAK_DOCTOR" || btnPayload === "btn_speak_doctor") messageText = "speak to doctor";
+        // ── Chronic Care 1-Tap Buttons (AWAITING_CHRONIC_ACTION paths 1-4) ──
+        else if (btnPayload === "CHRONIC_REFILL" || btnPayload === "btn_chronic_refill") messageText = "1";
+        else if (btnPayload === "CHRONIC_CONSULT" || btnPayload === "btn_chronic_consult") messageText = "2";
+        else if (btnPayload === "CHRONIC_RETEST" || btnPayload === "btn_chronic_retest") messageText = "3";
+        else if (btnPayload === "CHRONIC_DIET" || btnPayload === "btn_chronic_diet") messageText = "4";
+        // ─────────────────────────────────────────────────────────────────────
         else if (btnPayload === "btn_order_delivery") messageText = "order delivery";
         else if (btnPayload === "menu_family" || btnPayload === "btn_add_family" || btnPayload === "family") messageText = "family";
         else if (btnPayload === "menu_summary" || btnPayload === "summary" || btnPayload === "btn_summary") messageText = "summary";

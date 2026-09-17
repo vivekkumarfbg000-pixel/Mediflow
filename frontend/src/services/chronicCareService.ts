@@ -806,4 +806,218 @@ export class ChronicCareService {
       return false;
     }
   }
+
+  /**
+   * Run Autonomous Chronic Agentic Supervisor
+   * Performs daily proactive evaluation across all active cohorts in the sovereign pod:
+   * 1. Day-25 Refill Scan: Dispatches 10% OFF refill reminders when <= 5 days of medicine remain.
+   * 2. 90-Day Diagnostic Re-test Scan: Dispatches home sample collection invitations when <= 10 days until re-test.
+   * 3. Routine Doctor Follow-up Review Scan: Dispatches appointment scheduling invitations for cohorts due for review.
+   */
+  public static async runAutonomousChronicAgent(): Promise<{
+    success: boolean;
+    refillsNotified: number;
+    retestsNotified: number;
+    consultsNotified: number;
+    timestamp: string;
+  }> {
+    try {
+      const cohorts = await this.getChronicCohorts();
+      const today = new Date();
+      const { WhatsAppTemplateEngine } = await import('./WhatsAppTemplateEngine');
+      
+      let refillsNotified = 0;
+      let retestsNotified = 0;
+      let consultsNotified = 0;
+
+      for (const cohort of cohorts) {
+        if (!cohort.patientPhone) continue;
+
+        // 1. Refill Due Scan (<= 5 days left)
+        if (cohort.nextRefillDate) {
+          const refillDate = new Date(cohort.nextRefillDate);
+          const diffDays = Math.ceil((refillDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 5 && diffDays >= -15) {
+            const primaryMed = (cohort.medications && cohort.medications.length > 0)
+              ? cohort.medications[0].name
+              : (cohort.conditionName || 'Prescribed Chronic Medicine');
+            const mrp = cohort.monthlyMedicineSpend || 550;
+            const disc = Math.round(mrp * 0.9);
+
+            await WhatsAppTemplateEngine.dispatchRefillReminder({
+              patientPhone: cohort.patientPhone,
+              patientName: cohort.patientName,
+              medicineName: primaryMed,
+              mrpAmount: mrp,
+              discountedAmount: disc,
+              clinicName: 'VitalSync Clinic',
+              daysLeft: Math.max(1, diffDays)
+            });
+            refillsNotified++;
+          }
+        }
+
+        // 2. Diagnostic Re-test Scan (<= 10 days until test)
+        if (cohort.nextRetestDate) {
+          const retestDate = new Date(cohort.nextRetestDate);
+          const diffRetestDays = Math.ceil((retestDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffRetestDays <= 10 && diffRetestDays >= -15) {
+            await WhatsAppTemplateEngine.dispatchChronicRetestInvitation({
+              patientPhone: cohort.patientPhone,
+              patientName: cohort.patientName,
+              conditionName: cohort.conditionName || 'Health Condition',
+              testName: cohort.retestTestName || 'Comprehensive Chronic Biomarker Panel',
+              clinicName: 'VitalSync Diagnostics'
+            });
+            retestsNotified++;
+          }
+        }
+
+        // 3. Routine Follow-Up Consult Scan (if adherence < 80% or defaulter)
+        if (cohort.status === 'defaulter_7d' || cohort.status === 'defaulter_15d' || (cohort.adherenceScore && cohort.adherenceScore < 80)) {
+          await WhatsAppTemplateEngine.dispatchChronicConsultScheduling({
+            patientPhone: cohort.patientPhone,
+            patientName: cohort.patientName,
+            doctorName: 'Dr. Pankaj Kumar',
+            conditionName: cohort.conditionName || 'Chronic Care Review',
+            doctorFee: 500,
+            clinicName: 'VitalSync Clinic'
+          });
+          consultsNotified++;
+        }
+      }
+
+      const result = {
+        success: true,
+        refillsNotified,
+        retestsNotified,
+        consultsNotified,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('[ChronicCareService] Autonomous Chronic Agentic Engine finished sweep:', result);
+      return result;
+    } catch (err) {
+      console.error('[ChronicCareService] Autonomous Chronic Agent error:', err);
+      return {
+        success: false,
+        refillsNotified: 0,
+        retestsNotified: 0,
+        consultsNotified: 0,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  /**
+   * Dispatch condition-specific ICMR/ADA diet & lifestyle guide via WhatsApp.
+   * Called from whatsappService.ts `AWAITING_CHRONIC_ACTION` case 4 (Diet/Lifestyle).
+   */
+  public static dispatchConditionDietGuide(phone: string, conditionCode: string, patientName: string): void {
+    const DIET_GUIDES: Record<string, string> = {
+      DIABETES: `🥗 *ICMR / ADA DIABETES DIET PLAN* 🩺
+
+Namaste *${patientName}* Ji! 🙏 Aapke Type-2 Diabetes ke liye doctor-approved daily plan:
+
+🍽️ *Kya Khayein:*
+• Complex carbs: Brown rice, jowar roti, bajra, oats
+• High-fiber sabzi: Karela, methi, palak, lauki, tinda
+• Protein: Dal, eggs, low-fat curd, paneer, fish (grilled)
+• Healthy fats: 1 tsp cold-pressed mustard oil
+• Snacks: Handful of walnuts / almonds / roasted chana
+
+🚫 *Kya Avoid Karein:*
+• White rice, maida, instant noodles, bakery items
+• Fruit juices, cold drinks, packaged sweets
+• Processed foods, trans fats, pickles
+
+⏰ *Meal Timing (Critical for Sugar Control):*
+• Breakfast: 8 AM | Lunch: 1 PM | Dinner: 7:30 PM
+• Small healthy snack at 11 AM and 4 PM
+
+🚶 *Daily Exercise:*
+• 30 min brisk walk after dinner (reduces postprandial sugar 20%)
+• Avoid sitting continuously > 60 min
+
+💊 *Medicine Reminder:* Metformin / Glimepiride — khane ke baad leni hai, khali pet NAHI! 🚨`,
+
+      HYPERTENSION: `🥗 *ICMR DASH DIET PLAN — HIGH BP* 🩺
+
+Namaste *${patientName}* Ji! 🙏 Aapke Hypertension ke liye doctor-approved DASH plan:
+
+🍽️ *Kya Khayein:*
+• Potassium-rich: Banana (1/day), sweet potato, spinach
+• Calcium: Low-fat milk/curd 2 cups/day
+• Whole grains: Oats, barley, brown rice
+• Lean protein: Fish, dal, chicken (boiled/grilled)
+
+🚫 *Kya Avoid Karein (HIGH PRIORITY):*
+• Salt: Max 5g/day — No extra namak at table!
+• Pickles, papad, chips, namkeen, processed foods
+• Alcohol, caffeine excess (max 1 tea/day)
+• Red meat, full-fat dairy
+
+⏰ *Lifestyle:*
+• 30 min morning walk (yoga/pranayam preferred)
+• Stress management: 10 min deep breathing daily
+• BP log: Har roz subah naashte se pehle check karein
+
+💊 *Medicine Alert:* BP dawa kabhi miss mat kijiye — ek din bhi chhoda toh BP spike risk! 🚨`,
+
+      THYROID: `🥗 *THYROID DIET & LIFESTYLE GUIDE* 🩺
+
+Namaste *${patientName}* Ji! 🙏 Hypothyroidism ke liye doctor-approved daily plan:
+
+🍽️ *Kya Khayein:*
+• Selenium-rich: Brazil nuts (2/day), sunflower seeds
+• Iodine source: Iodized salt, seafood (moderate)
+• Iron: Spinach, rajma, ragi, jaggery
+• Zinc: Pumpkin seeds, lentils, cashews
+
+🚫 *Kya Avoid Karein:*
+• Goitrogenic foods (raw): Cabbage, broccoli, cauliflower, soy
+• (Cooked form mein okay — heat destroys goitrogens)
+• Excess fiber right after medicine — 4 hour gap rakhein
+
+⏰ *Medicine Timing (MOST IMPORTANT):*
+• Thyronorm/Levothyroxine: Khali pet, subah uthte hi
+• 30-45 min baad chai ya naashta lein
+• Calcium/iron supplements: Thyroxine se 4 ghante baad
+
+🚶 *Exercise:* 20-30 min aerobic daily — metabolism boost karta hai`,
+
+      CKD: `🥗 *CKD KIDNEY DIET PLAN (STAGE 1-3)* 🩺
+
+Namaste *${patientName}* Ji! 🙏 Kidney health ke liye doctor-approved renal diet:
+
+🍽️ *Kya Khayein (Low Potassium, Low Phosphorus):*
+• Rice, pasta, white bread (low potassium grains)
+• Apples, grapes, strawberries (low-K fruits)
+• Cauliflower, cabbage, green beans (leached vegetables)
+• Egg whites (high protein, low phosphorus)
+
+🚫 *Kya Strictly Avoid:*
+• High potassium: Bananas, oranges, tomatoes, potatoes
+• High phosphorus: Dairy (limit), nuts, dark colas
+• High sodium: Processed food, pickles, papad
+• NSAIDs/painkillers: Ibuprofen, Diclofenac — kidney damaging!
+
+💧 *Fluid Intake: Doctor ke instructions ke anusaar limit karein*
+
+⚠️ *Critical:* Koi bhi new medicine/supplement lene se pehle Doctor se zaroor poochein!`
+    };
+
+    const guide = DIET_GUIDES[conditionCode] || DIET_GUIDES['DIABETES'];
+
+    // Dispatch via WhatsApp using the leaky-bucket queue (Rule 62 compliance)
+    import('./whatsappService').then(({ WhatsAppService }) => {
+      WhatsAppService.sendWhatsAppMessagePayload(phone, 'CHRONIC_DIET_GUIDE', {
+        replyText: guide
+      }).catch(() => {
+        console.warn('[ChronicCareService] Diet guide dispatch to WhatsApp failed (non-critical)');
+      });
+    }).catch(() => {
+      console.warn('[ChronicCareService] Failed to lazy-import WhatsAppService for diet guide');
+    });
+  }
 }
