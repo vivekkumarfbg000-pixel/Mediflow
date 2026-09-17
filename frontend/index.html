@@ -100,17 +100,17 @@
       window.addEventListener('error', function(event) {
         if (window.__mediflow_startup_healthy) return;
         var target = event.target || event.srcElement;
-        var isElement = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
-        if (isElement) {
-          var url = (target.src || target.href || '').toLowerCase();
-          // ONLY trigger for internal app bundles (e.g. /assets/ or local origin app scripts)
-          // NEVER block the app for third-party trackers, beacons, analytics, or external CDN scripts
+        var isScript = target && target.tagName === 'SCRIPT';
+        if (isScript) {
+          var url = (target.src || '').toLowerCase();
+          // ONLY trigger for internal app script bundles (e.g. /assets/ or local origin app scripts)
+          // NEVER block the app for stylesheets, images, third-party trackers, beacons, or external CDN scripts
           var isInternalAppAsset = url.indexOf('/assets/') !== -1 || (url.indexOf(window.location.host.toLowerCase()) !== -1 && url.indexOf('/assets/') !== -1);
           if (!isInternalAppAsset) {
-            // Ignore non-essential third-party script or stylesheet failures (like Cloudflare Insights)
+            // Ignore non-essential third-party script failures (like Cloudflare Insights)
             return;
           }
-          renderStartupError('Failed to load application asset: ' + (target.src || target.href || 'bundle module'), event);
+          renderStartupError('Failed to load application script: ' + (target.src || 'bundle module'), event);
         }
       }, true);
 
