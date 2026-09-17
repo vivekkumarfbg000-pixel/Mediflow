@@ -70,8 +70,13 @@ export interface Patient {
   dilationEye?: 'RE' | 'LE' | 'BE'; // Right Eye, Left Eye, Both Eyes
   dilationDrop?: string; // e.g. "Tropicamide 1%", "Cyclopentolate"
   address?: string;
+  diagnosis?: string;
   isChronic?: boolean;
   is_chronic?: boolean;
+  isCareProgramEnrolled?: boolean;
+  is_care_program_enrolled?: boolean;
+  careProgramId?: string;
+  care_program_id?: string;
   welcomeSentAt?: string;
   welcome_sent_at?: string;
 }
@@ -489,6 +494,9 @@ export interface ClinicSop {
     doctor_fee: number;
     emergency_sos_fee?: number;
     doctor_upi_vpa?: string;
+    care_program_3m_fee?: number;
+    care_program_6m_fee?: number;
+    care_program_name?: string;
     test_prices: Record<string, number>;
     splits: {
       doctor: number;

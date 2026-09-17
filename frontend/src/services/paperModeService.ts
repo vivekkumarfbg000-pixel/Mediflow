@@ -203,7 +203,7 @@ export class PaperModeService {
 
     // D: Auto-Ingest into chronic_care_cohorts & Sovereign Pod Realtime CDC
     try {
-      const medText = (params.medications || []).map(m => m.name).join(' ');
+      const medText = (params.medications || []).map(m => m.medicineName || (m as any).name || '').join(' ');
       const diagText = `${params.diagnosis || ''} ${(params.chronicConditions || []).join(' ')}`;
       const detectedProto = ChronicCareService.detectChronicCondition(medText, diagText);
 
@@ -219,7 +219,7 @@ export class PaperModeService {
           conditionCode: proto.code,
           conditionName: proto.name,
           medications: (params.medications || []).map(m => ({
-            name: m.name,
+            name: m.medicineName || (m as any).name || '',
             dosage: m.dosage || '1-0-1',
             frequency: m.frequency || 'Twice daily'
           })),

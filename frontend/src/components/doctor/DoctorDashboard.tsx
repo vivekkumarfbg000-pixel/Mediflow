@@ -37,7 +37,8 @@ import {
   Plus,
   Send,
   UserPlus,
-  Copy
+  Copy,
+  Stethoscope
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
