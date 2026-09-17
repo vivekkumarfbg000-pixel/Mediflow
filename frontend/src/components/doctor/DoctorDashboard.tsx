@@ -1413,21 +1413,26 @@ Keep the tone professional, clinical, objective, and precise.`;
     api.updatePatientQueueStatus(selectedPatient.id, 'completed');
     setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, queueStatus: 'completed', queue_status: 'completed' } : p));
 
-    // Mark corresponding appointments as completed
+    // Mark corresponding appointments as completed (strictly target today's active consult, NEVER wipe future advance bookings)
     const currentAppts = api.getAppointments();
+    const todayStr = getIstDateString();
+    const targetApptIds: string[] = [];
     let hasApptUpdate = false;
     currentAppts.forEach(a => {
-      if ((a.patientId === selectedPatient.id || (a as any).patient_id === selectedPatient.id) && a.status !== 'cancelled') {
+      const isMatch = (a.patientId === selectedPatient.id || (a as any).patient_id === selectedPatient.id);
+      const isTodayOrActive = getEffectiveAppointmentDate(a) === todayStr || a.status === 'ready_for_consult' || a.status === 'in_consult';
+      if (isMatch && isTodayOrActive && a.status !== 'cancelled' && a.status !== 'completed') {
         a.status = 'completed';
+        targetApptIds.push(a.id);
         hasApptUpdate = true;
       }
     });
-    if (hasApptUpdate) {
+    if (hasApptUpdate && targetApptIds.length > 0) {
       api.saveAppointments(currentAppts);
-      // Synchronize appointment completion with Supabase to trigger realtime CDC
+      // Synchronize appointment completion with Supabase strictly by ID to trigger realtime CDC
       supabase.from('appointments')
         .update({ status: 'completed' })
-        .eq('patient_id', selectedPatient.id)
+        .in('id', targetApptIds)
         .then(({ error }: any) => {
           if (error) console.warn('[DoctorDashboard] Supabase appointment completion sync note:', error);
         });
@@ -1713,6 +1718,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                     source: 'doctor_virtual',
                     is_virtual: true,
                     virtual_date: virtualDate,
+                    appointment_date: virtualDate,
                     virtual_time: virtualTime,
                     appointment_time: new Date().toISOString(),
                     virtual_meeting_url: meetUrl,

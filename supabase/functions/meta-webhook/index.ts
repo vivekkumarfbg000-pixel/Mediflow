@@ -885,6 +885,8 @@ if (!isManualRelay) {
       } else if (message.type === "image") {
         messageText = "[Image Uploaded]";
         isScreenshotProcessing = true;
+      } else if (message.type === "audio" || message.type === "voice") {
+        messageText = "[Voice Note Received]";
       } else {
         messageText = message.text?.body ?? "";
       }
@@ -2199,6 +2201,7 @@ async function triggerBotReplyPipeline(ctx: {
             is_virtual: false,
             token_number: tokenNumber,
             virtual_date: selectedDate,
+            appointment_date: selectedDate,
             appointment_time: nowISO,
             created_at: nowISO,
             pod_id: currentPodId
@@ -2953,6 +2956,7 @@ async function triggerBotReplyPipeline(ctx: {
                 appointment_time: apptTimestamp,
                 is_virtual: true,
                 virtual_date: selectedDate,
+                appointment_date: selectedDate,
                 virtual_time: slotText,
                 virtual_meeting_url: `https://meet.jit.si/vitalsync-consult-${newApptId}`,
                 pod_id: currentPodId,
@@ -4159,6 +4163,7 @@ Keep response concise (under 120 words).`
               is_vip: true,
               source: "whatsapp_sos",
               virtual_date: todayDate,
+              appointment_date: todayDate,
               virtual_time: "EMERGENCY (Priority #1)",
               pod_id: sosPodId,
               entity_id: null,

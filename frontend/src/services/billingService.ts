@@ -499,6 +499,7 @@ export class BillingService {
             patient_phone: appt.patientPhone || (appt as any).patient_phone || null,
             is_virtual: Boolean(appt.isVirtual || (appt as any).is_virtual),
             virtual_date: (appt as any).virtualDate || (appt as any).virtual_date || apptDate,
+            appointment_date: apptDate,
             virtual_time: (appt as any).virtualTime || (appt as any).virtual_time || '10:00 AM',
             virtual_meeting_url: (appt as any).virtualMeetingUrl || (appt as any).virtual_meeting_url || null,
             source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
@@ -791,6 +792,7 @@ export class BillingService {
           appointment_time: `${effectiveDate}T10:00:00.000Z`,
           is_virtual: source === 'whatsapp',
           virtual_date: effectiveDate,
+          appointment_date: effectiveDate,
           virtual_time: effectiveTime,
           pod_id: ctx.podId || FALLBACK_POD_ID
         });

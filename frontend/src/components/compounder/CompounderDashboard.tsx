@@ -1569,6 +1569,8 @@ export const CompounderDashboard: React.FC = () => {
             appointment_time: nowISO,
             created_at: nowISO,
             is_virtual: false,
+            virtual_date: getIstDateString(),
+            appointment_date: getIstDateString(),
             source: 'counter',
             pod_id: currentPodId,
             patient_vitals: vitals

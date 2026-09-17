@@ -779,6 +779,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                                 doctor_id: doctorId,
                                 is_virtual: true,
                                 virtual_date: todayStr,
+                                appointment_date: todayStr,
                                 virtual_time: defaultTimeStr,
                                 virtual_meeting_url: meetUrl,
                                 status: 'scheduled',
