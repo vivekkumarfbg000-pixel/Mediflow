@@ -180,7 +180,7 @@ serve(async (req) => {
         `✨ 1-Click Confirm kijiye aur *10% OFF* paiye!\n\nKripya niche select kijiye:`;
 
       const buttons = [
-        { id: "REFILL_CONFIRM", title: "📦 1-Click Refill (10% OFF)" },
+        { id: "REFILL_CONFIRM", title: "📦 1-Click Refill" },
         { id: "SPEAK_DOCTOR", title: "👨‍⚕️ Speak to Doctor" },
       ];
 

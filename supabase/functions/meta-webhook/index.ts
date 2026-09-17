@@ -790,6 +790,24 @@ if (!isManualRelay) {
       }
 
       const message = value.messages[0];
+      const messageId = message.id;
+      
+      // 🚀 Idempotency Lock: Prevent Meta Retry Double Processing
+      if (messageId) {
+        const { error: idempErr } = await supabase
+          .from("whatsapp_processed_messages")
+          .insert({ message_id: messageId });
+          
+        if (idempErr) {
+          if (idempErr.code === '23505') { // Unique constraint violation (Postgres)
+            console.log(`[Meta Webhook] 🛑 Idempotency hit: Message ${messageId} already processed. Returning 200 to halt retry loop.`);
+            return new Response("Already processed", { status: 200 });
+          } else {
+            console.warn(`[Meta Webhook] ⚠️ Idempotency insert error for ${messageId}:`, idempErr);
+          }
+        }
+      }
+
       const patientPhone = message.from;
       const waContactName = (value.contacts?.[0]?.profile?.name || "").trim();
       
@@ -817,8 +835,8 @@ if (!isManualRelay) {
         else if (replyId === "btn_order_delivery" || replyId === "menu_delivery") messageText = "order delivery";
         else if (replyId === "btn_virtual") messageText = "virtual";
         else if (replyId === "btn_physical") messageText = "physical";
-        else if (replyId === "btn_physical_review") messageText = "physical review";
-        else if (replyId === "btn_virtual_review") messageText = "virtual review";
+        else if (replyId === "btn_physical_review" || replyId === "CLINIC_REVIEW") messageText = "physical review";
+        else if (replyId === "btn_virtual_review" || replyId === "VIRTUAL_REVIEW") messageText = "virtual review";
         else if (replyId === "REFILL_CONFIRM" || replyId === "btn_refill_confirm") messageText = "confirm refill";
         else if (replyId === "SPEAK_DOCTOR" || replyId === "btn_speak_doctor") messageText = "speak to doctor";
         else if (replyId === "btn_pay") messageText = "pay";
@@ -842,8 +860,8 @@ if (!isManualRelay) {
         else if (btnPayload === "btn_book" || btnPayload === "menu_book" || btnPayload === "book") messageText = "book";
         else if (btnPayload === "menu_physical" || btnPayload === "physical" || btnPayload === "btn_physical") messageText = "physical";
         else if (btnPayload === "menu_virtual" || btnPayload === "virtual" || btnPayload === "btn_virtual") messageText = "virtual";
-        else if (btnPayload === "btn_physical_review") messageText = "physical review";
-        else if (btnPayload === "btn_virtual_review") messageText = "virtual review";
+        else if (btnPayload === "btn_physical_review" || btnPayload === "CLINIC_REVIEW") messageText = "physical review";
+        else if (btnPayload === "btn_virtual_review" || btnPayload === "VIRTUAL_REVIEW") messageText = "virtual review";
         else if (btnPayload === "REFILL_CONFIRM" || btnPayload === "btn_refill_confirm") messageText = "confirm refill";
         else if (btnPayload === "SPEAK_DOCTOR" || btnPayload === "btn_speak_doctor") messageText = "speak to doctor";
         else if (btnPayload === "btn_order_delivery") messageText = "order delivery";
@@ -1197,7 +1215,7 @@ async function triggerBotReplyPipeline(ctx: {
   let resolvedDoctorName = "Doctor";
   let resolvedClinicName = connection?.clinic_display_name || sessionData?.clinicName || "Clinic";
   let resolvedConsultationFee = 500;
-  let resolvedEmergencySosFee = 618;
+  let resolvedEmergencySosFee = 600;
   let isPaperMode = false;
   
   try {
@@ -1265,7 +1283,7 @@ async function triggerBotReplyPipeline(ctx: {
     if (sopEmergencyFee > 0) {
       resolvedEmergencySosFee = sopEmergencyFee;
     } else if (resolvedConsultationFee > 0) {
-      resolvedEmergencySosFee = Math.round(resolvedConsultationFee * 1.236);
+      resolvedEmergencySosFee = Math.round(resolvedConsultationFee * 1.20);
     }
 
     if (connection?.clinic_display_name) {
@@ -1353,10 +1371,33 @@ async function triggerBotReplyPipeline(ctx: {
   
   const isMenuButton = typeof replyId === "string" && (replyId.startsWith("menu_") || replyId === "btn_main_menu" || replyId === "btn_stop");
   const isExplicitReset = cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart";
-  const isPrimaryNavigation = isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book" || isExplicitReset;
   const isNewOrIncomplete = isUnregisteredOrIncompletePatient(patient);
 
-  if (isExplicitReset || state === "COMPLETED") {
+  const ACTIVE_INPUT_STATES = [
+    "AWAITING_REGISTRATION_DETAILS",
+    "AWAITING_DATE_SELECTION",
+    "AWAITING_SLOT_SELECTION",
+    "AWAITING_PAYMENT",
+    "AWAITING_REFILL_SELECTION",
+    "AWAITING_FAMILY_DETAILS",
+    "AWAITING_FAMILY_SELECTION",
+    "AWAITING_AI_QUERY"
+  ];
+
+  if (!ACTIVE_INPUT_STATES.includes(state)) {
+    if (isExplicitReset || state === "COMPLETED" || globalGreetings.includes(cleaned) || isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book") {
+      const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      try {
+        await supabase
+          .from("whatsapp_sessions")
+          .update({ current_state: newState, last_interaction: new Date().toISOString() })
+          .eq("id", session.id);
+      } catch (_e) {}
+      state = newState;
+      sessionData.pendingInvoiceId = null;
+      sessionData.pendingApptId = null;
+    }
+  } else if (isExplicitReset || replyId === "btn_main_menu") {
     const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     try {
       await supabase
@@ -1365,15 +1406,6 @@ async function triggerBotReplyPipeline(ctx: {
         .eq("id", session.id);
     } catch (_e) {}
     state = newState;
-    sessionData.pendingInvoiceId = null;
-    sessionData.pendingApptId = null;
-  } else if (globalGreetings.includes(cleaned)) {
-    const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
-    state = newState;
-    sessionData.pendingInvoiceId = null;
-    sessionData.pendingApptId = null;
-  } else if (isPrimaryNavigation && state !== "AWAITING_REGISTRATION_DETAILS") {
-    state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     sessionData.pendingInvoiceId = null;
     sessionData.pendingApptId = null;
   }
@@ -1406,33 +1438,45 @@ async function triggerBotReplyPipeline(ctx: {
   switch (state) {
     case "AWAITING_WELCOME":
       if (isUnregisteredOrIncompletePatient(patient)) {
-        if (cleaned === "vip" || cleaned.includes("vip") || cleaned === "sos" || replyId === "menu_sos" || replyId === "menu_vip") {
+        if (cleaned === "1" || cleaned === "physical" || cleaned.includes("physical") || replyId === "menu_physical" || replyId === "btn_physical") {
+          sessionData.pendingConsultationType = "physical";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "2" || cleaned === "virtual" || cleaned.includes("virtual") || replyId === "menu_virtual" || replyId === "btn_virtual") {
+          sessionData.pendingConsultationType = "virtual";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "3" || cleaned.includes("report") || cleaned.includes("lab") || replyId === "menu_report") {
+          sessionData.pendingAction = "report";
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! Pathology Lab Reports dekhne ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "4" || cleaned === "vip" || cleaned.includes("vip") || cleaned === "sos" || cleaned.includes("emergency") || replyId === "menu_sos" || replyId === "menu_vip") {
           sessionData.pendingConsultationType = "vip";
           sessionData.isSos = true;
           sessionData.isVip = true;
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! ${resolvedClinicName} mein ⭐ *VIP Priority Booking* ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-        } else if (cleaned === "physical" || cleaned.includes("physical") || replyId === "menu_physical" || replyId === "btn_physical" || cleaned === "1") {
-          sessionData.pendingConsultationType = "physical";
+        } else if (cleaned === "5" || cleaned.includes("refill") || cleaned.includes("medicine") || replyId === "menu_refill") {
+          sessionData.pendingAction = "refill";
           nextState = "AWAITING_REGISTRATION_DETAILS";
-          replyText = `Namaste! ${resolvedClinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-        } else if (cleaned === "virtual" || cleaned.includes("virtual") || replyId === "menu_virtual" || replyId === "btn_virtual" || cleaned === "2") {
-          sessionData.pendingConsultationType = "virtual";
+          replyText = `Namaste! 1-Click Medicine Refill (10% OFF) ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "6" || cleaned.includes("refer") || replyId === "menu_refer") {
+          sessionData.pendingAction = "refer";
           nextState = "AWAITING_REGISTRATION_DETAILS";
-          replyText = `Namaste! ${resolvedClinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-        } else if (cleaned === "family" || cleaned.includes("family") || replyId === "menu_family") {
+          replyText = `Namaste! Referral Rewards unlock karne ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+        } else if (cleaned === "7" || cleaned === "family" || cleaned.includes("family") || replyId === "menu_family") {
           sessionData.pendingAction = "family";
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! Family member ke liye checkup book karne se pehle, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-        } else if (cleaned === "summary" || cleaned.includes("prescription") || replyId === "menu_summary") {
+        } else if (cleaned === "8" || cleaned === "summary" || cleaned.includes("prescription") || replyId === "menu_summary") {
           sessionData.pendingAction = "summary";
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! Apni digital prescription dekhne ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-        } else if (cleaned === "ai" || cleaned.includes("assistant") || replyId === "menu_ai") {
+        } else if (cleaned === "9" || cleaned === "ai" || cleaned.includes("assistant") || replyId === "menu_ai") {
           sessionData.pendingAction = "ai_help";
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! AI Clinical Assistant access karne ke liye, please pehle apna profile register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-        } else if (cleaned === "locker" || cleaned.includes("locker") || replyId === "menu_locker") {
+        } else if (cleaned === "10" || cleaned === "locker" || cleaned.includes("locker") || replyId === "menu_locker") {
           sessionData.pendingAction = "locker";
           nextState = "AWAITING_REGISTRATION_DETAILS";
           replyText = `Namaste! Apna Digital Health Locker access karne ke liye, please pehle apna details register kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
@@ -1541,28 +1585,7 @@ async function triggerBotReplyPipeline(ctx: {
           }).eq("patient_id", patient.id).is("revoked_at", null);
         }
       } else if (
-        (((cleaned === "1" || cleaned === "vip" || cleaned.includes("vip")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_vip" || replyId === "btn_vip" || cleaned === "sos" || cleaned.includes("emergency") || replyId === "menu_sos")
-      ) {
-        if (isUnregisteredOrIncompletePatient(patient)) {
-          sessionData.pendingConsultationType = "vip";
-          sessionData.isSos = true;
-          sessionData.isVip = true;
-          nextState = "AWAITING_REGISTRATION_DETAILS";
-          replyText = `Namaste! ${resolvedClinicName} mein ⭐ *VIP Priority Booking* ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
-          break;
-        }
-        sessionData.consultationType = "vip";
-        sessionData.isSos = true;
-        sessionData.isVip = true;
-        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(true);
-        sessionData.dateOptions = dates;
-        sessionData.dateDisplayOptions = displayDates;
-        sessionData.isTodayAvailable = isTodayAvailable;
-
-        nextState = "AWAITING_DATE_SELECTION";
-        replyText = `⭐ *VIP PRIORITY BOOKING (Priority #1 Fast-Track)* ⚡\n\n${resolvedDoctorName} ke VIP Priority checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
-      } else if (
-        (((cleaned === "2" || cleaned === "physical" || cleaned.includes("physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
+        (((cleaned === "1" || cleaned === "physical" || cleaned.includes("physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
       ) {
         if (isUnregisteredOrIncompletePatient(patient)) {
           sessionData.pendingConsultationType = "physical";
@@ -1581,7 +1604,7 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (
-        (((cleaned === "3" || cleaned === "virtual" || cleaned.includes("virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
+        (((cleaned === "2" || cleaned === "virtual" || cleaned.includes("virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
       ) {
         if (isUnregisteredOrIncompletePatient(patient)) {
           sessionData.pendingConsultationType = "virtual";
@@ -1600,7 +1623,7 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (
-        cleaned === "4" || cleaned.includes("report") || cleaned.includes("lab") || cleaned.includes("pathology") || replyId === "menu_report" || replyId === "btn_report"
+        cleaned === "3" || cleaned.includes("report") || cleaned.includes("lab") || cleaned.includes("pathology") || replyId === "menu_report" || replyId === "btn_report"
       ) {
         nextState = "COMPLETED";
         let reports: any[] = [];
@@ -1650,6 +1673,27 @@ async function triggerBotReplyPipeline(ctx: {
         } else {
           replyText = `Aapka koi approved pathology report abhi on file nahi mila. ${resolvedClinicName} lab technician ke test publish karne par aapko WhatsApp par automatic report deliver ho jayegi! 🔬`;
         }
+      } else if (
+        (((cleaned === "4" || cleaned === "vip" || cleaned.includes("vip")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_vip" || replyId === "btn_vip" || cleaned === "sos" || cleaned.includes("emergency") || replyId === "menu_sos")
+      ) {
+        if (isUnregisteredOrIncompletePatient(patient)) {
+          sessionData.pendingConsultationType = "vip";
+          sessionData.isSos = true;
+          sessionData.isVip = true;
+          nextState = "AWAITING_REGISTRATION_DETAILS";
+          replyText = `Namaste! ${resolvedClinicName} mein ⭐ *VIP Priority Booking* ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
+          break;
+        }
+        sessionData.consultationType = "vip";
+        sessionData.isSos = true;
+        sessionData.isVip = true;
+        const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(true);
+        sessionData.dateOptions = dates;
+        sessionData.dateDisplayOptions = displayDates;
+        sessionData.isTodayAvailable = isTodayAvailable;
+
+        nextState = "AWAITING_DATE_SELECTION";
+        replyText = `⭐ *VIP PRIORITY BOOKING (Priority #1 Fast-Track)* ⚡\n\n${resolvedDoctorName} ke VIP Priority checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
       } else if (
         cleaned === "5" || cleaned.includes("refill") || cleaned.includes("medicine") || cleaned.includes("dawai") || replyId === "menu_refill"
       ) {
@@ -1800,19 +1844,29 @@ async function triggerBotReplyPipeline(ctx: {
         const refillPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
         if (refillPatId) {
           try {
+            // 1. Find the active chronic cohort for the patient to get actual medicine spend
+            const { data: activeCohort } = await supabase
+              .from("chronic_care_cohorts")
+              .select("id, monthly_medicine_spend, condition_name")
+              .eq("patient_id", refillPatId)
+              .in("status", ["active", "due_refill"])
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            // Calculate actual cost based on chronic engine (Fallback to 500 if missing)
+            const baseAmount = (activeCohort && activeCohort.monthly_medicine_spend) ? Number(activeCohort.monthly_medicine_spend) : 500;
+            const discountAmount = Math.round(baseAmount * 0.10); // 10% VIP Discount
+            const finalAmount = baseAmount - discountAmount;
+
             await supabase.from("medicine_bills").insert({
               id: crypto.randomUUID(), patient_id: refillPatId,
-              subtotal: 500, total_amount: 450, payment_mode: "cod",
+              subtotal: baseAmount, total_amount: finalAmount, 
+              item_discount_amount: discountAmount,
+              payment_mode: "cod",
               status: "pending", source: "whatsapp",
               pod_id: session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001"
             });
-
-            const { data: activeCohort } = await supabase
-              .from("chronic_care_cohorts")
-              .select("id")
-              .eq("patient_id", refillPatId)
-              .limit(1)
-              .maybeSingle();
 
             if (activeCohort) {
               await supabase.rpc("process_chronic_refill_assertion", {
@@ -1835,9 +1889,13 @@ async function triggerBotReplyPipeline(ctx: {
         nextState = "COMPLETED";
         replyText = `Full VitalSync Services Catalog:\nNiche menu se service select kijiye:`;
       } else {
-        // Default welcome menu response with canonical 10 services
+        // Default welcome menu response with canonical 6 services as per SOP
         nextState = "AWAITING_CONFIRMATION";
-        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 *${resolvedClinicName.toUpperCase()} SERVICES* 🌟\n1️⃣ ⭐ VIP Priority Booking ⚡ (Priority #1 Fast-Track)\n2️⃣ Book Physical Clinic Visit 🏥\n3️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n4️⃣ View Lab Reports & Hinglish Summary 🔬\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n7️⃣ Book for Family Member 👥\n8️⃣ 📋 Rx Prescription & Doctor Notes\n9️⃣ 🤖 Ask AI Clinical Assistant\n🔟 📁 Digital Health Locker & Records\n\nService select karne ke liye number (1-10) reply kijiye ya niche menu tap kijiye! 🩺`;
+        const isFreeUnlocked = Boolean(patient?.is_premium_member || (patient?.free_virtual_consults_available && Number(patient.free_virtual_consults_available) > 0));
+        const virtualOption = isFreeUnlocked 
+          ? "2️⃣ Book Virtual Video Consult 💻 (🎁 1 Free Consult Unlocked)"
+          : "2️⃣ Book Virtual Video Consult 💻";
+        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 ${resolvedClinicName.toUpperCase()} SERVICES 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n${virtualOption}\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye button tap kijiye ya number (1-6) reply kijiye! 🩺`;
       }
       break;
 
@@ -2775,60 +2833,58 @@ async function triggerBotReplyPipeline(ctx: {
           console.warn("[Meta Webhook] Error creating apptTimestamp:", err);
         }
 
-        // Check for FREE Virtual Follow-up Eligibility
-        let isEligibleForFreeVirtual = Boolean(sessionData.isLoyaltyFreeConsult || patient?.is_premium_member);
+        // Strict Dual-Condition Check for FREE Virtual Follow-up Eligibility
+        // INVARIANT: Unlocked ONLY when patient has paid for Partner Pharmacy medicines AND Partner Pathology lab tests on platform
+        let isEligibleForFreeVirtual = false;
         try {
-          if (isVirtualSlot && patient && !isEligibleForFreeVirtual) {
-            const twentyDaysAgo = new Date();
-            twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
-            const twentyDaysAgoStr = twentyDaysAgo.toISOString();
-
-            // 1. Check for clinic encounters in the last 20 days
-            const { data: recentEncounters } = await supabase
-              .from("encounters")
-              .select("id")
-              .eq("patient_id", patient.id)
-              .gte("created_at", twentyDaysAgoStr)
-              .limit(1);
-
-            // 2. Check for paid medicine bills in the last 20 days
-            const { data: medBills } = await supabase
-              .from("medicine_bills")
-              .select("id")
-              .eq("patient_id", patient.id)
-              .eq("status", "paid")
-              .gte("created_at", twentyDaysAgoStr)
-              .limit(1);
-
-            // 3. Check for completed or paid lab tests in the last 20 days
-            const { data: labReqs } = await supabase
-              .from("lab_requisitions")
-              .select("id")
-              .eq("patient_id", patient.id)
-              .gte("created_at", twentyDaysAgoStr)
-              .limit(1);
-
-            // 4. Check for cleared unified invoices in the last 20 days
-            const { data: clrInvs } = await supabase
-              .from("unified_invoices")
-              .select("id")
-              .eq("patient_id", patient.id)
-              .eq("payment_status", "cleared")
-              .gte("created_at", twentyDaysAgoStr)
-              .limit(1);
-
-            if (
-              (recentEncounters && recentEncounters.length > 0) ||
-              (medBills && medBills.length > 0) ||
-              (labReqs && labReqs.length > 0) ||
-              (clrInvs && clrInvs.length > 0)
-            ) {
+          if (isVirtualSlot && patient) {
+            if (patient.is_premium_member || (patient.free_virtual_consults_available && Number(patient.free_virtual_consults_available) > 0)) {
               isEligibleForFreeVirtual = true;
-              console.log(`[Meta Webhook] Patient ${patient.id} qualifies for FREE virtual follow-up consult!`);
+            } else {
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              const thirtyDaysAgoStr = thirtyDaysAgo.toISOString();
+
+              // 1. Check for paid partner pharmacy medicine bills in the last 30 days
+              const { data: medBills } = await supabase
+                .from("medicine_bills")
+                .select("id")
+                .eq("patient_id", patient.id)
+                .eq("status", "paid")
+                .gte("created_at", thirtyDaysAgoStr)
+                .limit(1);
+
+              // 2. Check for completed or paid partner lab requisitions in the last 30 days
+              const { data: labReqs } = await supabase
+                .from("lab_requisitions")
+                .select("id")
+                .eq("patient_id", patient.id)
+                .in("status", ["completed", "sample_collected", "approved", "verified", "paid"])
+                .gte("created_at", thirtyDaysAgoStr)
+                .limit(1);
+
+              // 3. Check for cleared unified invoices with pharmacy and/or lab fees
+              const { data: clrInvs } = await supabase
+                .from("unified_invoices")
+                .select("id, pharmacy_fee, lab_fee")
+                .eq("patient_id", patient.id)
+                .eq("payment_status", "cleared")
+                .gte("created_at", thirtyDaysAgoStr);
+
+              const hasPharmFromInv = clrInvs && clrInvs.some((i: any) => Number(i.pharmacy_fee || 0) > 0);
+              const hasLabFromInv = clrInvs && clrInvs.some((i: any) => Number(i.lab_fee || 0) > 0);
+
+              const hasPaidPharmacy = Boolean((medBills && medBills.length > 0) || hasPharmFromInv);
+              const hasPaidLab = Boolean((labReqs && labReqs.length > 0) || hasLabFromInv);
+
+              if (hasPaidPharmacy && hasPaidLab) {
+                isEligibleForFreeVirtual = true;
+                console.log(`[Meta Webhook] Patient ${patient.id} qualifies for FREE virtual follow-up consult (Dual Pharmacy + Pathology Billed)!`);
+              }
             }
           }
         } catch (err) {
-          console.error("[Meta Webhook] Error checking free virtual follow-up eligibility:", err);
+          console.error("[Meta Webhook] Error checking dual-partner free virtual eligibility:", err);
         }
 
         const bookingPatId = sessionData.bookingPatientId || patient?.id || session.patient_id;
@@ -2855,6 +2911,13 @@ async function triggerBotReplyPipeline(ctx: {
                 entity_id: null,
                 token_number: String(tokenNumber)
               });
+
+              // Redeem the free virtual consult benefit
+              try {
+                await supabase.rpc("redeem_patient_free_virtual_consult", { p_patient_id: bookingPatId });
+              } catch (_redeemErr) {
+                await supabase.from("patient_registry").update({ is_premium_member: false, free_virtual_consults_available: 0 }).eq("id", bookingPatId);
+              }
             }
           } catch (err) {
             console.error("[Meta Webhook] Error creating free virtual appointment record:", err);
@@ -2877,7 +2940,7 @@ async function triggerBotReplyPipeline(ctx: {
             console.error("[Meta Webhook] Error creating free virtual invoice record:", err);
           }
 
-          replyText = `Aapki free virtual follow-up booking confirm ho gayi hai! 🟢\n\n*Appointment Details*:\n• Doctor: ${resolvedDoctorName}\n• Clinic Node: ${resolvedClinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${newApptId}\n\n${resolvedDoctorName} ke saath checkup time par start hoga. Thank you! 😊`;
+          replyText = `Aapki FREE virtual follow-up booking confirm ho gayi hai! 🎁\n\n*(Partner Pharmacy + Partner Pathology Billing Loyalty Benefit Applied: ₹0)*\n\n*Appointment Details*:\n• Doctor: ${resolvedDoctorName}\n• Clinic Node: ${resolvedClinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Video Call Link: https://meet.jit.si/vitalsync-consult-${newApptId}\n\n${resolvedDoctorName} ke saath checkup time par start hoga. Thank you! 😊`;
         } else {
           // Normal Paid Consultation Flow
           nextState = "AWAITING_PAYMENT";
@@ -3391,7 +3454,7 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
       // 3. User asserting payment (Direct UPI or 1-tap button)
-      } else if (cleaned.includes("pay") || cleaned.includes("clear") || cleaned.includes("paid") || cleaned.includes("done") || cleaned.includes("confirm") || cleaned.includes("status") || replyId === "btn_pay" || replyId === "btn_paid") {
+      } else if (/\b(pay|clear|paid|done|confirm|status)\b/i.test(cleaned) || replyId === "btn_pay" || replyId === "btn_paid") {
         if (invoiceId) {
           try {
             await supabase.rpc('process_invoice_settlement', {
@@ -3484,11 +3547,11 @@ async function triggerBotReplyPipeline(ctx: {
         } else if (isVirtualSlot) {
           replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${effectiveApptId || "room"}\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🎉 *APPOINTMENT CONFIRMED! Token #${tokenNumber} Issued!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "APPT-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Type: Physical Clinic Visit 🏥\n\n⚠️ *Clinic Vitals Desk Verification*:\nClinic pahuchein aur intake counter par Token (#${tokenNumber}) show karein. Humara compounder vitals check karte waqt aapka payment screenshot verify karega. Thank you for choosing VitalSync! 😊`;
+          replyText = `🟢 *APPOINTMENT CONFIRMED & TOKEN ALLOCATED!*\n\nHi ${patientName}! ${doctorName} ke saath aapka checkup confirm ho gaya hai:\n\n• Token Number: *${tokenNumber}* 🎫\n• Queue Status: ${Math.max(0, tokenNumber - 1)} Patients ahead of you (~${Math.max(0, tokenNumber - 1) * 15} mins wait)\n• Live Clinic Turn Alert: Turn aane se 2 patient pehle WhatsApp alert aayega!\n• Clinic Location: ${clinicName}, Desk #1\n\nDoctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Thank you! 😊`;
         }
 
       // 4. User chose to pay at clinic counter
-      } else if (cleaned.includes("counter") || cleaned.includes("cash") || replyId === "btn_pay_counter" || replyId === "btn_counter") {
+      } else if (/\b(counter|cash)\b/i.test(cleaned) || replyId === "btn_pay_counter" || replyId === "btn_counter") {
         if (invoiceId) {
           await supabase.from("unified_invoices").update({ payment_status: "pending", payment_method: "cash" }).eq("id", invoiceId);
         }
@@ -3546,10 +3609,14 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `🎉 *APPOINTMENT BOOKED! Token #${tokenNumber} Generated!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Token (#${tokenNumber}) dikhakar Cash ya UPI se Doctor Consultation Fee pay karein! Staff vitals record karke aapko chamber mein call karega. Dhanyawad! 😊`;
         }
 
-      // 4. Global navigation / Reset (Anti-Lockup)
-      } else if (cleaned.includes("menu") || cleaned.includes("hi") || cleaned.includes("hello") || cleaned.includes("hey") || cleaned.includes("namaste") || cleaned.includes("restart") || cleaned.includes("reset") || cleaned.includes("cancel") || cleaned.includes("book") || cleaned.includes("start") || cleaned.includes("check-in") || cleaned.includes("checkin") || cleaned === "0") {
-        nextState = "IDLE";
-        replyText = `🏥 *Namaste! Welcome to VitalSync Smart Clinic* 🟢\n\nAapka main menu open ho gaya hai. Please service select karne ke liye option number reply karein:`;
+      // 4. Explicit Navigation / Reset (Strict match to prevent mid-flow payment collapse)
+      } else if (cleaned === "menu" || cleaned === "0" || cleaned === "reset" || cleaned === "restart" || cleaned === "cancel" || replyId === "btn_main_menu" || replyId === "btn_stop") {
+        nextState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+        const isFreeUnlocked = Boolean(patient?.is_premium_member || (patient?.free_virtual_consults_available && Number(patient.free_virtual_consults_available) > 0));
+        const virtualOption = isFreeUnlocked 
+          ? "2️⃣ Book Virtual Video Consult 💻 (🎁 1 Free Consult Unlocked)"
+          : "2️⃣ Book Virtual Video Consult 💻";
+        replyText = `Namaste ${patientName}! 🙏 Welcome to ${resolvedClinicName}.\n\n🌟 ${resolvedClinicName.toUpperCase()} SERVICES 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n${virtualOption}\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye button tap kijiye ya number (1-6) reply kijiye! 🩺`;
 
       } else if (["stop consent", "stop", "revoke"].includes(cleaned)) {
         replyText = "Dues pending rehne par consent cancel nahi kiya ja sakta. Please pehle apna payment clear kijiye ya **MENU** type karein.";
@@ -3661,7 +3728,7 @@ Keep response concise (under 120 words).`
       } else if (cleaned === "home" && awaitingAction === "lab") {
         sessionData.awaitingProactiveAction = null;
         replyText = "Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah 8:00 AM par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢";
-      } else if (cleaned.includes("refill") || cleaned === "4") {
+      } else if (cleaned === "5" || cleaned.includes("refill") || replyId === "menu_refill") {
         // SMART REFILL SELECTION: Show itemized medicine list for selection
         let rxMeds: any[] = [];
         let lastEncounterId: string | null = null;
@@ -3697,7 +3764,7 @@ Keep response concise (under 120 words).`
 
         const medList = rxMeds.map((m: any, idx: number) => `${idx + 1}️⃣ ${m.medicine_name} (${m.dosage})`).join("\n");
         replyText = `Aapki current prescription ki dawayein:\n\n${medList}\n\nAapko kaunsi dawa refill karni hai?\nType medicine number (e.g. *1,2* ya sab ke liye *ALL*) 💊`;
-      } else if (cleaned.includes("report") || cleaned === "3") {
+      } else if (cleaned === "3" || cleaned.includes("report") || replyId === "menu_report" || replyId === "btn_report") {
         // Query approved lab reports
         let reports: any[] = [];
         if (patient) {
@@ -3791,7 +3858,7 @@ Keep response concise (under 120 words).`
         } else {
           replyText = "Aapka koi approved pathology report abhi on file nahi hai. Lab technician ke results update karne ka wait kijiye. 🧪";
         }
-      } else if (cleaned.includes("summary") || cleaned === "5" || cleaned === "summary") {
+      } else if (cleaned === "8" || cleaned.includes("summary") || cleaned.includes("prescription") || cleaned.includes("rx") || replyId === "menu_summary" || replyId === "btn_summary") {
         // Query encounters with medications
         let encounters: any[] = [];
         if (patient) {
@@ -3836,7 +3903,7 @@ Keep response concise (under 120 words).`
 
         nextState = "AWAITING_DATE_SELECTION";
         replyText = `${resolvedDoctorName} ke virtual checkup ke liye date select kijiye:\n\n1️⃣ ${displayDates[0]}\n2️⃣ ${displayDates[1]}\n3️⃣ ${displayDates[2]}\n4️⃣ ${displayDates[3]}\n\nPlease option number (1, 2, 3, ya 4) reply kijiye! 📅`;
-      } else if (cleaned === "6" || cleaned === "family") {
+      } else if (cleaned === "7" || cleaned === "family" || cleaned.includes("family") || replyId === "menu_family" || replyId === "btn_add_family") {
         // INTERACTIVE FAMILY DIRECTORY: Show registered family members first
         let familyMembers: any[] = [];
         try {
@@ -3863,7 +3930,7 @@ Keep response concise (under 120 words).`
         nextState = "COMPLETED";
         replyText = "Aap apna medical question ya health related query likh kar bhejiye. VitalSync AI-RAG assistant aapko doctor-approved guidelines ke hisab se guide karega! 🤖";
 
-      } else if (cleaned === "8" || cleaned === "sos" || cleaned.includes("emergency")) {
+      } else if (cleaned === "4" || cleaned === "sos" || cleaned === "vip" || cleaned.includes("emergency") || replyId === "menu_sos" || replyId === "menu_vip" || replyId === "btn_vip") {
         // EMERGENCY SOS ROUTING: Dynamically extract emergency fee from clinic SOP config (Rule 4)
         let doctorIdSos = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
         try {
@@ -3876,7 +3943,7 @@ Keep response concise (under 120 words).`
         const todayDate = getIstDateString();
 
         // Fetch dynamic emergency SOS fee from active clinic SOP (Rule 4: Emergency SOS Priority #1 Routing)
-        let doctorSosFee = resolvedEmergencySosFee || 618.00;
+        let doctorSosFee = resolvedEmergencySosFee || 600.00;
         try {
           // Get active SOP for this pod
           const podId = session.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001";
@@ -3901,7 +3968,7 @@ Keep response concise (under 120 words).`
           }
           
           const sopCfg = activeSop?.extracted_config;
-          const sosFeeFromSop = sopCfg?.emergency_sos_fee ?? (sopCfg?.doctor_fee ? Math.round(Number(sopCfg.doctor_fee) * 1.236) : undefined);
+          const sosFeeFromSop = sopCfg?.emergency_sos_fee ?? (sopCfg?.doctor_fee ? Math.round(Number(sopCfg.doctor_fee) * 1.20) : undefined);
           if (sosFeeFromSop && typeof sosFeeFromSop === 'number' && sosFeeFromSop > 0) {
             doctorSosFee = sosFeeFromSop;
             console.log(`[Meta Webhook] Using dynamic SOS fee from SOP: ₹${doctorSosFee}`);
@@ -4027,10 +4094,14 @@ Keep response concise (under 120 words).`
               id: sosApptId,
               patient_id: sosPatId,
               patient_name: sosPatName,
+              patient_phone: cleanPhone10,
               doctor_id: doctorIdSos,
               status: "pending_payment",
               appointment_time: new Date().toISOString(),
               is_virtual: false,
+              is_emergency: true,
+              is_vip: true,
+              source: "whatsapp_sos",
               virtual_date: todayDate,
               virtual_time: "EMERGENCY (Priority #1)",
               pod_id: sosPodId,
@@ -4066,7 +4137,7 @@ Keep response concise (under 120 words).`
 
         replyText = `🚨 *EMERGENCY SOS CONSULT ROUTING* 🚨\n\n${resolvedDoctorName} ke queue mein top *PRIORITY #1* position reserve karne ke liye emergency fee pay karein:\n\n• Emergency Doctor Consultation Fee: *₹${doctorSosFee.toFixed(2)}*\n\n📱 *Instant 1-Tap Payment Portal (GPay / PhonePe / Paytm / BHIM / Cards):*\n${sosPortalPaymentUrl}\n\nPayment complete hone par Razorpay Webhook automatically verify karke case Priority #1 par active kar dega! 🟢`;
 
-      } else if (cleaned === "9" || cleaned === "locker" || cleaned.includes("health locker") || cleaned.includes("records")) {
+      } else if (cleaned === "10" || cleaned === "locker" || cleaned.includes("health locker") || cleaned.includes("records") || replyId === "menu_locker") {
         // DIGITAL HEALTH LOCKER: Compile full patient medical history
         let lockerEncounters: any[] = [];
         let lockerReports: any[] = [];
@@ -4105,7 +4176,7 @@ Keep response concise (under 120 words).`
           : "Koi approved lab report nahi mila.";
         replyText = `📂 *${patient?.name || "Aapka"} — Digital Health Locker*\n\n═══ Past Consultations ═══\n${encSummary}\n\n═══ Lab Reports ═══\n${repSummary}\n\nFull medical history aur invoices ke liye VitalSync web portal visit karein. 🌐`;
 
-      } else if (cleaned === "10" || cleaned === "refer" || cleaned.includes("refer")) {
+      } else if (cleaned === "6" || cleaned === "refer" || cleaned.includes("refer") || replyId === "menu_refer") {
         // VIRAL PATIENT REFERRAL ENGINE: Show patient's unique referral code & reward vouchers
         let refCode = patient?.referral_code || `REF-${patientPhone.slice(-4)}`;
         let activeRewardsCount = 0;

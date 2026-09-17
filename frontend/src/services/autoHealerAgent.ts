@@ -2444,6 +2444,9 @@ export class ProactiveHealthMonitor {
     // Append sync queue check
     results.push(ProactiveHealthMonitor.checkSyncQueueStatus());
 
+    // USP Rule 4: Ghost Payment Cancellation
+    ProactiveHealthMonitor.enforceGhostPaymentCancellation();
+
     // Replay local offline telemetry if Supabase is healthy
     const dbCheck = results.find(r => r.service === 'Supabase Database');
     if (dbCheck && dbCheck.status === 'healthy') {
@@ -2452,6 +2455,36 @@ export class ProactiveHealthMonitor {
 
     window.dispatchEvent(new CustomEvent('mediflow-health-update', { detail: results }));
     return results;
+  }
+
+  /** USP Rule 4: Ghost Payment Cancellation for appointments pending >15m */
+  static async enforceGhostPaymentCancellation(): Promise<void> {
+    try {
+      const isOnline = navigator.onLine;
+      if (!isOnline) return;
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('id, created_at')
+        .eq('status', 'pending_payment');
+
+      if (error || !data) return;
+
+      const now = Date.now();
+      const idsToCancel = data
+        .filter(a => now - new Date(a.created_at || 0).getTime() > 15 * 60 * 1000)
+        .map(a => a.id);
+
+      if (idsToCancel.length > 0) {
+        console.warn(`[HealthMonitor] ⚠️ Cancelling ${idsToCancel.length} ghost payments (>15m).`);
+        await supabase
+          .from('appointments')
+          .update({ status: 'cancelled' })
+          .in('id', idsToCancel);
+      }
+    } catch (_e) {
+      /* ignore */
+    }
   }
 
   /** Proactive RLS scanner: scans pg_policies and auto-heals public USING(true) leaks */

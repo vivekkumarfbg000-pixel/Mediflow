@@ -19,7 +19,7 @@ import { generateQRCodeDataURI } from '../../../utils/qrCode';
 import { ClinicalNotificationService } from '../../../services/clinicalNotificationService';
 import { ChronicCareService } from '../../../services/chronicCareService';
 import { ForecastService } from '../../../services/forecastService';
-import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
+import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
 import { save } from '../../../services/apiHelper';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
@@ -92,6 +92,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [selectedMedicines, setSelectedMedicines] = useState<Record<string, { selected: boolean; qty: number }>>({});
   const [selectedTests, setSelectedTests] = useState<Record<string, boolean>>({});
   const [discountInput, setDiscountInput] = useState<number>(0);
+  const [referralCode, setReferralCode] = useState<string>("");
   const [partialCashAmount, setPartialCashAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cash'>('upi');
   const [isClearing, setIsClearing] = useState(false);
@@ -616,7 +617,12 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
     // 10% discount on refills only (applied on pharmacy subtotal)
     const pharmacyDiscount = isRefillPurchase ? parseFloat((pharmacySub * 0.1).toFixed(2)) : 0;
-    const totalDiscount = pharmacyDiscount + discountInput;
+    
+    // USP #6: B2B Referral Reward Engine (10% OFF automatically deducting from checkup and medicine bills)
+    const isValidReferral = referralCode && /^REF-[A-Z0-9]{4}$/i.test(referralCode.trim());
+    const b2bReferralDiscount = isValidReferral ? parseFloat(((consultTotal + pharmacySub + labSub) * 0.1).toFixed(2)) : 0;
+
+    const totalDiscount = pharmacyDiscount + b2bReferralDiscount + discountInput;
 
     // Bug Fix #7: Align pharmacy GST to 5% (matches PharmacyDashboard and Indian GST for essential medicines)
     // Lab diagnostic services attract 18% GST as per Indian GST Schedule
@@ -637,6 +643,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       otItem,
       otTotal,
       pharmacyDiscount,
+      b2bReferralDiscount,
       totalDiscount,
       pharmGst,
       labGst,
@@ -645,7 +652,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       isRefillPurchase,
       isQualifyingFirstPurchase
     };
-  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, selectedMedicines, selectedTests, discountInput, inventory, isOphthalmology, refreshKey]);
+  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, selectedMedicines, selectedTests, discountInput, referralCode, inventory, isOphthalmology, refreshKey]);
 
   // Handle OCR file upload & image preview
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -844,7 +851,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             conditionName: conditionName,
             medications: medicationsList.map(m => ({ name: m.medicineName, dosage: m.dosage })),
             daysSupply: 30,
-            nextRefillDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+            nextRefillDate: getIstOffsetDateString(25)
           } as any);
 
           // Dual-write chronic flag to Supabase
@@ -1043,6 +1050,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         <tr><td style="padding:6px 0;color:#64748b">Pharmacy Items Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.pharmacySub || 0).toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">Diagnostics Subtotal:</td><td style="text-align:right;font-weight:600">₹${(billingLedger.labSub || 0).toFixed(2)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b">GST Amount (5% Pharm / 18% Lab):</td><td style="text-align:right;font-weight:600">₹${(billingLedger.totalGst || 0).toFixed(2)}</td></tr>
+        ${(b2bReferralDiscount || 0) > 0 ? `<tr><td style="padding:6px 0;color:#64748b">B2B Referral (10%):</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(b2bReferralDiscount || 0).toFixed(2)}</td></tr>` : ''}
         <tr><td style="padding:6px 0;color:#64748b">Discount Input:</td><td style="text-align:right;font-weight:600;color:#e11d48">-₹${(discountInput || 0).toFixed(2)}</td></tr>
         <tr style="border-top:2px solid #cbd5e1"><td style="padding:10px 0;font-size:14px;font-weight:bold;color:#0f172a">Grand Total Paid:</td><td style="text-align:right;font-size:14px;font-weight:bold;color:#106675">₹${(billingLedger.finalTotal || 0).toFixed(2)}</td></tr>`;
     }
@@ -1232,6 +1240,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         platformFee: isPureCounterConsult ? 0 : parseFloat(((billingLedger.labSub * 0.05) + (billingLedger.pharmacySub * 0.02)).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
         upiQrPayload: dynamicUpiPayload || PaymentService.generateDirectUpiPayload(billingLedger.finalTotal, unifiedInvoiceId).upiDeepLink,
+        referralCode: typeof isValidReferral !== 'undefined' ? (isValidReferral ? referralCode.trim().toUpperCase() : undefined) : undefined,
+        referralDiscount: typeof isValidReferral !== 'undefined' ? (isValidReferral ? b2bReferralDiscount : undefined) : ((b2bReferralDiscount || 0) > 0 ? b2bReferralDiscount : undefined),
         paymentStatus: 'cleared',
         paymentMethod: paymentMethod,
         createdAt: new Date().toISOString()
@@ -1311,8 +1321,13 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }
       }
 
-      // 7. Premium Club Eligibility Onboarding Check (Any clinic purchase activates loyalty)
-      if (!selectedPatient.isPremiumMember || billingLedger.isQualifyingFirstPurchase) {
+      // 7. Premium Club Eligibility Check: Unlocked ONLY when both Partner Pharmacy and Partner Pathology are billed on platform
+      const hasPharmacyInThisBill = billingLedger.pharmacySub > 0;
+      const hasLabInThisBill = billingLedger.labSub > 0;
+      const priorEligibility = BillingService.checkPatientFreeVirtualEligibility(selectedPatient.id);
+      const isEligibleNow = (priorEligibility.hasPharmacyBilled || hasPharmacyInThisBill) && (priorEligibility.hasLabBilled || hasLabInThisBill);
+
+      if (isEligibleNow && (!selectedPatient.isPremiumMember || priorEligibility.isEligible !== true)) {
         PatientService.updatePatientPremiumStatus(selectedPatient.id, true);
         const rawDocName = activePod?.doctor_name || 'our doctor';
         const docTitle = (rawDocName.startsWith('Dr.') || rawDocName.startsWith('dr.')) ? rawDocName : `Dr. ${rawDocName}`;
@@ -1323,14 +1338,22 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           patientName: selectedPatient.name,
           doctorName: docTitle,
           clinicName: clinicTitle,
-          expiryDays: 15
+          expiryDays: 30
         }).catch(err => console.warn('[BillHubTab] Loyalty WhatsApp dispatch notice:', err));
         
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: { 
-            title: 'Premium Member Enrolled! 🌟', 
-            message: `${selectedPatient.name} is now a Premium Care Club member. 1 Free Virtual Consult unlocked!`, 
+            title: '1 Free Virtual Consult Unlocked! 🌟', 
+            message: `${selectedPatient.name} completed both Partner Pharmacy & Pathology billing! 1 Free Virtual Consult unlocked.`, 
             type: 'success' 
+          }
+        }));
+      } else if (!isEligibleNow) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Payment Succeeded 🧾',
+            message: `Invoice settled. (Note: 1 Free Virtual Consult unlocks when BOTH medicines & lab tests are billed on platform).`,
+            type: 'info'
           }
         }));
       }
@@ -2083,6 +2106,26 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                             <span className="font-mono">-₹{billingLedger.pharmacyDiscount.toFixed(2)}</span>
                           </div>
                         )}
+
+                        {(billingLedger.b2bReferralDiscount || 0) > 0 && (
+                          <div className="flex justify-between text-emerald-400 font-medium">
+                            <span>🎁 B2B Referral (10% OFF):</span>
+                            <span className="font-mono">-₹{(billingLedger.b2bReferralDiscount || 0).toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-center pt-2">
+                          <span className="text-slate-400">Referral Code (REF-XXXX):</span>
+                          <div className="flex items-center gap-1 bg-slate-800 rounded-lg px-2 py-0.5">
+                            <input
+                              type="text"
+                              className="w-24 bg-transparent border-none text-white text-sm focus:ring-0 text-right font-mono"
+                              placeholder="REF-"
+                              value={referralCode}
+                              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                            />
+                          </div>
+                        </div>
 
                         <div className="flex justify-between items-center pt-2">
                           <span className="text-slate-400">Compounder Custom Discount:</span>

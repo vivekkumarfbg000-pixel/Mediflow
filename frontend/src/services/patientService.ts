@@ -258,10 +258,14 @@ export class PatientService {
         try {
           for (const p of todayPatients) {
             if (p.id && p.tokenNumber) {
-              await Promise.all([
-                supabase.from('patient_registry').update({ token_number: p.tokenNumber }).eq('id', p.id),
-                supabase.from('appointments').update({ token_number: p.tokenNumber }).eq('patient_id', p.id)
-              ]);
+              const matchedAppt = todayAppts.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
+              const updates: any[] = [
+                supabase.from('patient_registry').update({ token_number: p.tokenNumber }).eq('id', p.id)
+              ];
+              if (matchedAppt?.id) {
+                updates.push(supabase.from('appointments').update({ token_number: p.tokenNumber }).eq('id', matchedAppt.id));
+              }
+              await Promise.all(updates);
             }
           }
         } catch (_err) { /* ignore non-blocking remote sync */ }
@@ -293,6 +297,21 @@ export class PatientService {
     const premiumMap = load<Record<string, boolean>>('premium_map', {});
     premiumMap[patientId] = isPremium;
     save('premium_map', premiumMap);
+
+    const patients = this.getPatients();
+    const pat = patients.find(p => p.id === patientId);
+    if (pat) {
+      pat.isPremiumMember = isPremium;
+      pat.freeVirtualConsultsAvailable = isPremium ? 1 : 0;
+      this.savePatient(pat);
+    }
+
+    try {
+      supabase.from('patient_registry').update({
+        is_premium_member: isPremium,
+        free_virtual_consults_available: isPremium ? 1 : 0
+      }).eq('id', patientId).then(() => {});
+    } catch (_e) {}
   }
 
   // Self-Healing Background Sync Task Queue Worker
@@ -468,18 +487,27 @@ export class PatientService {
     // 🌟 ENTERPRISE REALTIME UPDATE: Directly update patient_registry and appointments in Supabase
     (async () => {
       try {
-        await Promise.all([
+        const appts = load<any[]>('saas_appointments', []);
+        const todayStr = getIstDateString();
+        const activeAppt = appts.find(a => (a.patientId === patientId || (a as any).patient_id === patientId) && (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr || !a.status || a.status === 'scheduled' || a.status === 'ready_for_consult'));
+
+        const updates: any[] = [
           supabase.from('patient_registry').update({
             vitals: vitals,
             token_number: token,
             queue_status: nextStatus,
             updated_at: new Date().toISOString()
-          }).eq('id', patientId),
-          supabase.from('appointments').update({
-            status: 'ready_for_consult',
-            token_number: token
-          }).eq('patient_id', patientId)
-        ]);
+          }).eq('id', patientId)
+        ];
+        if (activeAppt?.id) {
+          updates.push(
+            supabase.from('appointments').update({
+              status: 'ready_for_consult',
+              token_number: token
+            }).eq('id', activeAppt.id)
+          );
+        }
+        await Promise.all(updates);
       } catch (err) {
         console.warn('[PatientService] updatePatientVitalsAndToken direct update notice:', err);
       }
@@ -629,11 +657,23 @@ export class PatientService {
             updated_at: new Date().toISOString()
           }).eq('id', patientId)
         ];
+        
+        // Find active appointment ID to avoid mass update
+        let activeApptId = null;
         if (targetApptStatus) {
+           const activeAppt = appts.find(a => {
+             const matchId = a.patientId === patientId || (a as any).patient_id === patientId;
+             const aDate = getEffectiveAppointmentDate(a);
+             return matchId && (aDate === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr || !a.status || a.status === 'scheduled' || a.status === 'ready_for_consult');
+           });
+           if (activeAppt?.id) activeApptId = activeAppt.id;
+        }
+
+        if (targetApptStatus && activeApptId) {
           updates.push(
             supabase.from('appointments').update({
               status: targetApptStatus
-            }).eq('patient_id', patientId)
+            }).eq('id', activeApptId)
           );
         }
         await Promise.all(updates);
@@ -1432,6 +1472,67 @@ Respond in plain text (no bullet points, no markdown, no JSON). Keep it under 80
     } else {
       return { amount: baseFee, type: 'First Visit', baseAmount: baseFee };
     }
+  }
+
+  static getPatientLoyaltyStatus(patientId: string): {
+    isPremiumMember: boolean;
+    freeVirtualConsultsAvailable: number;
+    hasPharmacyBilled: boolean;
+    hasLabBilled: boolean;
+    statusLabel: string;
+  } {
+    const patients = this.getPatients();
+    const pat = patients.find(p => p.id === patientId);
+    const isPremium = Boolean(pat?.isPremiumMember || (pat as any)?.is_premium_member);
+    const available = Number(pat?.freeVirtualConsultsAvailable || (pat as any)?.free_virtual_consults_available || (isPremium ? 1 : 0));
+    const status = pat?.partnerBillingStatus || {
+      hasPharmacyBilled: isPremium,
+      hasLabBilled: isPremium,
+      isEligibleForFreeVirtual: isPremium
+    };
+
+    let statusLabel = 'Standard Patient';
+    if (isPremium || available > 0 || status.isEligibleForFreeVirtual) {
+      statusLabel = '🎁 Free Virtual Consult Active';
+    } else if (status.hasPharmacyBilled && !status.hasLabBilled) {
+      statusLabel = '💊 Pharmacy Paid • 🧪 Lab Due';
+    } else if (!status.hasPharmacyBilled && status.hasLabBilled) {
+      statusLabel = '🧪 Lab Paid • 💊 Pharmacy Due';
+    }
+
+    return {
+      isPremiumMember: isPremium || available > 0,
+      freeVirtualConsultsAvailable: available,
+      hasPharmacyBilled: Boolean(status.hasPharmacyBilled),
+      hasLabBilled: Boolean(status.hasLabBilled),
+      statusLabel
+    };
+  }
+
+  static async consumeFreeVirtualConsult(patientId: string): Promise<boolean> {
+    if (!patientId) return false;
+    const patients = this.getPatients();
+    const pat = patients.find(p => p.id === patientId);
+    if (pat) {
+      pat.isPremiumMember = false;
+      pat.freeVirtualConsultsAvailable = Math.max(0, (pat.freeVirtualConsultsAvailable || 1) - 1);
+      this.savePatient(pat);
+    }
+    try {
+      await supabase.rpc('redeem_patient_free_virtual_consult', { p_patient_id: patientId });
+    } catch (_err) {
+      console.warn('[PatientService] redeem_patient_free_virtual_consult fallback:', _err);
+      try {
+        await supabase.from('patient_registry').update({
+          is_premium_member: false,
+          free_virtual_consults_available: 0
+        }).eq('id', patientId);
+      } catch (_e) {}
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+    }
+    return true;
   }
 }
 

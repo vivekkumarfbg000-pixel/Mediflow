@@ -556,6 +556,13 @@ export class LabService {
         } catch (aiErr) {
           console.error('[AI Biomarker Extraction/Summary update failed]:', aiErr);
         }
+
+        // Check and sync Free Virtual Consult loyalty unlock if patient also completed partner pharmacy billing
+        if (req.patientId) {
+          import('./billingService').then(({ BillingService }) => {
+            BillingService.syncPatientLoyaltyUnlock(req.patientId);
+          }).catch(() => {});
+        }
       });
     }
   }

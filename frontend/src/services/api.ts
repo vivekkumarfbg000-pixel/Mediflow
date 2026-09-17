@@ -1239,6 +1239,10 @@ class MediflowApiService {
     return PatientService.generateNextTokenNumber(targetDate, isSos);
   }
 
+  async generateNextTokenNumberAsync(targetDate?: string, isSos: boolean = false): Promise<string> {
+    return PatientService.generateNextTokenNumberAsync(targetDate, isSos);
+  }
+
   registerPatient(patientData: Omit<Patient, 'id' | 'createdAt'> & { id?: string }): Patient {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     const isCircuitOpen = supabaseCircuit.isBlocking();
@@ -1792,8 +1796,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Invoice {
-    const inv = BillingService.createGate1Consult(patientId, source, scheduledDate, scheduledTime);
+  async createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Promise<Invoice> {
+    const inv = await BillingService.createGate1Consult(patientId, source, scheduledDate, scheduledTime);
     this.notify();
     return inv;
   }

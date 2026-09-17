@@ -550,11 +550,11 @@ const setCrossDomainCookie = (active: boolean) => {
 export const getIsRegisteringActive = (profile?: any): boolean => {
   if (typeof window === 'undefined') return false;
   try {
-    if (Boolean((window as any).__mediflow_registering)) return true;
+    if ((window as any).__mediflow_registering) return true;
     if (typeof sessionStorage !== 'undefined') {
       if (sessionStorage.getItem('vitalsync_is_registering') === 'true') return true;
       if (sessionStorage.getItem('vitalsync_reg_step') === '3') return true;
-      if (Boolean(sessionStorage.getItem('mediflow_oauth_onboarding_temp'))) return true;
+      if (sessionStorage.getItem('mediflow_oauth_onboarding_temp')) return true;
     }
     const tab = new URLSearchParams(window.location.search).get('tab');
     if ((tab === 'register' || tab === 'join') && (!profile || !profile.id)) return true;

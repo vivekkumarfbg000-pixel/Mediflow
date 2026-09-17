@@ -191,8 +191,16 @@ export class BillingService {
       localStorage.getItem('mediflow_digital_emr_enabled') === 'false' ||
       localStorage.getItem('vitalsync_operating_mode') === 'paper_rx'
     );
+    const isEmergency = Boolean(
+      targetAppt?.is_emergency || 
+      (targetAppt as any)?.isEmergency || 
+      (targetAppt as any)?.isVip || 
+      (targetAppt as any)?.is_vip ||
+      String(targetAppt?.token_number || (targetAppt as any)?.tokenNumber || '').toUpperCase().startsWith('VIP-') ||
+      String(targetAppt?.token_number || (targetAppt as any)?.tokenNumber || '').toUpperCase().includes(' E')
+    );
     if (targetAppt) {
-      targetAppt.status = (targetAppt.isVirtual || isPaperMode) ? 'ready_for_consult' : 'scheduled';
+      targetAppt.status = (isEmergency || targetAppt.isVirtual || isPaperMode) ? 'ready_for_consult' : 'scheduled';
       targetAppt.payment_status = 'cleared';
       (targetAppt as any).paymentStatus = 'cleared';
       this.saveAppointment(targetAppt);
@@ -207,7 +215,7 @@ export class BillingService {
 
     // Update patient queue status defensively
     if (targetPatientId) {
-      const nextQueueStatus = (targetAppt?.isVirtual || isPaperMode) ? 'awaiting_consultation' : 'awaiting_vitals';
+      const nextQueueStatus = isEmergency ? 'sos_priority' : ((targetAppt?.isVirtual || isPaperMode) ? 'awaiting_consultation' : 'awaiting_vitals');
       PatientService.updatePatientQueueStatus(targetPatientId, nextQueueStatus);
       supabase.from('patient_registry').update({
         queue_status: nextQueueStatus
@@ -660,7 +668,7 @@ export class BillingService {
     })();
   }
 
-  static createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Invoice {
+  static async createGate1Consult(patientId: string, source: 'counter' | 'whatsapp' = 'counter', scheduledDate?: string, scheduledTime?: string): Promise<Invoice> {
     const apptId = crypto.randomUUID();
     const ctx = getPodContext();
  
@@ -693,7 +701,7 @@ export class BillingService {
     const effectiveDate = scheduledDate || getIstDateString();
     const effectiveTime = scheduledTime || '10:00 AM - 12:00 PM';
     const pat = PatientService.getPatients().find(p => p.id === patientId);
-    const tokenNumber = pat?.tokenNumber || (pat as any)?.token_number || PatientService.generateNextTokenNumber(effectiveDate, false);
+    const tokenNumber = pat?.tokenNumber || (pat as any)?.token_number || await PatientService.generateNextTokenNumberAsync(effectiveDate, false);
 
     const newAppt: Appointment = {
       id: apptId,
@@ -1385,8 +1393,14 @@ export class BillingService {
       if (uInv.labFee > 0) {
         await this.createLedgerSplitsForInvoiceFields(invoiceId, uApptId, 'lab', uInv.labFee, paymentMethod);
       }
+      if (uInv.patientId) {
+        await this.syncPatientLoyaltyUnlock(uInv.patientId);
+      }
     } else if (resolvedInvoice) {
       await this.createLedgerSplitsForInvoiceFields(invoiceId, apptId, type, amount, paymentMethod);
+      if (resolvedInvoice.patientId) {
+        await this.syncPatientLoyaltyUnlock(resolvedInvoice.patientId);
+      }
     }
   }
 
@@ -1403,18 +1417,19 @@ export class BillingService {
     // Process local status transitions and create ledger splits
     await this.recordInvoicePayment(invoiceId, paymentMethod);
 
-    if (sendWhatsApp) {
-      const { data: inv } = await supabase.from('unified_invoices')
-        .select('patient_id')
-        .eq('id', invoiceId)
-        .maybeSingle();
-      if (inv?.patient_id) {
+    const { data: inv } = await supabase.from('unified_invoices')
+      .select('patient_id')
+      .eq('id', invoiceId)
+      .maybeSingle();
+
+    if (inv?.patient_id) {
+      await this.syncPatientLoyaltyUnlock(inv.patient_id, sendWhatsApp);
+      if (sendWhatsApp) {
         const { data: patient } = await supabase.from('patient_registry')
           .select('phone')
           .eq('id', inv.patient_id)
           .maybeSingle();
         if (patient?.phone) {
-          // Send real WhatsApp notification via WhatsAppService (dynamic import to prevent circular dependency)
           const { WhatsAppService } = await import('./whatsappService');
           const msg = `Invoice MF-INV-${invoiceId.substring(0,4)} is marked PAID.`;
           WhatsAppService.pushWhatsAppMessageFromBot(patient.phone, msg);
@@ -1742,6 +1757,158 @@ export class BillingService {
   static saveInvoices(invoices: Invoice[]): void {
     save('saas_invoices', invoices);
     notify();
+  }
+
+  /**
+   * Evaluates whether a patient has unlocked 1 Free Virtual Consult.
+   * INVARIANT: Free Virtual Consult is unlocked ONLY when patient has purchased
+   * medicines from Partner Pharmacy AND completed lab tests from Partner Pathology,
+   * with billing for both completed on the VitalSync platform within the last 30 days.
+   */
+  static checkPatientFreeVirtualEligibility(patientId: string): {
+    isEligible: boolean;
+    hasPharmacyBilled: boolean;
+    hasLabBilled: boolean;
+    reason: string;
+  } {
+    if (!patientId) {
+      return { isEligible: false, hasPharmacyBilled: false, hasLabBilled: false, reason: 'Patient ID missing' };
+    }
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    const cutoffTime = cutoff.getTime();
+
+    // 1. Check for paid pharmacy / medicine bill
+    const medBills = load<any[]>('medicine_bills', []);
+    const hasMedBill = medBills.some(b => {
+      const pId = b.patientId || b.patient_id;
+      const status = String(b.status || '').toLowerCase();
+      const createdAt = new Date(b.createdAt || b.created_at || Date.now()).getTime();
+      return pId === patientId && status === 'paid' && createdAt >= cutoffTime;
+    });
+
+    // 2. Check for completed/paid lab requisition
+    const labReqs = load<any[]>('lab_requisitions', []);
+    const hasLabReq = labReqs.some(r => {
+      const pId = r.patientId || r.patient_id;
+      const status = String(r.status || '').toLowerCase();
+      const createdAt = new Date(r.createdAt || r.created_at || Date.now()).getTime();
+      return pId === patientId && ['completed', 'sample_collected', 'approved', 'verified', 'paid'].includes(status) && createdAt >= cutoffTime;
+    });
+
+    // 3. Check unified_invoices for pharmacyFee and labFee cleared
+    const unifiedInvoices = this.getUnifiedInvoices();
+    let hasUnifiedPharmacy = false;
+    let hasUnifiedLab = false;
+    unifiedInvoices.forEach(inv => {
+      const pId = inv.patientId || (inv as any).patient_id;
+      const status = String(inv.paymentStatus || (inv as any).payment_status || '').toLowerCase();
+      const createdAt = new Date(inv.createdAt || (inv as any).created_at || Date.now()).getTime();
+      if (pId === patientId && status === 'cleared' && createdAt >= cutoffTime) {
+        if (Number(inv.pharmacyFee || (inv as any).pharmacy_fee || 0) > 0) hasUnifiedPharmacy = true;
+        if (Number(inv.labFee || (inv as any).lab_fee || 0) > 0) hasUnifiedLab = true;
+      }
+    });
+
+    // 4. Check saas_invoices
+    const saasInvs = load<any[]>('saas_invoices', []);
+    let hasSaasPharmacy = false;
+    let hasSaasLab = false;
+    saasInvs.forEach(inv => {
+      const pId = inv.patientId || (inv as any).patient_id;
+      const status = String(inv.status || inv.paymentStatus || '').toLowerCase();
+      const type = String(inv.type || '').toLowerCase();
+      const createdAt = new Date(inv.createdAt || (inv as any).created_at || Date.now()).getTime();
+      if (pId === patientId && (status === 'paid' || status === 'cleared') && createdAt >= cutoffTime) {
+        if (type === 'pharmacy') hasSaasPharmacy = true;
+        if (type === 'lab') hasSaasLab = true;
+      }
+    });
+
+    const hasPharmacyBilled = Boolean(hasMedBill || hasUnifiedPharmacy || hasSaasPharmacy);
+    const hasLabBilled = Boolean(hasLabReq || hasUnifiedLab || hasSaasLab);
+    const isEligible = Boolean(hasPharmacyBilled && hasLabBilled);
+
+    let reason = '';
+    if (isEligible) {
+      reason = 'Eligible: Both Partner Pharmacy and Partner Pathology bills cleared on platform.';
+    } else if (hasPharmacyBilled && !hasLabBilled) {
+      reason = 'Locked: Partner Pharmacy billed, but Partner Pathology lab test billing is pending.';
+    } else if (!hasPharmacyBilled && hasLabBilled) {
+      reason = 'Locked: Partner Pathology billed, but Partner Pharmacy medicine billing is pending.';
+    } else {
+      reason = 'Locked: Neither Partner Pharmacy nor Partner Pathology bills cleared on platform.';
+    }
+
+    return { isEligible, hasPharmacyBilled, hasLabBilled, reason };
+  }
+
+  /**
+   * Synchronizes loyalty entitlement and dispatches WhatsApp notification if newly unlocked.
+   */
+  static async syncPatientLoyaltyUnlock(patientId: string, triggerWhatsApp = true): Promise<boolean> {
+    if (!patientId) return false;
+    const eligibility = this.checkPatientFreeVirtualEligibility(patientId);
+    
+    const patients = PatientService.getPatients();
+    const patIdx = patients.findIndex(p => p.id === patientId);
+    if (patIdx >= 0) {
+      const pat = patients[patIdx];
+      const wasEligible = Boolean(pat.isPremiumMember || (pat as any).is_premium_member);
+      
+      pat.partnerBillingStatus = {
+        hasPharmacyBilled: eligibility.hasPharmacyBilled,
+        hasLabBilled: eligibility.hasLabBilled,
+        isEligibleForFreeVirtual: eligibility.isEligible
+      };
+
+      if (eligibility.isEligible && !wasEligible) {
+        pat.isPremiumMember = true;
+        pat.freeVirtualConsultsAvailable = 1;
+        pat.freeVirtualUnlockedAt = new Date().toISOString();
+        const exp = new Date();
+        exp.setDate(exp.getDate() + 30);
+        pat.freeVirtualExpiresAt = exp.toISOString();
+        
+        PatientService.savePatient(pat);
+
+        // Update Supabase DB
+        try {
+          await supabase.from('patient_registry').update({
+            is_premium_member: true,
+            free_virtual_consults_available: 1,
+            free_virtual_unlocked_at: pat.freeVirtualUnlockedAt,
+            free_virtual_expires_at: pat.freeVirtualExpiresAt
+          }).eq('id', patientId);
+        } catch (_err) {
+          console.warn('[BillingService] Failed to update patient_registry loyalty:', _err);
+        }
+
+        // Dispatch WhatsApp notification
+        if (triggerWhatsApp && pat.phone) {
+          try {
+            const { ClinicalNotificationService } = await import('./clinicalNotificationService');
+            await ClinicalNotificationService.dispatchFreeFollowupLoyaltyWhatsApp({
+              patientPhone: pat.phone,
+              patientName: pat.name,
+              expiryDays: 30
+            });
+          } catch (_notifyErr) {
+            console.warn('[BillingService] Failed to dispatch loyalty WhatsApp notification:', _notifyErr);
+          }
+        }
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+          window.dispatchEvent(new CustomEvent('mediflow-loyalty-unlocked', { detail: { patientId } }));
+        }
+        return true;
+      } else {
+        PatientService.savePatient(pat);
+      }
+    }
+    return eligibility.isEligible;
   }
 }
 

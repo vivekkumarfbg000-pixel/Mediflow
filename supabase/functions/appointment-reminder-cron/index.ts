@@ -287,6 +287,7 @@ serve(async (req) => {
         .lt("appointment_time", `${todayIST}T12:30:00Z`) // 6:00 PM IST = 12:30 UTC
         .eq("source", "whatsapp_virtual")
         .eq("status", "confirmed")
+        .eq("virtual_link_dispatched", false)
         .not("virtual_meeting_url", "is", null);
 
       const vPodIds = [...new Set<string>((virtualAppts ?? []).map((a: any) => a.pod_id).filter(Boolean))];
@@ -310,7 +311,12 @@ serve(async (req) => {
           `📱 Link par click karein, camera allow karein, aur doctor se baat karein. Kisi app ki zaroorat nahi!`;
 
         const ok = await sendTextMessage(appt.patient_phone, msg, waba.token, waba.phoneNumberId);
-        if (ok) results.sent++; else results.failed++;
+        if (ok) {
+          results.sent++;
+          await supabase.from("appointments").update({ virtual_link_dispatched: true }).eq("id", appt.id);
+        } else {
+          results.failed++;
+        }
         await sleep(67);
       }
     }

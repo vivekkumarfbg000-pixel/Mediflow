@@ -286,6 +286,37 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                   <strong>Allergies</strong>: {(activePatient.allergies || []).join(', ') || 'NKDA'}<br/>
                   <strong>ABHA Card ID</strong>: {activePatient.abhaId || 'Not set'}
                 </p>
+
+                {(() => {
+                  const loyalty = BillingService.checkPatientFreeVirtualEligibility(activePatient.id);
+                  const isFreeUnlocked = Boolean(activePatient.isPremiumMember || (activePatient as any).is_premium_member || loyalty.isEligible);
+                  if (isFreeUnlocked) {
+                    return (
+                      <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-[10px] flex items-center justify-between">
+                        <span className="font-bold flex items-center gap-1">
+                          🎁 1 Free Virtual Consult Active
+                        </span>
+                        <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-200">
+                          Dual Loyalty
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-2 bg-zinc-900 border border-white/5 rounded-lg text-zinc-400 text-[10px] space-y-1">
+                      <div className="font-bold text-zinc-300">Free Virtual Follow-Up Status:</div>
+                      <div className="flex items-center gap-2 text-[9px]">
+                        <span className={loyalty.hasPharmacyBilled ? 'text-emerald-400 font-bold' : 'text-zinc-500'}>
+                          {loyalty.hasPharmacyBilled ? '✅ Chemist Billed' : '⏳ Chemist Pending'}
+                        </span>
+                        <span>•</span>
+                        <span className={loyalty.hasLabBilled ? 'text-emerald-400 font-bold' : 'text-zinc-500'}>
+                          {loyalty.hasLabBilled ? '✅ Lab Billed' : '⏳ Lab Pending'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -1142,7 +1173,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                     </p>
 
                     <form 
-                      onSubmit={(e) => {
+                      onSubmit={async (e) => {
                         e.preventDefault();
                         if (!bookName || !bookPhone || !bookAge) return;
 
@@ -1160,7 +1191,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                           } as any);
 
                           // 2. Create the consult invoice (source: whatsapp / patient) with scheduled date
-                          api.createGate1Consult(newPat.id, 'whatsapp', bookDate || undefined, bookTime || undefined);
+                          await api.createGate1Consult(newPat.id, 'whatsapp', bookDate || undefined, bookTime || undefined);
 
                           // 3. Reset form
                           setBookName('');

@@ -180,7 +180,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
     setErrorMessage('');
 
     try {
-      const amountRupees = Number(invoice?.total_amount) || Number(invoice?.totalAmount) || 515;
+      const amountRupees = Number(invoice?.doctor_fee) || 500; // Enforce exact doctor fee, ignoring platform fees
       const amountPaise = Math.round(amountRupees * 100);
 
       // Call razorpay-order Deno Edge Function
@@ -295,20 +295,21 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                 .eq('id', targetPatId);
             }
 
-            // Sync doctor consultation fee to financial ledgers
+            // Sync doctor consultation fee to financial ledgers (USP Rule 6: Doctor Consultation Fee Immunity Protocol)
             if (invoiceId) {
               try {
+                const finalDocFee = Number(invoice?.doctor_fee) || 500;
                 await supabase.from('financial_ledgers').upsert({
                   id: `tx-doc-${invoiceId}`,
                   invoice_id: invoiceId,
                   transaction_type: 'appointment_fee',
-                  gross_amount: Number(invoice?.doctor_fee) || 500,
+                  gross_amount: finalDocFee,
                   commission_rate: 0,
-                  net_payout: Number(invoice?.doctor_fee) || 500,
+                  net_payout: finalDocFee,
                   payment_status: 'cleared',
                   settled_at: new Date().toISOString(),
-                  platform_fee_deducted: Number(invoice?.platform_fee) || 15,
-                  gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
+                  platform_fee_deducted: 0, // Enforce 0% platform fee for WhatsApp bookings
+                  gateway_disbursed_net: finalDocFee,
                   payment_method: 'razorpay',
                   pod_id: invoice?.pod_id || FALLBACK_POD_ID
                 }, { onConflict: 'id' });
@@ -320,7 +321,7 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
             writeAuditLog('WHATSAPP_ONLINE_PAYMENT_SUCCESS', {
               invoiceId,
               paymentId,
-              amount: amountRupees,
+              amount: finalDocFee, // Ensure audit matches true zero-fee amount
               method: 'razorpay'
             }, targetPatId);
           } catch (err) {
@@ -401,20 +402,21 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
           .eq('id', targetPatId);
       }
 
-      // Sync doctor consultation fee to financial ledgers
+      // Sync doctor consultation fee to financial ledgers (USP Rule 6: Doctor Consultation Fee Immunity Protocol)
       if (invoiceId) {
         try {
+          const finalDocFee = Number(invoice?.doctor_fee) || 500;
           await supabase.from('financial_ledgers').upsert({
             id: `tx-doc-${invoiceId}`,
             invoice_id: invoiceId,
             transaction_type: 'appointment_fee',
-            gross_amount: Number(invoice?.doctor_fee) || 500,
+            gross_amount: finalDocFee,
             commission_rate: 0,
-            net_payout: Number(invoice?.doctor_fee) || 500,
+            net_payout: finalDocFee,
             payment_status: 'cleared',
             settled_at: new Date().toISOString(),
-            platform_fee_deducted: Number(invoice?.platform_fee) || 15,
-            gateway_disbursed_net: Number(invoice?.doctor_fee) || 500,
+            platform_fee_deducted: 0, // Enforce 0% platform fee
+            gateway_disbursed_net: finalDocFee,
             payment_method: 'upi',
             pod_id: invoice?.pod_id || FALLBACK_POD_ID
           }, { onConflict: 'id' });
@@ -442,9 +444,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
     }
   }, [invoice, status, loading]);
 
-  const amountRupees = invoice ? (Number(invoice.total_amount) || Number(invoice.totalAmount) || 500) : 500;
   const doctorFee = invoice?.doctor_fee ? Number(invoice.doctor_fee) : 500;
-  const platformFee = invoice?.platform_fee ? Number(invoice.platform_fee) : 0;
+  const platformFee = 0; // USP Rule 6: Strictly Zero Platform Fee for WhatsApp bookings
+  const amountRupees = doctorFee; // Enforce exact amount match
   const patientName = patient?.name || invoice?.patient_name || 'Valued Patient';
 
   return (
@@ -535,15 +537,9 @@ export const WhatsAppPaymentPage: React.FC<WhatsAppPaymentPageProps> = ({
                   <span>Doctor Consultation Fee:</span>
                   <span>₹{(doctorFee || 0).toFixed(2)}</span>
                 </div>
-                {platformFee > 0 && (
-                  <div className="flex justify-between text-slate-400">
-                    <span>Platform Convenience Fee:</span>
-                    <span>₹{(platformFee || 0).toFixed(2)}</span>
-                  </div>
-                )}
                 <div className="border-t border-white/10 pt-2 flex justify-between font-bold text-sm text-white">
                   <span>Total Amount Payable:</span>
-                  <span className="text-teal-400 font-mono text-base">₹{(amountRupees || 0).toFixed(2)}</span>
+                  <span className="text-teal-400 font-mono text-base">₹{(doctorFee || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>

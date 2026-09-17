@@ -507,8 +507,7 @@ END:VCARD`;
         {/* ════════════════════════════════════════════════════════════════════
             A4 PRINT SHEET MODE: 10 CARDS GRID (DUPLEX 2-PAGE PRINT SHOP READY)
            ════════════════════════════════════════════════════════════════════ */}
-        {(viewMode === 'sheet' || true) && (
-          <div className={`${viewMode === 'sheet' ? 'block' : 'hidden print:block'} space-y-6`}>
+        <div className={`${viewMode === 'sheet' ? 'block' : 'hidden print:block'} space-y-6`}>
             
             {/* Sheet Mode Header (Hidden on Print) */}
             <div className="p-4 bg-[#0B132B] border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-4 no-print shadow-xl">
@@ -625,7 +624,6 @@ END:VCARD`;
               </div>
             )}
           </div>
-        )}
 
       </main>
 

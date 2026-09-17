@@ -1059,6 +1059,13 @@ export class PharmacyService {
         });
       }
 
+      // Check and sync Free Virtual Consult loyalty unlock if patient also completed partner lab billing
+      if (bill.patientId) {
+        import('./billingService').then(({ BillingService }) => {
+          BillingService.syncPatientLoyaltyUnlock(bill.patientId);
+        }).catch(() => {});
+      }
+
       notify();
       writeAuditLog('medicine_bill_dispensed', { billId: id }, bill.patientId);
     }

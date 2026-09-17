@@ -302,15 +302,44 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between flex-wrap gap-1">
                       <span>{p.gender}, {p.age} years • {p.phone}</span>
-                      {(() => {
-                        const hasReports = LabService.getFullLabReports().some(r => (r.patientId === p.id || (r as any).patient_id === p.id) && Boolean(r.reportFileUrl || (r as any).fileUrl));
-                        if (!hasReports) return null;
-                        return (
-                          <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                            🔬 Report Ready
-                          </span>
-                        );
-                      })()}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {(() => {
+                          const loyalty = BillingService.checkPatientFreeVirtualEligibility(p.id);
+                          const isFreeUnlocked = Boolean(p.isPremiumMember || (p as any).is_premium_member || loyalty.isEligible);
+                          if (isFreeUnlocked) {
+                            return (
+                              <span className="text-[8px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                                <Gift className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                Free Consult Unlocked
+                              </span>
+                            );
+                          }
+                          if (loyalty.hasPharmacyBilled && !loyalty.hasLabBilled) {
+                            return (
+                              <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                💊 Chemist Paid
+                              </span>
+                            );
+                          }
+                          if (!loyalty.hasPharmacyBilled && loyalty.hasLabBilled) {
+                            return (
+                              <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                                🧪 Lab Paid
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                        {(() => {
+                          const hasReports = LabService.getFullLabReports().some(r => (r.patientId === p.id || (r as any).patient_id === p.id) && Boolean(r.reportFileUrl || (r as any).fileUrl));
+                          if (!hasReports) return null;
+                          return (
+                            <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                              🔬 Report Ready
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </button>
                 );

@@ -371,12 +371,13 @@ export class ClinicalNotificationService {
     const resolvedDoc = doctorName || WhatsAppService.getActiveDoctorName();
 
     let msg = `🌟 *Welcome to ${resolvedClinic} Premium Care Club!* 🌟\n\n`;
-    msg += `Namaste *${patientName}*! Humare clinic par aapka bill successfully settle ho gaya hai. Aapke *Premium Member Benefits* active kar diye gaye hain:\n\n`;
+    msg += `Namaste *${patientName}*! Aapne Partner Pharmacy se medicines aur Partner Pathology Lab se lab tests dono ki billing ${resolvedClinic} platform par successfully complete kar li hai! 🎉\n\n`;
+    msg += `Aapke *Premium Loyalty Benefits* active ho gaye hain:\n`;
     msg += `1️⃣ 💻 *1 Free Virtual Follow-Up Consult:* Agle ${expiryDays} dino tak aap ${resolvedDoc} ke saath bilkul FREE video follow-up consult kar sakte hain (₹0 charge).\n`;
     msg += `2️⃣ 📉 *10% Flat Refill Discount:* Next medicine refill order par automatic 10% ki bachat milegi.\n`;
     msg += `3️⃣ 🤖 *Daily WhatsApp Health Assistant:* Daily dawa reminder aur sugar/BP tracking guide.\n`;
     msg += `4️⃣ 📄 *Instant Digital Reports:* Sabhi lab reports aur prescriptions lifetime is chat me available rahenge.\n\n`;
-    msg += `Free video consult book karne ke liye kisi bhi samay is chat par *'BOOK'* ya *'VIDEO'* reply kijiye! 😊`;
+    msg += `Free video consult book karne ke liye kisi bhi samay is chat par *'2'* ya *'VIDEO'* reply kijiye! 😊`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
     await this.relayMetaGraphApi(patientPhone, msg);

@@ -20,7 +20,8 @@ import {
   Radio,
   CreditCard,
   ExternalLink,
-  PhoneCall
+  PhoneCall,
+  Loader2
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { FALLBACK_POD_ID } from '../../../services/podContext';
@@ -29,6 +30,7 @@ import type { Patient } from '../../../types';
 import { ClinicPlacardGenerator } from '../../admin/ClinicPlacardGenerator';
 import { WhatsAppService } from '../../../services/whatsappService';
 import { PatientService } from '../../../services/patientService';
+import { RealtimeSyncService } from '../../../services/realtimeSyncService';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../../../utils/storage';
 
 interface WhatsAppTabProps {
@@ -98,6 +100,62 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   const sessionData = activeChat?.sessionData ?? activeChat?.session_data ?? {};
   const activeChatPhoneDigits = useMemo(() => (activeChat?.patientPhone || (activeChat as any)?.patient_phone || '').replace(/\D/g, '').slice(-10), [activeChat?.patientPhone, (activeChat as any)?.patient_phone]);
   const activeChatPatient = useMemo(() => activeChat ? patients.find(p => p.id === activeChat.patientId || (activeChatPhoneDigits && (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === activeChatPhoneDigits)) : null, [patients, activeChat, activeChatPhoneDigits]);
+
+  const [isSendingManualMsg, setIsSendingManualMsg] = useState(false);
+
+  const handleSendManualMessage = async () => {
+    if (!manualChatMsg?.trim() || !activeChat) return;
+    const msg = manualChatMsg.trim();
+    setIsSendingManualMsg(true);
+    try {
+      const pPhone = activeChat.patientPhone || (activeChat as any).patient_phone || (activeChat as any).phone;
+      const cleanDigits = String(pPhone || '').replace(/\D/g, '').slice(-10);
+
+      const newHistoryMsg = {
+        id: `msg-${Date.now()}`,
+        sender: 'doctor',
+        text: msg,
+        timestamp: new Date().toISOString()
+      };
+
+      const currentHist = Array.isArray(sessionData.chatHistory) ? sessionData.chatHistory : [];
+      const updatedHistory = [...currentHist, newHistoryMsg];
+      const updatedSessionData = { ...sessionData, chatHistory: updatedHistory, humanOverride: true };
+
+      if (setSelectedChatSession) {
+        setSelectedChatSession((prev: any) => prev ? { ...prev, sessionData: updatedSessionData } : prev);
+      }
+      setManualChatMsg('');
+
+      if (activeChat.id) {
+        await supabase.from('whatsapp_sessions').update({
+          session_data: updatedSessionData,
+          last_interaction: new Date().toISOString()
+        }).eq('id', activeChat.id);
+      }
+
+      supabase.functions.invoke('meta-webhook', {
+        body: {
+          action: 'send_manual_message',
+          to: cleanDigits,
+          message: msg,
+          senderRole: 'doctor'
+        }
+      }).catch(err => console.warn('[WhatsAppTab] Outbound manual message dispatch note:', err));
+
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Message Sent 💬',
+          message: `Clinician message dispatched to +91 ${cleanDigits}.`,
+          type: 'success'
+        }
+      }));
+    } catch (err: any) {
+      console.error('[WhatsAppTab] Direct message send error:', err);
+    } finally {
+      setIsSendingManualMsg(false);
+    }
+  };
 
   useEffect(() => {
     if (rightTab === 'chat' && chatScrollRef.current) {
@@ -188,6 +246,50 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
   // Bug Fix #4: Memoize targetDigits to prevent redundant Supabase Realtime channel re-subscriptions
   const targetDigits = useMemo(() => targetPhone.replace(/\D/g, '').slice(-10), [targetPhone]);
 
+  // Global RealtimeSyncService listener for all whatsapp_sessions across any phone
+  useEffect(() => {
+    const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      onWhatsAppSessionChange: (payload: any) => {
+        const raw = payload?.new || payload;
+        if (!raw) return;
+        const normalized = {
+          id: raw.id,
+          patientPhone: raw.patient_phone || raw.patientPhone || raw.phone,
+          patient_phone: raw.patient_phone || raw.patientPhone || raw.phone,
+          phone: raw.patient_phone || raw.patientPhone || raw.phone,
+          patientId: raw.patient_id || raw.patientId,
+          currentState: raw.current_state || raw.currentState,
+          lastInteraction: raw.last_interaction || raw.lastInteraction,
+          sessionData: raw.session_data || raw.sessionData || {},
+          session_data: raw.session_data || raw.sessionData || {}
+        };
+        const incomingDigits = (normalized.patientPhone || '').replace(/\D/g, '').slice(-10);
+        
+        setWhatsAppSessions(prev => {
+          const idx = prev.findIndex(s => {
+            const sDigits = (s.patientPhone || s.patient_phone || s.phone || '').replace(/\D/g, '').slice(-10);
+            return sDigits && incomingDigits && sDigits === incomingDigits;
+          });
+          if (idx >= 0) {
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], ...normalized };
+            return updated;
+          } else {
+            return [normalized, ...prev];
+          }
+        });
+
+        if (targetDigits && incomingDigits === targetDigits) {
+          setSelectedChatSession((prev: any) => ({ ...(prev || {}), ...normalized }));
+        }
+      }
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [targetDigits, setSelectedChatSession, setWhatsAppSessions]);
+
   useEffect(() => {
     if (!targetDigits) return;
 
@@ -230,7 +332,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [targetDigits]);
+  }, [targetDigits, setSelectedChatSession, setWhatsAppSessions]);
 
   useEffect(() => {
     if (wabaFormOpen) {
@@ -656,16 +758,37 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
                 })}
               </div>
 
-              {/* Autonomous AI Notice */}
-              <div className="border-t border-slate-100 pt-3">
-                <div className="p-3 bg-blue-50/60 border border-blue-100/80 rounded-2xl text-center text-xs text-slate-600 flex flex-col items-center justify-center gap-1">
-                  <div className="flex items-center gap-1.5 font-bold text-slate-800">
-                    <Bot className="w-4 h-4 text-blue-600" />
-                    100% Autonomous AI Chatbot Operating 24/7
+              {/* Clinician 1-on-1 Direct Chat Composer */}
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendManualMessage();
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    placeholder="Type clinician message to patient (e.g. Please take prescribed medicines on time)..."
+                    value={manualChatMsg || ''}
+                    onChange={(e) => setManualChatMsg(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 border border-slate-200 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-xs outline-none bg-slate-50/70 dark:bg-slate-900 text-slate-800 dark:text-white font-sans"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSendingManualMsg || !manualChatMsg?.trim()}
+                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer border-0 shrink-0"
+                  >
+                    {isSendingManualMsg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    <span>Send</span>
+                  </button>
+                </form>
+                <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
+                  <div className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Direct 2-Way Clinician WhatsApp Sync</span>
                   </div>
-                  <p className="text-[10px] text-slate-500">
-                    VitalSync AI Scribe handles patient check-in, bookings, payments, and refill reminders automatically. To send messages to patients, use the <b>📢 Broadcast Campaigns</b> tab.
-                  </p>
+                  <span>AI Scribe handles 24/7 autonomous triage</span>
                 </div>
               </div>
 

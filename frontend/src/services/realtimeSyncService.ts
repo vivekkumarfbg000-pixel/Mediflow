@@ -305,7 +305,8 @@ export class RealtimeSyncService {
         'medicine_bills',
         'lab_requisitions',
         'inventory_holds',
-        'unified_invoices'
+        'unified_invoices',
+        'whatsapp_sessions'
       ]);
 
       if (IMMEDIATE_FLUSH_TABLES.has(tableName)) {

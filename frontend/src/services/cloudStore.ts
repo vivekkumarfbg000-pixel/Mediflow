@@ -216,8 +216,8 @@ export class SovereignCloudStore {
       }
     } catch (_e) {}
 
-    // Clear obsolete collection entries (never resurrect dead data)
-    colMap.clear();
+    // Do NOT clear the collection to prevent destructive state wiping (data loss bug)
+    // colMap.clear();
 
     const now = Date.now();
     // Ingest authoritative cloud records (filtering tombstones)

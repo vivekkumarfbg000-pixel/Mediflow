@@ -741,7 +741,7 @@ export const CompounderDashboard: React.FC = () => {
       };
 
       const patId = vitalsPatient.id;
-      const assignedToken = vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || api.generateNextTokenNumber();
+      const assignedToken = vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || await api.generateNextTokenNumberAsync();
 
       // 1. Update local patient record & queue status
       const existingPatient = patients.find(p => p.id === patId);
@@ -785,7 +785,7 @@ export const CompounderDashboard: React.FC = () => {
             await BillingService.recordInvoicePayment(matchingInvoice.id, 'upi');
           }
         } else {
-          const inv = BillingService.createGate1Consult(patId);
+          const inv = await BillingService.createGate1Consult(patId);
           if (inv) {
             settledInvoiceId = inv.id;
             await BillingService.recordInvoicePayment(inv.id, 'upi');
@@ -1407,7 +1407,7 @@ export const CompounderDashboard: React.FC = () => {
         }
       }
 
-      const assignedToken = api.generateNextTokenNumber();
+      const assignedToken = await api.generateNextTokenNumberAsync();
       const bp = (instantBpSys && instantBpDia) ? `${instantBpSys}/${instantBpDia}` : (instantBpSys || '120/80');
       const vitals: PatientVitals = {
         bloodPressure: bp,
@@ -1435,7 +1435,7 @@ export const CompounderDashboard: React.FC = () => {
       setPatients(allRegisteredPatients);
 
       // 2. Create Gate 1 Consultation Invoice and clear payment
-      const inv = BillingService.createGate1Consult(targetPatient.id);
+      const inv = await BillingService.createGate1Consult(targetPatient.id);
       if (inv) {
         await BillingService.recordInvoicePayment(inv.id, instantFeeStatus === 'paid_cash' ? 'cash' : 'upi');
       }
@@ -2338,7 +2338,7 @@ export const CompounderDashboard: React.FC = () => {
     await api.processIncomingWhatsAppMessage(activeSession.patientPhone, text);
   };
 
-  const handleRegisterPatient = (e: React.FormEvent) => {
+  const handleRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone || !age) return;
 
@@ -2373,7 +2373,7 @@ export const CompounderDashboard: React.FC = () => {
     } as any);
 
     // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
-    api.createGate1Consult(registered.id, 'counter');
+    await api.createGate1Consult(registered.id, 'counter');
 
     // Update patients state & sync across components
     setPatients(api.getPatients());
@@ -2404,7 +2404,7 @@ export const CompounderDashboard: React.FC = () => {
     setWhatsAppInput('');
   };
 
-  const handleRecordVitalsSubmit = (e: React.FormEvent) => {
+  const handleRecordVitalsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vitalsPatient) return;
 
@@ -2413,19 +2413,22 @@ export const CompounderDashboard: React.FC = () => {
     const saasInvoices = load<any[]>('saas_invoices', []);
     const allInvoices = [...unifiedInvoices, ...saasInvoices];
 
+    const todayStr = getIstDateString();
     const isPaidInvoice = allInvoices.some(i => 
       (i.patientId === vitalsPatient.id || i.patient_id === vitalsPatient.id) && 
+      getIstDateString(i.createdAt || (i as any).created_at) === todayStr &&
       ((i as any).paymentStatus === 'cleared' || (i as any).paymentStatus === 'paid' || (i as any).status === 'paid' || (i as any).status === 'cleared')
     );
     const appts = api.getAppointments();
     const hasPaidAppt = appts.some(a => 
       (a.patientId === vitalsPatient.id || (a as any).patient_id === vitalsPatient.id) && 
+      (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr) &&
       a.status !== 'pending_payment'
     );
 
     if (!isPaidInvoice && !hasPaidAppt) {
       // Auto-create pending appointment if not existing yet
-      api.createGate1Consult(vitalsPatient.id, 'counter');
+      await api.createGate1Consult(vitalsPatient.id, 'counter');
       setBillingPatient(vitalsPatient);
       setSelectedApptPatient(vitalsPatient);
       setActiveTab('opd_patients');
@@ -2441,7 +2444,7 @@ export const CompounderDashboard: React.FC = () => {
       return;
     }
 
-    const recordedToken = vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || api.generateNextTokenNumber();
+    const recordedToken = vitalsPatient.tokenNumber || (vitalsPatient as any).token_number || await api.generateNextTokenNumberAsync();
 
     api.updatePatientVitalsAndToken(vitalsPatient.id, {
       temperature: tempVal,
@@ -2903,7 +2906,7 @@ export const CompounderDashboard: React.FC = () => {
     );
   }, [patients, assignSearchQuery]);
 
-  const handleQuickRegisterPatient = (e: React.FormEvent) => {
+  const handleQuickRegisterPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickRegName.trim() || !quickRegPhone.trim() || !quickRegAge) {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -2927,7 +2930,7 @@ export const CompounderDashboard: React.FC = () => {
     });
 
     // Auto-create consultation appointment & invoice (₹500.00) in status 'pending_payment'
-    api.createGate1Consult(registered.id, 'counter');
+    await api.createGate1Consult(registered.id, 'counter');
 
     // Refresh clinical lists
     setPatients(api.getPatients());
@@ -6887,6 +6890,26 @@ export const CompounderDashboard: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-4">
+              <div>
+                <label className="text-[10px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
+                  Selected Patient
+                </label>
+                <select
+                  value={showDilationModal.id}
+                  onChange={e => {
+                    const found = patients.find(p => p.id === e.target.value);
+                    if (found) setShowDilationModal(found);
+                  }}
+                  className="w-full input-field text-xs py-2 font-bold"
+                >
+                  {patients.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} · Token #{p.tokenNumber || 'TK'} ({p.phone || 'No phone'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="text-[10px] font-mono font-bold uppercase text-slate-500 dark:text-slate-400 block mb-1">
                   Select Eye

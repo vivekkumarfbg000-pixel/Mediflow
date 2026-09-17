@@ -53,6 +53,18 @@ export interface Patient {
   patientCode?: string;
   syncStatus?: 'synced' | 'pending' | 'failed';
   isPremiumMember?: boolean;
+  is_premium_member?: boolean;
+  freeVirtualConsultsAvailable?: number;
+  free_virtual_consults_available?: number;
+  freeVirtualUnlockedAt?: string;
+  free_virtual_unlocked_at?: string;
+  freeVirtualExpiresAt?: string;
+  free_virtual_expires_at?: string;
+  partnerBillingStatus?: {
+    hasPharmacyBilled: boolean;
+    hasLabBilled: boolean;
+    isEligibleForFreeVirtual: boolean;
+  };
   eyeDilationStatus?: 'not_started' | 'in_progress' | 'ready' | 'completed';
   dilationTimestamp?: string;
 }

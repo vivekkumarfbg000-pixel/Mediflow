@@ -1978,7 +1978,25 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                   const isSelected = selectedPatient?.id === p.id;
                   const patientAppts = appointments.filter(a => (a.patientId === p.id || (a as any).patient_id === p.id));
                   const virtualAppt = patientAppts.find(a => Boolean(a.isVirtual || (a as any).is_virtual));
-                  const isEmergencySos = Boolean((p as any).isEmergency || (p as any).is_emergency || String((p as any).source || '').toLowerCase().includes('sos') || String((p as any).source || '').toLowerCase().includes('emergency') || (p.tokenNumber && (String(p.tokenNumber).toUpperCase().includes('SOS') || String(p.tokenNumber).toUpperCase().includes(' E') || String(p.tokenNumber).toUpperCase().includes('E-') || String(p.tokenNumber).startsWith('#EM-'))));
+                  const hasVipAppt = patientAppts.some(a => Boolean((a as any).is_vip || (a as any).isVip || (a as any).is_emergency || (a as any).isEmergency || String((a as any).source || '').toLowerCase().includes('sos') || String((a as any).source || '').toLowerCase().includes('vip')));
+                  const isEmergencySos = Boolean(
+                    hasVipAppt ||
+                    (p as any).isVip ||
+                    (p as any).is_vip ||
+                    (p as any).isEmergency ||
+                    (p as any).is_emergency ||
+                    String((p as any).source || '').toLowerCase().includes('sos') ||
+                    String((p as any).source || '').toLowerCase().includes('vip') ||
+                    String((p as any).source || '').toLowerCase().includes('emergency') ||
+                    (p.tokenNumber && (
+                      String(p.tokenNumber).toUpperCase().startsWith('VIP-') ||
+                      String(p.tokenNumber).toUpperCase().includes('VIP') ||
+                      String(p.tokenNumber).toUpperCase().includes('SOS') ||
+                      String(p.tokenNumber).toUpperCase().includes(' E') ||
+                      String(p.tokenNumber).toUpperCase().includes('E-') ||
+                      String(p.tokenNumber).startsWith('#EM-')
+                    ))
+                  );
 
                   return (
                     <button
