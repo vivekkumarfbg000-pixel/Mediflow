@@ -768,13 +768,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             patient.tokenNumber = formattedToken;
             PatientService.savePatient(patient);
 
-            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-              detail: {
-                title: '⭐ VIP PRIORITY BOOKING ALERT!',
-                message: `Patient ${patient.name} booked VIP Priority Checkup! Priority #1 Chamber Alert!`,
-                type: 'info'
-              }
-            }));
+            // VIP bookings sync silently into Doctor EMR and Compounder Desk via state change
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
 
             const activeSop = BillingService.getActiveSop();
@@ -1609,13 +1603,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
               PatientService.savePatient(effectivePat);
             }
 
-            window.dispatchEvent(new CustomEvent('mediflow-toast', {
-              detail: {
-                title: '⭐ VIP PRIORITY BOOKING ALERT!',
-                message: `Patient ${effectivePat?.name || 'Walk-in'} booked VIP Priority Checkup! Priority #1 Chamber Alert!`,
-                type: 'info'
-              }
-            }));
+            // VIP bookings sync silently into Doctor EMR and Compounder Desk via state change
             window.dispatchEvent(new CustomEvent('mediflow-state-change'));
 
             const activeSop = BillingService.getActiveSop();
@@ -2348,13 +2336,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
 
     if (totalSpent < 1000) {
       console.warn(`[Mediflow DevSecOps] Proactive Refill Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Marketing Nudge Restrained 🛡️',
-          message: `Blocked auto-refill alert for ${patient.name} due to low-value threshold (Spent: ₹${totalSpent} < ₹1000).`,
-          type: 'warning'
-        }
-      }));
+      // Proactive refill alert restrained silently
       return;
     }
 
@@ -2385,13 +2367,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
 
     if (totalSpent < 1000) {
       console.warn(`[Mediflow DevSecOps] Proactive Followup Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Marketing Nudge Restrained 🛡️',
-          message: `Blocked follow-up scheduling alert for ${patient.name} due to low-value threshold (Spent: ₹${totalSpent} < ₹1000).`,
-          type: 'warning'
-        }
-      }));
+      // Proactive followup alert restrained silently
       return;
     }
 
@@ -2423,13 +2399,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
 
     if (totalSpent < 1000) {
       console.warn(`[Mediflow DevSecOps] Proactive Lab Nudge Restrained: Patient ${patient.name} has low-value threshold (Spent: ₹${totalSpent} < ₹1000).`);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Marketing Nudge Restrained 🛡️',
-          message: `Blocked lab collection alert for ${patient.name} due to low-value threshold (Spent: ₹${totalSpent} < ₹1000).`,
-          type: 'warning'
-        }
-      }));
+      // Proactive lab collection alert restrained silently
       return;
     }
 

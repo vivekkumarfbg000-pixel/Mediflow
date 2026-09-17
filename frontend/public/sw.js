@@ -1,7 +1,7 @@
 // Mediflow Connected Care Ecosystem v2.3 - PWA Service Worker
 // Standard Stale-While-Revalidate static cache engine for 100% resilient offline clinical desks.
 
-const CACHE_NAME = 'mediflow-cache-v5';
+const CACHE_NAME = 'mediflow-cache-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -98,5 +98,13 @@ self.addEventListener('fetch', (event) => {
       return cachedResponse || fetchPromise;
     })
   );
+});
+
+// 4. Message Event: Instant takeover on client update signal
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[PWA-SW] Received SKIP_WAITING, claiming clients immediately...');
+    self.skipWaiting();
+  }
 });
 

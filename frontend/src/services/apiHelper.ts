@@ -11,7 +11,7 @@ export const state = {
   isVoiceScribing: false,
   isOcrScanning: false,
   isLabTrending: false,
-  simulatedRole: 'compounder',
+  simulatedRole: 'doctor',
 };
 
 export const listeners = new Set<() => void>();

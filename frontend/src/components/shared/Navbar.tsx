@@ -379,6 +379,86 @@ export const Navbar: React.FC<NavbarProps> = ({
     ? roles 
     : roles.filter(r => allowedList.includes(r.id));
 
+  const getActiveRoleTabs = () => {
+    if (currentRole === 'doctor') {
+      return [
+        { id: 'pod_view', label: 'Pod Workspace', icon: LayoutDashboard },
+        { id: 'consultation', label: 'Patient Consultation', icon: ClipboardList },
+        { id: 'patients', label: 'Patients Directory', icon: Users },
+        { id: 'financials', label: 'Revenue & Ledgers', icon: CreditCard },
+        { id: 'whatsapp', label: 'WhatsApp Patient Care', icon: MessageSquare },
+        { id: 'chronic', label: 'Chronic Care Cohort', icon: Activity },
+        { id: 'sop', label: 'Clinic SOP Config', icon: FileText }
+      ];
+    }
+    if (currentRole === 'compounder') {
+      return [
+        { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+        { id: 'opd_patients', label: 'OPD Token Queue', icon: Users },
+        { id: 'clinical_hub', label: isOphthalmology ? 'Biometry / Rx' : 'Labs & Rx Hub', icon: FlaskConical },
+        { id: 'billing_daycare', label: isOphthalmology ? 'Bill / Daycare' : 'Bill & OT', icon: Receipt }
+      ];
+    }
+    if (currentRole === 'pharmacy') {
+      return [
+        { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+        { id: 'dispensation_queue', label: 'Dispense Queue', icon: FileText },
+        { id: 'inventory_catalog', label: 'Inventory Catalog', icon: ShoppingBag },
+        { id: 'financials_ledger', label: 'Financials Ledger', icon: Coins }
+      ];
+    }
+    if (currentRole === 'lab') {
+      return [
+        { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+        { id: 'worklist', label: 'Worklist Requisitions', icon: FlaskConical },
+        { id: 'intake_upload', label: 'Intake & Upload', icon: UploadCloud },
+        { id: 'financials_ledger', label: 'Financials Ledger', icon: Receipt }
+      ];
+    }
+    if (currentRole === 'saas_admin') {
+      return [
+        { id: 'saas_health', label: 'System Health Cockpit', icon: Activity },
+        { id: 'ai_fleet', label: 'AI Fleet Sentinel', icon: Bot },
+        { id: 'onboarding', label: 'Pods Onboarding', icon: Building },
+        { id: 'revenue', label: 'Platform Revenue', icon: Coins },
+        { id: 'costs', label: 'Infrastructure Costs', icon: Sliders },
+        { id: 'firewall', label: 'Sentry Firewall', icon: ShieldAlert }
+      ];
+    }
+    return [];
+  };
+
+  const handleSelectWorkflowTab = (tabId: string) => {
+    if (currentRole === 'doctor') {
+      setActiveDoctorTab(tabId);
+      window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: tabId }));
+      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: tabId }));
+    } else if (currentRole === 'compounder') {
+      setActiveCompounderTab(tabId);
+      window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: tabId }));
+      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: tabId }));
+    } else if (currentRole === 'pharmacy') {
+      setActivePharmacyTab(tabId);
+      window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: tabId }));
+    } else if (currentRole === 'lab') {
+      setActiveLabTab(tabId);
+      window.dispatchEvent(new CustomEvent('mediflow-lab-tab-changed', { detail: tabId }));
+      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: tabId }));
+    } else if (currentRole === 'saas_admin') {
+      setActiveAdminTab(tabId);
+      window.dispatchEvent(new CustomEvent('mediflow-admin-tab-changed', { detail: tabId }));
+    }
+  };
+
+  const isWorkflowTabActive = (tabId: string) => {
+    if (currentRole === 'doctor') return activeDoctorTab === tabId;
+    if (currentRole === 'compounder') return activeCompounderTab === tabId;
+    if (currentRole === 'pharmacy') return activePharmacyTab === tabId;
+    if (currentRole === 'lab') return activeLabTab === tabId;
+    if (currentRole === 'saas_admin') return activeAdminTab === tabId;
+    return false;
+  };
+
   return (
     <>
       {/* Desktop Backdrop Overlay when Sidebar is expanded */}
@@ -463,96 +543,90 @@ export const Navbar: React.FC<NavbarProps> = ({
 
 
           {/* Vertical Menu Options */}
-          <div className="space-y-0.5 pt-2 w-full">
-            {visibleRoles.length > 1 && (
+          <div className="space-y-2 pt-2 w-full">
+            {/* 1. Active Role Workflow Navigation Tabs */}
+            {getActiveRoleTabs().length > 0 && (
               <div className="space-y-0.5 w-full">
                 {!isSidebarCollapsed && (
-                  <span className="block text-[9px] text-slate-600 font-semibold uppercase tracking-wider pl-2 mb-1.5 animate-fade-in">Ecosystem Modules</span>
+                  <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider pl-2 mb-1 animate-fade-in">
+                    {currentRole === 'doctor' ? 'Clinical Navigation' :
+                     currentRole === 'compounder' ? 'OPD Desk' :
+                     currentRole === 'pharmacy' ? 'Pharmacy Workspace' :
+                     currentRole === 'lab' ? 'Lab Worklist' : 'Console'}
+                  </span>
                 )}
-                {visibleRoles.map((r) => {
-                  const Icon = r.icon;
-                  const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
+                {getActiveRoleTabs().map((t) => {
+                  const Icon = t.icon;
+                  const isActive = isWorkflowTabActive(t.id);
                   return (
                     <button
-                      key={r.id}
+                      key={t.id}
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (r.id === 'doctor' && activeDoctorTab === 'sop') {
-                          window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
-                        }
-                        onChangeRole(r.id as UserRole);
+                        handleSelectWorkflowTab(t.id);
                         onToggleSidebarCollapse?.(true);
                       }}
-                      className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                      className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-200 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
                         isActive
-                          ? 'bg-indigo-50/80 text-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.08)] border border-indigo-100/40'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                          ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs border border-indigo-100/40 dark:border-indigo-800/40'
+                          : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/5'
                       }`}
-                      title={isSidebarCollapsed ? undefined : r.name}
+                      title={isSidebarCollapsed ? t.label : undefined}
                     >
-                      {/* Left accent indicator line on active */}
                       {isActive && (
                         <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-indigo-600 rounded-r" />
                       )}
-                      
                       <Icon className={`h-4 w-4 shrink-0 transition-colors ${
-                        isActive 
-                          ? 'text-indigo-600' 
-                          : 'text-slate-600 group-hover:text-slate-600'
+                        isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400'
                       }`} />
-                      
                       {!isSidebarCollapsed && (
-                        <span className="flex-1 text-left animate-fade-in">{r.name}</span>
-                      )}
-
-                      {/* Collapsed Tooltip Overlay */}
-                      {isSidebarCollapsed && (
-                        <div className="absolute left-16 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
-                          {r.name}
-                        </div>
+                        <span className="flex-1 text-left animate-fade-in truncate">{t.label}</span>
                       )}
                     </button>
                   );
                 })}
               </div>
             )}
-            
-            {currentRole === 'doctor' && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleSidebarCollapse?.(true);
-                  window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'sop' }));
-                }}
-                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-300 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
-                  activeDoctorTab === 'sop'
-                    ? 'bg-indigo-50/80 text-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.08)] border border-indigo-100/40'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-                }`}
-                title={isSidebarCollapsed ? undefined : "Clinic SOP"}
-              >
-                {/* Left accent indicator line on active */}
-                {activeDoctorTab === 'sop' && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-indigo-600 rounded-r" />
-                )}
-                
-                <FileText className={`h-4 w-4 shrink-0 transition-colors ${
-                  activeDoctorTab === 'sop' 
-                    ? 'text-indigo-600' 
-                    : 'text-slate-600 group-hover:text-slate-600'
-                }`} />
-                
-                {!isSidebarCollapsed && (
-                  <span className="flex-1 text-left animate-fade-in">Clinic SOP</span>
-                )}
 
-                {/* Collapsed Tooltip Overlay */}
-                {isSidebarCollapsed && (
-                  <div className="absolute left-16 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
-                    Clinic SOP
-                  </div>
+            {/* 2. Ecosystem Modules Switcher */}
+            {visibleRoles.length > 1 && (
+              <div className="space-y-0.5 w-full pt-1.5 border-t border-slate-200/50 dark:border-white/5">
+                {!isSidebarCollapsed && (
+                  <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider pl-2 mb-1 animate-fade-in">Ecosystem Modules</span>
                 )}
-              </button>
+                {visibleRoles.map((r) => {
+                  const Icon = r.icon;
+                  const isActive = currentRole === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChangeRole(r.id as UserRole);
+                        onToggleSidebarCollapse?.(true);
+                      }}
+                      className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center py-1.5 px-2 rounded-lg' : 'gap-2.5 px-2.5 py-1.5 rounded-lg'} text-[11px] font-medium transition-all duration-200 relative group cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                        isActive
+                          ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs border border-indigo-100/40 dark:border-indigo-800/40'
+                          : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/5'
+                      }`}
+                      title={isSidebarCollapsed ? r.name : undefined}
+                    >
+                      {isActive && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-indigo-600 rounded-r" />
+                      )}
+                      <Icon className={`h-4 w-4 shrink-0 transition-colors ${
+                        isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400'
+                      }`} />
+                      {!isSidebarCollapsed && (
+                        <span className="flex-1 text-left animate-fade-in truncate">{r.name}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -783,22 +857,24 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Slide-over Panel Sheet */}
       {isMobileDrawerOpen && typeof document !== 'undefined' && createPortal(
-        <div className="md:hidden fixed inset-0 z-[99999] flex animate-fade-in pointer-events-auto">
-          {/* Drawer Backdrop Overlay */}
+        <div className="md:hidden fixed inset-0 z-[99999] flex pointer-events-auto select-none">
+          {/* Drawer Backdrop Overlay — sits strictly behind drawer with z-0 */}
           <div 
-            className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 cursor-pointer"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 cursor-pointer z-0"
             onClick={(e) => {
               e.stopPropagation();
               setIsMobileDrawerOpen(false);
             }}
           />
 
-          {/* Drawer Content Sheet */}
+          {/* Drawer Content Sheet — sits in front with z-20 and stops touch bubbling */}
           <aside 
             onClick={(e) => e.stopPropagation()}
-            className="relative flex flex-col w-72 bg-white dark:bg-slate-950 backdrop-blur-xl h-full p-5 shadow-2xl animate-slide-in-left z-10 border-r border-slate-200/60 dark:border-white/10 overflow-y-auto no-scrollbar"
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            className="relative z-20 flex flex-col w-72 bg-white dark:bg-slate-950 backdrop-blur-xl h-full p-5 shadow-2xl animate-slide-in-left border-r border-slate-200/60 dark:border-white/10 overflow-y-auto no-scrollbar"
           >
-            <div className="flex-1 space-y-6">
+            <div className="flex-1 space-y-5">
               {/* Header inside drawer */}
               <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/10 pb-4">
                 <div className="flex items-center gap-3">
@@ -856,28 +932,30 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              {/* Modules Switcher */}
-              {visibleRoles.length > 1 && (
-                <div className="space-y-1.5 pt-2">
-                  <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider pl-3 mb-2">Ecosystem Modules</span>
-                  {visibleRoles.map((r) => {
-                    const Icon = r.icon;
-                    const isActive = currentRole === r.id && (r.id !== 'doctor' || activeDoctorTab !== 'sop');
+              {/* 1. Active Role Workflow Navigation Tabs in Drawer */}
+              {getActiveRoleTabs().length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider pl-3 mb-1.5">
+                    {currentRole === 'doctor' ? 'Clinical Navigation' :
+                     currentRole === 'compounder' ? 'OPD Desk' :
+                     currentRole === 'pharmacy' ? 'Pharmacy Workspace' :
+                     currentRole === 'lab' ? 'Lab Worklist' : 'Console'}
+                  </span>
+                  {getActiveRoleTabs().map((t) => {
+                    const Icon = t.icon;
+                    const isActive = isWorkflowTabActive(t.id);
                     return (
                       <button
-                        key={r.id}
+                        key={t.id}
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (r.id === 'doctor' && activeDoctorTab === 'sop') {
-                            window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'pod_view' }));
-                          }
-                          onChangeRole(r.id as UserRole);
+                          handleSelectWorkflowTab(t.id);
                           setIsMobileDrawerOpen(false);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 relative group cursor-pointer ${
                           isActive
-                            ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                            ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
                             : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 hover:bg-slate-100/60 dark:hover:bg-white/5'
                         }`}
                       >
@@ -885,37 +963,48 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
                         )}
                         <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                          isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-700'
+                          isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400'
+                        }`} />
+                        <span className="flex-1 text-left font-semibold">{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 2. Ecosystem Modules Switcher in Drawer */}
+              {visibleRoles.length > 1 && (
+                <div className="space-y-1 pt-2 border-t border-slate-200/50 dark:border-white/5">
+                  <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider pl-3 mb-1.5">Ecosystem Modules</span>
+                  {visibleRoles.map((r) => {
+                    const Icon = r.icon;
+                    const isActive = currentRole === r.id;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onChangeRole(r.id as UserRole);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 relative group cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs'
+                            : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 hover:bg-slate-100/60 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
+                        )}
+                        <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors ${
+                          isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400'
                         }`} />
                         <span className="flex-1 text-left font-semibold">{r.name}</span>
                       </button>
                     );
                   })}
                 </div>
-              )}
-                
-              {currentRole === 'doctor' && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'sop' }));
-                    setIsMobileDrawerOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative group cursor-pointer ${
-                    activeDoctorTab === 'sop'
-                      ? 'bg-indigo-50/80 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                      : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 hover:bg-slate-100/60 dark:hover:bg-white/5'
-                  }`}
-                >
-                  {activeDoctorTab === 'sop' && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r" />
-                  )}
-                  <FileText className={`h-4.5 w-4.5 shrink-0 transition-colors ${
-                    activeDoctorTab === 'sop' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-700'
-                  }`} />
-                  <span className="flex-1 text-left font-semibold">Clinic SOP</span>
-                </button>
               )}
             </div>
 

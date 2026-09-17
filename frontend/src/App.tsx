@@ -621,25 +621,28 @@ export default function App() {
       if (queryRole === 'saas_admin' || queryRole === 'admin') return 'saas_admin';
 
       // 3. Synchronously inspect cached profile role (eliminates 2-4s cold start flash)
+      let cachedRole: UserRole | null = null;
       try {
         const cachedStr = localStorage.getItem('vitalsync_cached_profile');
         if (cachedStr) {
           const cached = JSON.parse(cachedStr);
           if (cached?.role) {
             const role = String(cached.role).toLowerCase();
-            if (role === 'doctor' || role === 'general_physician' || role === 'ophthalmologist' || role === 'physician') return 'doctor';
-            if (role === 'compounder' || role === 'receptionist' || role === 'staff') return 'compounder';
-            if (role === 'pharmacist' || role === 'pharmacy') return 'pharmacy';
-            if (role === 'lab_technician' || role === 'lab') return 'lab';
-            if (role === 'admin' || role === 'platform_admin' || role === 'saas_admin') return 'saas_admin';
-            if (role === 'patient') return 'patient';
+            if (role === 'doctor' || role === 'general_physician' || role === 'ophthalmologist' || role === 'physician') cachedRole = 'doctor';
+            else if (role === 'compounder' || role === 'receptionist' || role === 'staff') cachedRole = 'compounder';
+            else if (role === 'pharmacist' || role === 'pharmacy') cachedRole = 'pharmacy';
+            else if (role === 'lab_technician' || role === 'lab') cachedRole = 'lab';
+            else if (role === 'admin' || role === 'platform_admin' || role === 'saas_admin') cachedRole = 'saas_admin';
+            else if (role === 'patient') cachedRole = 'patient';
           }
         }
       } catch (_e) { /* ignore storage errors */ }
 
-      // 4. Saved active role in localStorage
+      if (cachedRole) return cachedRole;
+
+      // 4. Saved active role in localStorage (only if matching a valid explicit role)
       const saved = localStorage.getItem('vitalsync_active_role') as UserRole;
-      if (saved) return saved;
+      if (saved && saved !== 'compounder') return saved;
     }
     return 'doctor';
   });
@@ -1243,6 +1246,15 @@ export default function App() {
       const customEvent = e as CustomEvent<Omit<Toast, 'id'>>;
       if (!customEvent.detail) return;
       const { message, type, title } = customEvent.detail;
+      const combined = `${title || ''} ${message || ''}`.toLowerCase();
+      const noisyKeywords = [
+        'forecast', 'copilot', 'telemetry', 'cache', 'pwa',
+        'patient ready', 'ready for consult', 'appointment booked', 'new appointment',
+        'opd queue', 'whatsapp appointment', 'priority booking', 'chamber alert',
+        'sos alert', 'priority #1', 'emergency sos', 'token #', 'booking alert', 'refill alert'
+      ];
+      if (noisyKeywords.some(kw => combined.includes(kw))) return;
+
       const id = crypto.randomUUID();
       const newToast: Toast = { id, message, type, title };
       
@@ -1500,9 +1512,8 @@ export default function App() {
         return;
       }
     }
-    startTransition(() => {
-      setCurrentRole(role);
-    });
+    // Immediate synchronous role switch for instant responsiveness
+    setCurrentRole(role);
   };
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';

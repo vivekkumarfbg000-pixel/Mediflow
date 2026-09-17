@@ -13,10 +13,36 @@ export class PwaSyncManager {
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => {
             console.log('[PWA-Client] Service Worker registered successfully! Scope:', reg.scope);
+            
+            // Check for service worker updates immediately on page load
+            reg.update().catch(() => {});
+
+            // Auto-activate new service worker versions
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[PWA-Client] Newer Service Worker bundle installed. Requesting skipWaiting...');
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              }
+            });
           })
           .catch((err) => {
             console.warn('[PWA-Client] Service Worker registration failed:', err);
           });
+      });
+
+      // Reload page once when new service worker takes control so clients never run stale cached code
+      let isRefreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!isRefreshing) {
+          isRefreshing = true;
+          console.log('[PWA-Client] New Service Worker active. Reloading application client to bust stale cache...');
+          window.location.reload();
+        }
       });
     }
 

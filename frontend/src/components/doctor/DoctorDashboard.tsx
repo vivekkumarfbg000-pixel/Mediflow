@@ -828,23 +828,7 @@ export const DoctorDashboard: React.FC = () => {
       onAppointmentChange: (payload) => {
         console.log('[DoctorDashboard] Realtime Appointment update received:', payload);
         debouncedSync();
-        const isEmergencyEvent = Boolean(
-          payload.new?.virtual_time?.includes('EMERGENCY') ||
-          payload.new?.is_emergency === true ||
-          payload.new?.is_vip === true ||
-          payload.new?.source === 'whatsapp_sos' ||
-          payload.new?.source === 'whatsapp_vip'
-        );
-        if (isEmergencyEvent) {
-          window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: {
-              title: '🚨 EMERGENCY SOS ALERT! 🚨',
-              message: 'A patient has paid priority fee on WhatsApp. Immediate attention required at Priority #1!',
-              type: 'error'
-            }
-          }));
-        }
-        // Non-emergency appointments sync silently via debouncedSync() without intrusive popup banners
+        // Live appointments sync silently via debouncedSync() into the live OPD queue without intrusive popup banners
       },
       onPatientChange: () => debouncedSync(),
       onMedicineBillChange: () => debouncedSync(),

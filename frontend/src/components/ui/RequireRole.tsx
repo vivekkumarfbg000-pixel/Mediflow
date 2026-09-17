@@ -23,7 +23,7 @@ export const RequireRole: React.FC<RequireRoleProps> = ({
   allowedRoles,
   children,
   fallback,
-  role = api.simulatedRole,
+  role = api.simulatedRole || 'doctor',
   bypass = false,
 }) => {
   const normRole = (role || '').toLowerCase();

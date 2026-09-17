@@ -302,7 +302,7 @@ class MediflowApiService {
   public isVoiceScribing = false;
   public isOcrScanning = false;
   public isLabTrending = false;
-  public simulatedRole = 'compounder';
+  public simulatedRole = 'doctor';
 
   private initialized = false;
   private realtimeSyncTimer: ReturnType<typeof setTimeout> | null = null;

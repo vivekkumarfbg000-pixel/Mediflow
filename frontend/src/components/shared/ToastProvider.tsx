@@ -104,7 +104,8 @@ const NOISE_FILTER_KEYWORDS = [
   'forecast', 'copilot', 'telemetry', 'cache', 'pwa', 'recording started',
   'ping', 'status check', 'template copied', 'draft stored',
   'patient ready', 'ready for consult', 'appointment booked', 'new appointment',
-  'opd queue', 'whatsapp appointment'
+  'opd queue', 'whatsapp appointment', 'priority booking', 'chamber alert',
+  'sos alert', 'priority #1', 'emergency sos', 'token #', 'booking alert', 'refill alert'
 ];
 
 function isNoisyToast(message: string, title?: string): boolean {
@@ -207,9 +208,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     variant: ToastVariant,
     options: ToastOptions = {}
   ): string => {
-    // 1. Noise Filter Guard
-    if (isNoisyToast(message, options.title) && variant !== 'error') {
-      return ''; // Drop background automated spam quietly
+    // 1. Noise Filter Guard (drops background automated spam unconditionally)
+    if (isNoisyToast(message, options.title)) {
+      return '';
     }
 
     // 2. Throttle Guard: Drop duplicate message fired within 2.5s
