@@ -3477,14 +3477,18 @@ async function triggerBotReplyPipeline(ctx: {
             }
 
             if (effectiveApptId) {
-              const finalStatus = (isVirtualSlot || isSosBooking || isPaperMode) ? "ready_for_consult" : "scheduled";
+              const isBookingToday = (sessionData.selectedDate === todayIst) || (resolvedApptDate === todayIst);
+              const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : (isBookingToday ? "ready_for_consult" : "scheduled"));
+              const effectiveBookingDate = sessionData.selectedDate || resolvedApptDate || todayIst;
               await supabase
                 .from("appointments")
                 .update({ 
                   status: finalStatus, 
                   payment_status: "cleared", 
                   utr_number: utr, 
-                  is_emergency: isSosBooking
+                  is_emergency: isSosBooking,
+                  virtual_date: effectiveBookingDate,
+                  appointment_date: effectiveBookingDate
                 })
                 .eq("id", effectiveApptId);
             }
@@ -3614,12 +3618,16 @@ async function triggerBotReplyPipeline(ctx: {
 
         if (effectiveApptId) {
           try {
-            const finalStatus = (isVirtualSlot || isSosBooking || isPaperMode) ? "ready_for_consult" : "scheduled";
+            const isBookingToday = (sessionData.selectedDate === todayIst) || (resolvedApptDate === todayIst);
+            const finalStatus = isVirtualSlot ? "ready_for_consult" : (isSosBooking ? "ready_for_consult" : (isBookingToday ? "ready_for_consult" : "scheduled"));
+            const effectiveBookingDate = sessionData.selectedDate || resolvedApptDate || todayIst;
             await supabase.from("appointments").update({ 
               status: finalStatus, 
               payment_status: "pending_counter", 
               token_number: String(tokenNumber),
-              is_emergency: isSosBooking
+              is_emergency: isSosBooking,
+              virtual_date: effectiveBookingDate,
+              appointment_date: effectiveBookingDate
             }).eq("id", effectiveApptId);
           } catch (_aErr) {
             console.warn("[Meta Webhook] Counter appointment update warning:", _aErr);
