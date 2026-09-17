@@ -222,7 +222,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const splitDoc = splitDocMatch ? parseFloat(splitDocMatch[1]) : activeSop?.extractedConfig?.splits?.doctor ?? 40;
     const splitPlat = splitPlatMatch ? parseFloat(splitPlatMatch[1]) : activeSop?.extractedConfig?.splits?.platform ?? 5;
     const splitLab = splitLabMatch ? parseFloat(splitLabMatch[1]) : activeSop?.extractedConfig?.splits?.lab ?? 55;
-    const splitPharmaDoc = splitPharmaDocMatch ? parseFloat(splitPharmaDocMatch[1]) : (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
+    const splitPharmaDoc = splitPharmaDocMatch ? parseFloat(splitPharmaDocMatch[1]) : (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 12;
 
     const upiMatch = text.match(/(?:upi|vpa|gpay|phonepe|paytm)\s*[:\-]?\s*([a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64})/i);
     const doctorUpiVpa = upiMatch ? upiMatch[1] : (activeSop?.extractedConfig?.doctor_upi_vpa || PaymentService.getSafeClinicUpiVpa('vitalsync@axl'));
@@ -492,7 +492,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               { type: 'platform_fee',          label: 'Platform Commission Split',    dot: 'bg-slate-400',   bar: 'bg-gradient-to-r from-slate-400 to-slate-500'  },
             ];
 
-            return (
+             return (
               <div className="rounded-2xl border border-amber-500/20 dark:border-amber-500/10 bg-gradient-to-br from-amber-50/60 to-orange-50/20 dark:from-[#1e1b4b]/20 dark:to-[#111827]/30 overflow-hidden shadow-xs backdrop-blur-md">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -501,8 +501,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       <Coins className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">Revenue Split Ledger</h3>
-                      <p className="text-[10px] text-slate-500 mt-0.5 font-medium">Bihar Zone · Real-time payout breakdown</p>
+                      <h3 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">Professional Clinical Review Honorarium</h3>
+                      <p className="text-[10px] text-emerald-600 mt-0.5 font-bold">NMC Ethics 2023 Safe-Harbor · Anti-Kickback Compliant · Bihar Zone</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-850/30 rounded-xl text-[10px] font-bold text-amber-700 dark:text-amber-400">
@@ -720,9 +720,10 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 {/* Pathology Splits */}
                 <div className="p-4 rounded-2xl bg-violet-50 border border-violet-100 space-y-2">
                   <div className="flex items-center justify-between text-violet-700 font-bold text-xs uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5"><PieChart className="w-4 h-4 shrink-0" /> Lab Splits (%)</span>
+                    <span className="flex items-center gap-1.5"><PieChart className="w-4 h-4 shrink-0" /> Diagnostic Tele-Interpretation (%)</span>
                     <span className="text-[9px] text-violet-600">5% Platform</span>
                   </div>
+                  <p className="text-[9px] text-violet-500 italic">NMC Safe-Harbor: Physician clinical correlation honorarium for abnormal biomarker review.</p>
                   <div className="space-y-1">
                     {[
                       { label: 'Doctor', key: 'doctor', color: 'text-blue-600' },
@@ -746,15 +747,16 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                 {/* Pharmacy Splits */}
                 <div className="p-4 rounded-2xl bg-teal-50 border border-teal-100 space-y-2">
                   <div className="flex items-center justify-between text-teal-700 font-bold text-xs uppercase tracking-wider">
-                    <span className="flex items-center gap-1.5"><Pill className="w-4 h-4 shrink-0" /> Pharmacy Splits (%)</span>
+                    <span className="flex items-center gap-1.5"><Pill className="w-4 h-4 shrink-0" /> Pharmacy MTM Review (%)</span>
                     <span className="text-[9px] text-teal-600">2% Platform</span>
                   </div>
+                  <p className="text-[9px] text-teal-500 italic">NMC Safe-Harbor: 10%–15% Medication Therapy Management (MTM) – dosage verification & adherence oversight.</p>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-semibold w-14 text-teal-700">Doctor</span>
                       <input
                         type="number"
-                        value={extractedConfig.splits.pharmacyDoctor ?? 20}
+                        value={extractedConfig.splits.pharmacyDoctor ?? 12}
                         onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, pharmacyDoctor: parseFloat(e.target.value) || 0}})}
                         className="flex-1 bg-white border border-teal-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
                       />
@@ -772,7 +774,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-teal-800 font-medium pt-1">
                       <span>Chemist Net Keep:</span>
-                      <span className="font-bold">{Math.max(0, 100 - (extractedConfig.splits.pharmacyDoctor ?? 20) - (extractedConfig.splits.pharmacyPlatform ?? 2))}%</span>
+                      <span className="font-bold">{Math.max(0, 100 - (extractedConfig.splits.pharmacyDoctor ?? 12) - (extractedConfig.splits.pharmacyPlatform ?? 2))}%</span>
                     </div>
                   </div>
                 </div>

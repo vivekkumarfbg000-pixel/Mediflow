@@ -182,11 +182,13 @@ export function setActivePodContext(
   pod: { id: string; name?: string; clinicCode?: string; entityId?: string } | null,
   broadcast: boolean = true
 ): void {
+  const currentCtx = _ctx || getInitialPodContext();
   const sovereignPodId = pod?.id || FALLBACK_POD_ID;
-  const entityId = pod?.entityId || _ctx.entityId || FALLBACK_ENTITY_ID;
+  const entityId = pod?.entityId || currentCtx.entityId || FALLBACK_ENTITY_ID;
 
   _ctx = {
-    ..._ctx,
+    ...currentCtx,
+    userId: currentCtx.userId ?? null,
     podId: sovereignPodId,
     entityId: entityId,
     loaded: true
@@ -234,20 +236,22 @@ export async function resolvePodContext(): Promise<PodContext> {
     return _ctx;
   }
 
-  if (_ctx.loaded) return _ctx;
+  if (_ctx?.loaded) return _ctx as PodContext;
 
   // Deduplicate concurrent calls
   if (_resolvePromise) return _resolvePromise;
 
-  _resolvePromise = (async () => {
+  _resolvePromise = (async (): Promise<PodContext> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.id) {
-        // Not logged in yet — keep fallbacks, mark loaded so we don't re-query
-        _ctx = { 
-          ..._ctx, 
+        // Not logged in yet — keep fallbacks, mark loaded so we don’t re-query
+        const baseCtx = _ctx || getInitialPodContext();
+        _ctx = {
+          ...baseCtx,
+          userId: baseCtx.userId ?? null,
           doctorId: (import.meta.env.DEV || import.meta.env.VITE_USE_MOCK === 'true') ? FALLBACK_DOCTOR_ID : null,
-          loaded: true 
+          loaded: true
         };
         return _ctx;
       }
@@ -352,14 +356,15 @@ export async function resolvePodContext(): Promise<PodContext> {
       });
     } catch (e) {
       console.warn('[Mediflow PodContext] Resolution failed, using seed fallbacks:', e);
-      _ctx = { ..._ctx, loaded: true };
+      const baseCtx = _ctx || getInitialPodContext();
+      _ctx = { ...baseCtx, userId: baseCtx.userId ?? null, loaded: true };
     }
 
     _resolvePromise = null;
-    return _ctx;
+    return _ctx as PodContext;
   })();
 
-  return _resolvePromise;
+  return _resolvePromise as Promise<PodContext>;
 }
 
 /** Call on logout to reset the context for the next user. */

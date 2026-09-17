@@ -926,6 +926,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }
       }
 
+      // ✅ RULE: Determine isNewPatient BEFORE registering so Welcome WA is only sent for truly new patients
+      const isNewPatient = !patientObj;
+
       // Check if there is an existing appointment today for this patient
       const allAppts = BillingService.getAppointments();
       const matchedAppt = allAppts.find(a => 
@@ -975,16 +978,125 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         diagnosticTests: diagnosticTestsList
       });
 
+      // ═══════════════════════════════════════════════════════════════════════
       // 1.5A — PAPER MODE: Full persistence to Supabase (image + all extracted fields)
       const rawDoc = (activePod as any)?.doctor_name;
       const doctorDisplayName: string = rawDoc
         ? (rawDoc.startsWith('Dr.') ? rawDoc : `Dr. ${rawDoc}`)
         : (digitized.doctorName || 'Doctor');
       const clinicDisplayName: string = (activePod as any)?.name || (activeProfile as any)?.clinicName || digitized.clinicName || 'Clinic';
-      const isNewPatient = !allPatients.find(p =>
-        (phone && (p.phone || '').replace(/\D/g, '').slice(-10) === phone) ||
-        (p.name || '').toLowerCase() === name.toLowerCase()
-      );
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 3. Auto-Create Today's Completed Appointment (Walk-in Paper Rx = Consult Already Done)
+      // If no pre-booked appointment exists, create one for today with completed + paid status.
+      // ═══════════════════════════════════════════════════════════════════════
+      const consultFee: number = (api.getActiveSop() as any)?.extractedConfig?.doctor_fee ||
+        (api.getActiveSop() as any)?.extractedConfig?.doctor_consultation_fee || 500;
+      const podCtx = getPodContext();
+      const doctorIdForAppt = (activePod as any)?.doctor_id || podCtx.doctorId || 'doc-ocr-scan';
+      const todayIst = getIstDateString();
+
+      let activeApptId: string;
+
+      if (!matchedAppt) {
+        // Allocate sequential token number from today's appointment count
+        const todaysAppts = allAppts.filter(a => {
+          const apptDate = (a as any).date || (a as any).appointment_date || '';
+          return apptDate === todayIst && a.status !== 'cancelled';
+        });
+        const nextTokenNum = String(todaysAppts.length + 1).padStart(3, '0');
+        const newApptId = `appt-scan-${patientObj.id}-${Date.now()}`;
+        activeApptId = newApptId;
+
+        const walkinAppt: any = {
+          id: newApptId,
+          patientId: patientObj.id,
+          patientName: patientObj.name,
+          patientPhone: patientObj.phone || phone || null,
+          doctorId: doctorIdForAppt,
+          status: 'completed',
+          paymentStatus: 'paid',
+          payment_status: 'paid',
+          date: todayIst,
+          appointment_date: todayIst,
+          tokenNumber: `#TK-${nextTokenNum}`,
+          token_number: `#TK-${nextTokenNum}`,
+          source: 'paper_scan',
+          consultFee: consultFee,
+          createdAt: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          podId: podCtx.podId || null,
+          problem: (digitized as any).diagnosis || 'Walk-in Paper Rx Scan',
+          chief_complaint: (digitized as any).diagnosis || 'Walk-in Paper Rx Scan'
+        };
+
+        // Save appointment locally + Supabase dual-write via BillingService.saveAppointment
+        BillingService.saveAppointment(walkinAppt);
+
+        // Record consultation fee in financial ledger (Doctor Fee Immunity — 100% to Doctor, Rule 58)
+        const ledgerEntry: any = {
+          id: `tx-scan-${newApptId}`,
+          patientName: patientObj.name,
+          patientId: patientObj.id,
+          invoiceId: `inv-scan-${newApptId}`,
+          appointmentId: newApptId,
+          transactionType: 'appointment_fee',
+          grossAmount: consultFee,
+          netPayout: consultFee,
+          platformFee: 0,
+          platformFeeRate: 0,
+          status: 'settled',
+          settledAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          podId: podCtx.podId || null,
+          notes: `Paper Rx Walk-in Consultation — Token ${walkinAppt.tokenNumber} — 100% Doctor Fee (Rule 58)`
+        };
+        try {
+          const currentLedgers = (BillingService as any).getLedgerEntries?.() || [];
+          BillingService.saveFinancialLedgers([...currentLedgers, ledgerEntry]);
+          // Supabase dual-write for ledger
+          supabase.from('financial_ledgers').upsert({
+            id: ledgerEntry.id,
+            patient_id: patientObj.id,
+            invoice_id: ledgerEntry.invoiceId,
+            appointment_id: newApptId,
+            transaction_type: 'appointment_fee',
+            gross_amount: consultFee,
+            net_payout: consultFee,
+            platform_fee: 0,
+            status: 'settled',
+            settled_at: ledgerEntry.settledAt,
+            created_at: ledgerEntry.createdAt,
+            pod_id: podCtx.podId || null,
+            notes: ledgerEntry.notes
+          }, { onConflict: 'id' }).then(({ error }) => {
+            if (error) console.warn('[BillHubTab] Ledger Supabase sync notice:', error.message);
+          });
+        } catch (ledgerErr) {
+          console.warn('[BillHubTab] Ledger entry save notice:', ledgerErr);
+        }
+
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: `🎯 Token Allocated! ${walkinAppt.tokenNumber}`,
+            message: `Walk-in appointment created for ${patientObj.name}. Consultation fee ₹${consultFee} recorded. Token: ${walkinAppt.tokenNumber}`,
+            type: 'success'
+          }
+        }));
+      } else {
+        // Existing appointment — mark as completed + paid
+        activeApptId = matchedAppt.id;
+        matchedAppt.status = 'completed';
+        (matchedAppt as any).paymentStatus = 'paid';
+        (matchedAppt as any).payment_status = 'paid';
+        (matchedAppt as any).queue_status = 'completed';
+        (matchedAppt as any).queueStatus = 'completed';
+        BillingService.saveAppointments(allAppts);
+        supabase.from('appointments').update({
+          status: 'completed',
+          payment_status: 'paid'
+        }).eq('id', matchedAppt.id).then(() => {}, (err: any) => console.warn('[BillHubTab] Supabase appointment update notice:', err));
+      }
 
       PaperModeService.persistPrescriptionToSupabase({
         patientId: patientObj.id,
@@ -998,8 +1110,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         diagnosticTests: diagnosticTestsList,
         isChronic: (digitized as any).isChronic || false,
         chronicConditions: (digitized as any).chronicConditions || [],
-        prescriptionImageFile: file || null
-      }).then(({ prescriptionImageUrl }) => {
+        prescriptionImageFile: file || null,
+        appointmentId: activeApptId
+      } as any).then(({ prescriptionImageUrl }) => {
         const validPhone = (patientObj.phone || '').replace(/\D/g, '').slice(-10);
 
         // Q1 Invariant: If phone is missing or incomplete, prompt compounder with popup modal!
@@ -1016,7 +1129,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           setInputPhone('');
           setPhoneError('');
         } else {
-          // 1.5B — PAPER MODE: Dispatch permanent Hinglish welcome WA on new patient creation
+          // 1.5B — PAPER MODE: Dispatch permanent Hinglish welcome WA ONLY for genuinely new patients
           if (isNewPatient && patientObj.phone) {
             PaperModeService.dispatchWelcomeWhatsApp({
               patientPhone: patientObj.phone,
@@ -1026,7 +1139,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               clinicName: clinicDisplayName
             });
           }
-          // 1.5C — PAPER MODE: Dispatch digital prescription to patient WhatsApp
+          // 1.5C — PAPER MODE: Always dispatch digital prescription to patient WhatsApp
           if (patientObj.phone) {
             PaperModeService.dispatchPrescriptionWhatsApp({
               patientPhone: patientObj.phone,
@@ -1121,14 +1234,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }
       }
 
-      // 3. Mark appointment as completed since physical doctor consultation is already finished
-      if (matchedAppt) {
-        matchedAppt.status = 'completed';
-        (matchedAppt as any).queue_status = 'completed';
-        (matchedAppt as any).queueStatus = 'completed';
-        BillingService.saveAppointments(allAppts);
-        supabase.from('appointments').update({ status: 'completed' }).eq('id', matchedAppt.id).then(() => {}, (err: any) => console.warn('[BillHubTab] Supabase appointment update notice:', err));
-      }
+      // 3. Mark appointment as completed — handled above in auto-create/update block
 
       setSelectedPatient(patientObj);
       setBillingMode('digital');

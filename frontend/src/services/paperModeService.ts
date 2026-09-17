@@ -138,6 +138,7 @@ export class PaperModeService {
     isChronic?: boolean;
     chronicConditions?: string[];
     prescriptionImageFile?: File | null;
+    appointmentId?: string | null;  // ✅ Auto-created appointment linkage
   }): Promise<{ rxId: string; prescriptionImageUrl: string | null }> {
     const rxId = 'RX-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
     let prescriptionImageUrl: string | null = null;
@@ -178,6 +179,7 @@ export class PaperModeService {
       is_chronic: params.isChronic || false,
       chronic_conditions: params.chronicConditions || [],
       prescription_image_url: prescriptionImageUrl,
+      appointment_id: params.appointmentId || null,  // ✅ Linked to auto-created appointment
       source: 'paper_scan',
       created_at: new Date().toISOString()
     };
