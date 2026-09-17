@@ -67,9 +67,16 @@
 
       function renderStartupError(errorMessage, errorDetail) {
         if (window.__mediflow_startup_healthy) return;
-        console.error('[Startup Shield] Fatal initialization crash:', errorMessage, errorDetail);
         var root = document.getElementById('root');
+        // If React has already mounted or started rendering into root, do NOT corrupt React DOM
+        if (root && root.children && root.children.length > 0) return;
+
+        console.error('[Startup Shield] Fatal initialization crash:', errorMessage, errorDetail);
         if (root) {
+          var initialLoader = document.getElementById('vitalsync-initial-loader');
+          if (initialLoader) {
+            initialLoader.remove();
+          }
           root.innerHTML = 
             '<div style="font-family: \'Outfit\', system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0b0f19; color: #e2e8f0; padding: 2rem; box-sizing: border-box; text-align: center;">' +
               '<div style="background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 1.5rem; padding: 3rem; max-width: 560px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); box-sizing: border-box;">' +
@@ -89,23 +96,27 @@
         }
       }
 
-      // Intercept errors in capture phase so script load and MIME failures are caught
+      // Intercept errors in capture phase so internal script load and MIME failures are caught
       window.addEventListener('error', function(event) {
-        if (!window.__mediflow_startup_healthy) {
-          var target = event.target || event.srcElement;
-          var isScript = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
-          var message = isScript 
-            ? ('Failed to load asset script: ' + (target.src || target.href || 'bundle module')) 
-            : (event.message || (event.error && event.error.message) || 'Unhandled Script Execution Error');
-          renderStartupError(message, event);
+        if (window.__mediflow_startup_healthy) return;
+        var target = event.target || event.srcElement;
+        var isElement = target && (target.tagName === 'SCRIPT' || target.tagName === 'LINK');
+        if (isElement) {
+          var url = (target.src || target.href || '').toLowerCase();
+          // ONLY trigger for internal app bundles (e.g. /assets/ or local origin app scripts)
+          // NEVER block the app for third-party trackers, beacons, analytics, or external CDN scripts
+          var isInternalAppAsset = url.indexOf('/assets/') !== -1 || (url.indexOf(window.location.host.toLowerCase()) !== -1 && url.indexOf('/assets/') !== -1);
+          if (!isInternalAppAsset) {
+            // Ignore non-essential third-party script or stylesheet failures (like Cloudflare Insights)
+            return;
+          }
+          renderStartupError('Failed to load application asset: ' + (target.src || target.href || 'bundle module'), event);
         }
       }, true);
 
       window.addEventListener('unhandledrejection', function(event) {
-        if (!window.__mediflow_startup_healthy) {
-          var reasonMessage = event.reason ? (event.reason.message || String(event.reason)) : 'Unhandled Promise Rejection';
-          renderStartupError(reasonMessage, event.reason);
-        }
+        // Log background promise rejections without disrupting critical UI rendering
+        console.warn('[Startup Shield] Non-blocking unhandled promise rejection:', event.reason);
       });
     </script>
     <title>VitalSync: Cloud EMR &amp; Virtual Hospital Network | WhatsApp Patient Care Loop</title>
