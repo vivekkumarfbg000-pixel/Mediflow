@@ -6,6 +6,7 @@ import { WhatsAppService } from './whatsappService';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_PHARM_ENTITY } from './podContext';
 import { getIstDateString, getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
+import { BillingService } from './billingService';
 import type { 
   PharmacyInventoryItem, 
   InventoryHold, 
@@ -1061,9 +1062,11 @@ export class PharmacyService {
 
       // Check and sync Free Virtual Consult loyalty unlock if patient also completed partner lab billing
       if (bill.patientId) {
-        import('./billingService').then(({ BillingService }) => {
+        try {
           BillingService.syncPatientLoyaltyUnlock(bill.patientId);
-        }).catch(() => {});
+        } catch (_syncErr) {
+          console.warn('[PharmacyService] Loyalty sync notice:', _syncErr);
+        }
       }
 
       notify();

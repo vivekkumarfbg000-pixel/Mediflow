@@ -4,6 +4,7 @@ import { PatientService } from './patientService';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2 } from './podContext';
 import { getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
+import { BillingService } from './billingService';
 import { cloudStore } from './cloudStore';
 import type { LabRequisition, ReagentStock, PathologyReport, LabReport, DiagnosticTest } from '../types';
 
@@ -559,9 +560,11 @@ export class LabService {
 
         // Check and sync Free Virtual Consult loyalty unlock if patient also completed partner pharmacy billing
         if (req.patientId) {
-          import('./billingService').then(({ BillingService }) => {
+          try {
             BillingService.syncPatientLoyaltyUnlock(req.patientId);
-          }).catch(() => {});
+          } catch (_syncErr) {
+            console.warn('[LabService] Loyalty sync notice:', _syncErr);
+          }
         }
       });
     }
