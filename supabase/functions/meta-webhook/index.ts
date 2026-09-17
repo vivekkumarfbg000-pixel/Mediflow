@@ -193,6 +193,68 @@ async function callWithCircuitBreaker<T>(key: string, fn: () => Promise<T>): Pro
 
 const LLM_TIMEOUT_MS = 8000;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// VITALSYNC CANONICAL WHATSAPP TEMPLATES — PERMANENT IMMUTABLE REGISTRY
+// Governed by Admin Policy: Templates are strictly locked against unauthorized modification
+// ═══════════════════════════════════════════════════════════════════════════════
+const LOCKED_CANONICAL_TEMPLATES: Record<string, { name: string; text: string; isLocked: true }> = {
+  welcome_onboard: {
+    name: "patient_onboarding_welcome",
+    text: "Namaste {PatientName}! 🙏 {ClinicName} mein aapka swagat hai!\n\nAapka registration safaltapoorvak complete ho gaya hai. VitalSync Smart Clinic ecosystem ke saath aapko milti hain ye premium suvidhayein:\n\n1️⃣ 1 Free Virtual Consult (15-20 dinon ke bheetar) 🆓\n2️⃣ 10% Discount on Medicine Refills 💊\n3️⃣ Daily WhatsApp Reminders & Health Updates 📱\n4️⃣ Instant Digital Lab Reports & Prescriptions 📄\n\nKisi bhi sahayata ke liye yahan message karein! Swasth rahein, surakshit rahein! 🩺✨",
+    isLocked: true
+  },
+  main_welcome_menu: {
+    name: "main_welcome_menu_template",
+    text: "Namaste {PatientName}! 🙏 Welcome to {ClinicName}.\n\n🌟 SERVICES 🌟\n1️⃣ Book Physical Clinic Visit 🏥\n2️⃣ Book Virtual Video Consult 💻 (1 Free Consult Unlocked)\n3️⃣ View Lab Reports & Hinglish Summary 🔬\n4️⃣ Emergency SOS Priority #1 Routing 🚨\n5️⃣ 1-Click Medicine Refill (10% OFF) 💊\n6️⃣ Refer a Patient & Earn 10% OFF 🎁\n\nService select karne ke liye button tap kijiye ya number (1-6) reply kijiye! 🩺",
+    isLocked: true
+  },
+  appointment_confirmed: {
+    name: "appointment_confirmed_template",
+    text: "🟢 *APPOINTMENT CONFIRMED & TOKEN ALLOCATED!*\n\nHi {PatientName}! {DoctorName} ke saath aapka checkup confirm ho gaya hai:\n\n• Token Number: *{TokenNumber}* 🎫\n• Queue Status: {AheadCount} Patients ahead of you (~{WaitMinutes} mins wait)\n• Live Clinic Turn Alert: Turn aane se 2 patient pehle WhatsApp alert aayega!\n• Clinic Location: {ClinicAddress}, Desk #1\n\nDoctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Thank you! 😊",
+    isLocked: true
+  },
+  chronic_refill_reminder: {
+    name: "chronic_refill_reminder_template",
+    text: "Namaste {PatientName} Ji! 🩺\nAapki *{MedicineName}* dawa agle *5 dino mein khatam* hone wali hai.\n\nBlood pressure/sugar control mein gap na aaye, isliye {ClinicName} Pharmacy ne aapka *1 Month Refill Pack (10% OFF)* ready rakha hai:\n\n• MRP: ~₹{MrpAmount}~\n• Your Price (10% VIP Discount): *₹{DiscountedAmount}*\n• Delivery: Free Clinic Counter Pickup ya 24hr Home Delivery",
+    isLocked: true
+  },
+  emergency_sos_priority: {
+    name: "emergency_sos_priority_template",
+    text: "🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n{DoctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *{SosTokenNumber}*\n• Doctor: *{DoctorName}*\n• Clinic Desk: *{ClinicName}*\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Emergency Surcharge: *₹{EmergencyFee}*\n\nKripya turant clinic emergency desk par pahuchein aur token *{SosTokenNumber}* compounder ko show karein! 🩺",
+    isLocked: true
+  },
+  payment_receipt: {
+    name: "payment_receipt_template",
+    text: "Namaste {PatientName}! Aapka payment of ₹{Amount} successful raha for Invoice #{InvoiceNumber}. VitalSync healthcare app checkup slots configure ho rahe hain. We look forward to serving you! 🟢",
+    isLocked: true
+  }
+};
+
+async function getCanonicalTemplate(templateKey: string): Promise<{ name: string; text: string; isLocked: boolean }> {
+  try {
+    const { data } = await supabase
+      .from("canonical_templates")
+      .select("template_key, template_name, template_body, is_locked")
+      .eq("template_key", templateKey)
+      .maybeSingle();
+
+    if (data?.template_body) {
+      return {
+        name: data.template_name || LOCKED_CANONICAL_TEMPLATES[templateKey]?.name || templateKey,
+        text: data.template_body,
+        isLocked: true
+      };
+    }
+  } catch (_e) {
+    // Fall back to locked immutable constant
+  }
+  return LOCKED_CANONICAL_TEMPLATES[templateKey] || {
+    name: "patient_onboarding_welcome",
+    text: LOCKED_CANONICAL_TEMPLATES.welcome_onboard.text,
+    isLocked: true
+  };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const url = new URL(req.url);
@@ -461,9 +523,9 @@ if (!isManualRelay) {
         // Automatic 24-Hour Window Bypass: Fallback to Meta Approved Template if Error 131047 (Re-engagement message) occurs
         const resStr = JSON.stringify(resData);
         if (!res.ok && (resStr.includes("131047") || resStr.includes("Re-engagement message"))) {
-          console.log(`[Meta Webhook Outbound Relay] 24-Hour Customer Window Expired (Meta Error 131047). Retrying via pre-approved Meta Template 'hello_world'...`);
+          const templateName = payload.templateName || Deno.env.get("META_DEFAULT_TEMPLATE") || "patient_onboarding_welcome";
+          console.log(`[Meta Webhook Outbound Relay] 24-Hour Customer Window Expired (Meta Error 131047). Retrying via pre-approved Meta Template '${templateName}'...`);
           try {
-            const templateName = payload.templateName || Deno.env.get("META_DEFAULT_TEMPLATE") || "hello_world";
             const templateLang = payload.templateLanguage || "en_US";
 
             const templateRes = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
@@ -664,9 +726,9 @@ if (!isManualRelay) {
         // Automatic 24-Hour Window Bypass: Fallback to Meta Approved Template if Error 131047 occurs
         const resStr = JSON.stringify(resData);
         if (!res.ok && (resStr.includes("131047") || resStr.includes("Re-engagement message") || resStr.includes("131026"))) {
-          console.log(`[Meta Webhook Broadcast Relay] 24-Hour Customer Window Expired (Meta Error 131047) for ${cleanPhone}. Retrying via pre-approved Meta Template 'hello_world'...`);
+          const templateName = payload.templateName || Deno.env.get("META_DEFAULT_TEMPLATE") || "patient_onboarding_welcome";
+          console.log(`[Meta Webhook Broadcast Relay] 24-Hour Customer Window Expired (Meta Error 131047) for ${cleanPhone}. Retrying via pre-approved Meta Template '${templateName}'...`);
           try {
-            const templateName = payload.templateName || Deno.env.get("META_DEFAULT_TEMPLATE") || "hello_world";
             const templateLang = payload.templateLanguage || "en_US";
 
             const templateRes = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
