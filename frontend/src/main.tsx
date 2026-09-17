@@ -8,6 +8,12 @@ import { ErrorBoundary } from './components/shared/ErrorBoundary'
 // Initialize Sentry continuous crash diagnostics
 initSentry();
 
+// Remove initial HTML/SVG loader so body only contains the mounted React root
+const initialLoader = document.getElementById('vitalsync-initial-loader');
+if (initialLoader) {
+  initialLoader.remove();
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
