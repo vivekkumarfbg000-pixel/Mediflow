@@ -29,7 +29,8 @@ import {
   Smartphone,
   Pill,
   Laptop,
-  FileText
+  FileText,
+  HeartPulse
 } from 'lucide-react';
 
 interface SopConfigTabProps {
@@ -244,10 +245,23 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       l.trim().startsWith('-') || l.trim().startsWith('•') || l.trim().startsWith('*') || /^\d+\./.test(l.trim())
     ).map(l => l.trim().replace(/^[-•*\d.]+\s*/, '')).filter(l => l.length > 5).slice(0, 12);
 
+    // Care Program Subscriptions (3-Month / 6-Month Retainers)
+    const care3mMatch = text.match(/(?:3\s*month|quarterly|3-month|3m)\s*(?:care|program|subscription|retainer|package)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i) ||
+                        text.match(/(?:care|program|subscription)[^0-9]*(?:3\s*month|quarterly)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i);
+    const care6mMatch = text.match(/(?:6\s*month|half\s*yearly|6-month|6m)\s*(?:care|program|subscription|retainer|package)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i) ||
+                        text.match(/(?:care|program|subscription)[^0-9]*(?:6\s*month|half\s*yearly)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i);
+    
+    const careProgram3mFee = care3mMatch ? parseFloat(care3mMatch[1]) : (activeSop?.extractedConfig?.care_program_3m_fee ?? 4000);
+    const careProgram6mFee = care6mMatch ? parseFloat(care6mMatch[1]) : (activeSop?.extractedConfig?.care_program_6m_fee ?? 6000);
+    const careProgramName = activeSop?.extractedConfig?.care_program_name || 'DiabeteCare & CardioShield 365';
+
     const config = {
       doctor_fee: docFee,
       emergency_sos_fee: emergencySosFee,
       doctor_upi_vpa: doctorUpiVpa,
+      care_program_3m_fee: careProgram3mFee,
+      care_program_6m_fee: careProgram6mFee,
+      care_program_name: careProgramName,
       test_prices: testPrices,
       splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab, pharmacyDoctor: splitPharmaDoc, pharmacyPlatform: 2 },
       guidelines: guidelineLines.length > 0 ? guidelineLines : activeSop?.extractedConfig?.guidelines ?? []
@@ -282,6 +296,20 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
         const podId = getPodContext().podId;
         if (podId) {
           supabase.from('pods').update({ upi_vpa: newSop.extractedConfig.doctor_upi_vpa }).eq('id', podId).then(() => {});
+        }
+      } catch (_e) {}
+    }
+
+    if (newSop.extractedConfig?.care_program_3m_fee || newSop.extractedConfig?.care_program_6m_fee) {
+      try {
+        localStorage.setItem('clinic_care_program_3m_fee', String(newSop.extractedConfig.care_program_3m_fee || 4000));
+        localStorage.setItem('clinic_care_program_6m_fee', String(newSop.extractedConfig.care_program_6m_fee || 6000));
+        const podId = getPodContext().podId;
+        if (podId) {
+          supabase.from('pods').update({
+            care_program_3m_fee: newSop.extractedConfig.care_program_3m_fee || 4000,
+            care_program_6m_fee: newSop.extractedConfig.care_program_6m_fee || 6000
+          }).eq('id', podId).then(() => {});
         }
       } catch (_e) {}
     }
@@ -748,6 +776,40 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                     </div>
                   </div>
                 </div>
+
+                {/* Chronic Care Program Subscriptions (Retainer) */}
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+                  <div className="flex items-center justify-between text-amber-800 font-bold text-xs uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5"><HeartPulse className="w-4 h-4 shrink-0 text-amber-600" /> Care Retainer (₹)</span>
+                    <span className="text-[9px] text-amber-700 bg-amber-200/70 px-1.5 py-0.5 rounded font-mono">100% Dr</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] text-amber-800 font-semibold mb-0.5">
+                        <span>3-Month Plan</span>
+                        <span className="text-[9px] text-slate-500">1 Call/mo</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={extractedConfig.care_program_3m_fee ?? 4000}
+                        onChange={e => setExtractedConfig({...extractedConfig, care_program_3m_fee: parseFloat(e.target.value) || 0})}
+                        className="w-full bg-white border border-amber-200 rounded-lg px-2 py-1 text-xs font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] text-amber-800 font-semibold mb-0.5">
+                        <span>6-Month Plan</span>
+                        <span className="text-[9px] text-slate-500">1 Call/mo</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={extractedConfig.care_program_6m_fee ?? 6000}
+                        onChange={e => setExtractedConfig({...extractedConfig, care_program_6m_fee: parseFloat(e.target.value) || 0})}
+                        className="w-full bg-white border border-amber-200 rounded-lg px-2 py-1 text-xs font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Test Prices */}
@@ -842,6 +904,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                   { label: 'Lab Splits', value: `${activeSop.extractedConfig?.splits?.doctor ?? 40}% Dr / ${activeSop.extractedConfig?.splits?.platform ?? 5}% Tech`, icon: <Coins className="w-5 h-5 text-indigo-500 mx-auto" />, colorClasses: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
                   { label: 'Lab Keep', value: `${activeSop.extractedConfig?.splits?.lab ?? 55}%`, icon: <FlaskConical className="w-5 h-5 text-emerald-500 mx-auto" />, colorClasses: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
                   { label: 'Pharmacy Splits', value: `${activeSop.extractedConfig?.splits?.pharmacyDoctor ?? 20}% Dr / 2% Tech`, icon: <Pill className="w-5 h-5 text-teal-500 mx-auto" />, colorClasses: 'bg-teal-50 border-teal-100 text-teal-700' },
+                  { label: '3M Care Retainer', value: `₹${activeSop.extractedConfig?.care_program_3m_fee ?? 4000}`, icon: <HeartPulse className="w-5 h-5 text-amber-500 mx-auto" />, colorClasses: 'bg-amber-50 border-amber-100 text-amber-700' },
+                  { label: '6M Care Retainer', value: `₹${activeSop.extractedConfig?.care_program_6m_fee ?? 6000}`, icon: <HeartPulse className="w-5 h-5 text-orange-500 mx-auto" />, colorClasses: 'bg-orange-50 border-orange-100 text-orange-700' },
                 ].map((stat: any) => {
                   const [bg, border, textColor] = stat.colorClasses.split(' ');
                   return (

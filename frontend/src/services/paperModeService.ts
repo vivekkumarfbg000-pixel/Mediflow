@@ -13,7 +13,8 @@ import { supabase } from '../lib/supabaseClient';
 import { WhatsAppService } from './whatsappService';
 import { LabService } from './labService';
 import { PatientService } from './patientService';
-import { ChronicCareService } from './chronicCareService';
+import { ChronicCareService, CHRONIC_PROTOCOLS } from './chronicCareService';
+import { getIstOffsetDateString } from '../utils/dateUtils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PERMANENT LOCKED WELCOME TEMPLATE (Hinglish + Hindi, 6 clinic features)
@@ -198,6 +199,49 @@ export class PaperModeService {
       console.log('[PaperMode] ✅ patient_registry updated');
     } catch (err: any) {
       console.warn('[PaperMode] patient_registry update notice:', err?.message);
+    }
+
+    // D: Auto-Ingest into chronic_care_cohorts & Sovereign Pod Realtime CDC
+    try {
+      const medText = (params.medications || []).map(m => m.name).join(' ');
+      const diagText = `${params.diagnosis || ''} ${(params.chronicConditions || []).join(' ')}`;
+      const detectedProto = ChronicCareService.detectChronicCondition(medText, diagText);
+
+      if (params.isChronic || detectedProto || (params.chronicConditions && params.chronicConditions.length > 0)) {
+        const proto = detectedProto || CHRONIC_PROTOCOLS.DIABETES;
+        const totalDaysSupply = ChronicCareService.calculateDaysSupply((params.medications?.[0]?.dosage || '1-0-1'), 30);
+        
+        await ChronicCareService.registerChronicPatient({
+          patientId: params.patientId,
+          patientName: params.patientName,
+          patientPhone: params.patientPhone || '',
+          doctorId: params.doctorName || '',
+          conditionCode: proto.code,
+          conditionName: proto.name,
+          medications: (params.medications || []).map(m => ({
+            name: m.name,
+            dosage: m.dosage || '1-0-1',
+            frequency: m.frequency || 'Twice daily'
+          })),
+          daysSupply: totalDaysSupply,
+          dispensedAt: new Date().toISOString(),
+          nextRefillDate: getIstOffsetDateString(Math.max(1, totalDaysSupply - 5)),
+          nextRetestDate: getIstOffsetDateString(proto.retestFrequencyDays),
+          retestTestCode: proto.mandatoryRetestCode,
+          retestTestName: proto.mandatoryRetestName,
+          adherenceScore: 100.0,
+          status: 'active',
+          monthlyMedicineSpend: 1500
+        });
+        console.log('[PaperMode] ✅ Auto-ingested chronic patient into chronic_care_cohorts');
+
+        // Automatically dispatch condition diet guide on WhatsApp
+        if (params.patientPhone) {
+          ChronicCareService.dispatchConditionDietGuide(params.patientPhone, proto.code, params.patientName);
+        }
+      }
+    } catch (cohortErr: any) {
+      console.warn('[PaperMode] Chronic cohort auto-ingestion notice:', cohortErr?.message);
     }
 
     return { rxId, prescriptionImageUrl };

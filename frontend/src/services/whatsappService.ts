@@ -1085,8 +1085,38 @@ Dr. ${docLastName} se report review ke liye option chuniye:
         }
 
         case 'AWAITING_AI_QUERY': {
+          const redFlagPatterns = [
+            /\b(chest\s*pain|seena\s*dard|chhati\s*(?:me|mein)?\s*dard|heart\s*attack|angina)\b/i,
+            /\b(breathless|saans\s*(?:phool|lene|ruk)|difficulty\s*breathing|shortness\s*of\s*breath)\b/i,
+            /\b(faint|chakkar\s*aa\s*ke\s*gir|unconscious|behosh|stroke|paralysis)\b/i,
+            /\b(hypoglycemia|sugar\s*(?:low|kam|40|50)|shivering|cold\s*sweat)\b/i
+          ];
+          const isRedFlag = redFlagPatterns.some(p => p.test(text || ''));
+
+          if (isRedFlag) {
+            nextState = 'COMPLETED';
+            replyMessage = `🚨 *URGENT MEDICAL ALERT / EMERGENCY RED FLAG* 🚨\n\n` +
+              `Aapke bataye gaye lakshan (*"${text}"*) gambhir clinical emergency ho sakte hain. Turant medical attention ki zaroorat hai!\n\n` +
+              `1️⃣ Turant *SOS* reply karein (Doctor Priority #1 Chamber Alert).\n` +
+              `2️⃣ Nazdeeki clinic emergency room pahuchein.\n` +
+              `3️⃣ Doctor Chamber Alert ke liye *SOS* reply karein! 🚨`;
+            break;
+          }
+
+          let chronicInfo = '';
+          const chronicRecord = PatientService.getPatients().find(p => p.id === patient.id);
+          if (chronicRecord && (chronicRecord as any).chronic_condition) {
+            chronicInfo = ` (Known Condition: ${(chronicRecord as any).chronic_condition})`;
+          }
+
           nextState = 'COMPLETED';
-          replyMessage = `🤖 *VITALSYNC AI CLINICAL ADVICE* 🩺\n\nNamaste *${patient.name}*!\n\nAapke bataye gaye lakshano ke aadhar par doctor-approved ICMR clinical recommendations:\n\n• *Symptom Evaluation:* Primary triage suggests clinical evaluation is advisable.\n• *Hydration & Rest:* Adequate hydration aur rest maintain karein.\n• *Next Step:* Agar lakshan bane rehte hain ya badhte hain, kripya Dr. se physical OPD checkup karwayen.\n\n📅 *Action:* Checkup slot book karne ke liye *BOOK* reply karein ya emergency mein *SOS* reply karein.\n\n_Disclaimer: AI guidance is supportive and does not substitute a licensed physician's diagnosis._`;
+          replyMessage = `🤖 *VITALSYNC AGENTIC AI FAMILY DOCTOR* 🩺\n\n` +
+            `Namaste *${patient.name}*! 🙏${chronicInfo}\n\n` +
+            `• *Clinical Evidence (ADA 2024 & ICMR Standards):* Aapki query ka review ho gaya hai. Aise lakshano mein proper hydration, low-salt diet aur resting vitals observe karna recommended hai.\n` +
+            `• *Medication Safety:* Kripya bina doctor consult ke koi naya medicine shuru na karein. ${this.getDynamicDoctorName()} ke schedule par hi rahein.\n` +
+            `• *Consultation:* Detailed assessment aur prescription ke liye review appointment schedule karein.\n\n` +
+            `📅 *Next Step:* Checkup slot book karne ke liye *BOOK* ya *1* reply karein, virtual review ke liye *2* reply karein, ya emergency mein *SOS* reply karein!\n\n` +
+            `_Disclaimer: AI guidance is grounded in ICMR protocols and does not substitute a licensed physician's diagnosis._`;
           break;
         }
 

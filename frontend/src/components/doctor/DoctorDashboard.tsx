@@ -1443,6 +1443,41 @@ Keep the tone professional, clinical, objective, and precise.`;
       detail: { entity: 'appointments', action: 'completed', patientId: selectedPatient.id }
     }));
 
+    // Auto-Ingest into Chronic Care Cohorts if chronic medications or diagnoses detected
+    try {
+      const { ChronicCareService, CHRONIC_PROTOCOLS } = await import('../../services/chronicCareService');
+      const medText = finalMedications.map((m: any) => m.medicineName).join(' ');
+      const diagText = `${finalNotes} ${selectedPatient.diagnosis || ''}`;
+      const detectedProto = ChronicCareService.detectChronicCondition(medText, diagText);
+
+      if (detectedProto || selectedPatient.is_chronic) {
+        const proto = detectedProto || CHRONIC_PROTOCOLS.DIABETES;
+        const totalDaysSupply = ChronicCareService.calculateDaysSupply((finalMedications[0]?.dosage || '1-0-1'), 30);
+        await ChronicCareService.registerChronicPatient({
+          patientId: selectedPatient.id,
+          patientName: selectedPatient.name,
+          patientPhone: selectedPatient.phone || '',
+          doctorId: activeDoctorProfile?.id || getPodContext().doctorId || FALLBACK_DOCTOR_ID,
+          conditionCode: proto.code,
+          conditionName: proto.name,
+          medications: finalMedications.map((m: any) => ({
+            name: m.medicineName,
+            dosage: m.dosage || '1-0-1',
+            frequency: m.frequency || 'Twice daily'
+          })),
+          daysSupply: totalDaysSupply,
+          dispensedAt: new Date().toISOString(),
+          nextRefillDate: getIstDateString(),
+          nextRetestDate: getIstDateString(),
+          retestTestCode: proto.mandatoryRetestCode,
+          retestTestName: proto.mandatoryRetestName,
+          adherenceScore: 100.0,
+          status: 'active',
+          monthlyMedicineSpend: 1500
+        });
+      }
+    } catch (_chronicErr) { /* ignore */ }
+
     // Dynamic WhatsApp auto-dispatch matching core business USP (Non-blocking background delivery)
     (async () => {
       try {
@@ -2891,6 +2926,73 @@ Keep the tone professional, clinical, objective, and precise.`;
       </div>
 
       {/* Contextual Floating Action Button (FAB) for Mobile Viewports - Removed */}
+
+      {/* Mobile Sticky Bottom Navigation Footer (lg:hidden) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 px-3 py-2 flex items-center justify-around lg:hidden shadow-2xl">
+        <button
+          onClick={() => setActiveTab('pod_view')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
+            activeTab === 'pod_view' 
+              ? 'text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/40' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
+          }`}
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          <span>Pod View</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('consultation')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
+            activeTab === 'consultation' 
+              ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
+          }`}
+        >
+          <Stethoscope className="w-4 h-4" />
+          <span>Consult</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('virtual_schedule')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
+            activeTab === 'virtual_schedule' 
+              ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
+          }`}
+        >
+          <Video className="w-4 h-4" />
+          <span>Virtual</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('patients')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
+            activeTab === 'patients' 
+              ? 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Patients</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('chronic')}
+          className={`relative flex flex-col items-center gap-1 text-[10px] font-bold py-1 px-2.5 rounded-xl transition-all cursor-pointer border-0 ${
+            activeTab === 'chronic' 
+              ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 shadow-xs' 
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
+          }`}
+        >
+          <span className="relative">
+            <HeartPulse className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500" />
+          </span>
+          <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">Care Club</span>
+        </button>
+      </div>
 
       {/* Desktop Enterprise Status Footer */}
       <div className="hidden lg:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">

@@ -17,8 +17,14 @@ import {
   ShieldAlert,
   ChevronRight,
   UserCheck,
-  Send
+  Send,
+  Crown,
+  Utensils,
+  Bell,
+  Video,
+  X
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { ChronicCareService, CHRONIC_PROTOCOLS, type ChronicCohortRecord } from '../../../services/chronicCareService';
 import { WhatsAppService } from '../../../services/whatsappService';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
@@ -37,7 +43,21 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [outreachSuccessId, setOutreachSuccessId] = useState<string | null>(null);
+  const [dietSuccessId, setDietSuccessId] = useState<string | null>(null);
+  const [doseSuccessId, setDoseSuccessId] = useState<string | null>(null);
   const [isTriggeringCron, setIsTriggeringCron] = useState(false);
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [selectedCohortToEnroll, setSelectedCohortToEnroll] = useState<ChronicCohortRecord | null>(null);
+  const [enrollPlan, setEnrollPlan] = useState<3 | 6>(6);
+
+  useEffect(() => {
+    if (isEnrollModalOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [isEnrollModalOpen]);
 
   useEffect(() => {
     let timer: any = null;
@@ -90,6 +110,10 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
 
     const dueRefills = cohorts.filter(c => c.status === 'due_refill').length;
     const defaulters = cohorts.filter(c => (c.status || '').startsWith('defaulter')).length;
+    const enrolledSubscribers = cohorts.filter(c => c.careProgramStatus === 'enrolled').length;
+    const careProgram3mFee = ChronicCareService.getCareProgramFee(3);
+    const careProgram6mFee = ChronicCareService.getCareProgramFee(6);
+    const totalCareRevenue = cohorts.filter(c => c.careProgramStatus === 'enrolled').reduce((acc, c) => acc + (c.careProgramFee || careProgram6mFee), 0);
 
     return {
       total,
@@ -97,7 +121,11 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
       monthlyPracticeRevenue: Math.round(monthlyPracticeRevenue),
       doctorSopSplit: Math.round(doctorSopSplit),
       dueRefills,
-      defaulters
+      defaulters,
+      enrolledSubscribers,
+      careProgram3mFee,
+      careProgram6mFee,
+      totalCareRevenue
     };
   }, [cohorts]);
 
@@ -145,6 +173,63 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
 
     setOutreachSuccessId(cohort.id);
     setTimeout(() => setOutreachSuccessId(null), 3000);
+  };
+
+  const handleSendDietGuide = async (cohort: ChronicCohortRecord) => {
+    if (!cohort.patientPhone) return;
+    await ChronicCareService.dispatchConditionDietGuide(cohort.patientPhone, cohort.conditionCode, cohort.patientName);
+    setDietSuccessId(cohort.id);
+    setTimeout(() => setDietSuccessId(null), 3000);
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'ICMR Diet Guide Dispatched 🥗',
+        message: `${cohort.conditionName} dietary guidelines sent to ${cohort.patientName} on WhatsApp.`,
+        type: 'success'
+      }
+    }));
+  };
+
+  const handleSendDoseReminder = async (cohort: ChronicCohortRecord) => {
+    if (!cohort.patientPhone) return;
+    await ChronicCareService.dispatchPatientDosageReminder(
+      cohort.patientPhone,
+      cohort.patientName,
+      cohort.medications || [],
+      'morning'
+    );
+    setDoseSuccessId(cohort.id);
+    setTimeout(() => setDoseSuccessId(null), 3000);
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Dose Reminder Dispatched ⏰',
+        message: `Morning medication reminder sent to ${cohort.patientName} on WhatsApp.`,
+        type: 'info'
+      }
+    }));
+  };
+
+  const handleEnrollPatient = async (cohort: ChronicCohortRecord, months: 3 | 6) => {
+    const fee = ChronicCareService.getCareProgramFee(months);
+    const success = await ChronicCareService.enrollInCareProgram(
+      cohort.patientId,
+      cohort.patientName,
+      cohort.patientPhone,
+      months,
+      fee
+    );
+    if (success) {
+      setIsEnrollModalOpen(false);
+      setSelectedCohortToEnroll(null);
+      const data = await ChronicCareService.getChronicCohorts();
+      setCohorts(data);
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Care Club Enrolled! 🌟',
+          message: `${cohort.patientName} enrolled in ${months}-Month Care Program (₹${fee}). WhatsApp card sent.`,
+          type: 'success'
+        }
+      }));
+    }
   };
 
   return (
@@ -274,6 +359,38 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
           </div>
           <p className="text-[10px] text-rose-500 font-semibold">
             {metrics.dueRefills} Refills Due This Week
+          </p>
+        </PointerGlowCard>
+
+        {/* Retainer KPI 1 */}
+        <PointerGlowCard className="bg-white/90 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-white/5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 font-mono">Care Club Retainer</span>
+            <div className="p-2 bg-amber-50 dark:bg-amber-950/30 text-amber-600 rounded-xl">
+              <Crown className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black font-mono text-amber-700 dark:text-amber-400">
+            {metrics.enrolledSubscribers} VIP Members
+          </div>
+          <p className="text-[10px] text-amber-600 dark:text-amber-300 font-semibold font-mono">
+            SOP: 3M ₹{metrics.careProgram3mFee} · 6M ₹{metrics.careProgram6mFee}
+          </p>
+        </PointerGlowCard>
+
+        {/* Retainer KPI 2 */}
+        <PointerGlowCard className="bg-white/90 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-200 dark:border-white/5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 font-mono">Guaranteed Retainer Flow</span>
+            <div className="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 rounded-xl">
+              <Sparkles className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black font-mono text-emerald-700 dark:text-emerald-400">
+            ₹{metrics.totalCareRevenue.toLocaleString('en-IN')}
+          </div>
+          <p className="text-[10px] text-emerald-600 dark:text-emerald-300 font-semibold">
+            100% Doctor Payout (0% Platform Fee)
           </p>
         </PointerGlowCard>
       </div>
@@ -440,10 +557,39 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex items-center gap-2 shrink-0 w-full lg:w-auto justify-end">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0 w-full lg:w-auto justify-end">
+                    {/* 1. ICMR Diet Guide */}
+                    <button
+                      onClick={() => handleSendDietGuide(cohort)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                        dietSuccessId === cohort.id
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                      title="Send ICMR/ADA diet chart on WhatsApp"
+                    >
+                      <Utensils className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{dietSuccessId === cohort.id ? 'Diet Sent!' : 'Diet Plan'}</span>
+                    </button>
+
+                    {/* 2. Dose Reminder */}
+                    <button
+                      onClick={() => handleSendDoseReminder(cohort)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                        doseSuccessId === cohort.id
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                      title="Send WhatsApp dose reminder"
+                    >
+                      <Bell className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>{doseSuccessId === cohort.id ? 'Reminder Sent!' : 'Dose Alert'}</span>
+                    </button>
+
+                    {/* 3. 1-Tap Refill Nudge */}
                     <button
                       onClick={() => handleSendNudge(cohort)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
                         isSuccess
                           ? 'bg-emerald-600 text-white'
                           : isDefaulter
@@ -457,9 +603,25 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
                         </>
                       ) : (
                         <>
-                          <MessageSquare className="w-3.5 h-3.5" /> 1-Tap Refill Nudge
+                          <MessageSquare className="w-3.5 h-3.5" /> 1-Tap Refill
                         </>
                       )}
+                    </button>
+
+                    {/* 4. Care Club VIP Enrollment */}
+                    <button
+                      onClick={() => {
+                        setSelectedCohortToEnroll(cohort);
+                        setIsEnrollModalOpen(true);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs border ${
+                        cohort.careProgramStatus === 'enrolled'
+                          ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 border-transparent'
+                      }`}
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                      <span>{cohort.careProgramStatus === 'enrolled' ? 'VIP Active' : 'Enroll Retainer'}</span>
                     </button>
 
                     {onSelectPatient && (
@@ -478,6 +640,118 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
           })
         )}
       </div>
+
+      {/* ── CARE CLUB RETAINER ENROLLMENT MODAL (PORTAL) ─────────── */}
+      {isEnrollModalOpen && selectedCohortToEnroll && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 relative">
+            <button
+              onClick={() => {
+                setIsEnrollModalOpen(false);
+                setSelectedCohortToEnroll(null);
+              }}
+              className="absolute right-5 top-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-amber-500 font-bold uppercase tracking-wider text-xs">
+                <Crown className="w-4 h-4" />
+                <span>Care Club VIP Membership Enrollment</span>
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                {selectedCohortToEnroll.patientName}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Condition: <span className="font-semibold text-slate-700 dark:text-slate-200">{selectedCohortToEnroll.conditionName}</span> · Phone: {selectedCohortToEnroll.patientPhone}
+              </p>
+            </div>
+
+            {/* Plan selection */}
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                Select Care Retainer Plan (SOP Configured)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <div
+                  onClick={() => setEnrollPlan(3)}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                    enrollPlan === 3
+                      ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/20'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">3 Months</span>
+                    {enrollPlan === 3 && <CheckCircle2 className="w-4 h-4 text-amber-600" />}
+                  </div>
+                  <div className="text-xl font-black font-mono text-amber-700 dark:text-amber-400">
+                    ₹{metrics.careProgram3mFee}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">₹{Math.round(metrics.careProgram3mFee / 3)}/mo · 1 Free Virtual/Mo</p>
+                </div>
+
+                <div
+                  onClick={() => setEnrollPlan(6)}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                    enrollPlan === 6
+                      ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/20'
+                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">6 Months</span>
+                    <span className="text-[9px] bg-amber-500 text-white font-bold px-1.5 py-0.5 rounded-full">POPULAR</span>
+                  </div>
+                  <div className="text-xl font-black font-mono text-amber-700 dark:text-amber-400">
+                    ₹{metrics.careProgram6mFee}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">₹{Math.round(metrics.careProgram6mFee / 6)}/mo · Best Value</p>
+                </div>
+              </div>
+            </div>
+
+            {/* VIP Benefits list */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+              <div className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Patient Membership Perks:</span>
+              </div>
+              <ul className="space-y-1.5 text-slate-600 dark:text-slate-300">
+                <li className="flex items-center gap-2">✅ 1 Monthly Virtual Video Consult with Doctor</li>
+                <li className="flex items-center gap-2">✅ 24/7 Agentic AI Family Doctor on WhatsApp</li>
+                <li className="flex items-center gap-2">✅ 10% Discount on all Chronic Medicine Refills</li>
+                <li className="flex items-center gap-2">✅ Priority OPD Token when visiting clinic physically</li>
+              </ul>
+              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold pt-1">
+                🔒 Doctor Consultation Fee Immunity: 100% Payout to Clinic (0% Platform Fee)
+              </div>
+            </div>
+
+            {/* Modal actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setIsEnrollModalOpen(false);
+                  setSelectedCohortToEnroll(null);
+                }}
+                className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleEnrollPatient(selectedCohortToEnroll, enrollPlan)}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Crown className="w-4 h-4" />
+                <span>Confirm Enrollment (₹{enrollPlan === 3 ? metrics.careProgram3mFee : metrics.careProgram6mFee})</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

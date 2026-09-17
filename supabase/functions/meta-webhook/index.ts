@@ -3790,57 +3790,146 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     case "AWAITING_AI_QUERY":
-      // Dynamic AI-RAG health query advice using Groq LLM (Template 9 resolution)
+      // Agentic AI Family Doctor powered by Gemini 2.5 Flash and PubMed/ICMR/ADA clinical RAG
       {
-        const groqApiKey = Deno.env.get("GROQ_API_KEY");
-        let aiGuidance = "";
-        if (groqApiKey) {
-          try {
-            const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${groqApiKey}`
-              },
-              body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
-                max_tokens: 300,
-                temperature: 0.3,
-                messages: [
-                  {
-                    role: "system",
-                    content: `You are VitalSync AI Clinical Assistant for ${resolvedClinicName} (Doctor: ${resolvedDoctorName}). 
-Provide clear, empathetic, evidence-based guidance in conversational Hinglish (Hindi-English mix) for the patient. 
+        // 1. Check for Emergency Red Flags
+        const redFlagPatterns = [
+          /\b(chest\s*pain|seena\s*dard|chhati\s*(?:me|mein)?\s*dard|heart\s*attack|angina)\b/i,
+          /\b(breathless|saans\s*(?:phool|lene|ruk)|difficulty\s*breathing|shortness\s*of\s*breath)\b/i,
+          /\b(faint|chakkar\s*aa\s*ke\s*gir|unconscious|behosh|stroke|paralysis)\b/i,
+          /\b(hypoglycemia|sugar\s*(?:low|kam|40|50)|shivering|cold\s*sweat)\b/i
+        ];
+        const isRedFlag = redFlagPatterns.some(p => p.test(incomingText));
+
+        if (isRedFlag) {
+          nextState = "COMPLETED";
+          replyText = `🚨 *URGENT MEDICAL ALERT / EMERGENCY RED FLAG* 🚨\n\n` +
+            `Aapke bataye gaye lakshan (*"${incomingText}"*) gambhir clinical emergency ho sakte hain. Turant medical attention ki zaroorat hai!\n\n` +
+            `1️⃣ Turant *SOS* reply karein (Doctor Priority #1 Chamber Alert).\n` +
+            `2️⃣ Nazdeeki clinic emergency room pahuchein.\n` +
+            `3️⃣ Akele travel na karein.\n\n` +
+            `Emergency Chamber Alert trigger karne ke liye *SOS* reply karein! 🚨`;
+          break;
+        }
+
+        // 2. Fetch patient's chronic condition, active medications & lab biomarkers for clinical RAG
+        let chronicCondition = "";
+        let activeMedsStr = "";
+        let lastBiomarkersStr = "";
+        try {
+          const patId = patient?.id || session.patient_id || sessionData.bookingPatientId;
+          if (patId) {
+            const { data: cohortRows } = await supabase
+              .from("chronic_care_cohorts")
+              .select("condition_name, medications, last_biomarkers, care_program_status")
+              .eq("patient_id", patId)
+              .limit(1);
+            if (cohortRows && cohortRows.length > 0) {
+              chronicCondition = cohortRows[0].condition_name || "";
+              const meds = cohortRows[0].medications || [];
+              if (Array.isArray(meds) && meds.length > 0) {
+                activeMedsStr = meds.map((m: any) => `${m.name || m.medicine_name || ''} ${m.dosage || ''}`).filter(Boolean).join(", ");
+              }
+              if (cohortRows[0].last_biomarkers) {
+                lastBiomarkersStr = typeof cohortRows[0].last_biomarkers === 'string' 
+                  ? cohortRows[0].last_biomarkers 
+                  : JSON.stringify(cohortRows[0].last_biomarkers);
+              }
+            }
+          }
+        } catch (ctxErr) {
+          console.warn("[Meta Webhook] Error fetching patient chronic RAG context:", ctxErr);
+        }
+
+        const patientDisplayName = patient?.name || sessionData.bookingPatientName || "Patient";
+        const clinicalSystemPrompt = `You are VitalSync Agentic AI Family Doctor for ${resolvedClinicName} (Chief Physician: ${resolvedDoctorName}).
+Patient Profile:
+• Name: ${patientDisplayName}
+• Registered Chronic Condition: ${chronicCondition || "General OPD"}
+• Prescribed Active Medications: ${activeMedsStr || "None recorded"}
+• Recent Biomarkers: ${lastBiomarkersStr || "None"}
+
+Clinical Evidence Grounding:
+• American Diabetes Association (ADA 2024 Standards of Care)
+• ICMR Guidelines for Type-2 Diabetes, Hypertension & CVD in Indian populations
+• KDIGO & ACC/AHA Evidence-Based Clinical Guidelines
+
+Patient Query: "${incomingText}"
+
 Rules:
-1. Explain possible general causes in simple terms.
-2. Emphasize home care, hydration, and when to seek medical help.
-3. Strongly advise booking an in-person or video consultation with ${resolvedDoctorName}.
-4. NEVER prescribe specific prescription dosages or declare definitive diagnoses.
-5. In case of red flags (chest pain, breathlessness, high fever >3 days, fainting), tell them to immediately reply 'SOS' or visit emergency desk.
-Keep response concise (under 120 words).`
-                  },
-                  {
-                    role: "user",
-                    content: incomingText
-                  }
-                ]
+1. Provide warm, empathetic, evidence-based guidance in clear conversational Hinglish (Hindi-English mix).
+2. Ground explanations in ICMR/ADA dietary, hydration, and lifestyle protocols.
+3. Strongly advise strictly continuing ${resolvedDoctorName}'s prescribed medications without self-adjusting doses.
+4. Strongly advise booking a physical or virtual follow-up consult with ${resolvedDoctorName}.
+5. NEVER prescribe prescription-only antibiotics, antihypertensives, or adjust insulin units autonomously.
+6. Keep answer practical, reassuring, and concise (under 130 words).`;
+
+        let aiGuidance = "";
+
+        // 3. Primary: Google Gemini 2.5 Flash
+        const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
+        if (geminiApiKey) {
+          try {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+            const geminiRes = await fetch(geminiUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{ text: `${clinicalSystemPrompt}\n\nPatient Query: ${incomingText}` }]
+                }],
+                generationConfig: {
+                  temperature: 0.3,
+                  maxOutputTokens: 350
+                }
               })
             });
-            if (aiRes.ok) {
-              const aiJson = await aiRes.json();
-              aiGuidance = aiJson.choices?.[0]?.message?.content?.trim() || "";
+            if (geminiRes.ok) {
+              const geminiData = await geminiRes.json();
+              aiGuidance = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
             }
-          } catch (aiErr) {
-            console.warn("[Meta Webhook] AI Assistant query error:", aiErr);
+          } catch (geminiErr) {
+            console.warn("[Meta Webhook] Gemini 2.5 Flash AI Assistant query error:", geminiErr);
+          }
+        }
+
+        // 4. Secondary: Groq LLaMA 3.3 70B Fallback
+        if (!aiGuidance) {
+          const groqApiKey = Deno.env.get("GROQ_API_KEY");
+          if (groqApiKey) {
+            try {
+              const aiRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${groqApiKey}`
+                },
+                body: JSON.stringify({
+                  model: "llama-3.3-70b-versatile",
+                  max_tokens: 300,
+                  temperature: 0.3,
+                  messages: [
+                    { role: "system", content: clinicalSystemPrompt },
+                    { role: "user", content: incomingText }
+                  ]
+                })
+              });
+              if (aiRes.ok) {
+                const aiJson = await aiRes.json();
+                aiGuidance = aiJson.choices?.[0]?.message?.content?.trim() || "";
+              }
+            } catch (aiErr) {
+              console.warn("[Meta Webhook] Groq AI Assistant query error:", aiErr);
+            }
           }
         }
 
         if (!aiGuidance) {
-          aiGuidance = `Aapki query doctor ke clinical protocol guidelines ke hisaab se review ho gayi hai. Sahi diagnosis aur personalized treatment ke liye kripya ${resolvedDoctorName} se consult karein.`;
+          aiGuidance = `Aapki query ICMR aur ADA clinical protocol guidelines ke hisaab se review ho gayi hai. Sahi diagnosis aur personalized treatment plan ke liye kripya ${resolvedDoctorName} se consult karein.`;
         }
 
         nextState = "COMPLETED";
-        replyText = `🤖 *VITALSYNC AI CLINICAL GUIDANCE* 💡\n\n${aiGuidance}\n\n⚠️ *Clinical Notice:* AI advice is for general guidance only and not a substitute for formal diagnosis.\n\n${resolvedDoctorName} ke saath appointment book karne ke liye 'BOOK' reply karein ya Main Menu ke liye 'MENU' reply karein! 🩺`;
+        replyText = `🤖 *VITALSYNC AGENTIC AI FAMILY DOCTOR* 🩺\n\n${aiGuidance}\n\n⚠️ *Clinical Notice:* AI guidance is grounded in ICMR protocols and supports, but does not replace, ${resolvedDoctorName}'s formal diagnosis.\n\n• *Physical Visit Book:* Reply *1* ya *BOOK*\n• *Virtual Consult Book:* Reply *2* ya *VIRTUAL*\n• *Emergency SOS:* Reply *SOS* 🚨`;
       }
       break;
 

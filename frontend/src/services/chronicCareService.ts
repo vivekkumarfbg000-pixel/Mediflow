@@ -144,6 +144,26 @@ export interface ChronicCohortRecord {
   adherenceScore: number;
   status: 'active' | 'due_refill' | 'defaulter_7d' | 'defaulter_15d' | 'resolved';
   monthlyMedicineSpend: number;
+  careProgramStatus?: 'enrolled' | 'not_enrolled';
+  careProgramFee?: number;
+}
+
+export interface ChronicCareSubscription {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  doctorId?: string;
+  podId: string;
+  programName: string;
+  durationMonths: number;
+  totalFee: number;
+  monthlyVirtualVisits: number;
+  visitsUsed: number;
+  status: 'active' | 'expired' | 'cancelled';
+  startDate: string;
+  nextVirtualConsultDate?: string;
+  createdAt: string;
 }
 
 export class ChronicCareService {
@@ -187,6 +207,24 @@ export class ChronicCareService {
   }
 
   /**
+   * Get dynamic Care Program fee from active Doctor SOP configuration
+   */
+  public static getCareProgramFee(durationMonths: number = 6): number {
+    try {
+      if (durationMonths === 3) {
+        const custom3m = localStorage.getItem('clinic_care_program_3m_fee');
+        if (custom3m && !isNaN(Number(custom3m))) return Number(custom3m);
+        return 4000;
+      }
+      const custom6m = localStorage.getItem('clinic_care_program_6m_fee');
+      if (custom6m && !isNaN(Number(custom6m))) return Number(custom6m);
+      return 6000;
+    } catch {
+      return durationMonths === 3 ? 4000 : 6000;
+    }
+  }
+
+  /**
    * Fetch chronic cohorts for active pod
    */
   public static async getChronicCohorts(): Promise<ChronicCohortRecord[]> {
@@ -219,8 +257,52 @@ export class ChronicCareService {
           retestTestName: row.retest_test_name,
           adherenceScore: Number(row.adherence_score) || 100,
           status: row.status,
-          monthlyMedicineSpend: Number(row.monthly_medicine_spend) || 0
+          monthlyMedicineSpend: Number(row.monthly_medicine_spend) || 0,
+          careProgramStatus: row.care_program_status || 'not_enrolled',
+          careProgramFee: Number(row.care_program_fee) || 4000
         }));
+
+        // Also merge any patients from patient_registry marked as chronic who aren't yet in cohorts
+        try {
+          const { data: registryChronic } = await supabase
+            .from('patient_registry')
+            .select('id, name, phone, is_chronic, chronic_conditions, is_care_program_enrolled, care_program_id')
+            .eq('pod_id', podId)
+            .eq('is_chronic', true);
+
+          if (registryChronic && registryChronic.length > 0) {
+            for (const regPat of registryChronic) {
+              const alreadyIn = mapped.some(m => m.patientId === regPat.id);
+              if (!alreadyIn) {
+                const condName = (regPat.chronic_conditions && regPat.chronic_conditions[0]) || 'Type-2 Diabetes Mellitus';
+                const matchedProto = Object.values(CHRONIC_PROTOCOLS).find(p => p.name.toLowerCase() === condName.toLowerCase()) || CHRONIC_PROTOCOLS.DIABETES;
+                mapped.push({
+                  id: `cohort-${regPat.id}`,
+                  patientId: regPat.id,
+                  patientName: regPat.name || 'Chronic Patient',
+                  patientPhone: regPat.phone || '',
+                  doctorId: pod?.doctorId || '',
+                  podId: podId,
+                  conditionCode: matchedProto.code,
+                  conditionName: matchedProto.name,
+                  medications: matchedProto.commonDrugs.slice(0, 2).map(d => ({ name: d, dosage: '1-0-1', frequency: 'Twice daily' })),
+                  daysSupply: matchedProto.standardSupplyDays,
+                  dispensedAt: new Date().toISOString(),
+                  nextRefillDate: getIstOffsetDateString(25),
+                  nextRetestDate: getIstOffsetDateString(matchedProto.retestFrequencyDays),
+                  retestTestCode: matchedProto.mandatoryRetestCode,
+                  retestTestName: matchedProto.mandatoryRetestName,
+                  adherenceScore: 95.0,
+                  status: 'active',
+                  monthlyMedicineSpend: 1500,
+                  careProgramStatus: regPat.is_care_program_enrolled ? 'enrolled' : 'not_enrolled',
+                  careProgramFee: 4000
+                });
+              }
+            }
+          }
+        } catch (_regErr) { /* ignore */ }
+
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem('chronic_care_cohorts', JSON.stringify(mapped));
@@ -505,5 +587,108 @@ export class ChronicCareService {
         instruction: 'Doctor ki salah ke anusar'
       }))
     });
+  }
+
+  /**
+   * Enroll a patient in the Care Program Subscription (Retainer)
+   */
+  public static async enrollInCareProgram(
+    patientId: string,
+    patientName: string,
+    patientPhone: string,
+    durationMonths: number = 6,
+    feeOverride?: number
+  ): Promise<boolean> {
+    const pod = getPodContext();
+    const podId = pod?.podId || FALLBACK_POD_ID;
+    const totalFee = feeOverride ?? this.getCareProgramFee(durationMonths);
+    const programName = durationMonths === 3 ? '3-Month Chronic Care Club' : '6-Month Comprehensive Chronic Care Program';
+    const subId = `sub-${patientId.slice(0, 8)}-${Date.now()}`;
+    const nextVirtualDate = getIstOffsetDateString(30);
+
+    try {
+      // 1. Insert into chronic_care_subscriptions
+      await supabase.from('chronic_care_subscriptions').insert({
+        id: subId,
+        patient_id: patientId,
+        patient_name: patientName,
+        patient_phone: patientPhone,
+        doctor_id: pod?.doctorId || null,
+        pod_id: podId,
+        program_name: programName,
+        duration_months: durationMonths,
+        total_fee: totalFee,
+        monthly_virtual_visits: 1,
+        visits_used: 0,
+        status: 'active',
+        start_date: getIstDateString(),
+        next_virtual_consult_date: nextVirtualDate
+      });
+
+      // 2. Update patient_registry
+      await supabase.from('patient_registry').update({
+        is_care_program_enrolled: true,
+        care_program_id: subId
+      }).eq('id', patientId);
+
+      // 3. Update chronic_care_cohorts
+      await supabase.from('chronic_care_cohorts').update({
+        care_program_status: 'enrolled',
+        care_program_fee: totalFee
+      }).eq('patient_id', patientId);
+
+      // 4. Dispatch WhatsApp confirmation to patient
+      if (patientPhone) {
+        const cleanPhone = patientPhone.replace(/\D/g, '').slice(-10);
+        const waMsg = `🌟 *WELCOME TO ${programName.toUpperCase()}!* 🩺\n\nNamaste *${patientName}*!\n\nAapka Doctor Care Club Retainer successfully activate ho gaya hai:\n\n• Program: *${programName}*\n• Duration: *${durationMonths} Months*\n• Retainer Fee: *₹${totalFee}* (Paid)\n• Monthly Virtual Check-in: *1 Free Video Consult / month* (Next: ${nextVirtualDate})\n• 24/7 WhatsApp Care Concierge: *Active* 🤖\n• Chronic Medicine Refills: *10% VIP Discount Guaranteed* 💊\n\nAapka health trajectory ab Dr. ke direct active clinical surveillance mein hai. Kisi bhi sawal ke liye yahan message karein! Dhanyawad! 😊`;
+        
+        try {
+          const { WhatsAppService } = await import('./whatsappService');
+          WhatsAppService.pushWhatsAppMessageFromBot(cleanPhone, waMsg);
+          await WhatsAppService.sendWhatsAppMessagePayload(cleanPhone, 'custom_text', { replyText: waMsg });
+        } catch (_waErr) { /* ignore */ }
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-chronic-update'));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      return true;
+    } catch (err) {
+      console.error('[ChronicCareService] Error enrolling in care program:', err);
+      return false;
+    }
+  }
+
+  /**
+   * Dispatch Condition-Specific ICMR/ADA Dietary Guide on WhatsApp
+   */
+  public static async dispatchConditionDietGuide(
+    patientPhone: string,
+    conditionCode: string,
+    patientName: string
+  ): Promise<boolean> {
+    if (!patientPhone) return false;
+    const cleanPhone = patientPhone.replace(/\D/g, '').slice(-10);
+
+    let guideText = "";
+    if (conditionCode === 'DIABETES') {
+      guideText = `🥗 *ICMR & ADA 2024 DIABETES DIET & LIFESTYLE GUIDE* 🩸\n\nNamaste *${patientName}*! Aapke blood sugar control ke liye doctor-approved guidance:\n\n• *Carb Control:* Maida, meetha, aalu aur safed chawal kam karein. Multigrain roti (Jowar/Bajra/Chana) chunein.\n• *Plate Rule:* Aadhi plate hari sabzi/salad, 1/4 daal/paneer (protein), 1/4 complex carb.\n• *Walking:* Har khane ke 20 minute baad 10-15 min brisk walk karein.\n• *Dose Timing:* Metformin khane ke beech mein ya turant baad lein jisse pet kharab na ho.`;
+    } else if (conditionCode === 'HYPERTENSION' || conditionCode === 'CARDIAC') {
+      guideText = `🫀 *ACC/AHA & ICMR HYPERTENSION & CARDIAC CARE GUIDE* 🩺\n\nNamaste *${patientName}*! Aapke BP aur heart health ke liye doctor-approved tips:\n\n• *Salt Reduction (DASH Diet):* Namak din bhar mein 1 chammach (<5g) se kam lein. Papad, achar aur namkeen bilkul avoid karein.\n• *Hydration:* Din bhar mein 2.5 - 3 litre paani piyein (unless advised otherwise by kidney doctor).\n• *BP Log:* Subah dawai lene se pehle aur shaam ko BP record karein.\n• *Emergency Alert:* Chest pain, ghabrahat ya pasina aane par turant WhatsApp par 'SOS' reply karein!`;
+    } else if (conditionCode === 'THYROID') {
+      guideText = `🦋 *THYROID CARE & HORMONE OPTIMIZATION GUIDE* 🩺\n\nNamaste *${patientName}*! Hypothyroidism management ke essential rules:\n\n• *Morning Dose:* Thyronorm/Eltroxin subah bina kuch khaye ek glass gungune paani ke sath lein.\n• *1-Hour Gap:* Dawa lene ke kam se kam 45-60 minute baad hi chai, coffee ya nashta lein.\n• *Calcium/Iron Gap:* Calcium ya iron ki goli thyroid dawa ke kam se kam 4 ghante baad lein.`;
+    } else if (conditionCode === 'CKD') {
+      guideText = `🧪 *KDIGO RENAL HYDRATION & KIDNEY PROTECTION GUIDE* 💧\n\nNamaste *${patientName}*! Kidney health preservation guidelines:\n\n• *Painkiller Ban:* Bina doctor ki parchi ke Diclofenac / Ibuprofen / Combiflam bilkul na lein!\n• *Protein Balance:* Doctor dwara tay kiye gaye limit mein hi daal/protein lein.\n• *Electrolytes:* High potassium fruits (kela, nariyal paani) lene se pehle doctor se confirm karein.`;
+    } else {
+      guideText = `🌿 *VITALSYNC CHRONIC WELLNESS & LIFESTYLE GUIDE* 🩺\n\nNamaste *${patientName}*! Doctor dwara nirdharit guidelines:\n\n• Dawa ka schedule regular rakhein aur bina doctor advice ke dose band na karein.\n• Adequate neend (7-8 ghante) aur regular hydration maintain karein.\n• Kisi bhi side-effect ya lakshan mein turant WhatsApp par query bhejein.`;
+    }
+
+    try {
+      const { WhatsAppService } = await import('./whatsappService');
+      WhatsAppService.pushWhatsAppMessageFromBot(cleanPhone, guideText);
+      await WhatsAppService.sendWhatsAppMessagePayload(cleanPhone, 'custom_text', { replyText: guideText });
+      return true;
+    } catch (_err) {
+      return false;
+    }
   }
 }
