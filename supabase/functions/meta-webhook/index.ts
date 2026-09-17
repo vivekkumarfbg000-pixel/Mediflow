@@ -1174,6 +1174,33 @@ function isUnregisteredOrIncompletePatient(pat: any): boolean {
   return false;
 }
 
+function resetBookingSessionState(data: any): void {
+  if (!data) return;
+  data.selectedDate = null;
+  data.selectedDateDisplay = null;
+  data.selectedSlot = null;
+  data.tokenNumber = null;
+  data.approxTime = null;
+  data.pendingApptId = null;
+  data.pendingInvoiceId = null;
+  data.isSos = false;
+  data.isVip = false;
+  data.sosSlotBooked = false;
+  data.pendingVerificationUtr = null;
+  data.pendingVerificationAmount = null;
+  data.rzpPaymentLinkId = null;
+  delete data.selectedDate;
+  delete data.selectedDateDisplay;
+  delete data.selectedSlot;
+  delete data.tokenNumber;
+  delete data.approxTime;
+  delete data.pendingApptId;
+  delete data.pendingInvoiceId;
+  delete data.isSos;
+  delete data.isVip;
+  delete data.sosSlotBooked;
+}
+
 // Mock helper pipeline that invokes multi-LLM capabilities and pushes response back via Meta Graph API
 async function triggerBotReplyPipeline(ctx: {
   session: any;
@@ -1488,6 +1515,7 @@ async function triggerBotReplyPipeline(ctx: {
         const welcomeGreetings = ["hi", "hello", "hey", "namaste", "pranam", "hola", "halo", "hlo", "yo", "greetings"];
         if (welcomeGreetings.includes(cleaned)) {
           nextState = "AWAITING_CONFIRMATION";
+          resetBookingSessionState(sessionData);
           replyText = `Namaste ${patient?.name || patientName}! Aapka clinical consent active hai! 🟢 Batayein main aapki kya help karoon?`;
         } else if (["1", "grant access", "yes", "approve", "grant"].includes(cleaned)) {
           sessionData.consentGranted = true;
@@ -1593,6 +1621,7 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `Namaste! ${resolvedClinicName} mein Physical OPD Visit book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           break;
         }
+        resetBookingSessionState(sessionData);
         sessionData.consultationType = "physical";
         sessionData.isSos = false;
         sessionData.isVip = false;
@@ -1612,6 +1641,7 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `Namaste! ${resolvedClinicName} mein Virtual Video Call book karne ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           break;
         }
+        resetBookingSessionState(sessionData);
         sessionData.consultationType = "virtual";
         sessionData.isSos = false;
         sessionData.isVip = false;
@@ -1684,6 +1714,7 @@ async function triggerBotReplyPipeline(ctx: {
           replyText = `Namaste! ${resolvedClinicName} mein ⭐ *VIP Priority Booking* ke liye, please pehle apna details reply kijiye:\n\n*Name, Age, Gender* (e.g. *Amit Sharma, 32, Male*) 👤`;
           break;
         }
+        resetBookingSessionState(sessionData);
         sessionData.consultationType = "vip";
         sessionData.isSos = true;
         sessionData.isVip = true;
@@ -2512,11 +2543,13 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     case "AWAITING_DATE_SELECTION":
-      const freshDateGen = generateBookingDateOptions(sessionData.isSos === true);
+      const isSosDateMode = sessionData.consultationType === "sos" || sessionData.consultationType === "vip" || sessionData.isSos === true;
+      const freshDateGen = generateBookingDateOptions(isSosDateMode);
+      const todayIst = getIstDateString();
       let dateOptions = sessionData.dateOptions;
       let dateDisplayOptions = sessionData.dateDisplayOptions;
       
-      if (!Array.isArray(dateOptions) || dateOptions.length === 0) {
+      if (!Array.isArray(dateOptions) || dateOptions.length === 0 || !dateOptions[0] || dateOptions[0] < todayIst) {
         dateOptions = freshDateGen.dates;
         dateDisplayOptions = freshDateGen.displayDates;
         sessionData.dateOptions = freshDateGen.dates;
@@ -2603,6 +2636,10 @@ async function triggerBotReplyPipeline(ctx: {
       }
       
       if (selectedDateStr) {
+        if (selectedDateStr < todayIst) {
+          selectedDateStr = freshDateGen.isTodayAvailable ? todayIst : getIstOffsetDateString(1);
+          selectedDisplayStr = freshDateGen.isTodayAvailable ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`;
+        }
         sessionData.selectedDate = selectedDateStr;
         sessionData.selectedDateDisplay = selectedDisplayStr;
         
@@ -2658,7 +2695,11 @@ async function triggerBotReplyPipeline(ctx: {
       if (slotText) {
         sessionData.selectedSlot = slotText;
         const isVirtualSlot = sessionData.consultationType === "virtual";
-        const isSosBookingSession = sessionData.isSos === true || sessionData.isVip === true || sessionData.consultationType === "sos" || sessionData.consultationType === "vip";
+        const isSosBookingSession = sessionData.consultationType === "sos" || sessionData.consultationType === "vip";
+        if (!isSosBookingSession) {
+          sessionData.isSos = false;
+          sessionData.isVip = false;
+        }
         let feeAmount = isSosBookingSession ? resolvedEmergencySosFee : resolvedConsultationFee;
         let appliedDiscountNote = "";
         try {
@@ -2681,16 +2722,23 @@ async function triggerBotReplyPipeline(ctx: {
           }
         } catch (rErr) { console.warn("[Meta Webhook] Referral discount check error:", rErr); }
         
-        const freshGen = generateBookingDateOptions(sessionData.isSos === true);
-        const defaultDate = freshGen.isTodayAvailable ? getIstDateString() : getIstOffsetDateString(1);
+        const freshGen = generateBookingDateOptions(isSosBookingSession);
+        const todayIst = getIstDateString();
+        const defaultDate = freshGen.isTodayAvailable ? todayIst : getIstOffsetDateString(1);
         const defaultDisplay = freshGen.isTodayAvailable ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`;
 
         let resolvedDate = sessionData.selectedDate;
         let resolvedDisplay = sessionData.selectedDateDisplay;
 
+        // Invariant: If resolvedDate is in the past, discard it!
+        if (resolvedDate && resolvedDate < todayIst) {
+          resolvedDate = null;
+          resolvedDisplay = null;
+        }
+
         if (!resolvedDate) {
-          const dateOpts = sessionData.dateOptions || freshGen.dates;
-          const dateDispOpts = sessionData.dateDisplayOptions || freshGen.displayDates;
+          const dateOpts = (sessionData.dateOptions && sessionData.dateOptions[0] >= todayIst) ? sessionData.dateOptions : freshGen.dates;
+          const dateDispOpts = (sessionData.dateOptions && sessionData.dateOptions[0] >= todayIst) ? sessionData.dateDisplayOptions : freshGen.displayDates;
           const chatHist = sessionData.chatHistory || session.chat_history || [];
           for (let i = chatHist.length - 1; i >= 0; i--) {
             const hText = (chatHist[i]?.text || "").toLowerCase().trim();
@@ -2707,14 +2755,14 @@ async function triggerBotReplyPipeline(ctx: {
               resolvedDisplay = dateDispOpts[3] || getIstOffsetDateDisplay(3);
               break;
             } else if (hText.includes("today") || hText.includes("aaj") || hText.includes("btn_date_1") || hText.includes("1️⃣") || hText === "1") {
-              resolvedDate = dateOpts[0] || getIstDateString();
+              resolvedDate = dateOpts[0] || todayIst;
               resolvedDisplay = dateDispOpts[0] || `Today (${getIstDateDisplay()})`;
               break;
             }
           }
         }
 
-        const selectedDate = resolvedDate || defaultDate;
+        const selectedDate = (resolvedDate && resolvedDate >= todayIst) ? resolvedDate : defaultDate;
         const selectedDisplay = resolvedDisplay || defaultDisplay;
         
         const currentPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
@@ -3192,7 +3240,13 @@ async function triggerBotReplyPipeline(ctx: {
       let clinicName = sessionData.clinicName || resolvedClinicName;
       let feeAmount = sessionData.feeAmount || resolvedConsultationFee;
       const isVirtualSlot = sessionData.consultationType === "virtual";
-      let isSosBooking = sessionData.isSos === true || sessionData.isVip === true || sessionData.consultationType === "sos" || sessionData.consultationType === "vip";
+      const isExplicitSos = sessionData.consultationType === "sos" || sessionData.consultationType === "vip";
+      const isPhysical = sessionData.consultationType === "physical" || (!isExplicitSos && !isVirtualSlot);
+      let isSosBooking = isExplicitSos && !isPhysical;
+      if (!isSosBooking) {
+        sessionData.isSos = false;
+        sessionData.isVip = false;
+      }
 
       // Resilient database appointment lookup if sessionData was cleared or lost
       let resolvedApptDate = sessionData.selectedDateDisplay || sessionData.selectedDate;
@@ -3209,7 +3263,7 @@ async function triggerBotReplyPipeline(ctx: {
             if (dbAppt.id && !apptId) {
               apptId = dbAppt.id;
             }
-            if (dbAppt.is_emergency || (dbAppt as any).is_vip || String((dbAppt as any).source || '').includes('vip') || String(dbAppt.token_number || '').startsWith('VIP-')) {
+            if (sessionData.consultationType === "sos" || sessionData.consultationType === "vip") {
               isSosBooking = true;
             }
             if (!resolvedApptDate) {
@@ -3416,7 +3470,7 @@ async function triggerBotReplyPipeline(ctx: {
                 if (pendingAppt?.id) {
                   effectiveApptId = pendingAppt.id;
                   if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
-                  if (pendingAppt.is_emergency || (pendingAppt as any).is_vip || String(pendingAppt.source || '').includes('vip') || String(pendingAppt.token_number || '').startsWith('VIP-')) isSosBooking = true;
+                  if (sessionData.consultationType === "sos" || sessionData.consultationType === "vip") isSosBooking = true;
                 }
               } catch (_e) {}
             }
@@ -3481,7 +3535,7 @@ async function triggerBotReplyPipeline(ctx: {
             if (pendingAppt?.id) {
               effectiveApptId = pendingAppt.id;
               if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
-              if (pendingAppt.is_emergency || (pendingAppt as any).is_vip || String(pendingAppt.source || '').includes('vip') || String(pendingAppt.token_number || '').startsWith('VIP-')) isSosBooking = true;
+              isSosBooking = isExplicitSos && !isPhysical;
             }
           } catch (_e) {}
         }
@@ -3541,13 +3595,17 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.pendingApptId = null;
 
         const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
+        const tokenSeqNum = parseInt(String(tokenNumber || '').replace(/\D/g, ''), 10) || 1;
+        const aheadCount = Math.max(0, tokenSeqNum - 1);
+        const waitMins = aheadCount * 15;
+        const cleanDisplayToken = String(tokenNumber || 'T-01').startsWith('#') ? tokenNumber : `#${tokenNumber || 'T-01'}`;
 
         if (isSosBooking) {
-          replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${doctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *#${tokenNumber || "T-01 E"}*\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n\nKripya turant clinic intake desk par pahuchein aur Emergency Token (#${tokenNumber || "T-01 E"}) compounder ko show karein! 🩺`;
+          replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${doctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *${cleanDisplayToken}*\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "SOS-PRIORITY"}\n• Doctor: ${doctorName}\n• Clinic Desk: ${clinicName}\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n\nKripya turant clinic intake desk par pahuchein aur Emergency Token (${cleanDisplayToken}) compounder ko show karein! 🩺`;
         } else if (isVirtualSlot) {
-          replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${tokenNumber}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${effectiveApptId || "room"}\n\nThank you for choosing VitalSync! 😊`;
+          replyText = `🎉 *PAYMENT VERIFIED & VIRTUAL BOOKING ACTIVE!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Appointment ID: ${effectiveApptId ? effectiveApptId.substring(0, 8).toUpperCase() : "VIRTUAL-CONFIRMED"}\n• Doctor: ${doctorName}\n• Clinic Node: ${clinicName}\n• Token Number: ${cleanDisplayToken}\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Paid: ₹${Number(feeAmount).toFixed(2)}\n• Google Meet Link: https://meet.jit.si/vitalsync-consult-${effectiveApptId || "room"}\n\nThank you for choosing VitalSync! 😊`;
         } else {
-          replyText = `🟢 *APPOINTMENT CONFIRMED & TOKEN ALLOCATED!*\n\nHi ${patientName}! ${doctorName} ke saath aapka checkup confirm ho gaya hai:\n\n• Token Number: *${tokenNumber}* 🎫\n• Queue Status: ${Math.max(0, tokenNumber - 1)} Patients ahead of you (~${Math.max(0, tokenNumber - 1) * 15} mins wait)\n• Live Clinic Turn Alert: Turn aane se 2 patient pehle WhatsApp alert aayega!\n• Clinic Location: ${clinicName}, Desk #1\n\nDoctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Thank you! 😊`;
+          replyText = `🟢 *APPOINTMENT CONFIRMED & TOKEN ALLOCATED!*\n\nHi ${patientName}! ${doctorName} ke saath aapka checkup confirm ho gaya hai:\n\n• Token Number: *${cleanDisplayToken}* 🎫\n• Queue Status: ${aheadCount} Patients ahead of you (~${waitMins} mins wait)\n• Live Clinic Turn Alert: Turn aane se 2 patient pehle WhatsApp alert aayega!\n• Clinic Location: ${clinicName}, Desk #1\n\nDoctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Thank you! 😊`;
         }
 
       // 4. User chose to pay at clinic counter
@@ -3570,7 +3628,7 @@ async function triggerBotReplyPipeline(ctx: {
             if (pendingAppt?.id) {
               effectiveApptId = pendingAppt.id;
               if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
-              if (pendingAppt.is_emergency || (pendingAppt as any).is_vip || String(pendingAppt.source || '').includes('vip') || String(pendingAppt.token_number || '').startsWith('VIP-')) isSosBooking = true;
+              isSosBooking = isExplicitSos && !isPhysical;
             }
           } catch (_e) {}
         }
@@ -3603,10 +3661,11 @@ async function triggerBotReplyPipeline(ctx: {
         sessionData.pendingApptId = null;
 
         const pCode = (patient as any)?.patient_code || (patient as any)?.patientCode || `${(patientName || 'P').substring(0, 1).toUpperCase()}1`;
+        const cleanCounterToken = String(tokenNumber || 'T-01').startsWith('#') ? tokenNumber : `#${tokenNumber || 'T-01'}`;
         if (isSosBooking) {
-          replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${doctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *#${tokenNumber || "T-01 E"}*\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Emergency Token (#${tokenNumber || "T-01 E"}) dikhakar Fee pay karein. Staff vitals verify karke priority chamber consult arrange karega. Dhanyawad! 😊`;
+          replyText = `🚨 *EMERGENCY SOS PRIORITY #1 ACTIVATED!* 🚨\n\n${doctorName} ke dashboard par aapka case *PRIORITY #1* position par alert ho gaya hai (Red Pulsing Alert 🔴)!\n\n• Emergency Token: *${cleanCounterToken}*\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Status: *Chamber Alerted (Top Priority)* 🔴\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Emergency Token (${cleanCounterToken}) dikhakar Fee pay karein. Staff vitals verify karke priority chamber consult arrange karega. Dhanyawad! 😊`;
         } else {
-          replyText = `🎉 *APPOINTMENT BOOKED! Token #${tokenNumber} Generated!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *#${tokenNumber}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Token (#${tokenNumber}) dikhakar Cash ya UPI se Doctor Consultation Fee pay karein! Staff vitals record karke aapko chamber mein call karega. Dhanyawad! 😊`;
+          replyText = `🎉 *APPOINTMENT BOOKED! Token ${cleanCounterToken} Generated!* 🟢\n\n*Appointment Details*:\n• Smart Patient ID: ${pCode}\n• Doctor: ${doctorName}\n• Clinic: ${clinicName}\n• Token Number: *${cleanCounterToken}*\n• Date: ${selectedDisplay}\n• Approximate Time: ${approxTime}\n• Fee Due at Counter: ₹${Number(feeAmount).toFixed(2)}\n\n💵 *Counter Payment Instruction*:\nTime par clinic pahuchein aur intake desk par Token (${cleanCounterToken}) dikhakar Cash ya UPI se Doctor Consultation Fee pay karein! Staff vitals record karke aapko chamber mein call karega. Dhanyawad! 😊`;
         }
 
       // 4. Explicit Navigation / Reset (Strict match to prevent mid-flow payment collapse)
@@ -3883,7 +3942,10 @@ Keep response concise (under 120 words).`
       } else if (
         (((cleaned === "1" || cleaned === "physical" || cleaned.includes("book physical")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_physical" || replyId === "btn_physical")
       ) {
+        resetBookingSessionState(sessionData);
         sessionData.consultationType = "physical";
+        sessionData.isSos = false;
+        sessionData.isVip = false;
         
         const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
@@ -3895,7 +3957,10 @@ Keep response concise (under 120 words).`
       } else if (
         (((cleaned === "2" || cleaned === "virtual" || cleaned.includes("book virtual")) && !replyId?.startsWith("btn_date_") && !replyId?.startsWith("btn_slot_")) || replyId === "menu_virtual" || replyId === "btn_virtual")
       ) {
+        resetBookingSessionState(sessionData);
         sessionData.consultationType = "virtual";
+        sessionData.isSos = false;
+        sessionData.isVip = false;
         const { dates, displayDates, isTodayAvailable } = generateBookingDateOptions(false);
         sessionData.dateOptions = dates;
         sessionData.dateDisplayOptions = displayDates;
@@ -3932,6 +3997,10 @@ Keep response concise (under 120 words).`
 
       } else if (cleaned === "4" || cleaned === "sos" || cleaned === "vip" || cleaned.includes("emergency") || replyId === "menu_sos" || replyId === "menu_vip" || replyId === "btn_vip") {
         // EMERGENCY SOS ROUTING: Dynamically extract emergency fee from clinic SOP config (Rule 4)
+        resetBookingSessionState(sessionData);
+        sessionData.consultationType = "sos";
+        sessionData.isSos = true;
+        sessionData.isVip = true;
         let doctorIdSos = "dfb2a1a8-8e68-4f8a-929e-4a6c8e317002";
         try {
           const { data: docProfile } = await supabase.from("profiles").select("id").eq("role", "doctor").limit(1).maybeSingle();

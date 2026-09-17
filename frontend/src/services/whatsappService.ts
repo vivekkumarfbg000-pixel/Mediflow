@@ -743,7 +743,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             } else {
               replyMessage = `Aapka koi approved pathology report abhi on file nahi mila. ${clinicName} lab technician ke test sync karne par aapko WhatsApp par automatic report deliver ho jayegi! 🔬`;
             }
-          } else if (cleaned === '4' || cleaned === 'sos' || cleaned.includes('vip') || cleaned.includes('priority') || cleaned.includes('emergency') || cleaned.includes('urgent')) {
+          } else if (cleaned === '4' || cleaned === 'sos' || cleaned === 'emergency' || cleaned === 'urgent' || (cleaned.includes('sos') && !cleaned.includes('status'))) {
             const todayStr = getIstDateString();
             const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
             const apptId = crypto.randomUUID();
@@ -1580,7 +1580,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             } else {
               replyMessage = `Aapka koi approved pathology report abhi on file nahi mila. ${this.getDynamicClinicName()} lab technician ke test sync karne par aapko WhatsApp par automatic report deliver ho jayegi! 🔬`;
             }
-          } else if (cleaned === '4' || cleaned === 'sos' || cleaned.includes('vip') || cleaned.includes('priority') || cleaned.includes('emergency') || cleaned.includes('urgent')) {
+          } else if (cleaned === '4' || cleaned === 'sos' || cleaned === 'emergency' || cleaned === 'urgent' || (cleaned.includes('sos') && !cleaned.includes('status'))) {
             nextState = 'COMPLETED';
             const todayStr = getIstDateString();
             const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);

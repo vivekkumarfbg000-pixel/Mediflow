@@ -1174,6 +1174,59 @@ export const CompounderDashboard: React.FC = () => {
         }).eq('id', patId);
       }
 
+      // Upsert unified_invoices & financial_ledgers for live revenue tracking (Rule 6 & Rule 58)
+      try {
+        const currentPodId = (activePod as any)?.id || activeProfile?.clinicId || getPodContext().podId || FALLBACK_POD_ID;
+        const currentDoctorId = appt.doctorId || (appt as any).doctor_id || (activePod as any)?.doctor_id || (activePod as any)?.doctorId || activeProfile?.doctorId || FALLBACK_DOCTOR_ID;
+        const consultFee = Number((appt as any).fee || (appt as any).doctor_fee || 500);
+        const consultInvId = `inv-${appt.id}-consult`;
+        const nowISO = new Date().toISOString();
+
+        // Check for existing invoice
+        const { data: existingInvs } = await supabase
+          .from('unified_invoices')
+          .select('id')
+          .or(`encounter_id.eq.${appt.id},id.eq.${consultInvId}`)
+          .limit(1);
+
+        const invId = (existingInvs && existingInvs.length > 0) ? existingInvs[0].id : consultInvId;
+
+        await supabase.from('unified_invoices').upsert({
+          id: invId,
+          encounter_id: appt.id,
+          patient_id: patId,
+          doctor_fee: consultFee,
+          total_amount: consultFee,
+          payment_status: 'cleared',
+          payment_method: 'cash',
+          created_at: nowISO,
+          pod_id: currentPodId
+        }, { onConflict: 'id' });
+
+        await supabase.from('financial_ledgers').upsert({
+          id: `fl-${invId}`,
+          invoice_id: invId,
+          appointment_id: appt.id,
+          patient_id: patId,
+          doctor_id: currentDoctorId,
+          amount: consultFee,
+          gross_amount: consultFee,
+          net_payout: consultFee,
+          transaction_type: 'consultation',
+          payment_mode: 'cash',
+          payment_method: 'cash',
+          payment_status: 'cleared',
+          platform_fee_deducted: 0,
+          created_at: nowISO,
+          pod_id: currentPodId
+        }, { onConflict: 'id' });
+      } catch (fErr) {
+        console.warn('[CompounderDashboard] Error syncing invoice/ledger on counter confirm:', fErr);
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Counter Payment Verified! 💵',
@@ -1185,7 +1238,7 @@ export const CompounderDashboard: React.FC = () => {
     } catch (err) {
       console.error('[CompounderDashboard] Error confirming pending payment:', err);
     }
-  }, [appointments]);
+  }, [appointments, activePod, activeProfile]);
 
   const inChamberAppointment = useMemo(() => {
     return appointments.find(a => a.status === 'in_consult');

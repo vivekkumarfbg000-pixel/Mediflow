@@ -828,7 +828,14 @@ export const DoctorDashboard: React.FC = () => {
       onAppointmentChange: (payload) => {
         console.log('[DoctorDashboard] Realtime Appointment update received:', payload);
         debouncedSync();
-        if (payload.new?.virtual_time?.includes('EMERGENCY') || payload.new?.status === 'pending_payment') {
+        const isEmergencyEvent = Boolean(
+          payload.new?.virtual_time?.includes('EMERGENCY') ||
+          payload.new?.is_emergency === true ||
+          payload.new?.is_vip === true ||
+          payload.new?.source === 'whatsapp_sos' ||
+          payload.new?.source === 'whatsapp_vip'
+        );
+        if (isEmergencyEvent) {
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
             detail: {
               title: '🚨 EMERGENCY SOS ALERT! 🚨',
@@ -2168,7 +2175,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               }
               return (
                 <ConsultationTab
-                  isPaperMode={false}
+                  isPaperMode={!isDigitalEmrEnabled}
                   patients={patients}
                   selectedPatient={selectedPatient}
                   setSelectedPatient={setSelectedPatient}

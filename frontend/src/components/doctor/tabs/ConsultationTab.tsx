@@ -275,6 +275,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       ]);
 
       const isPatientPaid = (p: Patient) => {
+        if (isPaperRx) return true;
         if (paidPatientIds.has(p.id)) return true;
         const pPhone = cleanPhone(p.phone);
         if (pPhone && paidPatientPhones.has(pPhone)) return true;
@@ -285,7 +286,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       const isPatientForToday = (p: Patient) => {
         const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
         if (patAppts.length > 0) {
-          return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
+          return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr);
         }
         const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
         const pDate = getIstDateString(regDate);
@@ -1742,6 +1743,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               ]);
 
               const isPatientPaid = (p: Patient) => {
+                if (isPaperRx) return true;
                 if (paidPatientIds.has(p.id)) return true;
                 const pPhone = cleanPhone(p.phone);
                 if (pPhone && paidPatientPhones.has(pPhone)) return true;
@@ -1752,7 +1754,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const isPatientForToday = (p: Patient) => {
                 const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                 if (patAppts.length > 0) {
-                  return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
+                  return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr);
                 }
                 const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                 const pDate = getIstDateString(regDate);
@@ -1898,6 +1900,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 ]);
 
                 const isPatientPaid = (p: Patient) => {
+                  if (isPaperRx) return true;
                   if (paidPatientIds.has(p.id)) return true;
                   const pPhone = cleanPhone(p.phone);
                   if (pPhone && paidPatientPhones.has(pPhone)) return true;
@@ -1908,7 +1911,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const isPatientForToday = (p: Patient) => {
                   const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
                   if (patAppts.length > 0) {
-                    return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr);
+                    return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr);
                   }
                   const regDate = p.registeredAt || p.createdAt || (p as any).registered_at || '';
                   const pDate = getIstDateString(regDate);
