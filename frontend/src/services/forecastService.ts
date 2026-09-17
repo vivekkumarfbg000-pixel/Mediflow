@@ -252,11 +252,18 @@ Return ONLY a valid JSON object matching:
   "language": "Hinglish" | "English" | "Hindi"
 }`;
 
-      // ── TIER 1: Direct Google Gemini 2.5 Flash Audio Transcription ──────────
+      // ── TIER 1: Direct Google Gemini Vision Audio Transcription ────────────────
+      // API-key-verified stable models only (Sept 2026). gemini-2.0-flash
+      // and gemini-2.0-pro are NOT available for this API key — removed.
       if (import.meta.env.VITE_GEMINI_API_KEY && base64Data) {
         try {
           const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-          const candidateModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-pro', 'gemini-1.5-flash'];
+          const candidateModels = [
+            'gemini-2.5-flash',        // Primary: confirmed working
+            'gemini-flash-latest',     // Secondary: always-latest alias
+            'gemini-2.5-flash-lite',   // Tertiary: lite variant
+            'gemini-flash-lite-latest' // Last resort: lite latest alias
+          ];
           const parts: any[] = [
             { text: promptText },
             {
@@ -275,25 +282,33 @@ Return ONLY a valid JSON object matching:
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   contents: [{ parts }],
-                  generationConfig: { responseMimeType: 'application/json' }
+                  generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 1024 }
                 }),
-                signal: AbortSignal.timeout(6000)
+                signal: AbortSignal.timeout(12000) // Vision + audio need more time
               });
 
               if (res.ok) {
                 const data = await res.json();
-                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                  let clean = text.trim();
-                  if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-                  const parsed = JSON.parse(clean);
-                  if (parsed.summary) {
-                    return {
-                      summary: parsed.summary,
-                      language: parsed.language || 'Hinglish'
-                    };
-                  }
+                const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                if (rawText) {
+                  const clean = rawText.trim()
+                    .replace(/^```(?:json)?\s*/i, '')
+                    .replace(/\s*```$/i, '')
+                    .trim();
+                  try {
+                    const parsedJson = JSON.parse(clean);
+                    if (parsedJson.summary) {
+                      console.log(`[Mediflow AI] ✅ Audio Scribe success via ${modelName}`);
+                      return {
+                        summary: parsedJson.summary,
+                        language: parsedJson.language || 'Hinglish'
+                      };
+                    }
+                  } catch (_parseErr) { /* try next */ }
                 }
+              } else {
+                const errBody = await res.json().catch(() => ({}));
+                console.warn(`[Mediflow AI] Audio Scribe ${modelName} HTTP ${res.status}:`, JSON.stringify(errBody).substring(0, 100));
               }
             } catch (_err) { /* try next candidate */ }
           }
@@ -500,7 +515,8 @@ Return ONLY a valid JSON object matching:
     if (import.meta.env.VITE_GEMINI_API_KEY && suggestionsText.trim()) {
       try {
         const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+        // Use API-key-verified model (gemini-2.0-flash NOT available for this key)
+        const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
         
         const promptText = `You are a polite, compassionate clinical doctor's AI communicator in Tier 2/3 India.
 Write a warm, crystal-clear WhatsApp home-care message in polite conversational Hinglish (Hindi written in English alphabet) for the patient.
@@ -521,17 +537,22 @@ Requirements:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: promptText }] }]
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: { maxOutputTokens: 512 }
           }),
-          signal: AbortSignal.timeout(6000)
+          signal: AbortSignal.timeout(10000) // Increased from 6s for reliable response
         });
 
         if (res.ok) {
           const data = await res.json();
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text && text.trim()) {
+            console.log('[Mediflow AI] ✅ Hinglish summary generated via gemini-2.5-flash');
             return text.trim();
           }
+        } else {
+          const errBody = await res.json().catch(() => ({}));
+          console.warn('[Mediflow AI] Hinglish summary HTTP error:', res.status, JSON.stringify(errBody).substring(0, 100));
         }
       } catch (geminiErr) {
         console.warn('[Mediflow AI] Hinglish Summary generation with Gemini failed, using template:', geminiErr);
@@ -1046,9 +1067,16 @@ Rules:
       let parsedResult: any = null;
 
       // ── TIER 1: Direct Google Gemini Vision API (Client Key / Vercel Injected) ──
+      // Fallback chain uses ONLY API-key-verified stable model IDs (Sept 2026).
+      // Removed: gemini-2.5-pro (deprecated 404), gemini-2.5-flash-lite (invalid ID).
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.GEMINI_API_KEY;
       if (!parsedResult && geminiKey && base64Data) {
-        const candidateModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+        const candidateModels = [
+          'gemini-2.5-flash',        // Primary: confirmed working
+          'gemini-flash-latest',     // Secondary: always-latest alias (API verified)
+          'gemini-2.5-flash-lite',   // Tertiary: lite variant (API verified)
+          'gemini-flash-lite-latest' // Last resort: lite latest alias (API verified)
+        ];
         const parts: any[] = [
           { text: promptText },
           { inlineData: { mimeType, data: base64Data } }
@@ -1059,13 +1087,13 @@ Rules:
           try {
             const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
             const ctrl = new AbortController();
-            const tId = setTimeout(() => ctrl.abort(), 8000);
+            const tId = setTimeout(() => ctrl.abort(), 12000); // Increased: vision takes longer than text
             const res = await fetch(directEndpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 contents: [{ parts }],
-                generationConfig: { responseMimeType: 'application/json' }
+                generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 2048 }
               }),
               signal: ctrl.signal
             });
@@ -1073,16 +1101,29 @@ Rules:
 
             if (res.ok) {
               const data = await res.json();
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) {
-                let clean = text.trim();
-                if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-                parsedResult = JSON.parse(clean);
-                if (parsedResult) break;
+              const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              if (rawText) {
+                // Strip markdown code fences if model wraps JSON
+                const clean = rawText.trim()
+                  .replace(/^```(?:json)?\s*/i, '')
+                  .replace(/\s*```$/i, '')
+                  .trim();
+                try {
+                  parsedResult = JSON.parse(clean);
+                  if (parsedResult) {
+                    console.log(`[Mediflow AI] ✅ Tier 1 Vision OCR success via ${candidateModel}`);
+                    break;
+                  }
+                } catch (_parseErr) {
+                  console.warn(`[Mediflow AI] Tier 1 JSON parse failed for ${candidateModel}`);
+                }
               }
+            } else {
+              const errBody = await res.json().catch(() => ({}));
+              console.warn(`[Mediflow AI] Tier 1 ${candidateModel} HTTP ${res.status}:`, JSON.stringify(errBody).substring(0, 150));
             }
           } catch (modelErr) {
-            console.warn(`[Mediflow AI] Tier 1 Direct Gemini (${candidateModel}) failed:`, modelErr);
+            console.warn(`[Mediflow AI] Tier 1 Direct Gemini (${candidateModel}) failed:`, (modelErr as any)?.message);
           }
         }
       }
@@ -1121,15 +1162,30 @@ Rules:
 
           if (response.ok) {
             const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              let clean = text.trim();
-              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-              parsedResult = JSON.parse(clean);
+            // Edge function now returns { ...geminiResponse, _model_used } — extract text robustly
+            const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (rawText) {
+              const clean = rawText.trim()
+                .replace(/^```(?:json)?\s*/i, '')
+                .replace(/\s*```$/i, '')
+                .trim();
+              try {
+                parsedResult = JSON.parse(clean);
+                if (parsedResult) {
+                  console.log(`[Mediflow AI] ✅ Tier 2 Vision OCR success via ${result._model_used || 'edge-function'}`);
+                }
+              } catch (_parseErr) {
+                console.warn('[Mediflow AI] Tier 2 JSON parse failed, rawText:', rawText.substring(0, 100));
+              }
+            } else {
+              console.warn('[Mediflow AI] Tier 2 returned HTTP 200 but empty text. Full result:', JSON.stringify(result).substring(0, 200));
             }
+          } else {
+            const errBody = await response.json().catch(() => ({}));
+            console.warn('[Mediflow AI] Tier 2 Edge Function HTTP error:', response.status, JSON.stringify(errBody).substring(0, 150));
           }
         } catch (tier2Err) {
-          console.warn('[Mediflow AI] Tier 2 Edge Function Vision call failed:', tier2Err);
+          console.warn('[Mediflow AI] Tier 2 Edge Function Vision call failed:', (tier2Err as any)?.message);
         }
       }
 
@@ -1304,10 +1360,17 @@ Return ONLY raw valid JSON without markdown code fences or conversational text.`
 
     let parsed: any = null;
 
-    // ── TIER 1: Direct Google Gemini 2.0 Flash Vision ────────────────────────────
+    // ── TIER 1: Direct Google Gemini Vision Lab Report OCR ────────────────
+    // API-key-verified stable models only. gemini-2.0-flash, gemini-2.0-pro
+    // are NOT available for this API key — removed entirely.
     if (import.meta.env.VITE_GEMINI_API_KEY && base64Data) {
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const candidateModels = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-pro'];
+      const candidateModels = [
+        'gemini-2.5-flash',        // Primary: confirmed working
+        'gemini-flash-latest',     // Secondary: always-latest alias
+        'gemini-2.5-flash-lite',   // Tertiary: lite variant
+        'gemini-flash-lite-latest' // Last resort: lite latest alias
+      ];
       const parts: any[] = [
         { text: promptText },
         {
@@ -1327,23 +1390,35 @@ Return ONLY raw valid JSON without markdown code fences or conversational text.`
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts }],
-              generationConfig: { responseMimeType: 'application/json' }
+              generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 1024 }
             }),
-            signal: AbortSignal.timeout(6000)
+            signal: AbortSignal.timeout(12000) // Vision needs more time
           });
 
           if (res.ok) {
             const data = await res.json();
-            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              let clean = text.trim();
-              if (clean.startsWith('```')) clean = clean.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-              parsed = JSON.parse(clean);
-              if (parsed) break;
+            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (rawText) {
+              const clean = rawText.trim()
+                .replace(/^```(?:json)?\s*/i, '')
+                .replace(/\s*```$/i, '')
+                .trim();
+              try {
+                parsed = JSON.parse(clean);
+                if (parsed) {
+                  console.log(`[Mediflow AI] ✅ Lab Report OCR success via ${m}`);
+                  break;
+                }
+              } catch (_parseErr) {
+                console.warn(`[Mediflow AI] Lab OCR JSON parse failed for ${m}`);
+              }
             }
+          } else {
+            const errBody = await res.json().catch(() => ({}));
+            console.warn(`[Mediflow AI] Lab OCR ${m} HTTP ${res.status}:`, JSON.stringify(errBody).substring(0, 100));
           }
         } catch (geminiErr) {
-          console.warn(`[Mediflow AI] Tier 1 Gemini Vision Lab OCR (${m}) failed:`, geminiErr);
+          console.warn(`[Mediflow AI] Tier 1 Gemini Vision Lab OCR (${m}) failed:`, (geminiErr as any)?.message);
         }
       }
     }

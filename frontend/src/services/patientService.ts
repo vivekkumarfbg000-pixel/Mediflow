@@ -1351,21 +1351,27 @@ Latest Vitals: ${vitals}
 Focus on: active health risks, medication adherence considerations, and 1 CDSS recommendation.
 Respond in plain text (no bullet points, no markdown, no JSON). Keep it under 80 words.`;
 
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 150, temperature: 0.3 }
+            generationConfig: { maxOutputTokens: 200, temperature: 0.3 }
           }),
-          signal: AbortSignal.timeout(15000)
+          signal: AbortSignal.timeout(10000) // Increased: 15s was too aggressive for mobile
         });
 
         if (res.ok) {
           const data = await res.json();
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text && text.length > 20) return text;
+          if (text && text.length > 20) {
+            console.log('[PatientService] ✅ Longitudinal summary via gemini-2.5-flash');
+            return text;
+          }
+        } else {
+          const errBody = await res.json().catch(() => ({}));
+          console.warn('[PatientService] Gemini summary HTTP error:', res.status, JSON.stringify(errBody).substring(0, 100));
         }
       } catch (geminiErr) {
         console.warn('[PatientService] Gemini summary failed, using computed fallback:', geminiErr);
