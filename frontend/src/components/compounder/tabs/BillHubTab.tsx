@@ -678,7 +678,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       return;
     }
     setIsScanning(true);
-    setOcrScanStep('Analyzing handwritten doctor prescription with Multimodal Vision AI...');
+    setOcrScanStep('Compressing & optimizing prescription slip image...');
+
+    // Absolute 30s safety circuit-breaker to guarantee isScanning resets
+    const safetyTimeout = setTimeout(() => {
+      setIsScanning(false);
+      setOcrScanStep('');
+    }, 30000);
+
     try {
       let imagePayload = selectedImagePreview || '';
       if (!imagePayload && file) {
@@ -689,10 +696,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           reader.readAsDataURL(file);
         });
       }
-      // 1. Run Real Multimodal AI Vision (Gemini 2.5 Flash / Groq Vision)
+      setOcrScanStep('Analyzing handwritten prescription with Gemini Multimodal Vision AI...');
+      // 1. Run Real Multimodal AI Vision (Google Gemini 2.5 Flash Multimodal Vision)
       const digitized = await ForecastService.generateDigitizedPrescription(imagePayload, true);
       setOcrScanStep('Extracting patient profile (Name, Mobile, Age, Medications)...');
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 200));
       
       const structuredData: Record<string, string> = {
         'Patient Name': digitized.patientName,
@@ -929,6 +937,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         detail: { title: 'OCR Failed', message: 'Unable to parse file. Please try again.', type: 'error' }
       }));
     } finally {
+      clearTimeout(safetyTimeout);
       setIsScanning(false);
       setOcrScanStep('');
     }
@@ -1481,8 +1490,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                     <p className="text-[11px] text-slate-500">Handwritten Doctor Prescription Vision OCR</p>
                   </div>
                 </div>
-                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-full font-bold">
-                  ⚡ Groq Llama-3 Vision
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 text-indigo-500 animate-pulse" />
+                  ⚡ Gemini Multimodal Vision AI
                 </span>
               </div>
 
