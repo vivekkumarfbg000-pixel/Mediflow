@@ -833,7 +833,35 @@ export class StateHealingEngine {
     setInterval(runSentinelCycle, 60000);
     runSentinelCycle(); // Initial run
 
+    // Layer 6: Clear pre-mount boot watchdog recovery attempts upon healthy React app initialization
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.removeItem('vitalsync_boot_heal_attempts');
+      }
+    } catch (e) {}
+
     console.log('[Auto-Healer Engine] 👑 v16.0 Autonomous SaaS Growth & Tech Singularity ACTIVE (24/7) 🟢');
+  }
+
+  /**
+   * Proactively audits CDN bundle integrity to verify that static scripts/assets are reachable
+   * and not returning HTML 404/200 rewrites from edge cache poisoning.
+   */
+  private static async auditCdnBundleIntegrity(): Promise<void> {
+    if (typeof window === 'undefined' || !window.fetch) return;
+    try {
+      const probeRes = await fetch('/manifest.json', { method: 'HEAD', cache: 'no-cache' });
+      const contentType = probeRes.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        console.warn('[Auto-Healer CDN Sentinel] Edge CDN is serving HTML for static assets! Purging client caches...');
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      }
+    } catch (e) {
+      // Network offline or probe error — gracefully ignored in offline mode
+    }
   }
 
   private static async runSentinelCycle(signal: AbortSignal): Promise<void> {
@@ -892,6 +920,7 @@ export class StateHealingEngine {
     }
     await safeAwait(() => ChaosEngineer.runOffPeakChaosTest(), 'ChaosEngineer');
     await safeAwait(() => DependencySecurityScanner.runWeeklyScan(), 'DependencySecurityScanner');
+    await safeAwait(() => this.auditCdnBundleIntegrity(), 'auditCdnBundleIntegrity');
     
     checkAbort();
     if (!FinancialGuardrailEngine.isConservativeMode()) {

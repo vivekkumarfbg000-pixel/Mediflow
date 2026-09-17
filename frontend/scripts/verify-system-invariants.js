@@ -440,6 +440,60 @@ if (fs.existsSync(WA_SERVICE_PATH)) {
   }
 }
 
+// ── Check Zero Blank Screen & CDN Invariant Guard (Rule 100/101) ─────────────
+const VERCEL_JSON_PATH = path.resolve(__dirname, '../../vercel.json');
+if (fs.existsSync(VERCEL_JSON_PATH)) {
+  const vercelJson = JSON.parse(fs.readFileSync(VERCEL_JSON_PATH, 'utf8'));
+  const rewrites = vercelJson.rewrites || [];
+  const hasDangerousCatchAll = rewrites.some(r => r.source === '/(.*)' || r.source === '(.*)');
+  if (hasDangerousCatchAll) {
+    violations.push({
+      rule: 'INVARIANT_25_ZERO_BLANK_SCREEN_GUARD',
+      file: 'vercel.json',
+      line: 0,
+      content: 'source: "/(.*)"',
+      reason: 'Blanket catch-all rewrite in vercel.json routes missing JavaScript chunks to index.html (200 OK text/html), causing Cloudflare immutable cache poisoning and blank screens. Rewrite must exclude assets: "/((?!assets/|favicon|icon|manifest|sw\\\\.js).*)"'
+    });
+  }
+}
+
+const INDEX_HTML_PATH = path.resolve(__dirname, '../index.html');
+if (fs.existsSync(INDEX_HTML_PATH)) {
+  const indexHtml = fs.readFileSync(INDEX_HTML_PATH, 'utf8');
+  if (!indexHtml.includes('vitalsync-initial-loader')) {
+    violations.push({
+      rule: 'INVARIANT_25_ZERO_BLANK_SCREEN_GUARD',
+      file: 'frontend/index.html',
+      line: 0,
+      content: 'missing vitalsync-initial-loader',
+      reason: 'index.html must contain a pre-rendered, branded #vitalsync-initial-loader shell so the viewport is never pitch-black before React mounts.'
+    });
+  }
+  if (!indexHtml.includes('bootWatchdogTimer')) {
+    violations.push({
+      rule: 'INVARIANT_25_ZERO_BLANK_SCREEN_GUARD',
+      file: 'frontend/index.html',
+      line: 0,
+      content: 'missing bootWatchdogTimer',
+      reason: 'index.html must include the autonomous 4.5-second pre-mount bootWatchdogTimer to self-heal stalled or poisoned bundles without user intervention.'
+    });
+  }
+}
+
+const SW_JS_PATH = path.resolve(__dirname, '../public/sw.js');
+if (fs.existsSync(SW_JS_PATH)) {
+  const swJs = fs.readFileSync(SW_JS_PATH, 'utf8');
+  if (!swJs.includes('VITASYNC_STALE_CHUNK_DETECTED')) {
+    violations.push({
+      rule: 'INVARIANT_25_ZERO_BLANK_SCREEN_GUARD',
+      file: 'frontend/public/sw.js',
+      line: 0,
+      content: 'missing VITASYNC_STALE_CHUNK_DETECTED',
+      reason: 'sw.js must broadcast VITASYNC_STALE_CHUNK_DETECTED when missing chunks or HTML rewrites are encountered so open tabs can auto-refresh.'
+    });
+  }
+}
+
 scanFiles(SRC_DIR);
 
 if (violations.length > 0) {

@@ -53,17 +53,30 @@
         } catch(e) {}
       })();
 
-      // Emergency Startup Shield for catching early JS/Vite/Circular import crashes
+      // ══════════════════════════════════════════════════════════════════════
+      // 🛡️ VITALSYNC PRE-MOUNT AUTONOMOUS BOOT WATCHDOG (ZERO-DEPENDENCY SRE)
+      // Guarantees zero blank screen across all CDNs, network stalls & stale SWs
+      // ══════════════════════════════════════════════════════════════════════
       window.__mediflow_startup_healthy = false;
 
-      // Vite dynamic chunk preload error handler — automatically reloads on stale cache
-      window.addEventListener('vite:preloadError', function(event) {
-        console.warn('[VitalSync Self-Healer] Vite dynamic chunk preload failed. Auto-reloading fresh bundle...', event);
-        if (!sessionStorage.getItem('vitalsync_reloaded_for_chunk')) {
-          sessionStorage.setItem('vitalsync_reloaded_for_chunk', 'true');
-          window.location.reload(true);
-        }
-      });
+      function purgeCachesAndReload(reason) {
+        console.warn('[VitalSync Boot Watchdog] Purging caches & auto-reloading:', reason);
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(r) { r.unregister(); });
+            });
+          }
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              names.forEach(function(n) { caches.delete(n); });
+            });
+          }
+        } catch (e) {}
+        var cleanUrl = window.location.pathname + window.location.search;
+        var sep = cleanUrl.indexOf('?') !== -1 ? '&' : '?';
+        window.location.href = cleanUrl + sep + '_heal=' + Date.now();
+      }
 
       function renderStartupError(errorMessage, errorDetail) {
         if (window.__mediflow_startup_healthy) return;
@@ -78,12 +91,12 @@
             initialLoader.remove();
           }
           root.innerHTML = 
-            '<div style="font-family: \'Outfit\', system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0b0f19; color: #e2e8f0; padding: 2rem; box-sizing: border-box; text-align: center;">' +
-              '<div style="background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 1.5rem; padding: 3rem; max-width: 560px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); box-sizing: border-box;">' +
+            '<div style="font-family: \'Outfit\', system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #020617; color: #e2e8f0; padding: 2rem; box-sizing: border-box; text-align: center;">' +
+              '<div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 1.5rem; padding: 3rem; max-width: 560px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); box-sizing: border-box;">' +
                 '<div style="display: inline-flex; align-items: center; justify-content: center; width: 4.5rem; height: 4.5rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 1.25rem; margin-bottom: 1.5rem; color: #ef4444; font-size: 2rem; font-weight: bold;">⚠️</div>' +
                 '<h2 style="font-size: 1.75rem; font-weight: 800; color: #ffffff; margin: 0 0 0.75rem 0; letter-spacing: -0.025em;">Ecosystem Initialization Shield</h2>' +
                 '<p style="font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin: 0 0 1.5rem 0; font-weight: 500;">VitalSync encountered a network or bundle initialization defect while mounting the application. This is typically resolved immediately by clearing stale cache or hot-reloading.</p>' +
-                '<div style="background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(255, 255, 255, 0.08); padding: 1.25rem; border-radius: 1rem; text-align: left; margin: 0 0 2rem 0; box-sizing: border-box;">' +
+                '<div style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.08); padding: 1.25rem; border-radius: 1rem; text-align: left; margin: 0 0 2rem 0; box-sizing: border-box;">' +
                   '<span style="font-size: 0.75rem; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.5rem;">Diagnostic Log</span>' +
                   '<code style="font-family: monospace; font-size: 0.75rem; color: #cbd5e1; white-space: pre-wrap; word-break: break-all; line-height: 1.4;">' + (errorMessage || 'Resource Module Aborted') + '</code>' +
                 '</div>' +
@@ -96,26 +109,59 @@
         }
       }
 
-      // Intercept errors in capture phase so internal script load and MIME failures are caught
+      function handleFatalBootError(message, detail) {
+        if (window.__mediflow_startup_healthy) return;
+        var attempts = parseInt(sessionStorage.getItem('vitalsync_boot_heal_attempts') || '0', 10);
+        if (attempts < 2) {
+          sessionStorage.setItem('vitalsync_boot_heal_attempts', String(attempts + 1));
+          purgeCachesAndReload(message);
+        } else {
+          renderStartupError(message, detail);
+        }
+      }
+
+      // 1. 4.5-Second Liveness Watchdog Timer: Protects against silent JS deadlocks and boot stalls
+      var bootWatchdogTimer = setTimeout(function() {
+        if (window.__mediflow_startup_healthy) return;
+        var root = document.getElementById('root');
+        var hasReactMounted = root && root.children && root.children.length > 0;
+        if (!hasReactMounted) {
+          console.warn('[VitalSync Boot Watchdog] Root mount timeout (4.5s) — bundle did not initialize.');
+          handleFatalBootError('Application Boot Timeout (4.5s stall) — bundle did not mount', null);
+        }
+      }, 4500);
+
+      // 2. Vite Dynamic Chunk Preload Failure Auto-Healer
+      window.addEventListener('vite:preloadError', function(event) {
+        console.warn('[VitalSync Boot Watchdog] Vite dynamic chunk preload failed. Auto-reloading fresh bundle...', event);
+        handleFatalBootError('Dynamic chunk preload failure', event);
+      });
+
+      // 3. Service Worker Stale Chunk Healing Dispatch Listener
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'VITASYNC_STALE_CHUNK_DETECTED') {
+            console.warn('[VitalSync Boot Watchdog] Stale chunk detected by Service Worker:', event.data.path);
+            handleFatalBootError('Stale chunk detected: ' + event.data.path, event);
+          }
+        });
+      }
+
+      // 4. Capture-phase internal script load failure interceptor
       window.addEventListener('error', function(event) {
         if (window.__mediflow_startup_healthy) return;
         var target = event.target || event.srcElement;
         var isScript = target && target.tagName === 'SCRIPT';
         if (isScript) {
           var url = (target.src || '').toLowerCase();
-          // ONLY trigger for internal app script bundles (e.g. /assets/ or local origin app scripts)
-          // NEVER block the app for stylesheets, images, third-party trackers, beacons, or external CDN scripts
           var isInternalAppAsset = url.indexOf('/assets/') !== -1 || (url.indexOf(window.location.host.toLowerCase()) !== -1 && url.indexOf('/assets/') !== -1);
-          if (!isInternalAppAsset) {
-            // Ignore non-essential third-party script failures (like Cloudflare Insights)
-            return;
-          }
-          renderStartupError('Failed to load application script: ' + (target.src || 'bundle module'), event);
+          if (!isInternalAppAsset) return;
+          handleFatalBootError('Failed to load application script: ' + (target.src || 'bundle module'), event);
         }
       }, true);
 
+      // 5. Non-blocking promise rejection logger
       window.addEventListener('unhandledrejection', function(event) {
-        // Log background promise rejections without disrupting critical UI rendering
         console.warn('[Startup Shield] Non-blocking unhandled promise rejection:', event.reason);
       });
     </script>

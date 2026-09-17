@@ -82,6 +82,13 @@ self.addEventListener('fetch', (event) => {
           const isAsset = url.pathname.includes('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
           if (isAsset && contentType.includes('text/html')) {
             console.warn(`[PWA-SW] Asset ${url.pathname} returned HTML instead of raw asset (Vercel SPA rewrite/404). Bypassing cache.`);
+            // Evict stale cache and alert active client tabs for autonomous recovery
+            caches.open(CACHE_NAME).then((cache) => cache.delete(event.request));
+            self.clients.matchAll({ type: 'window' }).then((clients) => {
+              clients.forEach((client) => {
+                client.postMessage({ type: 'VITASYNC_STALE_CHUNK_DETECTED', path: url.pathname });
+              });
+            });
             return new Response('Asset not found', { status: 404, statusText: 'Not Found' });
           }
 
@@ -89,6 +96,16 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, cacheCopy);
           });
+        } else if (networkResponse && networkResponse.status === 404) {
+          const isAsset = url.pathname.includes('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
+          if (isAsset) {
+            caches.open(CACHE_NAME).then((cache) => cache.delete(event.request));
+            self.clients.matchAll({ type: 'window' }).then((clients) => {
+              clients.forEach((client) => {
+                client.postMessage({ type: 'VITASYNC_STALE_CHUNK_DETECTED', path: url.pathname });
+              });
+            });
+          }
         }
         return networkResponse;
       }).catch((err) => {
