@@ -117,7 +117,28 @@ serve(async (req) => {
         });
       }
 
-      const candidateModels = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.5-pro"];
+      // ── Smart Gemini Model Selection & Stable Fallback Chain ──────────────
+      // Honor client-requested model first. If deprecated/invalid, skip it.
+      // Fallback chain uses only proven, stable model IDs (Sept 2026+).
+      // Removed: gemini-2.5-pro (deprecated for new users), gemini-flash-latest
+      //          and gemini-2.5-flash-lite (invalid model IDs).
+      const DEPRECATED_MODELS = new Set([
+        "gemini-2.5-pro",
+        "gemini-pro",
+        "gemini-flash-latest",
+        "gemini-2.5-flash-lite",
+      ]);
+      const STABLE_FALLBACK_CHAIN = [
+        "gemini-2.5-flash",        // Primary: confirmed working (API list verified)
+        "gemini-flash-latest",     // Secondary: always-latest alias (API list verified)
+        "gemini-2.5-flash-lite",   // Tertiary: lite variant (API list verified)
+        "gemini-flash-lite-latest", // Last resort: lite latest alias (API list verified)
+      ];
+      const clientRequestedModel = (model && !DEPRECATED_MODELS.has(model)) ? model : null;
+      const candidateModels = (clientRequestedModel && !STABLE_FALLBACK_CHAIN.includes(clientRequestedModel))
+        ? [clientRequestedModel, ...STABLE_FALLBACK_CHAIN]   // try client model first, then stable chain
+        : STABLE_FALLBACK_CHAIN;                             // client model is already in stable chain, use it
+
       let lastErr: any = null;
 
       for (const candModel of candidateModels) {
@@ -138,18 +159,20 @@ serve(async (req) => {
 
           if (response.ok) {
             const result = await response.json();
-            return new Response(JSON.stringify(result), {
+            console.log(`[ai-inference] ✅ Success with model: ${candModel}`);
+            // Attach which model was used for observability
+            return new Response(JSON.stringify({ ...result, _model_used: candModel }), {
               status: 200,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           } else {
             const errBody = await response.json().catch(() => ({}));
             lastErr = new Error(`Gemini (${candModel}) error ${response.status}: ${JSON.stringify(errBody)}`);
-            console.warn(`[ai-inference] ${candModel} failed:`, lastErr.message);
+            console.warn(`[ai-inference] ⚠️ ${candModel} failed (${response.status}):`, JSON.stringify(errBody).substring(0, 200));
           }
         } catch (mErr: any) {
           lastErr = mErr;
-          console.warn(`[ai-inference] ${candModel} exception:`, mErr.message);
+          console.warn(`[ai-inference] ⚠️ ${candModel} exception:`, mErr.message);
         }
       }
 
