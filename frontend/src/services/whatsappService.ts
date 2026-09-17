@@ -1042,7 +1042,7 @@ Dr. ${docLastName} se report review ke liye option chuniye:
                 createdAt: new Date().toISOString(),
                 podId: podId
               };
-              LabService.saveLabRequisition(newReq as any);
+              LabService.saveLabRequisitions([newReq as any]);
               supabase.from('lab_requisitions').upsert({
                 id: reqId,
                 patient_id: patient.id,

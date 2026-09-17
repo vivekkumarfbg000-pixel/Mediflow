@@ -859,11 +859,11 @@ export const CompounderDashboard: React.FC = () => {
         WhatsAppTemplateEngine.dispatchTokenConfirmed({
           patientPhone: vitalsPatient.phone,
           patientName: vitalsPatient.name,
-          doctorName: template?.doctorName || 'Dr. Pankaj Kumar',
+          doctorName: activePod?.doctor_name || 'Dr. Pankaj Kumar',
           tokenNumber: String(assignedToken),
           aheadCount: Math.max(0, (appointments || []).filter(a => a.status === 'confirmed' || a.status === 'waiting').length),
           waitMinutes: 15,
-          clinicAddress: template?.clinicAddress || 'Main Road, Clinic Center'
+          clinicAddress: activePod?.name || 'Main Road, Clinic Center'
         });
       }
 
