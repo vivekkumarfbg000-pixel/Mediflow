@@ -1872,32 +1872,22 @@ Keep the tone professional, clinical, objective, and precise.`;
                       ))}
                     </div>
 
-                    {/* ── Telemedicine Command Hub Header + Quick Actions ── */}
-                    <div className="glass-panel p-5 border-slate-200/60 shadow-lg bg-white dark:bg-slate-900/80 rounded-3xl relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 opacity-80" />
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <Video className="w-5 h-5 text-cyan-500 shrink-0" />
-                            Telemedicine &amp; Virtual Consultation Command Hub (वर्चुअल क्लिनिक)
-                          </h2>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                            Schedule video consults, join Jitsi links, and launch 1-Click E-Rx worksheets for remote patients.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-mono font-bold px-3.5 py-1.5 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full">
-                            ● Live Telemedicine Hub
-                          </span>
-                          <button
-                            onClick={() => setShowVirtualCreator(prev => !prev)}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Schedule Virtual Consult
-                          </button>
-                        </div>
+                    {/* ── Video Consult Quick Action ── */}
+                    <div className="flex items-center justify-between gap-3 px-1">
+                      <div className="flex items-center gap-2">
+                        <Video className="w-4 h-4 text-cyan-500 shrink-0" />
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">Video Consult Hub 💻</span>
+                        <span className="text-xs font-mono font-bold px-2.5 py-1 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20 rounded-full hidden sm:inline-flex">
+                          ● Live
+                        </span>
                       </div>
+                      <button
+                        onClick={() => setShowVirtualCreator(prev => !prev)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Schedule
+                      </button>
                     </div>
 
                     {/* ── Inline Virtual Appointment Creator ── */}
@@ -2966,8 +2956,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             return [
               { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard, badge: 0 },
               ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList, badge: 0 }] : []),
-              { id: 'chronic',           label: 'Chronic Care 💊',      icon: HeartPulse, badge: 0 },
-              { id: 'virtual_schedule',  label: 'Virtual Schedule 💻',   icon: Video, badge: vBadge },
+              { id: 'chronic',           label: 'Care Club 💊',         icon: HeartPulse, badge: vBadge },
               { id: 'financials',        label: 'Finances',               icon: CreditCard, badge: 0 },
               { id: 'patients',          label: 'Patient Directory',      icon: Users, badge: 0 },
               { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare, badge: 0 },
@@ -3020,15 +3009,16 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
       )}
 
-      {/* Unified Chronic Care & Virtual Video Sub-Switcher — only on Care Club / Virtual tabs */}
+      {/* Care Club & Video Consult Sub-Switcher — shown only on those two tabs, no animation flash */}
       {(activeTab === 'chronic' || activeTab === 'virtual_schedule') && (
         <div className="w-full overflow-x-auto">
-          <div className="flex items-center justify-center my-1 animate-fade-in min-w-0">
+          {/* No animate-fade-in here — instant render prevents the brief header flash */}
+          <div className="flex items-center justify-center my-1 min-w-0">
             <div className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs gap-1 shrink-0">
               <button
                 type="button"
                 onClick={() => setActiveTab('chronic')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer whitespace-nowrap ${
                   activeTab === 'chronic'
                     ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/60 dark:border-white/10'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -3040,14 +3030,14 @@ Keep the tone professional, clinical, objective, and precise.`;
               <button
                 type="button"
                 onClick={() => setActiveTab('virtual_schedule')}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer whitespace-nowrap ${
                   activeTab === 'virtual_schedule'
                     ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-white/10'
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Video className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                <span>Virtual Reviews 💻</span>
+                <span>Video Consult 💻</span>
                 {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length > 0 && (
                   <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-500 text-white rounded-full leading-none">
                     {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length}
@@ -3115,8 +3105,8 @@ Keep the tone professional, clinical, objective, and precise.`;
           const desktopDockTabs = [
             { id: 'pod_view',          label: 'Pod Matrix',       icon: LayoutDashboard, badge: 0 },
             ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'OPD Queue', icon: ClipboardList, badge: 0 }] : []),
-            { id: 'chronic',           label: 'Chronic Care 💊',  icon: HeartPulse,      badge: 0 },
-            { id: 'virtual_schedule',  label: 'Virtual Reviews',  icon: Video,           badge: vBadge },
+            // Care Club badge shows virtual appt count; Video Consult reachable via sub-switcher inside Care Club
+            { id: 'chronic',           label: 'Care Club 💊',     icon: HeartPulse,      badge: vBadge },
             { id: 'patients',          label: 'Patients',         icon: Users,           badge: 0 },
             { id: 'financials',        label: 'Finances',         icon: CreditCard,      badge: 0 },
             { id: 'whatsapp',          label: 'WhatsApp',         icon: MessageSquare,   badge: 0 },

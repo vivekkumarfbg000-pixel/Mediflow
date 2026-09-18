@@ -578,6 +578,28 @@ scanFiles(SRC_DIR);
   }
 }
 
+// ── INVARIANT_29: saas_admin must NEVER be in doctorClinicalModules (Role Security) ─────
+// Prevents role leakage where VitalSync Admin portal becomes visible in the Doctor
+// navbar role switcher. Only admin/platform_admin/saas_admin profiles should see it.
+{
+  const navbarPath = path.resolve(SRC_DIR, 'components/shared/Navbar.tsx');
+  if (fs.existsSync(navbarPath)) {
+    const navbarContent = fs.readFileSync(navbarPath, 'utf8');
+    const relPath = path.relative(path.resolve(__dirname, '..'), navbarPath);
+    const doctorModuleMatch = navbarContent.match(/const\s+doctorClinicalModules\s*=\s*\[([^\]]+)\]/);
+    if (doctorModuleMatch && doctorModuleMatch[1].includes('saas_admin')) {
+      const lineNum = navbarContent.substring(0, navbarContent.indexOf(doctorModuleMatch[0])).split('\n').length;
+      violations.push({
+        rule: 'INVARIANT_29_DOCTOR_ROLE_ISOLATION',
+        file: relPath,
+        line: lineNum,
+        content: doctorModuleMatch[0].trim(),
+        reason: "saas_admin MUST NOT be in doctorClinicalModules. Doctors must NEVER see VitalSync Admin in the navbar role switcher. Remove saas_admin — it belongs only in adminModulesList."
+      });
+    }
+  }
+}
+
 if (violations.length > 0) {
 
   console.error('\n================================================================================');

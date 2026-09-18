@@ -343,10 +343,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'lab', name: nomenclature.labTitle, icon: Beaker, color: 'text-blue-500 bg-blue-500/10' },
     { id: 'pharmacy', name: nomenclature.pharmacyTitle, icon: ShoppingBag, color: 'text-emerald-500 bg-emerald-500/10' },
     { id: 'billing', name: 'UPI Ledger', icon: QrCode, color: 'text-rose-500 bg-rose-500/10' },
-    { id: 'saas_admin', name: 'Platform Operations', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
+    { id: 'saas_admin', name: 'VitalSync Admin', icon: ShieldAlert, color: 'text-cyan-500 bg-cyan-500/10' },
   ];
 
-  const doctorClinicalModules = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
+  // Doctors get all clinical role views but NOT the SaaS Admin portal
+  const doctorClinicalModules = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'];
   const clinicalModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'];
   const adminModulesList = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
 
