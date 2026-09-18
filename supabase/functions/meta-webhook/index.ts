@@ -282,6 +282,12 @@ serve(async (req) => {
 
   // 2. Meta Message Event Ingestion (POST request)
   if (req.method === "POST") {
+    let inboundPhone = "";
+    let inboundContactName = "";
+    let inboundPhoneId = "";
+    let inboundToken = "";
+    let inboundReplyId: string | undefined = undefined;
+    let inboundText = "";
     try {
       const rawBody = await req.text();
       let payload: any = {};
@@ -872,6 +878,8 @@ if (!isManualRelay) {
 
       const patientPhone = message.from;
       const waContactName = (value.contacts?.[0]?.profile?.name || "").trim();
+      inboundPhone = patientPhone;
+      inboundContactName = waContactName;
       
       let messageText = "";
       let replyId: string | undefined = undefined;
@@ -964,6 +972,8 @@ if (!isManualRelay) {
       } else {
         messageText = message.text?.body ?? "";
       }
+      inboundReplyId = replyId;
+      inboundText = messageText;
       
       const phoneId = value.metadata?.phone_number_id;
 
@@ -1015,6 +1025,9 @@ if (!isManualRelay) {
           }
         } catch (_wErr) {}
       }
+
+      inboundPhoneId = phoneId;
+      inboundToken = tenantToken;
 
       // 4. Retrieve or Initialize Active WhatsApp Session for patient atomically
       let { data: session } = await supabase
@@ -1198,7 +1211,109 @@ if (!isManualRelay) {
         console.warn("[Auto-Healer] Failed to record telemetry log:", telemetryErr);
       }
 
-      // 2. Return HTTP 200 OK to Meta API to guarantee zero webhook downtime / deauthorization
+      // 2. Infallible Autonomous Outbound Fallback Sentinel (Directive 102)
+      try {
+        const targetPhone = inboundPhone;
+        const effectiveToken = inboundToken || Deno.env.get("OWNER_SYSTEM_TOKEN") || Deno.env.get("META_WHATSAPP_TOKEN") || "";
+        const effectivePhoneId = inboundPhoneId || Deno.env.get("META_PHONE_NUMBER_ID") || Deno.env.get("OWNER_PHONE_NUMBER_ID") || "";
+
+        if (targetPhone && effectiveToken && effectivePhoneId) {
+          const cleanPhone = String(targetPhone).replace(/\D/g, "");
+          const clean10 = cleanPhone.slice(-10);
+
+          // If user intended payment assertion, auto-heal the appointment directly
+          const isPaymentIntent = 
+            inboundReplyId === "btn_pay" || 
+            inboundReplyId === "btn_paid" || 
+            inboundReplyId === "btn_counter" ||
+            /\b(pay|paid|payment|counter|cash|done|bhej|diya)\b/i.test(inboundText);
+
+          if (isPaymentIntent) {
+            try {
+              const { data: pendingAppt } = await supabase
+                .from("appointments")
+                .select("id, token_number, patient_id")
+                .or(`patient_phone.eq.${clean10},patient_phone.eq.${cleanPhone},patient_phone.eq.91${clean10}`)
+                .eq("status", "pending_payment")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (pendingAppt?.id) {
+                await supabase
+                  .from("appointments")
+                  .update({
+                    status: "ready_for_consult",
+                    payment_status: "asserted",
+                    token_number: pendingAppt.token_number || "T-01"
+                  })
+                  .eq("id", pendingAppt.id);
+
+                if (pendingAppt.patient_id) {
+                  await supabase
+                    .from("patient_registry")
+                    .update({ queue_status: "awaiting_vitals" })
+                    .eq("id", pendingAppt.patient_id);
+                }
+
+                const confirmMsg = {
+                  messaging_product: "whatsapp",
+                  recipient_type: "individual",
+                  to: cleanPhone,
+                  type: "text",
+                  text: {
+                    body: `🟢 *PAYMENT ASSERTED & TOKEN ISSUED!*\n\nHi ${inboundContactName || "Patient"}! Aapka checkup confirm ho gaya hai aur token *${pendingAppt.token_number || "T-01"}* issue ho chuka hai 📑\n\nDoctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Kripya clinic reception desk par token show karein! 🩺`
+                  }
+                };
+
+                await fetch(`https://graph.facebook.com/v21.0/${effectivePhoneId}/messages`, {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${effectiveToken}`,
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify(confirmMsg)
+                });
+              }
+            } catch (healErr) {
+              console.warn("[Auto-Healer] Payment auto-heal error:", healErr);
+            }
+          } else {
+            const fallbackBody = {
+              messaging_product: "whatsapp",
+              recipient_type: "individual",
+              to: cleanPhone,
+              type: "interactive",
+              interactive: {
+                type: "button",
+                body: {
+                  text: `Namaste ${inboundContactName || "Patient"}! 🙏 Aapka message receive ho gaya hai.\n\nEcosystem live update process ho raha hai. Kisi bhi suvidha ke liye kripya button tap karein ya clinic intake desk par sampark karein! 🩺`
+                },
+                action: {
+                  buttons: [
+                    { type: "reply", reply: { id: "btn_main_menu", title: "Main Menu 🏠" } },
+                    { type: "reply", reply: { id: "menu_physical", title: "Book Visit 🏥" } },
+                    { type: "reply", reply: { id: "menu_sos", title: "Emergency SOS 🚨" } }
+                  ]
+                }
+              }
+            };
+
+            await fetch(`https://graph.facebook.com/v21.0/${effectivePhoneId}/messages`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${effectiveToken}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify(fallbackBody)
+            });
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn("[Auto-Healer] Outbound fallback dispatch error:", fallbackErr);
+      }
+
+      // 3. Return HTTP 200 OK to Meta API to guarantee zero webhook downtime / deauthorization
       return new Response("HEALED_AUTONOMOUSLY", { status: 200 });
     }
   }
@@ -1296,6 +1411,8 @@ async function triggerBotReplyPipeline(ctx: {
   let nextState = state;
   let replyText = "";
   let cleaned = incomingText.trim().toLowerCase();
+  const todayIst = getIstDateString();
+  const cleanPhone10 = String(patientPhone || "").replace(/\D/g, "").slice(-10);
 
   if (typeof sessionData === "string") {
     try {
@@ -1520,7 +1637,7 @@ async function triggerBotReplyPipeline(ctx: {
       state = "AWAITING_DATE_SELECTION";
     } else if (replyId === "btn_slot_1" || replyId === "btn_slot_2" || replyId === "btn_slot_3" || replyId.startsWith("btn_slot_")) {
       state = "AWAITING_SLOT_SELECTION";
-    } else if (replyId === "btn_pay" || replyId === "btn_paid") {
+    } else if (replyId === "btn_pay" || replyId === "btn_paid" || replyId === "btn_pay_counter" || replyId === "btn_counter") {
       state = "AWAITING_PAYMENT";
     } else if (replyId === "menu_physical" || replyId === "btn_physical") {
       if (isNewOrIncomplete) {
@@ -1535,6 +1652,11 @@ async function triggerBotReplyPipeline(ctx: {
         state = "AWAITING_CONFIRMATION";
       }
     }
+  } else if (
+    (cleaned === "paid" || cleaned === "pay" || cleaned === "payment" || cleaned === "counter" || cleaned === "cash" || cleaned.includes("bhej diya") || cleaned.includes("kar diya") || cleaned.includes("payment ho gaya") || cleaned.includes("i have paid")) &&
+    state !== "AWAITING_PAYMENT"
+  ) {
+    state = "AWAITING_PAYMENT";
   }
 
   // Conversational state machine router logic
@@ -2079,7 +2201,6 @@ async function triggerBotReplyPipeline(ctx: {
 
       regName = regName || "Patient";
 
-      const cleanPhone10 = String(patientPhone).replace(/\D/g, "").slice(-10);
       let targetPatId = patient?.id;
       const ownReferralCode = `REF-${cleanPhone10.slice(-4)}`;
       const currentPodId = toValidUuid(session.pod_id || connection?.pod_id || "dfb2a1a8-8e68-4f8a-929e-4a6c8e317001");
@@ -2622,7 +2743,6 @@ async function triggerBotReplyPipeline(ctx: {
     case "AWAITING_DATE_SELECTION":
       const isSosDateMode = sessionData.consultationType === "sos" || sessionData.consultationType === "vip" || sessionData.isSos === true;
       const freshDateGen = generateBookingDateOptions(isSosDateMode);
-      const todayIst = getIstDateString();
       let dateOptions = sessionData.dateOptions;
       let dateDisplayOptions = sessionData.dateDisplayOptions;
       
@@ -2800,7 +2920,6 @@ async function triggerBotReplyPipeline(ctx: {
         } catch (rErr) { console.warn("[Meta Webhook] Referral discount check error:", rErr); }
         
         const freshGen = generateBookingDateOptions(isSosBookingSession);
-        const todayIst = getIstDateString();
         const defaultDate = freshGen.isTodayAvailable ? todayIst : getIstOffsetDateString(1);
         const defaultDisplay = freshGen.isTodayAvailable ? `Today (${getIstDateDisplay()})` : `Tomorrow (${getIstOffsetDateDisplay(1)})`;
 
@@ -3311,7 +3430,7 @@ async function triggerBotReplyPipeline(ctx: {
       break;
 
     case "AWAITING_PAYMENT":
-      const bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
+      let bookingPatId = patient?.id || session.patient_id || sessionData.bookingPatientId;
       const invoiceId = sessionData.pendingInvoiceId;
       let apptId = sessionData.pendingApptId;
       let tokenNumber = sessionData.tokenNumber || 1;
@@ -3330,18 +3449,23 @@ async function triggerBotReplyPipeline(ctx: {
 
       // Resilient database appointment lookup if sessionData was cleared or lost
       let resolvedApptDate = sessionData.selectedDateDisplay || sessionData.selectedDate;
-      if (apptId || invoiceId || bookingPatId) {
+      if (apptId || invoiceId || bookingPatId || cleanPhone10) {
         try {
-          let apptQuery = supabase.from("appointments").select("id, virtual_date, virtual_time, appointment_time, token_number, doctor_id, entity_id, is_emergency, source");
+          let apptQuery = supabase.from("appointments").select("id, virtual_date, virtual_time, appointment_time, token_number, doctor_id, entity_id, is_emergency, source, patient_id");
           if (apptId) {
             apptQuery = apptQuery.eq("id", apptId);
           } else if (bookingPatId) {
             apptQuery = apptQuery.eq("patient_id", bookingPatId).order("created_at", { ascending: false }).limit(1);
+          } else if (cleanPhone10) {
+            apptQuery = apptQuery.or(`patient_phone.eq.${cleanPhone10},patient_phone.eq.${patientPhone},patient_phone.eq.91${cleanPhone10}`).order("created_at", { ascending: false }).limit(1);
           }
           const { data: dbAppt } = await apptQuery.maybeSingle();
           if (dbAppt) {
             if (dbAppt.id && !apptId) {
               apptId = dbAppt.id;
+            }
+            if (dbAppt.patient_id && !bookingPatId) {
+              bookingPatId = dbAppt.patient_id;
             }
             if (sessionData.consultationType === "sos" || sessionData.consultationType === "vip") {
               isSosBooking = true;
@@ -3612,19 +3736,35 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         let effectiveApptId = apptId;
-        if (!effectiveApptId && bookingPatId) {
+        if (!effectiveApptId) {
           try {
-            const { data: pendingAppt } = await supabase
-              .from("appointments")
-              .select("id, token_number, virtual_date, virtual_time, is_emergency, source")
-              .eq("patient_id", bookingPatId)
-              .eq("status", "pending_payment")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            let pendingAppt: any = null;
+            if (bookingPatId) {
+              const res = await supabase
+                .from("appointments")
+                .select("id, token_number, virtual_date, virtual_time, is_emergency, source, patient_id")
+                .eq("patient_id", bookingPatId)
+                .eq("status", "pending_payment")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              pendingAppt = res.data;
+            }
+            if (!pendingAppt?.id && cleanPhone10) {
+              const res = await supabase
+                .from("appointments")
+                .select("id, token_number, virtual_date, virtual_time, is_emergency, source, patient_id")
+                .eq("patient_phone", cleanPhone10)
+                .eq("status", "pending_payment")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              pendingAppt = res.data;
+            }
             if (pendingAppt?.id) {
               effectiveApptId = pendingAppt.id;
               if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
+              if (pendingAppt.patient_id && !bookingPatId) bookingPatId = pendingAppt.patient_id;
               isSosBooking = isExplicitSos && !isPhysical;
             }
           } catch (_e) {}
@@ -3689,19 +3829,35 @@ async function triggerBotReplyPipeline(ctx: {
         }
 
         let effectiveApptId = apptId;
-        if (!effectiveApptId && bookingPatId) {
+        if (!effectiveApptId) {
           try {
-            const { data: pendingAppt } = await supabase
-              .from("appointments")
-              .select("id, token_number, virtual_date, virtual_time, is_emergency, source")
-              .eq("patient_id", bookingPatId)
-              .eq("status", "pending_payment")
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            let pendingAppt: any = null;
+            if (bookingPatId) {
+              const res = await supabase
+                .from("appointments")
+                .select("id, token_number, virtual_date, virtual_time, is_emergency, source, patient_id")
+                .eq("patient_id", bookingPatId)
+                .eq("status", "pending_payment")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              pendingAppt = res.data;
+            }
+            if (!pendingAppt?.id && cleanPhone10) {
+              const res = await supabase
+                .from("appointments")
+                .select("id, token_number, virtual_date, virtual_time, is_emergency, source, patient_id")
+                .eq("patient_phone", cleanPhone10)
+                .eq("status", "pending_payment")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              pendingAppt = res.data;
+            }
             if (pendingAppt?.id) {
               effectiveApptId = pendingAppt.id;
               if (pendingAppt.token_number) tokenNumber = pendingAppt.token_number;
+              if (pendingAppt.patient_id && !bookingPatId) bookingPatId = pendingAppt.patient_id;
               isSosBooking = isExplicitSos && !isPhysical;
             }
           } catch (_e) {}
@@ -5211,8 +5367,8 @@ CLINICAL GUIDELINES:
     const sessionDataUpdates = { ...sessionData };
     delete sessionDataUpdates.chatHistory;
 
-    const safePodId = toValidUuid(podId);
-    const safeEntityId = toValidUuid(entityId, safePodId);
+    const safePodId = toValidUuid(connection?.pod_id || session?.pod_id);
+    const safeEntityId = toValidUuid(connection?.entity_id || session?.entity_id, safePodId);
 
     let rpcDone = false;
     try {

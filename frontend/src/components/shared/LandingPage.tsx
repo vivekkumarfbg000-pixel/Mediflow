@@ -549,7 +549,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <Award className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Doctor Consultation Fee Immunity (Rule 58)</p>
+                <p className="text-xs font-bold text-slate-800 uppercase tracking-wider">Doctor Consultation Fee Immunity (100% Direct Payout)</p>
                 <p className="text-[11px] text-slate-500 mt-1 leading-relaxed font-semibold">100% of patient consultation fees go directly to the Doctor's bank account or counter drawer with 0% platform deductions. First 90 days are 100% Free, followed by a flat ₹999/month operations fee with zero OPD commission.</p>
               </div>
             </div>
@@ -766,7 +766,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="mt-6 pt-4 border-t border-teal-100 space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono">
                   <span className="text-slate-500">OPD Consultation Fee:</span>
-                  <span className="font-black text-teal-800 bg-teal-100 px-2 py-0.5 rounded">100% Direct → Doctor (Rule 58)</span>
+                  <span className="font-black text-teal-800 bg-teal-100 px-2 py-0.5 rounded">100% Direct → Doctor (0% Platform Cut)</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
@@ -2280,7 +2280,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   <td className="p-5 bg-teal-100/50 border-x border-teal-300 font-extrabold text-teal-950">
                     <div className="flex items-start gap-2">
                       <Award className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span><strong>₹0 Setup / ₹0 SaaS Fees:</strong> 100% of patient consultation fees go directly to doctor with 0% platform deductions (Rule 58).</span>
+                      <span><strong>₹0 Setup / ₹0 SaaS Fees:</strong> 100% of patient consultation fees go directly to doctor with 0% platform deductions.</span>
                     </div>
                   </td>
                   <td className="p-5 text-slate-600 font-medium">
@@ -2322,7 +2322,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               {
                 step: '01',
                 title: 'Practice Profile & Direct Bank Setup',
-                desc: "Register your clinic profile, set up your doctor credentials, and link your direct settlement bank account or UPI QR with 100% consultation fee protection (Rule 58).",
+                desc: "Register your clinic profile, set up your doctor credentials, and link your direct settlement bank account or UPI QR with 100% consultation fee protection.",
                 color: 'text-teal-700',
                 bg: 'bg-teal-50',
                 border: 'border-teal-200'
@@ -2330,7 +2330,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               {
                 step: '02',
                 title: 'Connect Chemist & Pathology Lab',
-                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners with custom SOP split parameters (20%-30% pharmacy, 30%-40% lab).",
+                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners with custom SOP split parameters (10%-15% pharmacy, 30%-40% lab).",
                 color: 'text-indigo-700',
                 bg: 'bg-indigo-50',
                 border: 'border-indigo-200'
@@ -2683,7 +2683,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       After 90 days of proven clinical ROI and patient retention, clinics continue on our standard <strong className="text-emerald-800">Clinical Operations Fee of flat ₹999/month</strong>. This covers secure cloud database hosting, Meta WhatsApp Business API relays, AI triage inference, and continuous 24/7 autonomous agents.
                     </p>
                     <p>
-                      Crucially, under our <strong>Doctor Consultation Fee Immunity (Rule 58)</strong>, VitalSync NEVER takes a single rupee from your patient consultation fees — 100% of your OPD earnings remain 100% yours.
+                      Crucially, under our <strong>Doctor Consultation Fee Immunity Guarantee</strong>, VitalSync NEVER takes a single rupee from your patient consultation fees — 100% of your OPD earnings remain 100% yours.
                     </p>
                   </div>
                 )
