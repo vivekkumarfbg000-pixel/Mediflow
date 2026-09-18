@@ -1291,7 +1291,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                         <span>Consult Fee:</span> <strong className="text-slate-900">₹500 (100% Doctor)</strong>
                       </div>
                       <div className="flex justify-between text-teal-700">
-                        <span>Chemist Split (25%):</span> <strong>₹180.00</strong>
+                        <span>Chemist Split (15%):</span> <strong>₹108.00</strong>
                       </div>
                       <div className="flex justify-between text-indigo-700">
                         <span>Lab Split (35%):</span> <strong>₹280.00</strong>
@@ -1982,7 +1982,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               const directOpdEarnings = monthlyOPD * calcFee;
               const chronicPatients = Math.round(monthlyOPD * (calcChronicRatio / 100));
               const refillGMV = chronicPatients * calcMedSale;
-              const pharmacyDoctorSplit = refillGMV * 0.25; // 25% SOP split
+              const pharmacyDoctorSplit = refillGMV * 0.15; // 15% SOP split
               // Assume 35% of chronic patients do a diagnostic test in any given month (approx every 90 days)
               const labMonthlyGMV = Math.round(chronicPatients * 0.35 * calcLabFee);
               const labDoctorSplit = labMonthlyGMV * 0.35; // 35% SOP split
@@ -2010,7 +2010,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <span className="font-bold text-white">₹{(directOpdEarnings || 0).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-teal-300">
-                      <span>2. Day-25 Refills (Chemist 25% SOP):</span>
+                      <span>2. Day-25 Refills (Chemist 15% SOP):</span>
                       <span className="font-bold">₹{(pharmacyDoctorSplit || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                     </div>
                     <div className="flex justify-between text-indigo-300">

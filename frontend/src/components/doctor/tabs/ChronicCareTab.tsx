@@ -108,7 +108,7 @@ export const ChronicCareTab: React.FC<ChronicCareTabProps> = ({ onSelectPatient 
       : 0;
     
     const monthlyPracticeRevenue = cohorts.reduce((acc, c) => acc + (c.monthlyMedicineSpend || 0), 0);
-    const doctorSopSplit = monthlyPracticeRevenue * 0.25; // 25% SOP Split
+    const doctorSopSplit = monthlyPracticeRevenue * 0.15; // 15% SOP Split
 
     const dueRefills = cohorts.filter(c => c.status === 'due_refill').length;
     const defaulters = cohorts.filter(c => (c.status || '').startsWith('defaulter')).length;

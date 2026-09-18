@@ -592,7 +592,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                       <span className="font-mono font-bold text-teal-800">+₹350 – ₹600</span>
                     </div>
                     <div className="flex justify-between pb-1 border-b border-teal-200 text-slate-800 font-medium">
-                      <span>💊 Medication Advisory Split (25%)</span>
+                      <span>💊 Medication Advisory Split (15%)</span>
                       <span className="font-mono font-bold text-teal-800">+₹250 – ₹500</span>
                     </div>
                     <div className="flex justify-between text-slate-800 font-medium">
