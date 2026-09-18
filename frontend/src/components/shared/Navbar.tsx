@@ -389,7 +389,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         { id: 'patients', label: 'Patients Directory', icon: Users },
         { id: 'financials', label: 'Revenue & Ledgers', icon: CreditCard },
         { id: 'whatsapp', label: 'WhatsApp Patient Care', icon: MessageSquare },
-        { id: 'chronic', label: 'Chronic Care Cohort', icon: Activity },
+        { id: 'chronic', label: 'Care Club 💊', icon: HeartPulse },
         { id: 'sop', label: 'Clinic SOP Config', icon: FileText }
       ];
     }
@@ -453,7 +453,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const isWorkflowTabActive = (tabId: string) => {
-    if (currentRole === 'doctor') return activeDoctorTab === tabId;
+    if (currentRole === 'doctor') return activeDoctorTab === tabId || (tabId === 'chronic' && activeDoctorTab === 'virtual_schedule');
     if (currentRole === 'compounder') return activeCompounderTab === tabId;
     if (currentRole === 'pharmacy') return activePharmacyTab === tabId;
     if (currentRole === 'lab') return activeLabTab === tabId;
@@ -1205,7 +1205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ];
               return docTabs.map(t => {
                 const Icon = t.icon;
-                const isActive = activeDoctorTab === t.id;
+                const isActive = activeDoctorTab === t.id || (t.id === 'chronic' && activeDoctorTab === 'virtual_schedule');
                 return (
                   <button
                     key={t.id}

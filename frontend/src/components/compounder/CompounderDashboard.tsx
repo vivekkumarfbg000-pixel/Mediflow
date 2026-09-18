@@ -2045,16 +2045,6 @@ export const CompounderDashboard: React.FC = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'bhojpuri'>('hindi');
   const [dosageTemplate, setDosageTemplate] = useState<'od' | 'bd' | 'tds' | 'sos'>('od');
 
-  useEffect(() => {
-    const handleCompounderTabChange = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) {
-        setActiveTab(customEvent.detail as any);
-      }
-    };
-    window.addEventListener('mediflow-compounder-tab-changed', handleCompounderTabChange);
-    return () => window.removeEventListener('mediflow-compounder-tab-changed', handleCompounderTabChange);
-  }, []);
 
   // Keyboard shortcut listener to close vitals modal on Escape key press
   useEffect(() => {

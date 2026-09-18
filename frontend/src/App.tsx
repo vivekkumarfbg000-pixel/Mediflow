@@ -88,9 +88,9 @@ export function prefetchAllClinicalModules() {
   };
 
   if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(() => { loadChunks(); }, { timeout: 3000 });
+    (window as any).requestIdleCallback(() => { loadChunks(); }, { timeout: 800 });
   } else {
-    setTimeout(() => { loadChunks(); }, 1200);
+    setTimeout(() => { loadChunks(); }, 400);
   }
 }
 

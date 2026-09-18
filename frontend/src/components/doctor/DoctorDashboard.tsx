@@ -207,10 +207,25 @@ export const DoctorDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const VALID_DOCTOR_TABS = new Set(['consultation', 'financials', 'patients', 'whatsapp', 'sop', 'pod_view', 'virtual_schedule', 'chronic']);
+    const DOCTOR_TAB_ALIASES: Record<string, 'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'> = {
+      'care_club': 'chronic',
+      'chronic_care': 'chronic',
+      'care': 'chronic',
+      'virtual': 'virtual_schedule',
+      'telemedicine': 'virtual_schedule',
+      'pod': 'pod_view',
+      'matrix': 'pod_view',
+      'dashboard': 'pod_view'
+    };
+
     const handleTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) {
-        setActiveTab(prev => (prev === customEvent.detail ? prev : (customEvent.detail as any)));
+      const rawTarget = customEvent.detail;
+      if (!rawTarget) return;
+      const normalizedTarget = DOCTOR_TAB_ALIASES[rawTarget] || rawTarget;
+      if (VALID_DOCTOR_TABS.has(normalizedTarget)) {
+        setActiveTab(normalizedTarget as any);
       }
     };
     window.addEventListener('mediflow-doctor-tab-changed', handleTabChange);
@@ -3007,7 +3022,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           ];
           return desktopDockTabs.map(item => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id;
+            const isActive = activeTab === item.id || (item.id === 'chronic' && activeTab === 'virtual_schedule');
             return (
               <button
                 key={item.id}
