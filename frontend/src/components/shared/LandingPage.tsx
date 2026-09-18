@@ -176,9 +176,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
   const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
-  const [showBenefitsTour, setShowBenefitsTour] = useState(false);
-  const [tourSlide, setTourSlide] = useState(0);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [calcPatients, setCalcPatients] = useState(25);
   const [calcFee, setCalcFee] = useState(500);
@@ -195,6 +194,58 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   // WhatsApp Patient Simulator State
   const [simStep, setSimStep] = useState<'refill_prompt' | 'refill_confirmed' | 'booking_prompt' | 'booking_confirmed' | 'report_prompt' | 'report_viewed'>('refill_prompt');
   const [isSimTyping, setIsSimTyping] = useState(false);
+
+  // Figma/Canva-Style Interactive Canvas State
+  const [figmaCanvasTab, setFigmaCanvasTab] = useState<'scan' | 'ai' | 'whatsapp'>('scan');
+
+  // WhatsApp-Connected Live Demo Booking Form States
+  const [demoDoctorName, setDemoDoctorName] = useState('');
+  const [demoClinicName, setDemoClinicName] = useState('');
+  const [demoCity, setDemoCity] = useState('');
+  const [demoPhone, setDemoPhone] = useState('');
+  const [demoSpecialty, setDemoSpecialty] = useState('General Medicine');
+  const [demoPatientsVolume, setDemoPatientsVolume] = useState('25-50 OPD / day');
+  const [demoPreferredTime, setDemoPreferredTime] = useState('Today Evening');
+  const [demoError, setDemoError] = useState<string | null>(null);
+
+  const handleBookDemoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setDemoError(null);
+
+    const cleanPhone = demoPhone.trim().replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setDemoError('Please enter a valid 10-digit WhatsApp number.');
+      return;
+    }
+    if (!demoDoctorName.trim()) {
+      setDemoError('Please enter your Doctor / Contact Name.');
+      return;
+    }
+
+    const message = `Namaste Vivek! 🙏 I would like to book a 1-on-1 Live Clinic Demo of VitalSync.
+
+👨‍⚕️ Clinician: ${demoDoctorName.trim()}
+🏥 Clinic: ${demoClinicName.trim() || 'My Clinic'}, ${demoCity.trim() || 'India'}
+📱 WhatsApp: +91 ${cleanPhone}
+🩺 Specialty: ${demoSpecialty}
+👥 Daily OPD Volume: ${demoPatientsVolume}
+📅 Preferred Slot: ${demoPreferredTime}
+
+Please confirm my live demo appointment! 🩺`;
+
+    const targetUrl = `https://wa.me/919608032073?text=${encodeURIComponent(message)}`;
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Demo Request Scheduled! 📲',
+        message: 'Opening WhatsApp to connect you directly with Founder Desk...',
+        type: 'success'
+      }
+    }));
+
+    setShowDemoModal(false);
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  };
 
   const handleSimAction = (nextStep: 'refill_prompt' | 'refill_confirmed' | 'booking_prompt' | 'booking_confirmed' | 'report_prompt' | 'report_viewed') => {
     setIsSimTyping(true);
@@ -361,33 +412,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         <div className="absolute top-1/4 left-0 w-96 h-96 bg-indigo-500/5 rounded-full filter blur-3xl pointer-events-none" />
         <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-cyan-500/5 rounded-full filter blur-3xl pointer-events-none" />
 
-        {/* Left Visual Asset with OPPOSITE Mouse Parallax and slow float */}
-        <div 
-          className="absolute left-[-15%] top-[10%] w-[65%] h-[90%] opacity-20 mix-blend-multiply transition-transform duration-700 ease-out pointer-events-none hidden lg:block"
-          style={{
-            transform: `translate3d(${mousePos.x * -18}px, ${mousePos.y * -18}px, 0)`,
-          }}
-        >
-          <img 
-            src={backgroundLeftSrc} 
-            alt="Mediflow 3D Left Ambient Visual Background"
-            className="w-full h-full object-contain object-left-center animate-float-drift-slow"
-          />
-        </div>
-
-        {/* Right Visual Asset with Mouse Parallax and CSS drift */}
-        <div 
-          className="absolute right-[-10%] top-[-5%] w-[75%] h-[110%] opacity-40 mix-blend-multiply transition-transform duration-700 ease-out pointer-events-none hidden lg:block"
-          style={{
-            transform: `translate3d(${mousePos.x * 30}px, ${mousePos.y * 30}px, 0)`,
-          }}
-        >
-          <img 
-            src={background3DSrc} 
-            alt="Mediflow 3D Connected Care Visual Background"
-            className="w-full h-full object-contain object-right-top animate-float-drift"
-          />
-        </div>
+        {/* Clean luminous ambient spotlight gradients */}
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-teal-500/5 rounded-full filter blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full filter blur-[100px] pointer-events-none" />
       </div>
 
       {/* 3D Plexus interactive network loop background */}
@@ -441,10 +468,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </button>
 
             <button
-              onClick={handleGetStartedClick}
+              onClick={() => setShowDemoModal(true)}
               className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
             >
-              Start Free Pilot <ArrowRight className="h-3.5 w-3.5" />
+              Book a Live Demo <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -452,6 +479,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
       {/* Style blocks for flows */}
       <style>{`
+        @keyframes scanLaser {
+          0% { top: 0%; opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+        .animate-scan-laser {
+          animation: scanLaser 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
         @keyframes pulse-flow {
           0% { left: 0%; opacity: 0; }
           10% { opacity: 1; }
@@ -506,14 +542,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
           {/* SaaS Headline & Subtitle */}
           <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-black text-slate-900 leading-[1.08] tracking-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black text-slate-900 leading-[1.14] tracking-tight">
               Run Your Clinic Like a Connected Hospital.<br />
               <span className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent">
                 Write on Paper. AI &amp; WhatsApp Do the Rest.
               </span>
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl font-normal">
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl font-normal">
               Keep writing paper prescriptions as usual. Your compounder scans it in 1.2s; VitalSync AI builds the digital profile, delivers the e-Rx on WhatsApp, and automates clinic operations. Unites your practice, pharmacy, and lab on interconnected dashboards—while giving chronic patients 100–200 km away remote video care with their trusted doctor.
             </p>
           </div>
@@ -557,30 +593,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
           </div>
 
-          {/* Interactive CTAs & Trust Signals */}
+          {/* Interactive CTAs & Trust Signals — Clean & Consolidated (One Primary Demo, One Secondary Sign In) */}
           <div className="space-y-3 pt-1">
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={handleGetStartedClick}
+                onClick={() => setShowDemoModal(true)}
                 className="px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-lg cursor-pointer flex items-center gap-2 group"
               >
-                Start 90-Day Free Pilot
+                Book 1-on-1 Live Demo
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
               </button>
               <button
                 onClick={scrollToGate}
                 className="px-5 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-2"
               >
-                Doctor &amp; Staff Login
-              </button>
-              <button
-                onClick={() => {
-                  setShowBenefitsTour(true);
-                  setTourSlide(0);
-                }}
-                className="px-4 py-3.5 rounded-xl text-slate-600 hover:text-slate-900 font-bold text-xs tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Presentation className="h-4 w-4 text-teal-600" /> Watch 2-Min Tour
+                Doctor &amp; Staff Sign In
               </button>
             </div>
 
@@ -594,7 +621,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </span>
               <span className="text-slate-300 hidden sm:inline">·</span>
               <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Cancel anytime
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> WhatsApp Connected
               </span>
             </div>
           </div>
@@ -639,62 +666,255 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
           </div>
 
-          {/* Main Visual Showcase Box */}
-          <div
-            className="max-w-lg relative rounded-3xl border border-slate-200 shadow-xl group hover:border-teal-400/50 transition-all duration-500 w-full bg-white"
-            style={{
-              aspectRatio: '16 / 10',
-              overflow: 'hidden',
-              touchAction: 'manipulation',
-            }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-900/40 to-transparent opacity-90 pointer-events-none z-10" />
-            <img
-              src={heroImageSrc}
-              alt="VitalSync Care Network Connected Loop Illustration"
-              width={800}
-              height={500}
-              loading="lazy"
-              decoding="async"
-              fetchPriority="high"
-              onError={(e) => {
-                const t = e.currentTarget;
-                t.onerror = null;
-                t.style.display = 'none';
-                const placeholder = t.parentElement?.querySelector('.hero-placeholder') as HTMLElement | null;
-                if (placeholder) placeholder.style.display = 'flex';
-              }}
-              className="absolute inset-0 w-full h-full object-cover transform scale-100 group-hover:scale-[1.03] transition-transform duration-700"
-              style={{
-                WebkitBackfaceVisibility: 'hidden',
-                backfaceVisibility: 'hidden',
-                willChange: 'transform',
-              }}
-            />
-            {/* Fallback component */}
-            <div
-              className="hero-placeholder absolute inset-0 items-center justify-center bg-gradient-to-br from-slate-900 to-indigo-950 text-indigo-400 text-xs font-mono tracking-wide"
-              style={{ display: 'none' }}
-            >
-              <div className="text-center space-y-2 px-4">
-                <Sparkles className="h-8 w-8 text-cyan-500 mx-auto animate-pulse" />
-                <p className="uppercase tracking-widest font-black text-white">VitalSync Virtual Hospital Network</p>
+          {/* Canva/Figma-Style Live Clinic Simulation Canvas Widget */}
+          <div className="max-w-lg w-full rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-2xl overflow-hidden transition-all duration-500 hover:border-slate-700">
+            {/* Figma/Canva Studio Header Bar */}
+            <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between gap-3">
+              {/* Left: Window Dots & Canvas Title */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                </div>
+                <span className="text-[11px] font-mono font-bold text-slate-300 ml-1.5 hidden sm:inline">
+                  VitalSync Studio · 1.2s Live Pipeline
+                </span>
+              </div>
+
+              {/* Right: Interactive Mode Selector Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setFigmaCanvasTab('scan')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    figmaCanvasTab === 'scan'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Camera className="h-3 w-3" /> Paper Rx
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFigmaCanvasTab('ai')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    figmaCanvasTab === 'ai'
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Bot className="h-3 w-3" /> AI Vision
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFigmaCanvasTab('whatsapp')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    figmaCanvasTab === 'whatsapp'
+                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <MessageSquare className="h-3 w-3" /> WhatsApp
+                </button>
               </div>
             </div>
-            
-            <div className="absolute bottom-5 left-6 right-6 z-20 text-white text-left">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-3 py-0.5 rounded-full backdrop-blur-sm shadow-md">
-                  <Sparkles className="h-3 w-3" /> Hyper-Local Triad SOP
-                </span>
-                <span className="inline-flex items-center gap-1 text-[9px] font-mono text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                  ⚡ Sub-Second Live Sync
-                </span>
+
+            {/* Interactive Canvas Body */}
+            <div className="p-5 relative min-h-[320px] flex flex-col justify-between">
+              {figmaCanvasTab === 'scan' && (
+                <div className="space-y-3.5 animate-fade-in text-left">
+                  {/* Status Banner */}
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      </span>
+                      <span className="text-emerald-400 font-mono font-bold uppercase tracking-wider">Compounder Camera Active</span>
+                    </div>
+                    <span className="text-slate-400 font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
+                      Optical OCR Speed: 1.2s
+                    </span>
+                  </div>
+
+                  {/* Doctor Handwritten Prescription Simulation Card */}
+                  <div className="relative bg-amber-50/95 text-slate-900 p-4 rounded-2xl border border-amber-200/80 shadow-inner overflow-hidden font-sans">
+                    {/* Laser Scan Animation Line */}
+                    <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-[0_0_14px_#10b981] animate-scan-laser pointer-events-none" />
+
+                    {/* Prescription Letterhead */}
+                    <div className="border-b border-amber-300/60 pb-2 mb-2 flex justify-between items-start">
+                      <div>
+                        <h4 className="text-xs font-black tracking-tight text-slate-900 font-serif">DR. A. K. SHARMA, MD</h4>
+                        <p className="text-[9.5px] text-slate-600 font-mono">Reg #48921/NMC · Consultant Physician</p>
+                      </div>
+                      <div className="text-right text-[9px] font-mono text-slate-500">
+                        <span>OPD #104 · 18 Sep 2026</span>
+                      </div>
+                    </div>
+
+                    {/* Patient Details */}
+                    <div className="text-[10px] text-slate-700 pb-2 border-b border-amber-200/50 flex justify-between">
+                      <span><strong>Pt:</strong> Rajesh Verma (54/M)</span>
+                      <span><strong>BP:</strong> 148/92 mmHg</span>
+                      <span><strong>Sugar:</strong> 178 mg/dL</span>
+                    </div>
+
+                    {/* Rx Drugs */}
+                    <div className="pt-2 space-y-1.5 font-serif text-slate-800 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span>1. Tab Telmisartan 40mg (1-0-0) x 30d</span>
+                        <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>2. Tab Metformin 500mg SR (1-0-1) x 30d</span>
+                        <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>3. Tab Atorvastatin 10mg (0-0-1) x 30d</span>
+                        <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-[11px] text-slate-400">
+                      Doctor writes freely on paper. Compounder snaps 1 photo on phone.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setFigmaCanvasTab('ai')}
+                      className="text-[10.5px] font-bold text-teal-400 hover:text-teal-300 flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      Inspect AI Output <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {figmaCanvasTab === 'ai' && (
+                <div className="space-y-3 animate-fade-in text-left">
+                  <div className="flex items-center justify-between text-[10.5px]">
+                    <span className="text-teal-400 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles className="h-3 w-3" /> AI Vision Engine · 99.8% Accuracy
+                    </span>
+                    <span className="text-slate-400 font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
+                      Profile Built in 1.2s
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Auto-Structured Drugs */}
+                    <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl space-y-1.5 text-[11px]">
+                      <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
+                        Extracted Medications &amp; Dosage Structure
+                      </span>
+                      <div className="grid grid-cols-3 gap-2 text-slate-200 font-mono text-[10px]">
+                        <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                          <span className="text-emerald-400 font-bold block">Telmisartan 40</span>
+                          <span className="text-slate-400">1-0-0 · 30 Days</span>
+                        </div>
+                        <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                          <span className="text-emerald-400 font-bold block">Metformin 500</span>
+                          <span className="text-slate-400">1-0-1 · 30 Days</span>
+                        </div>
+                        <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
+                          <span className="text-emerald-400 font-bold block">Atorvastatin 10</span>
+                          <span className="text-slate-400">0-0-1 · 30 Days</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Instant Connected Routing */}
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div className="bg-teal-950/40 border border-teal-500/30 p-2.5 rounded-xl">
+                        <span className="font-bold text-teal-300 block">🏥 Pharmacy Reserve</span>
+                        <span className="text-slate-300 mt-0.5 block">Order #ORD-842 reserved at Clinic Counter</span>
+                      </div>
+                      <div className="bg-indigo-950/40 border border-indigo-500/30 p-2.5 rounded-xl">
+                        <span className="font-bold text-indigo-300 block">🔬 Diagnostic Re-Test</span>
+                        <span className="text-slate-300 mt-0.5 block">LOINC #4544-3 HbA1c set for Day-75</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-[11px] text-slate-400">
+                      Creates ABHA-ready longitudinal chart with zero typing by doctor.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setFigmaCanvasTab('whatsapp')}
+                      className="text-[10.5px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      See Patient WhatsApp <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {figmaCanvasTab === 'whatsapp' && (
+                <div className="space-y-3 animate-fade-in text-left">
+                  {/* WhatsApp Verified Banner */}
+                  <div className="bg-emerald-950/60 border border-emerald-500/30 p-2 rounded-xl flex items-center justify-between text-[10.5px]">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>VitalSync Smart Clinic · Official Verified</span>
+                    </div>
+                    <span className="text-[9.5px] font-mono text-emerald-400">Sub-250ms Delivery</span>
+                  </div>
+
+                  {/* WhatsApp Chat Bubble */}
+                  <div className="bg-[#0b141a] p-3 rounded-2xl border border-slate-800 text-[11px] space-y-2">
+                    <p className="text-slate-200 leading-snug">
+                      Namaste Rajesh Ji! 🙏 Dr. Sharma has finalized your digital prescription and follow-up plan:
+                    </p>
+                    <div className="bg-[#1f2c34] p-2.5 rounded-xl border border-slate-700/60 space-y-1 text-slate-300 text-[10.5px]">
+                      <div className="flex justify-between font-bold text-white">
+                        <span>📋 Daily Medication Regimen</span>
+                        <span className="text-emerald-400">30-Day Supply</span>
+                      </div>
+                      <p className="text-slate-400 text-[10px]">
+                        • Morning: Telmisartan 40mg (1-0-0) after breakfast<br />
+                        • Evening: Metformin 500mg SR (1-0-1) + Atorvastatin 10mg
+                      </p>
+                    </div>
+
+                    {/* Interactive 1-Tap Buttons inside WhatsApp */}
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <div className="bg-[#202c33] border border-slate-700 py-1.5 px-2 rounded-lg text-center font-bold text-emerald-400 text-[10px]">
+                        📦 1-Click Refill (10% OFF)
+                      </div>
+                      <div className="bg-[#202c33] border border-slate-700 py-1.5 px-2 rounded-lg text-center font-bold text-cyan-400 text-[10px]">
+                        📹 100-200km Video Consult
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-[11px] text-slate-400">
+                      Zero app install. Works natively for patients aged 18 to 80 on WhatsApp.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setFigmaCanvasTab('scan')}
+                      className="text-[10.5px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      Replay Flow ↺
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Figma-Style Footer Status Strip */}
+            <div className="bg-slate-900/60 border-t border-slate-800/80 px-4 py-2 flex items-center justify-between text-[10px] font-mono text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                <span>Zero Change to Doctor Habits</span>
               </div>
-              <h3 className="text-base font-bold tracking-wide uppercase">The Decentralized Virtual Hospital</h3>
-              <p className="text-xs text-slate-200 mt-0.5 leading-relaxed font-sans font-medium">
-                Doctor, pharmacy, and lab united on real-time dashboards with automated WhatsApp patient care.
-              </p>
+              <span className="text-slate-500">Click tabs above to simulate</span>
             </div>
           </div>
 
@@ -2860,7 +3080,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Platform Fee Schedule</h2>
             <p className="text-slate-500 text-sm font-semibold mt-2 max-w-2xl mx-auto">
-              VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. We maintain 0% commission on Doctor OPD consultations, alongside transparent B2B splits on partner Pathology Lab (5%) and Pharmacy Counter (2%).
+              VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. We maintain 0% commission on Doctor OPD consultations, alongside ultra-low B2B splits on partner Pathology Lab (2%) and Pharmacy Counter (1%).
             </p>
           </div>
 
@@ -2917,10 +3137,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 </p>
                 <button
                   type="button"
-                  onClick={handleGetStartedClick}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                  onClick={() => setShowDemoModal(true)}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  Start 90-Day Free Pilot
+                  Book 1-on-1 Live Demo <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -2990,7 +3210,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    5% Platform Fee
+                    2% Platform Fee
                   </span>
                   <Building2 className="h-4 w-4 text-indigo-600" />
                 </div>
@@ -3004,12 +3224,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     <span>₹1,000.00</span>
                   </div>
                   <div className="flex justify-between text-indigo-700 font-bold">
-                    <span>Platform Split (5%):</span>
-                    <span>₹50.00</span>
+                    <span>Platform Split (2%):</span>
+                    <span>₹20.00</span>
                   </div>
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
                     <span>Net Lab Vendor Credit:</span>
-                    <span>₹950.00</span>
+                    <span>₹980.00</span>
                   </div>
                   <div className="text-[10px] text-indigo-700 font-bold font-sans pt-1">
                     ✓ Automated B2B Ledger Settlement
@@ -3023,7 +3243,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-sky-800 bg-sky-100 border border-sky-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    2% Platform Fee
+                    1% Platform Fee
                   </span>
                   <Pill className="h-4 w-4 text-sky-600" />
                 </div>
@@ -3037,12 +3257,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     <span>₹1,000.00</span>
                   </div>
                   <div className="flex justify-between text-sky-700 font-bold">
-                    <span>Platform Split (2%):</span>
-                    <span>₹20.00</span>
+                    <span>Platform Split (1%):</span>
+                    <span>₹10.00</span>
                   </div>
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
                     <span>Net Pharmacy Credit:</span>
-                    <span>₹980.00</span>
+                    <span>₹990.00</span>
                   </div>
                   <div className="text-[10px] text-sky-700 font-bold font-sans pt-1">
                     ✓ Realtime Retail Stock Depletion
@@ -3516,370 +3736,190 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       )}
 
 
-      {showBenefitsTour && (
-        <div className="fixed inset-0 z-[9990] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-lg animate-fade-in text-slate-800 font-sans">
-          {/* Glassmorphic Presentation Container */}
-          <div className="relative w-full max-w-4xl bg-white border border-slate-200/80 rounded-3xl shadow-2xl flex flex-col md:flex-row min-h-[550px] max-h-[90vh] overflow-hidden animate-scale-up">
-            
-            {/* Left Column: Visuals & Illustrations (Cyan-to-Indigo Gradient Background) */}
-            <div className="md:w-5/12 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white p-8 flex flex-col justify-between relative overflow-hidden shrink-0">
-              <div className="absolute top-[-20%] left-[-20%] w-64 h-64 rounded-full bg-cyan-500/10 blur-[80px] pointer-events-none" />
-              <div className="absolute bottom-[-20%] right-[-20%] w-64 h-64 rounded-full bg-indigo-500/10 blur-[80px] pointer-events-none" />
-              
-              {/* Slide Counter Header */}
-              <div className="z-10 flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400">VitalSync Tour</span>
-                <span className="text-xs font-bold font-mono text-slate-400">Slide {tourSlide + 1} of 6</span>
-              </div>
-
-              {/* Dynamic Left Column Graphics based on tourSlide */}
-              <div className="z-10 py-6 my-auto flex flex-col items-center text-center space-y-6">
-                {tourSlide === 0 && (
-                  <>
-                    <div className="p-4 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-3xl">
-                      <Layers className="h-12 w-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">The Connected Care Loop</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Connecting your private clinic to local pharmacy and laboratory channels instantly.</p>
-                    </div>
-                  </>
-                )}
-                {tourSlide === 1 && (
-                  <>
-                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-3xl">
-                      <Activity className="h-12 w-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">Automated Data Flows</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Prescriptions route directly to the POS queue, and lab PDF reports embed straight into patient medical history.</p>
-                    </div>
-                  </>
-                )}
-                {tourSlide === 2 && (
-                  <>
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-3xl">
-                      <TrendingUp className="h-12 w-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">Dynamic Practice ROI</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Eliminate referral leakage, increase prescription fulfillment rates, and capture lost revenue automatically.</p>
-                    </div>
-                  </>
-                )}
-                {tourSlide === 3 && (
-                  <>
-                    <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-3xl">
-                      <Award className="h-12 w-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">Competitive Superiority</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Unlike outdated standalone systems, VitalSync is built for collaborative clinical ecosystems.</p>
-                    </div>
-                  </>
-                )}
-                {tourSlide === 4 && (
-                  <>
-                    <div className="p-4 bg-teal-500/10 border border-teal-500/20 text-teal-400 rounded-3xl">
-                      <Shield className="h-12 w-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">Bank-Grade Data Isolation</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Encrypted cloud isolation guarantees complete privacy for all patient records. Fully compliant, ultra-secure.</p>
-                    </div>
-                  </>
-                )}
-                {tourSlide === 5 && (
-                  <>
-                    <div className="p-4 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-3xl animate-pulse">
-                      <Sparkles className="h-12 w-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">Ready in 5 Minutes</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Join the care network today and immediately activate secure connected clinics.</p>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Progress Tracker dots */}
-              <div className="z-10 flex justify-center gap-1.5 pt-2">
-                {[0, 1, 2, 3, 4, 5].map((idx) => (
-                  <button
-                    key={`tour-dot-${idx}`}
-                    onClick={() => setTourSlide(idx)}
-                    className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${tourSlide === idx ? 'w-6 bg-cyan-400' : 'w-1.5 bg-slate-700 hover:bg-slate-500'}`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Right Column: Slide Text, Interactive UI and Nav Buttons */}
-            <div className="md:w-7/12 p-8 flex flex-col justify-between overflow-y-auto max-h-[60vh] md:max-h-full">
-              
-              {/* Close Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Benefits Presentation</span>
+      {showDemoModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in text-slate-800 font-sans">
+          <div className="relative w-full max-w-lg bg-white border border-slate-200/90 rounded-3xl shadow-2xl overflow-hidden animate-scale-up text-left">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 p-6 text-white relative">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full filter blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-300">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black tracking-tight text-white flex items-center gap-2">
+                      Book 1-on-1 Live Demo <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Free</span>
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Direct WhatsApp connection to Vivek (Founder Desk · +91 9608032073)
+                    </p>
+                  </div>
+                </div>
                 <button
-                  onClick={() => setShowBenefitsTour(false)}
-                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => setShowDemoModal(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-
-              {/* Dynamic Slides Body */}
-              <div className="my-auto py-6 space-y-5">
-                            {tourSlide === 0 && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">All-in-One Cloud EMR (Zero Double-Entry)</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">
-                      VitalSync is your full-featured clinical operating system. It natively replaces standalone EMRs by providing a real-time Doctor Console, CDSS AI Scribe, Refraction Matrix, Compounder OPD Desk, Pharmacy POS, and Pathology LIS.
-                    </p>
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                      <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-2xl">
-                        <span className="text-xs font-bold text-indigo-700 block">Sub-250ms Realtime Sync</span>
-                        <span className="text-[10px] text-slate-500 mt-1 block">Patient WhatsApp bookings, prescriptions, and lab orders synchronize instantly across all terminals with zero manual cut-paste.</span>
-                      </div>
-                      <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
-                        <span className="text-xs font-bold text-emerald-700 block">Native ABDM Architecture</span>
-                        <span className="text-[10px] text-slate-500 mt-1 block">ABHA ID generation, verification, and M1/M2/M3 consent-driven healthcare data exchange built-in.</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tourSlide === 1 && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Optimized Clinical Intake Flow</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">
-                      Maximize clinical intake capacity by offloading manual data entry tasks to adjacent staff nodes without altering standard OPD workflows:
-                    </p>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="h-5 w-5 rounded-full bg-cyan-100 text-cyan-700 font-extrabold text-xs flex items-center justify-center shrink-0">A</div>
-                        <div>
-                          <span className="text-xs text-slate-800 font-bold block">Compounder Ingestion</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block">Focus entirely on patient care while clinical assistants input written or dictated records in real time.</span>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 font-extrabold text-xs flex items-center justify-center shrink-0">B</div>
-                        <div>
-                          <span className="text-xs text-slate-800 font-bold block">Clinical Templates</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block">Standardize treatment plan creation with one-click prescription macros and customizable dosage matrices.</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tourSlide === 2 && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Mitigate Care Loop Disruption</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">
-                      Paper prescriptions and diagnostic slips introduce friction, causing up to 40% of patients to drop out of the aligned network loop, disrupting care continuity and clinical metrics.
-                    </p>
-                    <div className="space-y-3">
-                      <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-start gap-3">
-                        <Mail className="h-4.5 w-4.5 text-indigo-600 mt-0.5 shrink-0" />
-                        <div>
-                          <span className="text-xs font-bold text-indigo-800">Direct WhatsApp Telemetry</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Prescriptions and lab requisitions land instantly on the patient's mobile terminal upon chart finalization.</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">
-                        <Sparkles className="h-4.5 w-4.5 text-cyan-600 mt-0.5 shrink-0" />
-                        <div>
-                          <span className="text-xs font-bold text-cyan-800">Fulfillment Gateway</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Patients receive automated coordinates for medication pickup and diagnostic scheduling at aligned network partners.</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tourSlide === 3 && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Practice ROI & Revenue Calculator</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">
-                      Slide patient volumes and consultation fees below to see how much referral pharmacy and diagnostic laboratory revenue is automatically recovered.
-                    </p>
-                    
-                    {/* Live Interactive Sliders */}
-                    <div className="space-y-4 bg-slate-50 p-4.5 rounded-2xl border border-slate-200/80">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold text-slate-700">
-                          <span>Patient Volume / Day</span>
-                          <span className="text-indigo-650">{calcPatients} patients</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="5"
-                          max="80"
-                          step="5"
-                          value={calcPatients}
-                          onChange={(e) => setCalcPatients(Number(e.target.value))}
-                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold text-slate-700">
-                          <span>Avg Consultation Fee</span>
-                          <span className="text-indigo-650">Rs {calcFee}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="100"
-                          max="2000"
-                          step="50"
-                          value={calcFee}
-                          onChange={(e) => setCalcFee(Number(e.target.value))}
-                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold text-slate-700">
-                          <span>Avg Lab Fee / Test</span>
-                          <span className="text-indigo-650">Rs {calcLabFee}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="100"
-                          max="3000"
-                          step="50"
-                          value={calcLabFee}
-                          onChange={(e) => setCalcLabFee(Number(e.target.value))}
-                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold text-slate-700">
-                          <span>Avg Medicine Sale / Prescription</span>
-                          <span className="text-indigo-650">Rs {calcMedSale}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="100"
-                          max="2500"
-                          step="50"
-                          value={calcMedSale}
-                          onChange={(e) => setCalcMedSale(Number(e.target.value))}
-                          className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg cursor-pointer"
-                        />
-                      </div>
-
-                      {/* Calculations Display */}
-                      <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-500 block">Est. Revenue Recovered</span>
-                          <span className="text-xs text-slate-600 font-medium">Fulfillment + Referral Gains</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-lg font-black text-emerald-600 block">
-                            +Rs {Math.round(calcPatients * 26 * ((calcMedSale * 0.10 * 0.20) + (calcLabFee * 0.15 * 0.25)) + (calcPatients * calcFee * 26 * 0.05)).toLocaleString('en-IN')}
-                          </span>
-                          <span className="text-[9px] font-bold text-slate-400 block">Per Month Growth</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tourSlide === 4 && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Unified Partner Nodes</h3>
-                    <p className="text-xs text-slate-650 leading-relaxed">
-                      Onboard adjacent partner nodes onto your local clinical network to optimize order accuracy and pipeline efficiency:
-                    </p>
-                    <div className="space-y-3">
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
-                        <div className="p-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 rounded-lg mt-0.5">
-                          <Building2 className="h-4.5 w-4.5" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-800">For Aligned Pharmacies</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Real-time prescription ingestion resolves handwriting ambiguity and provides early inventory forecasts.</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-start gap-3">
-                        <div className="p-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 rounded-lg mt-0.5">
-                          <FileText className="h-4.5 w-4.5" />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-slate-800">For Aligned Laboratories</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Technicians upload structured PDF outputs directly into the centralized medical chart, bypassing patient handling.</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tourSlide === 5 && (
-                  <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Bank-Grade Data Privacy &amp; Compliance</h3>
-                    <p className="text-xs text-slate-655 leading-relaxed">
-                      Patient data protection is enforced at the highest architectural standards. All clinical records are protected to comply with strict medical regulatory frameworks.
-                    </p>
-                    <div className="space-y-3">
-                      <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3">
-                        <Shield className="h-4.5 w-4.5 text-emerald-600 mt-0.5 shrink-0" />
-                        <div>
-                          <span className="text-xs font-bold text-emerald-800">Walled Multi-Tenancy</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Dedicated private tenant partitions isolate your practice data, preventing any unauthorized or external access.</span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">
-                        <Lock className="h-4.5 w-4.5 text-cyan-600 mt-0.5 shrink-0" />
-                        <div>
-                          <span className="text-xs font-bold text-cyan-800">Encrypted Payload Transmission</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">All clinical telemetry and payload distributions are fully encrypted in transit using TLS 1.3 and at rest using AES-256.</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Navigation Footer */}
-              <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setTourSlide(prev => Math.max(0, prev - 1))}
-                  disabled={tourSlide === 0}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800 hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                >
-                  <ChevronLeft className="h-4 w-4" /> Prev
-                </button>
-                
-                {tourSlide < 5 ? (
-                  <button
-                    type="button"
-                    onClick={() => setTourSlide(prev => Math.min(5, prev + 1))}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-650 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center gap-1 shrink-0"
-                  >
-                    Next <ChevronRight className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowBenefitsTour(false);
-                      handleGetStartedClick(null as any);
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md shadow-emerald-500/10 cursor-pointer flex items-center gap-1.5 shrink-0"
-                  >
-                    Get Started <CheckCircle2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
             </div>
 
+            {/* Modal Form Body */}
+            <form onSubmit={handleBookDemoSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              {demoError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{demoError}</span>
+                </div>
+              )}
+
+              {/* Clinician Name */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Doctor / Contact Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={demoDoctorName}
+                  onChange={(e) => setDemoDoctorName(e.target.value)}
+                  placeholder="e.g. Dr. Rajesh Sharma"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 transition-all placeholder:text-slate-400"
+                  required
+                />
+              </div>
+
+              {/* Clinic Name & City */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Clinic / Hospital Name</label>
+                  <input
+                    type="text"
+                    value={demoClinicName}
+                    onChange={(e) => setDemoClinicName(e.target.value)}
+                    placeholder="e.g. Sharma Health Clinic"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">City / Town</label>
+                  <input
+                    type="text"
+                    value={demoCity}
+                    onChange={(e) => setDemoCity(e.target.value)}
+                    placeholder="e.g. Purnea, Bihar"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+
+              {/* WhatsApp Number */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  WhatsApp Number (for Confirmation &amp; Demo) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-xs font-bold text-slate-500 font-mono">+91</span>
+                  <input
+                    type="tel"
+                    value={demoPhone}
+                    onChange={(e) => setDemoPhone(e.target.value)}
+                    placeholder="9876543210"
+                    maxLength={10}
+                    className="w-full pl-12 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 transition-all placeholder:text-slate-400 font-mono"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Clinical Specialty */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Clinical Specialty</label>
+                <select
+                  value={demoSpecialty}
+                  onChange={(e) => setDemoSpecialty(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 transition-all bg-white"
+                >
+                  <option value="General Medicine">General Medicine / Physician</option>
+                  <option value="Cardiology">Cardiology / Hypertension</option>
+                  <option value="Ophthalmology">Ophthalmology / Eye Care</option>
+                  <option value="Pediatrics">Pediatrics / Child Care</option>
+                  <option value="Dermatology">Dermatology</option>
+                  <option value="Diabetology">Diabetology / Endocrinology</option>
+                  <option value="Orthopedics">Orthopedics</option>
+                  <option value="Multi-Specialty Clinic">Multi-Specialty Clinic / Nursing Home</option>
+                  <option value="Partner Pharmacy">Partner Pharmacy</option>
+                  <option value="Pathology Lab">Pathology Laboratory</option>
+                </select>
+              </div>
+
+              {/* Daily OPD Volume */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Daily OPD Volume</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {['< 25 OPD', '25-50 OPD', '50-100 OPD', '100+ OPD'].map((vol, idx) => (
+                    <button
+                      type="button"
+                      key={`demo-vol-${idx}-${vol}`}
+                      onClick={() => setDemoPatientsVolume(vol)}
+                      className={`py-2 px-2.5 rounded-xl text-center text-xs font-bold transition-all cursor-pointer border ${
+                        demoPatientsVolume === vol
+                          ? 'bg-teal-50 border-teal-500 text-teal-800 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {vol}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Preferred Time */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Preferred Demo Slot</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {['Today Evening', 'Tomorrow Morning', 'Tomorrow Evening', 'This Weekend'].map((slot, idx) => (
+                    <button
+                      type="button"
+                      key={`demo-slot-${idx}-${slot}`}
+                      onClick={() => setDemoPreferredTime(slot)}
+                      className={`py-2 px-2 rounded-xl text-center text-[11px] font-bold transition-all cursor-pointer border ${
+                        demoPreferredTime === slot
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-800 shadow-xs'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit CTA */}
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-teal-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Schedule Live Demo via WhatsApp
+                </button>
+                <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 font-medium pt-2.5">
+                  <span className="flex items-center gap-1">
+                    <Check className="h-3 w-3 text-emerald-600" /> Instant Response
+                  </span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Check className="h-3 w-3 text-emerald-600" /> Direct Founder Connection
+                  </span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Check className="h-3 w-3 text-emerald-600" /> 100% Free
+                  </span>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}

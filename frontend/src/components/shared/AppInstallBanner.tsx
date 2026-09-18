@@ -146,9 +146,9 @@ export const AppInstallBanner: React.FC = () => {
 
   return (
     <>
-      {/* ── FLOATING BOTTOM-LEFT INSTALL CAPSULE ────────────────────────────── */}
+      {/* ── FLOATING BOTTOM-RIGHT INSTALL CAPSULE ───────────────────────────── */}
       <div 
-        className="fixed bottom-4 left-4 z-50 transition-all max-w-[calc(100vw-2rem)]"
+        className="fixed bottom-4 right-4 z-40 transition-all max-w-[calc(100vw-2rem)]"
         style={{ animation: 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
       >
         <div className="bg-slate-950/90 border border-indigo-500/25 backdrop-blur-xl shadow-2xl shadow-indigo-950/60 rounded-full p-1.5 pr-3.5 flex items-center gap-2.5">
