@@ -1582,42 +1582,54 @@ async function triggerBotReplyPipeline(ctx: {
   // Global greeting & menu interceptor to reset state to main menu or service from stuck states
   const globalGreetings = ["hi", "hello", "hey", "namaste", "pranam", "hola", "halo", "hlo", "yo", "greetings", "menu"];
   
-  // Premium SaaS Navigation Override: Allow patients to switch services or return to menus at any time
-  const primaryNavigationIntents = [
-    "physical", "virtual", "family", "report", "summary", 
-    "refill", "sos", "health locker", "refer", 
-    "more", "list", "menu", "ask assistant", "physical review", "virtual review"
-  ];
+  // Universal Multi-Turn Navigation Router: Enables instant workflow switching and resets from ANY active state
+  const isMenuButton = typeof replyId === "string" && (
+    replyId.startsWith("menu_") || 
+    replyId.startsWith("btn_service_") || 
+    replyId === "btn_main_menu" || 
+    replyId === "btn_stop" || 
+    replyId === "btn_physical_review" ||
+    replyId === "btn_virtual_review" ||
+    replyId === "btn_confirm_refill" ||
+    replyId === "REFILL_CONFIRM" ||
+    replyId === "SPEAK_DOCTOR"
+  );
   
-  const isMenuButton = typeof replyId === "string" && (replyId.startsWith("menu_") || replyId === "btn_main_menu" || replyId === "btn_stop");
-  const isExplicitReset = cleaned === "0" || cleaned === "cancel" || cleaned === "reset" || cleaned === "restart";
+  const isGlobalResetIntent = 
+    cleaned === "0" || 
+    cleaned === "menu" || 
+    cleaned === "main menu" || 
+    cleaned === "cancel" || 
+    cleaned === "reset" || 
+    cleaned === "restart" || 
+    cleaned === "start" || 
+    cleaned === "hi" || 
+    cleaned === "hello" || 
+    cleaned === "hey" || 
+    cleaned === "namaste" ||
+    replyId === "btn_main_menu" ||
+    replyId === "menu";
+
+  const isExplicitFeatureIntent = 
+    cleaned === "sos" || 
+    cleaned === "emergency" || 
+    cleaned === "family" || 
+    cleaned === "summary" || 
+    cleaned === "rx" || 
+    cleaned === "ai" || 
+    cleaned === "locker" || 
+    cleaned === "report" || 
+    cleaned === "refill" || 
+    cleaned === "refer" ||
+    cleaned === "physical review" ||
+    cleaned === "virtual review" ||
+    cleaned === "confirm refill" ||
+    isMenuButton;
+
   const isNewOrIncomplete = isUnregisteredOrIncompletePatient(patient);
 
-  const ACTIVE_INPUT_STATES = [
-    "AWAITING_REGISTRATION_DETAILS",
-    "AWAITING_DATE_SELECTION",
-    "AWAITING_SLOT_SELECTION",
-    "AWAITING_PAYMENT",
-    "AWAITING_REFILL_SELECTION",
-    "AWAITING_FAMILY_DETAILS",
-    "AWAITING_FAMILY_SELECTION",
-    "AWAITING_AI_QUERY"
-  ];
-
-  if (!ACTIVE_INPUT_STATES.includes(state)) {
-    if (isExplicitReset || state === "COMPLETED" || globalGreetings.includes(cleaned) || isMenuButton || primaryNavigationIntents.includes(cleaned) || cleaned === "book") {
-      const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
-      try {
-        await supabase
-          .from("whatsapp_sessions")
-          .update({ current_state: newState, last_interaction: new Date().toISOString() })
-          .eq("id", session.id);
-      } catch (_e) {}
-      state = newState;
-      sessionData.pendingInvoiceId = null;
-      sessionData.pendingApptId = null;
-    }
-  } else if (isExplicitReset || replyId === "btn_main_menu") {
+  // If user requests a global reset or a direct feature switch, break out of ANY active form state
+  if (isGlobalResetIntent || isExplicitFeatureIntent) {
     const newState = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
     try {
       await supabase
@@ -1630,8 +1642,7 @@ async function triggerBotReplyPipeline(ctx: {
     sessionData.pendingApptId = null;
   }
 
-  // Explicit Interactive Button Routing & State Alignment:
-  // If the user tapped an interactive button, prioritize the exact workflow for that button
+  // Direct Interactive Button & Keyword Dispatches:
   if (replyId) {
     if (replyId === "btn_date_1" || replyId === "btn_date_2" || replyId === "btn_date_3" || replyId === "btn_date_4" || replyId.startsWith("btn_date_")) {
       state = "AWAITING_DATE_SELECTION";
@@ -1639,18 +1650,45 @@ async function triggerBotReplyPipeline(ctx: {
       state = "AWAITING_SLOT_SELECTION";
     } else if (replyId === "btn_pay" || replyId === "btn_paid" || replyId === "btn_pay_counter" || replyId === "btn_counter") {
       state = "AWAITING_PAYMENT";
-    } else if (replyId === "menu_physical" || replyId === "btn_physical") {
-      if (isNewOrIncomplete) {
-        state = "AWAITING_WELCOME";
-      } else if (state !== "AWAITING_WELCOME") {
-        state = "AWAITING_CONFIRMATION";
-      }
-    } else if (replyId === "menu_virtual" || replyId === "btn_virtual") {
-      if (isNewOrIncomplete) {
-        state = "AWAITING_WELCOME";
-      } else if (state !== "AWAITING_WELCOME") {
-        state = "AWAITING_CONFIRMATION";
-      }
+    } else if (replyId === "btn_service_1" || replyId === "menu_physical" || replyId === "btn_physical") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "1";
+    } else if (replyId === "btn_service_2" || replyId === "menu_virtual" || replyId === "btn_virtual") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "2";
+    } else if (replyId === "btn_service_3" || replyId === "menu_report" || replyId === "btn_report") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "3";
+    } else if (replyId === "btn_service_4" || replyId === "menu_sos" || replyId === "btn_sos" || replyId === "menu_vip") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "4";
+    } else if (replyId === "btn_service_5" || replyId === "menu_refill" || replyId === "btn_refill") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "5";
+    } else if (replyId === "btn_service_6" || replyId === "menu_refer" || replyId === "btn_refer") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "6";
+    } else if (replyId === "menu_family" || replyId === "btn_family") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "7";
+    } else if (replyId === "menu_summary" || replyId === "btn_summary") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "8";
+    } else if (replyId === "menu_ai" || replyId === "btn_ai") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "9";
+    } else if (replyId === "menu_locker" || replyId === "btn_locker") {
+      state = isNewOrIncomplete ? "AWAITING_WELCOME" : "AWAITING_CONFIRMATION";
+      cleaned = "10";
+    } else if (replyId === "btn_physical_review") {
+      state = "AWAITING_CONFIRMATION";
+      cleaned = "physical review";
+    } else if (replyId === "btn_virtual_review") {
+      state = "AWAITING_CONFIRMATION";
+      cleaned = "virtual review";
+    } else if (replyId === "btn_confirm_refill" || replyId === "REFILL_CONFIRM") {
+      state = "AWAITING_CONFIRMATION";
+      cleaned = "confirm refill";
     }
   } else if (
     (cleaned === "paid" || cleaned === "pay" || cleaned === "payment" || cleaned === "counter" || cleaned === "cash" || cleaned.includes("bhej diya") || cleaned.includes("kar diya") || cleaned.includes("payment ho gaya") || cleaned.includes("i have paid")) &&
@@ -1658,6 +1696,7 @@ async function triggerBotReplyPipeline(ctx: {
   ) {
     state = "AWAITING_PAYMENT";
   }
+
 
   // Conversational state machine router logic
   switch (state) {
