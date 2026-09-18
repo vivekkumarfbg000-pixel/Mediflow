@@ -278,7 +278,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
   const handleContactSupport = (e: React.MouseEvent) => {
     e.preventDefault();
-    window.location.href = 'mailto:support@vitalsync.in';
+    window.location.href = 'mailto:contact@vitalsync.in';
   };
 
   // Redirect to app subdomain for sign-in (or inline console query param on local origins)
@@ -3696,7 +3696,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Mail className="h-3 w-3 text-teal-500 shrink-0" />
-                  <a href="mailto:support@vitalsync.in" className="hover:text-teal-400 transition-colors">support@vitalsync.in</a>
+                  <a href="mailto:contact@vitalsync.in" className="hover:text-teal-400 transition-colors">contact@vitalsync.in</a>
                 </div>
               </div>
             </div>
