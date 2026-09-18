@@ -197,6 +197,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
   // Figma/Canva-Style Interactive Canvas State
   const [figmaCanvasTab, setFigmaCanvasTab] = useState<'scan' | 'ai' | 'whatsapp'>('scan');
+  // Advanced Clinic Ingestion Workstation: Camera Scan vs Rx Document Upload
+  const [ingestionInputMode, setIngestionInputMode] = useState<'camera' | 'upload'>('camera');
 
   // WhatsApp-Connected Live Demo Booking Form States
   const [demoDoctorName, setDemoDoctorName] = useState('');
@@ -550,7 +552,7 @@ Please confirm my live demo appointment! 🩺`;
             </h1>
 
             <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl font-normal">
-              Keep writing paper prescriptions as usual. Your compounder scans it in 1.2s; VitalSync AI builds the digital profile, delivers the e-Rx on WhatsApp, and automates clinic operations. Unites your practice, pharmacy, and lab on interconnected dashboards—while giving chronic patients 100–200 km away remote video care with their trusted doctor.
+              Keep writing paper prescriptions as usual. Your compounder scans or uploads it; VitalSync AI builds the digital profile, delivers the e-Rx on WhatsApp, and automates clinic operations. Unites your practice, pharmacy, and lab on interconnected dashboards—while giving chronic patients 100–200 km away remote video care with their trusted doctor.
             </p>
           </div>
 
@@ -561,10 +563,10 @@ Please confirm my live demo appointment! 🩺`;
                 <div className="p-1.5 rounded-lg bg-teal-50 text-teal-600 border border-teal-100">
                   <FileText className="h-3.5 w-3.5" />
                 </div>
-                <span className="text-xs font-bold text-slate-900">1.2s Paper-to-AI</span>
+                <span className="text-xs font-bold text-slate-900">Instant Paper-to-AI</span>
               </div>
               <p className="text-[11px] text-slate-500 leading-snug font-medium">
-                Write on paper as usual. Compounder snaps a photo; AI extracts drugs (`1-0-1`) and creates structured EMR in 1.2s.
+                Write on paper as usual. Compounder snaps a photo or uploads Rx; AI extracts drugs (`1-0-1`) and creates structured EMR automatically.
               </p>
             </div>
 
@@ -666,8 +668,8 @@ Please confirm my live demo appointment! 🩺`;
             </div>
           </div>
 
-          {/* Canva/Figma-Style Live Clinic Simulation Canvas Widget */}
-          <div className="max-w-lg w-full rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-2xl overflow-hidden transition-all duration-500 hover:border-slate-700">
+          {/* Canva/Figma-Style Advanced Clinic Ingestion Workstation Widget */}
+          <div className="max-w-lg w-full rounded-3xl border border-slate-800 bg-slate-950 text-white shadow-2xl overflow-hidden transition-all duration-500 hover:border-slate-750">
             {/* Figma/Canva Studio Header Bar */}
             <div className="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between gap-3">
               {/* Left: Window Dots & Canvas Title */}
@@ -678,7 +680,7 @@ Please confirm my live demo appointment! 🩺`;
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
                 </div>
                 <span className="text-[11px] font-mono font-bold text-slate-300 ml-1.5 hidden sm:inline">
-                  VitalSync Studio · 1.2s Live Pipeline
+                  VitalSync Studio · Paper-to-Cloud Workstation
                 </span>
               </div>
 
@@ -693,7 +695,7 @@ Please confirm my live demo appointment! 🩺`;
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Camera className="h-3 w-3" /> Paper Rx
+                  <Camera className="h-3 w-3" /> Scan &amp; Profile
                 </button>
                 <button
                   type="button"
@@ -721,73 +723,187 @@ Please confirm my live demo appointment! 🩺`;
             </div>
 
             {/* Interactive Canvas Body */}
-            <div className="p-5 relative min-h-[320px] flex flex-col justify-between">
+            <div className="p-4 relative min-h-[380px] flex flex-col justify-between">
               {figmaCanvasTab === 'scan' && (
-                <div className="space-y-3.5 animate-fade-in text-left">
-                  {/* Status Banner */}
-                  <div className="flex items-center justify-between text-[10.5px]">
-                    <div className="flex items-center gap-2">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                      </span>
-                      <span className="text-emerald-400 font-mono font-bold uppercase tracking-wider">Compounder Camera Active</span>
+                <div className="space-y-3 animate-fade-in text-left">
+                  {/* Compounder Action Mode Selector (Camera Scan vs Rx Document Upload) */}
+                  <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl bg-slate-900 border border-slate-800">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setIngestionInputMode('camera')}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          ingestionInputMode === 'camera'
+                            ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 shadow-xs'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Camera className="h-3 w-3" /> Scan Rx Pad
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIngestionInputMode('upload')}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          ingestionInputMode === 'upload'
+                            ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <UploadCloud className="h-3 w-3" /> Upload Rx Slip
+                      </button>
                     </div>
-                    <span className="text-slate-400 font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
-                      Optical OCR Speed: 1.2s
+                    <span className="text-[9.5px] font-mono font-semibold text-slate-400 px-2 py-0.5 rounded bg-slate-950 border border-slate-800 hidden sm:inline">
+                      {ingestionInputMode === 'camera' ? '● Compounder Camera Active' : '● Document Ingestion Active'}
                     </span>
                   </div>
 
                   {/* Doctor Handwritten Prescription Simulation Card */}
-                  <div className="relative bg-amber-50/95 text-slate-900 p-4 rounded-2xl border border-amber-200/80 shadow-inner overflow-hidden font-sans">
+                  <div className="relative bg-amber-50/95 text-slate-900 p-3.5 rounded-2xl border border-amber-200/80 shadow-inner overflow-hidden font-sans">
                     {/* Laser Scan Animation Line */}
                     <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent shadow-[0_0_14px_#10b981] animate-scan-laser pointer-events-none" />
 
                     {/* Prescription Letterhead */}
-                    <div className="border-b border-amber-300/60 pb-2 mb-2 flex justify-between items-start">
+                    <div className="border-b border-amber-300/60 pb-1.5 mb-1.5 flex justify-between items-start">
                       <div>
                         <h4 className="text-xs font-black tracking-tight text-slate-900 font-serif">DR. A. K. SHARMA, MD</h4>
-                        <p className="text-[9.5px] text-slate-600 font-mono">Reg #48921/NMC · Consultant Physician</p>
+                        <p className="text-[9px] text-slate-600 font-mono">Reg #48921/NMC · Consultant Physician</p>
                       </div>
                       <div className="text-right text-[9px] font-mono text-slate-500">
-                        <span>OPD #104 · 18 Sep 2026</span>
+                        <span>OPD #TK-104 · 18 Sep 2026</span>
                       </div>
                     </div>
 
-                    {/* Patient Details */}
-                    <div className="text-[10px] text-slate-700 pb-2 border-b border-amber-200/50 flex justify-between">
+                    {/* Patient Details on Paper */}
+                    <div className="text-[9.5px] text-slate-700 pb-1.5 border-b border-amber-200/50 flex justify-between">
                       <span><strong>Pt:</strong> Rajesh Verma (54/M)</span>
                       <span><strong>BP:</strong> 148/92 mmHg</span>
                       <span><strong>Sugar:</strong> 178 mg/dL</span>
                     </div>
 
-                    {/* Rx Drugs */}
-                    <div className="pt-2 space-y-1.5 font-serif text-slate-800 text-[11px]">
+                    {/* Rx Drugs on Paper */}
+                    <div className="pt-1.5 space-y-1 font-serif text-slate-800 text-[10.5px]">
                       <div className="flex items-center justify-between">
                         <span>1. Tab Telmisartan 40mg (1-0-0) x 30d</span>
-                        <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
+                        <span className="text-[8.5px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>2. Tab Metformin 500mg SR (1-0-1) x 30d</span>
-                        <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
+                        <span className="text-[8.5px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span>3. Tab Atorvastatin 10mg (0-0-1) x 30d</span>
-                        <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
+                        <span className="text-[8.5px] font-mono text-emerald-700 bg-emerald-100/80 px-1.5 py-0.2 rounded font-sans">✓ Detected</span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Directly Below Scan: The Live Auto-Created Cloud Profile & Digital Prescription Card */}
+                  <div className="bg-slate-900/95 border border-teal-500/40 p-3 rounded-2xl space-y-2.5 shadow-xl text-left">
+                    {/* Header: Title & Cloud Saved Badge */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-teal-400" />
+                        <span className="text-[11px] font-bold text-teal-300 uppercase tracking-wider font-mono">
+                          Auto-Created Cloud Profile
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold border border-emerald-500/40">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Saved to Clinic Cloud
+                      </span>
+                    </div>
+
+                    {/* Patient Demographics & ID Grid */}
+                    <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-xs">Rajesh Verma</span>
+                          <span className="text-[10px] text-slate-400 font-mono">54 Y / Male</span>
+                        </div>
+                        <span className="font-mono text-cyan-300 font-bold text-[10.5px] bg-cyan-950/60 border border-cyan-500/30 px-2 py-0.5 rounded">
+                          ID: #VS-84920
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9.5px] text-slate-300 font-mono">
+                        <span><strong>Vitals:</strong> BP 148/92 mmHg</span>
+                        <span className="text-slate-600">·</span>
+                        <span>Sugar 178 mg/dL</span>
+                        <span className="text-slate-600">·</span>
+                        <span>BMI 27.4</span>
+                      </div>
+                    </div>
+
+                    {/* WhatsApp Mobile Number Resolution & Missing Number Fallback Alert */}
+                    <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-300 font-mono flex items-center gap-1">
+                          📱 WhatsApp Phone: <strong className="text-white">+91 98765-43210</strong>
+                        </span>
+                        <span className="text-[8.5px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-1.5 py-0.2 rounded font-bold">
+                          ✓ Verified Link
+                        </span>
+                      </div>
+                      <div className="p-1.5 rounded-lg bg-amber-950/30 border border-amber-500/30 text-[9px] text-amber-300/90 leading-tight">
+                        <strong>Missing Number Safety:</strong> If phone number is not written on paper slip, compounder desk prompts for 10-digit WhatsApp number to auto-link cloud records.
+                      </div>
+                    </div>
+
+                    {/* Auto-Extracted Chronic Disease Badges */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
+                        Auto-Extracted Chronic Cohort Badges:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="text-[9px] font-mono font-bold text-rose-300 bg-rose-950/70 border border-rose-500/40 px-2 py-0.5 rounded-md">
+                          🔴 Essential Hypertension (Stage 2)
+                        </span>
+                        <span className="text-[9px] font-mono font-bold text-amber-300 bg-amber-950/70 border border-amber-500/40 px-2 py-0.5 rounded-md">
+                          🟠 Type-2 Diabetes Mellitus
+                        </span>
+                        <span className="text-[9px] font-mono font-bold text-yellow-300 bg-yellow-950/70 border border-yellow-500/40 px-2 py-0.5 rounded-md">
+                          🟡 Dyslipidemia (CAD Risk)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Auto-Generated Structured Digital Prescription (e-Rx) */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-wider block">
+                        Generated Digital Prescription (e-Rx):
+                      </span>
+                      <div className="grid grid-cols-3 gap-1.5 text-slate-200 font-mono text-[9px]">
+                        <div className="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                          <span className="text-emerald-400 font-bold block">Telmisartan 40</span>
+                          <span className="text-slate-400">1-0-0 · 30 Days</span>
+                        </div>
+                        <div className="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                          <span className="text-emerald-400 font-bold block">Metformin 500</span>
+                          <span className="text-slate-400">1-0-1 · 30 Days</span>
+                        </div>
+                        <div className="bg-slate-950 p-1.5 rounded-lg border border-slate-800">
+                          <span className="text-emerald-400 font-bold block">Atorvastatin 10</span>
+                          <span className="text-slate-400">0-0-1 · 30 Days</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Realtime Routing Status Strip */}
+                    <div className="pt-0.5 text-[8.5px] font-mono text-emerald-400 flex items-center justify-between border-t border-slate-800">
+                      <span>✓ Queued to Pharmacy POS (10% Refill)</span>
+                      <span>✓ Day-75 Lab Requisition Armed</span>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between pt-1">
-                    <p className="text-[11px] text-slate-400">
-                      Doctor writes freely on paper. Compounder snaps 1 photo on phone.
+                    <p className="text-[10.5px] text-slate-400">
+                      Doctor writes freely on paper pad. Compounder scans or uploads at desk.
                     </p>
                     <button
                       type="button"
                       onClick={() => setFigmaCanvasTab('ai')}
                       className="text-[10.5px] font-bold text-teal-400 hover:text-teal-300 flex items-center gap-1 cursor-pointer shrink-0"
                     >
-                      Inspect AI Output <ArrowRight className="h-3 w-3" />
+                      Inspect AI Vision <ArrowRight className="h-3 w-3" />
                     </button>
                   </div>
                 </div>
@@ -797,10 +913,10 @@ Please confirm my live demo appointment! 🩺`;
                 <div className="space-y-3 animate-fade-in text-left">
                   <div className="flex items-center justify-between text-[10.5px]">
                     <span className="text-teal-400 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="h-3 w-3" /> AI Vision Engine · 99.8% Accuracy
+                      <Sparkles className="h-3 w-3" /> AI Vision Engine · 99.8% Clinical Accuracy
                     </span>
                     <span className="text-slate-400 font-mono bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">
-                      Profile Built in 1.2s
+                      Instant Optical Extraction
                     </span>
                   </div>
 
@@ -988,7 +1104,7 @@ Please confirm my live demo appointment! 🩺`;
               From Handwritten Paper to Automated Virtual Hospital
             </h2>
             <p className="text-slate-600 text-sm sm:text-base max-w-3xl mx-auto leading-relaxed font-normal">
-              Doctors write on paper as usual. Staff snaps a photo in 1.2s. VitalSync AI digitizes the chart, WhatsApp delivers the prescription, and your partner pharmacy and lab sync in real-time—retaining even distant chronic patients 100–200 km away.
+              Doctors write on paper as usual. Staff snaps a photo or uploads the prescription. VitalSync AI digitizes the chart, WhatsApp delivers the prescription, and your partner pharmacy and lab sync in real-time—retaining even distant chronic patients 100–200 km away.
             </p>
           </div>
 
@@ -996,7 +1112,7 @@ Please confirm my live demo appointment! 🩺`;
           <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
             {[
               { idx: 0, step: '01', title: 'Doctor Paper Consult', icon: FileText },
-              { idx: 1, step: '02', title: 'Compounder Scan (1.2s)', icon: Camera },
+              { idx: 1, step: '02', title: 'Compounder Scan & Upload', icon: Camera },
               { idx: 2, step: '03', title: 'AI Profile & Chart', icon: Sparkles },
               { idx: 3, step: '04', title: 'WhatsApp Assistant', icon: MessageSquare },
               { idx: 4, step: '05', title: '100–200km Distant Care', icon: Video },
@@ -1083,18 +1199,18 @@ Please confirm my live demo appointment! 🩺`;
               </div>
             )}
 
-            {/* Step 2: Compounder Scans in 1.2s */}
+            {/* Step 2: Compounder Scans & Uploads */}
             {activeWorkflowStep === 1 && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center animate-fade-in">
                 <div className="lg:col-span-7 space-y-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-[10px] font-mono font-bold uppercase tracking-wider">
-                    Step 02 · Front Desk Speed (1.2 Seconds)
+                    Step 02 · Front Desk Speed (Optical AI Ingestion)
                   </div>
                   <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                    Compounder Snaps &amp; Uploads in 1.2s at Front Desk.
+                    Compounder Snaps &amp; Uploads at Front Desk.
                   </h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-normal">
-                    When the patient steps out of the doctor chamber, they hand the paper slip to the front desk. Your compounder opens the VitalSync OPD desk on any phone, tablet, or PC webcam and clicks "Scan Rx". In 1.2 seconds, the scan uploads to the secure clinical cloud.
+                    When the patient steps out of the doctor chamber, they hand the paper slip to the front desk. Your compounder opens the VitalSync OPD desk on any phone, tablet, or PC webcam and clicks "Scan Rx". In moments, the scan uploads to the secure clinical cloud.
                   </p>
                   <div className="space-y-2.5 pt-2 text-xs text-slate-700 font-medium">
                     <div className="flex items-center gap-2">
@@ -1119,7 +1235,7 @@ Please confirm my live demo appointment! 🩺`;
                       <span className="font-bold uppercase tracking-wider font-mono text-[11px]">Compounder Camera Scanner</span>
                     </div>
                     <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/30">
-                      ⚡ 1.2s Latency
+                      ⚡ Optical AI Ingestion
                     </span>
                   </div>
                   <div className="space-y-3">
@@ -1410,6 +1526,63 @@ Please confirm my live demo appointment! 🩺`;
             </p>
           </div>
 
+          {/* 3D Decentralized Virtual Hospital Interconnection Loop Banner (Featuring Image 3) */}
+          <div className="mb-14 rounded-3xl bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 border border-teal-500/30 p-6 lg:p-8 text-white shadow-2xl overflow-hidden relative group">
+            {/* Background ambient glow */}
+            <div className="absolute -right-20 -top-20 w-80 h-80 bg-teal-500/15 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+              {/* Left Column: Conceptual Clinical Value */}
+              <div className="lg:col-span-5 space-y-4 text-left">
+                <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full bg-teal-500/20 text-teal-300 text-[10px] font-mono font-bold uppercase tracking-widest border border-teal-500/30">
+                  <Sparkles className="h-3 w-3 text-teal-400" />
+                  Sovereign Triad Architecture
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
+                  One Unified WhatsApp Loop For Clinic, Chemist &amp; Lab
+                </h3>
+                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-normal">
+                  Traditional clinics leak up to 60% of their medicine and diagnostic value to unlinked chain pharmacies and aggregators. VitalSync binds your trusted local chemist and diagnostic lab into an automated, hospital-grade outpatient ecosystem.
+                </p>
+
+                <div className="space-y-2.5 pt-2 text-xs font-medium">
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <span className="w-2 h-2 rounded-full bg-teal-400 shrink-0" />
+                    <span className="text-slate-200"><strong>Doctor Chamber:</strong> Write Rx on paper or screen ➡️ 100% Fee direct to doctor.</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="text-slate-200"><strong>Partner Chemist:</strong> Auto-queues Day 7 &amp; Day 25 chronic refills with 10% VIP savings.</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
+                    <span className="text-slate-200"><strong>Pathology Lab:</strong> Instant WhatsApp PDF report delivery + 2-touchpoint review loop.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: 3D Triad Glass Cards Graphic (heroImageSrc) */}
+              <div className="lg:col-span-7 flex justify-center items-center">
+                <div className="relative rounded-2xl overflow-hidden border border-teal-500/30 shadow-2xl bg-slate-950/60 p-2 sm:p-3 w-full group/img">
+                  <img
+                    src={heroImageSrc}
+                    alt="VitalSync Connected Triad: Clinic, Pharmacy, and Pathology Lab Decentralized Virtual Hospital"
+                    className="w-full h-auto max-h-[380px] object-contain rounded-xl transition-transform duration-700 group-hover/img:scale-[1.02]"
+                    loading="lazy"
+                  />
+                  <div className="mt-2 bg-slate-900/80 backdrop-blur-md border border-teal-500/30 px-3.5 py-2 rounded-xl flex items-center justify-between text-[10px] font-mono text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span className="font-bold text-teal-300">Decentralized Virtual Hospital</span>
+                    </div>
+                    <span className="text-slate-400 hidden sm:inline">Zero Patient Leakage · 360° CDC Sync</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-7 text-left">
             {/* Triad 1: Doctor Chamber */}
             <div className="p-7 rounded-3xl bg-gradient-to-b from-teal-50/70 to-white border-2 border-teal-200 hover:border-teal-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative group">
@@ -1433,7 +1606,7 @@ Please confirm my live demo appointment! 🩺`;
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
-                    <span><strong>Zero Screen Fatigue:</strong> Write on paper prescription pads (1.2s AI Vision scan) or use Cloud EMR.</span>
+                    <span><strong>Zero Screen Fatigue:</strong> Write on paper prescription pads (Optical AI Vision scan) or use Cloud EMR.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
@@ -1770,7 +1943,7 @@ Please confirm my live demo appointment! 🩺`;
                 </div>
                 <h3 className="text-2xl font-black text-white">Chamber Intake &amp; Dual-Mode Prescription</h3>
                 <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Ramesh Ji (Age 52, Type-2 Diabetes) visits Dr. Verma. Doctor writes on paper prescription pad as usual. Compounder snaps 1 photo on phone ➡️ AI digitizes prescription in 1.2s with structured dosage (<code className="text-cyan-300 font-mono">Glycomet-GP2 1-0-1</code>).
+                  Ramesh Ji (Age 52, Type-2 Diabetes) visits Dr. Verma. Doctor writes on paper prescription pad as usual. Compounder snaps 1 photo on phone ➡️ AI instantly digitizes prescription with structured dosage (<code className="text-cyan-300 font-mono">Glycomet-GP2 1-0-1</code>).
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
                   <div className="p-3 rounded-xl bg-white/10 border border-white/10">
@@ -1958,7 +2131,7 @@ Please confirm my live demo appointment! 🩺`;
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Dual Consultation Input</span>
                     <div className="space-y-1.5 text-xs">
                       <div className="p-2 bg-teal-50 border border-teal-200 rounded-lg text-teal-900 font-semibold">
-                        ✍️ Option A: Paper Pad (1.2s AI Vision scan)
+                        ✍️ Option A: Paper Pad (Optical AI Vision scan)
                       </div>
                       <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-900 font-semibold">
                         💻 Option B: Cloud EMR Scribe + 1-Click Rx
@@ -2604,7 +2777,7 @@ Please confirm my live demo appointment! 🩺`;
             </h2>
             
             <p className="text-slate-600 text-sm sm:text-base font-normal max-w-3xl mx-auto leading-relaxed">
-              Our primary philosophy is zero-screen: keep writing on your trusted paper pad, your compounder scans in 1.2s, and AI digitizes everything. But if you or your associates prefer digital charting on desktop or iPad, VitalSync includes a hospital-grade Cloud Doctor EMR at zero extra cost. Ready when you are—or never touch a keyboard if you love paper.
+              Our primary philosophy is zero-screen: keep writing on your trusted paper pad, your compounder scans or uploads it, and AI instantly digitizes everything. But if you or your associates prefer digital charting on desktop or iPad, VitalSync includes a hospital-grade Cloud Doctor EMR at zero extra cost. Ready when you are—or never touch a keyboard if you love paper.
             </p>
           </div>
 
@@ -2781,7 +2954,7 @@ Please confirm my live demo appointment! 🩺`;
                 The Doctor's Autonomous Choice
               </div>
               <h4 className="text-base font-bold text-white font-heading">
-                Write on Paper Pad (1.2s AI Vision) ⇄ Click on Screen (Cloud EMR)
+                Write on Paper Pad (Optical AI Vision) ⇄ Click on Screen (Cloud EMR)
               </h4>
               <p className="text-xs text-slate-300 leading-relaxed font-normal">
                 Choose your consultation mode per patient. Both flows feed the exact same automated WhatsApp Assistant, Chemist POS dispensing queue, and Lab LIS test worklist.
@@ -2847,7 +3020,7 @@ Please confirm my live demo appointment! 🩺`;
                   <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
                     <div className="flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span><strong>Zero Screen Typing (0 Habit Change):</strong> Write on paper pad as usual; staff AI Vision digitizes in 1.2s at the desk. Or toggle to Cloud EMR in 1 click.</span>
+                      <span><strong>Zero Screen Typing (0 Habit Change):</strong> Write on paper pad as usual; staff AI Vision digitizes instantly at the desk. Or toggle to Cloud EMR in 1 click.</span>
                     </div>
                   </td>
                   <td className="p-5 text-slate-600">
@@ -3410,7 +3583,7 @@ Please confirm my live demo appointment! 🩺`;
                       <strong className="text-slate-900">Yes! VitalSync supports a Zero-Doctor-Screen workflow.</strong> You can continue writing on your standard printed clinic prescription pad with a ballpoint pen as you have always done.
                     </p>
                     <p>
-                      When the patient steps to the compounder desk, your assistant snaps a single photo with a smartphone or webcam. VitalSync's specialized clinical AI model digitizes the handwriting in <strong>1.2 seconds</strong> into structured digital records, dispatches the WhatsApp e-Rx, and queues the medicines at the pharmacy.
+                      When the patient steps to the compounder desk, your assistant snaps a single photo with a smartphone or webcam. VitalSync's specialized clinical AI model instantly digitizes the handwriting into structured digital records, dispatches the WhatsApp e-Rx, and queues the medicines at the pharmacy.
                     </p>
                   </div>
                 )
