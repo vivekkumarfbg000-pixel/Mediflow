@@ -88,9 +88,10 @@ export function prefetchAllClinicalModules() {
   };
 
   if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(() => { loadChunks(); }, { timeout: 800 });
+    // Defer heavy chunk preloading to 3.5s idle so initial render is never choked by 1.4MB JS download
+    (window as any).requestIdleCallback(() => { loadChunks(); }, { timeout: 3500 });
   } else {
-    setTimeout(() => { loadChunks(); }, 400);
+    setTimeout(() => { loadChunks(); }, 3500);
   }
 }
 
@@ -1006,7 +1007,7 @@ export default function App() {
       };
     }
     
-    // 1. Fetch profile using Unlimited Adaptive Auto-Healing Retry Engine (handles cold DB wakes smoothly)
+    // 1. Fetch profile — 2 fast retries with 200ms base (cached fallback handles cold DB start)
     const profiles = await BackendAgent.retryWithExponentialBackoff(async () => {
       const { data, error } = await supabase
         .from('profiles')
@@ -1014,7 +1015,7 @@ export default function App() {
         .eq('id', session.user.id);
       if (!error && data && data.length > 0) return data;
       return null;
-    }, 8, 80);
+    }, 2, 200);
       
     let activeProfile = profiles && profiles.length > 0 ? profiles[0] : null;
 
@@ -1096,13 +1097,13 @@ export default function App() {
     // Deferred initialization of API Service to prevent deadlocks during module evaluation
     api.initialize();
 
-    // Fast safety timeout: 5s max load wait
+    // Fast safety timeout: 1.2s max load wait (reduced from 5s — optimistic cache makes this safe)
     const safetyTimeout = setTimeout(() => {
       if (active) {
-        console.warn('[Mediflow Auth] Session initialization timed out (5s limit). Unfreezing loader.');
+        console.warn('[Mediflow Auth] Session initialization timed out (1.2s limit). Unfreezing loader.');
         setIsLoadingSession(false);
       }
-    }, 5000);
+    }, 1200);
 
     // Optimistically hydrate cached profile for instant role/metadata readiness while checking session
     if (typeof window !== 'undefined') {

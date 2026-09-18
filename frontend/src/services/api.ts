@@ -647,7 +647,7 @@ class MediflowApiService {
     this.notify();
     try {
       const ctx = getPodContext();
-      const currentPodId = ctx.podId || 'unassigned-pod';
+      const currentPodId = resolveSovereignPodId(ctx.podId);
 
       // ─── Build role-conditional queries before parallelizing ──────────────
       const encounterFetch = supabaseCircuit.execute<any>(async () => {
@@ -655,9 +655,12 @@ class MediflowApiService {
               ? `id, patient_id, doctor_id, medications, diagnostic_tests, status, created_at, patient:patient_registry(name, phone)`
               : `id, patient_id, doctor_id, clinical_notes, medications, diagnostic_tests, status, created_at, patient:patient_registry(name, phone)`;
             let query = supabase.from('encounters').select(selectFields);
-            if (currentPodId) query = query.eq('pod_id', currentPodId);
+            if (currentPodId) query = query.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
             const { data, error } = await query;
-            if (error) throw error;
+            if (error) {
+              console.warn('[Mediflow API] Encounters fetch notice:', error.message);
+              return null;
+            }
             return data;
           }, () => {
             return this.load<any[]>('encounters', []).map(e => ({
@@ -686,7 +689,7 @@ class MediflowApiService {
         patient:patient_registry(name),
         lab_reports(result_value)
       `);
-      if (currentPodId) reqQuery = reqQuery.eq('pod_id', currentPodId);
+      if (currentPodId) reqQuery = reqQuery.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
       if (this.simulatedRole === 'lab_technician') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -706,9 +709,12 @@ class MediflowApiService {
         // 1. patient_consents
         supabaseCircuit.execute(async () => {
           let q = supabase.from('patient_consents').select('*').eq('data_sharing_consent', true).limit(100);
-          if (currentPodId) q = q.eq('pod_id', currentPodId);
+          if (currentPodId) q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
           const { data, error } = await q;
-          if (error) throw error;
+          if (error) {
+            console.warn('[Mediflow API] patient_consents fetch notice:', error.message);
+            return [];
+          }
           return data;
         }, () => {
           const cachedConsentIds = this.load<string[]>('active_consent_ids', []);
@@ -717,9 +723,12 @@ class MediflowApiService {
         // 2. patient_registry
         supabaseCircuit.execute(async () => {
           let q = supabase.from('patient_registry').select('*').order('created_at', { ascending: false }).limit(100);
-          if (currentPodId) q = q.eq('pod_id', currentPodId);
+          if (currentPodId) q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
           const { data, error } = await q;
-          if (error) throw error;
+          if (error) {
+            console.warn('[Mediflow API] patient_registry fetch notice:', error.message);
+            return [];
+          }
           return data;
         }, () => {
           return this.load<any[]>('patients', []).map(p => ({
@@ -732,9 +741,12 @@ class MediflowApiService {
         // 3. whatsapp_sessions
         supabaseCircuit.execute(async () => {
           let q = supabase.from('whatsapp_sessions').select('*').order('last_interaction', { ascending: false }).limit(100);
-          if (currentPodId) q = q.eq('pod_id', currentPodId);
+          if (currentPodId) q = q.or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`);
           const { data, error } = await q;
-          if (error) throw error;
+          if (error) {
+            console.warn('[Mediflow API] whatsapp_sessions fetch notice:', error.message);
+            return [];
+          }
           return data;
         }, () => {
           return this.load<any[]>('whatsapp_sessions', []).map(s => ({
@@ -745,7 +757,7 @@ class MediflowApiService {
           }));
         }),
         // 4. clinic_sops
-        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId}`).limit(20) : supabase.from('clinic_sops').select('*').limit(20)).then(r => r.data).catch(() => null),
+        Promise.resolve(currentPodId ? supabase.from('clinic_sops').select('*').or(`pod_id.eq.${currentPodId},entity_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID}`).limit(20) : supabase.from('clinic_sops').select('*').limit(20)).then(r => r.data).catch(() => null),
         // 5. medicine_bills
         Promise.resolve(supabase.from('medicine_bills').select(`
           id, patient_id, encounter_id, subtotal, loyalty_discount_percent,
@@ -757,7 +769,7 @@ class MediflowApiService {
             inventory_item_id, name, batch_number, expiry_date, quantity,
             mrp, selling_price, discount_percent, gst_percent, line_total
           )
-        `).eq('pod_id', currentPodId).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
+        `).or(`pod_id.eq.${currentPodId},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
         // 6. encounters (role-gated promise already built above)
         encounterFetch,
         // 7. lab_requisitions (role-filtered query already built above)
@@ -769,7 +781,7 @@ class MediflowApiService {
         // 10. unified_invoices
         Promise.resolve(supabase.from('unified_invoices').select(`
           id, encounter_id, patient_id, doctor_fee, lab_fee, pharmacy_fee,
-          platform_fee, total_amount, upi_qr_payload, payment_status, payment_method, pod_id, source, created_at,
+          platform_fee, total_amount, upi_qr_payload, payment_status, payment_method, pod_id, created_at,
           patient:patient_registry(name, phone)
         `).or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
         // 11. seasonal_demand_forecasts

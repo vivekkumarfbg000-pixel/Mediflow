@@ -77,24 +77,31 @@ export interface PodContext {
 let _ctx: PodContext | null = null;
 
 /**
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(id: unknown): id is string {
+  return typeof id === 'string' && UUID_REGEX.test(id.trim());
+}
+
+/**
  * Resolves the active clinic's Sovereign Pod ID across all consoles.
  * Strict Resolution Hierarchy:
- *  1. forcedPodId (if valid)
- *  2. window.__mediflow_active_pod_id
- *  3. vitalsync_active_pod (localStorage)
- *  4. vitalsync_cached_active_pod (localStorage)
- *  5. mediflow_active_pod (localStorage)
- *  6. _ctx.podId (if not unresolved)
+ *  1. forcedPodId (if valid UUID)
+ *  2. window.__mediflow_active_pod_id (if valid UUID)
+ *  3. vitalsync_active_pod (localStorage, if valid UUID)
+ *  4. vitalsync_cached_active_pod (localStorage, if valid UUID)
+ *  5. mediflow_active_pod (localStorage, if valid UUID)
+ *  6. _ctx.podId (if valid UUID)
  *  7. FALLBACK_POD_ID (dfb2a1a8-8e68-4f8a-929e-4a6c8e317001 - VitalSync Sovereign Clinic)
  */
 export function resolveSovereignPodId(forcedPodId?: string): string {
-  if (forcedPodId && forcedPodId !== UNRESOLVED_POD && forcedPodId !== 'unassigned-pod') {
-    return forcedPodId;
+  if (isValidUuid(forcedPodId)) {
+    return forcedPodId.trim();
   }
   if (typeof window !== 'undefined') {
     const winPod = (window as any).__mediflow_active_pod_id;
-    if (winPod && typeof winPod === 'string' && winPod !== UNRESOLVED_POD && winPod !== 'unassigned-pod') {
-      return winPod;
+    if (isValidUuid(winPod)) {
+      return winPod.trim();
     }
     try {
       const storageKeys = ['vitalsync_active_pod', 'vitalsync_cached_active_pod', 'mediflow_active_pod'];
@@ -102,15 +109,15 @@ export function resolveSovereignPodId(forcedPodId?: string): string {
         const raw = localStorage.getItem(k);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed.id === 'string' && parsed.id.length > 5 && parsed.id !== UNRESOLVED_POD) {
-            return parsed.id;
+          if (parsed && isValidUuid(parsed.id)) {
+            return parsed.id.trim();
           }
         }
       }
     } catch (_e) { /* ignore parse error */ }
   }
-  if (_ctx && _ctx.podId && _ctx.podId !== UNRESOLVED_POD && _ctx.podId !== 'unassigned-pod' && !_ctx.podId.startsWith('pod-')) {
-    return _ctx.podId;
+  if (_ctx && isValidUuid(_ctx.podId)) {
+    return _ctx.podId.trim();
   }
   return FALLBACK_POD_ID;
 }
@@ -372,7 +379,7 @@ export function clearPodContext(): void {
   _ctx = {
     userId:          null,
     entityId:        'unassigned-entity',
-    podId:           'unassigned-pod',
+    podId:           FALLBACK_POD_ID,
     doctorId:        null,
     labEntityId:     'unassigned-lab',
     pharmacyEntityId: 'unassigned-pharmacy',

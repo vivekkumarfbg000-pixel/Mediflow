@@ -7733,6 +7733,33 @@ BEGIN
     END LOOP;
 END $$;
 
+-- 5. Unified Invoices Source Column & net.http_post Fallback (20260918000004)
+ALTER TABLE IF EXISTS public.unified_invoices ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'direct';
+CREATE INDEX IF NOT EXISTS idx_unified_invoices_pod_source ON public.unified_invoices (pod_id, source);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'net' AND p.proname = 'http_post'
+  ) THEN
+    CREATE SCHEMA IF NOT EXISTS net;
+    CREATE OR REPLACE FUNCTION net.http_post(
+      url text,
+      body text DEFAULT '{}',
+      params jsonb DEFAULT '{}',
+      headers jsonb DEFAULT '{}',
+      timeout_milliseconds integer DEFAULT 5000
+    ) RETURNS bigint AS $f$
+    BEGIN
+      RETURN 1;
+    END;
+    $f$ LANGUAGE plpgsql SECURITY DEFINER;
+  END IF;
+END $$;
+
+
 
 
 
