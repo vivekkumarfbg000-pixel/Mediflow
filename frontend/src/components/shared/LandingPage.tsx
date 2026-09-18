@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
 import { AppInstallBanner } from './AppInstallBanner';
+import { FounderNotificationService } from '../../services/founderNotificationService';
 import {
   Shield, Activity, Building2, Users, Layers, Zap, Clock, ChevronRight, Terminal, GitBranch, Lock, ArrowRight, Sparkles,
   X, FileText, Loader2, AlertCircle, Mail, Presentation, TrendingUp, Award, ChevronLeft, CheckCircle2, Eye, MessageSquare,
   Stethoscope, Pill, Printer, Smartphone, Send, Check, ChevronDown, HelpCircle, Database,
   HeartPulse, RefreshCw, Calendar, FileSpreadsheet, Package, PhoneCall, Bot, Flame, ShieldAlert, Star, Percent, ArrowUpRight, BarChart3, Microscope,
-  Camera, Video, MapPin, UploadCloud
+  Camera, Video, MapPin, UploadCloud, Menu
 } from 'lucide-react';
 // Hero image — ES-module import ensures Vite hashes & bundles correctly for production
 import heroImageSrc from '../../assets/hero.png';
@@ -175,10 +176,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   }, [onAuthSuccess]);
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [showDemoModal, setShowDemoModal] = useState(false);
-  const [isSignupUnlocked, setIsSignupUnlocked] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [calcPatients, setCalcPatients] = useState(25);
   const [calcFee, setCalcFee] = useState(500);
   const [calcLabFee, setCalcLabFee] = useState(800);
@@ -200,7 +200,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   // Advanced Clinic Ingestion Workstation: Camera Scan vs Rx Document Upload
   const [ingestionInputMode, setIngestionInputMode] = useState<'camera' | 'upload'>('camera');
 
-  // WhatsApp-Connected Live Demo Booking Form States
+  // Live Demo Booking Form States
   const [demoDoctorName, setDemoDoctorName] = useState('');
   const [demoClinicName, setDemoClinicName] = useState('');
   const [demoCity, setDemoCity] = useState('');
@@ -209,14 +209,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [demoPatientsVolume, setDemoPatientsVolume] = useState('25-50 OPD / day');
   const [demoPreferredTime, setDemoPreferredTime] = useState('Today Evening');
   const [demoError, setDemoError] = useState<string | null>(null);
+  const [demoSuccess, setDemoSuccess] = useState(false);
 
-  const handleBookDemoSubmit = (e: React.FormEvent) => {
+  const handleBookDemoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDemoError(null);
 
     const cleanPhone = demoPhone.trim().replace(/\D/g, '');
     if (!cleanPhone || cleanPhone.length < 10) {
-      setDemoError('Please enter a valid 10-digit WhatsApp number.');
+      setDemoError('Please enter a valid 10-digit WhatsApp/mobile number.');
       return;
     }
     if (!demoDoctorName.trim()) {
@@ -224,29 +225,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       return;
     }
 
-    const message = `Namaste Vivek! 🙏 I would like to book a 1-on-1 Live Clinic Demo of VitalSync.
+    // Dispatch silent backend alert to Founder — no personal WA link exposed publicly
+    FounderNotificationService.notifyOnDemoRequested({
+      doctorName: demoDoctorName.trim(),
+      clinicName: demoClinicName.trim() || undefined,
+      phone: cleanPhone,
+      specialty: demoSpecialty,
+      patientsVolume: demoPatientsVolume,
+      preferredTime: demoPreferredTime,
+      city: demoCity.trim() || 'Patna, Bihar',
+    }).catch(() => { /* non-blocking */ });
 
-👨‍⚕️ Clinician: ${demoDoctorName.trim()}
-🏥 Clinic: ${demoClinicName.trim() || 'My Clinic'}, ${demoCity.trim() || 'India'}
-📱 WhatsApp: +91 ${cleanPhone}
-🩺 Specialty: ${demoSpecialty}
-👥 Daily OPD Volume: ${demoPatientsVolume}
-📅 Preferred Slot: ${demoPreferredTime}
-
-Please confirm my live demo appointment! 🩺`;
-
-    const targetUrl = `https://wa.me/919608032073?text=${encodeURIComponent(message)}`;
-
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'Demo Request Scheduled! 📲',
-        message: 'Opening WhatsApp to connect you with VitalSync Deployment Desk...',
-        type: 'success'
-      }
-    }));
-
-    setShowDemoModal(false);
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    // Show premium in-modal success confirmation
+    setDemoSuccess(true);
   };
 
   const handleSimAction = (nextStep: 'refill_prompt' | 'refill_confirmed' | 'booking_prompt' | 'booking_confirmed' | 'report_prompt' | 'report_viewed') => {
@@ -283,22 +274,11 @@ Please confirm my live demo appointment! 🩺`;
     };
   }, []);
 
-  // 90-Day Free Pilot Onboarding Form States
-  const [pilotDoctorName, setPilotDoctorName] = useState('');
-  const [pilotClinicName, setPilotClinicName] = useState('');
-  const [pilotPhone, setPilotPhone] = useState('');
-  const [pilotSpecialty, setPilotSpecialty] = useState('General Medicine');
-  const [emailInput, setEmailInput] = useState('');
-  const [registrationType, setRegistrationType] = useState<'doctor' | 'partner'>('doctor');
-  const [eligibilityError, setEligibilityError] = useState<string | null>(null);
+
 
   const handleContactSupport = (e: React.MouseEvent) => {
     e.preventDefault();
-    // Anti-Scraper Base64 Obfuscated Phone Number (+91 9608032073)
-    const obfuscatedPayload = 'OTE5NjA4MDMyMDcz';
-    const cleanNum = window.atob(obfuscatedPayload);
-    const targetUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent("Hi VitalSync Support, I'm interested in onboarding.")}`;
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    window.location.href = 'mailto:support@vitalsync.in';
   };
 
   // Redirect to app subdomain for sign-in (or inline console query param on local origins)
@@ -335,61 +315,6 @@ Please confirm my live demo appointment! 🩺`;
 
   const handleGetStartedClick = (e: React.MouseEvent) => {
     handleSignUpClick(e);
-  };
-
-  const handleValidateEligibility = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setEligibilityError(null);
-
-    // 1. Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailInput.trim()) {
-      setEligibilityError('Please enter your professional email address.');
-      return;
-    }
-    if (!emailRegex.test(emailInput.trim())) {
-      setEligibilityError('Please enter a valid email address format.');
-      return;
-    }
-
-    // 2. Validate phone number
-    const cleanPhone = pilotPhone.trim().replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setEligibilityError('Please enter a valid 10-digit WhatsApp/mobile number.');
-      return;
-    }
-
-    // Unlock signup & close modal
-    setIsSignupUnlocked(true);
-    setShowEligibilityModal(false);
-
-    const registrationTab = registrationType === 'doctor' ? 'register' : 'join';
-    const isSingleDomain = getIsSingleDomain(hostname);
-
-    let targetUrl = '';
-    if (isSingleDomain) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', registrationTab);
-      if (pilotDoctorName) url.searchParams.set('name', pilotDoctorName);
-      if (pilotClinicName) url.searchParams.set('clinic', pilotClinicName);
-      if (pilotPhone) url.searchParams.set('phone', pilotPhone);
-      targetUrl = url.toString();
-    } else {
-      const baseUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
-        ? `http://app.localhost:${window.location.port || '5173'}`
-        : `https://app.vitalsync.in`;
-      targetUrl = `${baseUrl}?tab=${registrationTab}&name=${encodeURIComponent(pilotDoctorName)}&clinic=${encodeURIComponent(pilotClinicName)}&phone=${encodeURIComponent(pilotPhone)}`;
-    }
-
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: '90-Day Free Pilot Initialized',
-        message: 'Redirecting to your secure clinical workspace setup...',
-        type: 'success'
-      }
-    }));
-
-    window.location.href = targetUrl;
   };
 
   return (
@@ -456,7 +381,7 @@ Please confirm my live demo appointment! 🩺`;
           </nav>
 
           {/* Header Action Suite */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[9px] font-bold text-emerald-700 tracking-wide">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
               NMC Ethics Protected
@@ -464,27 +389,85 @@ Please confirm my live demo appointment! 🩺`;
 
             <button
               onClick={scrollToGate}
-              className="text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
+              className="hidden md:inline-flex text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
             >
               Sign In
             </button>
 
             <button
               onClick={handleSignUpClick}
-              className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1"
+              className="hidden md:inline-flex px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer items-center gap-1"
             >
               Clinic Sign Up
             </button>
 
             <button
-              onClick={() => setShowDemoModal(true)}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+              onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
+              className="hidden md:inline-flex px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer items-center gap-1.5"
             >
               Book a Live Demo <ArrowRight className="h-3.5 w-3.5" />
             </button>
+
+            {/* Mobile: Clinic Sign Up CTA */}
+            <button
+              onClick={handleSignUpClick}
+              className="md:hidden px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+            >
+              Sign Up
+            </button>
+
+            {/* Mobile: Hamburger Toggle */}
+            <button
+              onClick={() => setIsMobileMenuOpen(prev => !prev)}
+              className="md:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-slate-700"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white/98 backdrop-blur-xl px-6 py-4 flex flex-col gap-4 shadow-lg">
+            <nav className="flex flex-col gap-1">
+              {[
+                { href: '#how-it-works', label: 'How It Works' },
+                { href: '#triad-architecture', label: 'Why VitalSync' },
+                { href: '#optional-emr', label: 'Cloud EMR (Optional)' },
+                { href: '#emr-comparison', label: 'vs Practo Ray' },
+                { href: '#chronic-care', label: 'Chronic Care Engine' },
+                { href: '#pricing', label: 'Pricing' },
+                { href: '#faq', label: 'FAQs' },
+              ].map(({ href, label }) => (
+                <a
+                  key={href}
+                  href={href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:text-teal-700 hover:bg-teal-50 transition-all"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+              <button
+                onClick={(e) => { setIsMobileMenuOpen(false); scrollToGate(e); }}
+                className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={(e) => { setIsMobileMenuOpen(false); setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
+                className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all cursor-pointer"
+              >
+                Book a Live Demo
+              </button>
+            </div>
+          </div>
+        )}
       </header>
+
 
       {/* Style blocks for flows */}
       <style>{`
@@ -1099,7 +1082,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* ── SECTION 0.5: THE 5-STEP CLINIC OPERATING HIGHWAY ── */}
-      <section id="how-it-works" className="py-20 relative z-10 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/70 border-t border-slate-200 text-slate-800">
+      <section id="how-it-works" className="scroll-mt-20 py-20 relative z-10 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/70 border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           
           {/* Header */}
@@ -1519,7 +1502,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* ── SECTION 1: THE CONNECTED TRIAD ARCHITECTURE ── */}
-      <section id="triad-architecture" className="py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
+      <section id="triad-architecture" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-14 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-widest font-mono">
@@ -1752,7 +1735,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* ── SECTION 2: THE CHRONIC DISEASE CARE MODEL & RECURRING REFILL GOLDMINE ── */}
-      <section id="chronic-care" className="py-20 relative z-10 bg-slate-50/70 border-t border-slate-200 text-slate-800">
+      <section id="chronic-care" className="scroll-mt-20 py-20 relative z-10 bg-slate-50/70 border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-14 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-widest font-mono">
@@ -1903,7 +1886,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* ── SECTION 3: THE 360° CHRONIC PATIENT JOURNEY (INTERACTIVE TIMELINE) ── */}
-      <section id="patient-journey" className="py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
+      <section id="patient-journey" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-bold uppercase tracking-widest font-mono">
@@ -2067,7 +2050,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* ── SECTION 4: INTERACTIVE SILICON VALLEY 5-CONSOLE SWITCHER & WHATSAPP SIMULATOR ── */}
-      <section id="consoles-simulator" className="py-20 relative z-10 bg-slate-50 border-t border-slate-200 text-slate-800">
+      <section id="consoles-simulator" className="scroll-mt-20 py-20 relative z-10 bg-slate-50 border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-bold uppercase tracking-widest font-mono">
@@ -2770,7 +2753,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* ── SECTION: BUILT-IN CLOUD DOCTOR EMR SUITE (OPTIONAL POWER MODULE) ── */}
-      <section id="optional-emr" className="py-20 relative z-10 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 text-slate-800">
+      <section id="optional-emr" className="scroll-mt-20 py-20 relative z-10 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           
           {/* Section Header */}
@@ -2991,7 +2974,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* Comprehensive EMR Architecture Comparison Section: VitalSync vs Practo Ray */}
-      <section id="emr-comparison" className="py-20 relative z-10 bg-white border-t border-slate-200">
+      <section id="emr-comparison" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
@@ -3184,7 +3167,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* Onboarding Steps Section — Exactly Matching Slide 13 of the Doctor Booklet */}
-      <section id="onboarding" className="py-20 relative z-10 bg-[#F8F9FA] border-t border-slate-200/60">
+      <section id="onboarding" className="scroll-mt-20 py-20 relative z-10 bg-[#F8F9FA] border-t border-slate-200/60">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center">
             <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest mb-3">
@@ -3243,19 +3226,18 @@ Please confirm my live demo appointment! 🩺`;
               <p className="text-base font-bold text-slate-900 uppercase tracking-wider">Initialize Your Workspace</p>
               <p className="text-xs text-slate-500 mt-1 font-semibold">Open the credentials panel and complete your registration checklist.</p>
             </div>
-            <a
-              href="#gate"
-              onClick={handleGetStartedClick}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider hover:from-indigo-650 hover:to-indigo-750 transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap"
+            <button
+              onClick={handleSignUpClick}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider hover:from-indigo-400 hover:to-indigo-500 transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap cursor-pointer"
             >
-              Access Portal <ArrowRight className="h-4 w-4" />
-            </a>
+              Start Clinic Sign Up <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </section>
 
       {/* Transparent Pricing: 0% OPD, 0% WhatsApp, 5% Lab, 2% Pharmacy */}
-      <section id="pricing" className="py-20 relative z-10 bg-white border-t border-slate-200">
+      <section id="pricing" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-12 text-center">
             <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-700 font-mono text-[10px] font-extrabold uppercase tracking-widest mb-3">
@@ -3459,7 +3441,7 @@ Please confirm my live demo appointment! 🩺`;
       </section>
 
       {/* Frequently Asked Questions (FAQ) & ABDM Architecture Section */}
-      <section id="faq" className="py-20 relative z-10 bg-slate-50/70 border-t border-slate-200">
+      <section id="faq" className="scroll-mt-20 py-20 relative z-10 bg-slate-50/70 border-t border-slate-200">
         <div id="emr-architecture" className="max-w-4xl mx-auto px-6">
           <div className="mb-12 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
@@ -3652,70 +3634,112 @@ Please confirm my live demo appointment! 🩺`;
         </div>
       </section>
 
+      {/* ── PRE-FOOTER ENTERPRISE CTA ── */}
+      <section className="py-20 relative z-10 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-0 w-[600px] h-[400px] bg-teal-500/10 rounded-full filter blur-[120px]" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-emerald-500/10 rounded-full filter blur-[120px]" />
+        </div>
+        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center space-y-8">
+          <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold uppercase tracking-widest font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" /> VitalSync — 100% Free for Doctors
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+            Your Clinic.<br />
+            <span className="bg-gradient-to-r from-teal-300 via-emerald-300 to-cyan-300 bg-clip-text text-transparent">Now a Hospital-Grade Smart Network.</span>
+          </h2>
+          <p className="text-slate-300 text-sm font-medium max-w-2xl mx-auto leading-relaxed">
+            Join independent doctors across Patna, Bihar who have digitised their OPD, automated WhatsApp care loops, and unlocked recurring refill revenue — all at zero SaaS cost.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={handleSignUpClick}
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white font-extrabold text-sm uppercase tracking-wider shadow-xl shadow-teal-500/20 transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" /> Register Your Clinic — Free
+            </button>
+            <button
+              onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
+              className="px-8 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-sm transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Calendar className="h-4 w-4" /> Book 1-on-1 Demo
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-400 font-medium pt-2">
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />0% Doctor Fee Cut</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />WhatsApp Care Loop Included</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />No Credit Card Required</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />DPDP &amp; NMC Ethics Compliant</span>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
-      <footer className="py-12 px-6 relative z-10 bg-white border-t border-slate-200 text-slate-500">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:justify-between gap-8 text-xs font-semibold">
-          {/* Left Column: Brand & Location Address */}
-          <div className="flex flex-col space-y-3 text-left">
-            <div className="flex items-center gap-2">
-              <BrandMark size={20} title="VitalSync" />
-              <span className="text-sm font-black text-slate-900 tracking-tight">VitalSync</span>
+      <footer className="py-12 px-6 relative z-10 bg-slate-950 border-t border-slate-800 text-slate-400">
+        <div className="max-w-6xl mx-auto">
+          {/* Top Row */}
+          <div className="flex flex-col lg:flex-row lg:justify-between gap-10 pb-10 border-b border-slate-800">
+            {/* Brand Column */}
+            <div className="flex flex-col space-y-4 text-left max-w-xs">
+              <div className="flex items-center gap-2">
+                <BrandMark size={22} title="VitalSync" />
+                <span className="text-sm font-black text-white tracking-tight">VitalSync</span>
+                <span className="text-[9px] font-mono bg-teal-500/20 text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full">v1.0</span>
+              </div>
+              <p className="text-xs text-slate-400 font-medium leading-relaxed">
+                Empowering independent clinics, pharmacies, and pathology labs to operate as a hospital-grade smart network on WhatsApp.
+              </p>
+              <div className="flex flex-col gap-1 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3 text-teal-500 shrink-0" />
+                  <span>Patna Bailey Road, Patna, Bihar 800014</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Mail className="h-3 w-3 text-teal-500 shrink-0" />
+                  <a href="mailto:support@vitalsync.in" className="hover:text-teal-400 transition-colors">support@vitalsync.in</a>
+                </div>
+              </div>
             </div>
-            <p className="text-slate-500 font-medium leading-relaxed max-w-sm">
-              <span className="font-bold text-slate-700 block mb-0.5">Clinical Hub Address:</span>
-              Patna Bailey Road, Patna, Bihar, India
-            </p>
-            <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5 pt-0.5">
-              <span>Leadership:</span>
-              <span className="font-bold text-slate-800">Vivek Kumar</span>
-              <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-md">Founder &amp; CTO</span>
+
+            {/* Quick Links */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-8 text-xs">
+              <div className="space-y-2">
+                <p className="text-white font-bold uppercase tracking-wider text-[10px] font-mono mb-3">Platform</p>
+                <a href="#how-it-works" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">How It Works</a>
+                <a href="#triad-architecture" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Clinic Triad</a>
+                <a href="#chronic-care" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Chronic Care</a>
+                <a href="#optional-emr" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Cloud EMR</a>
+                <a href="#emr-comparison" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">vs Practo Ray</a>
+              </div>
+              <div className="space-y-2">
+                <p className="text-white font-bold uppercase tracking-wider text-[10px] font-mono mb-3">For Partners</p>
+                <a href="#pricing" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Pricing</a>
+                <a href="#faq" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">FAQs</a>
+                <button onClick={handleSignUpClick} className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5 cursor-pointer text-left">Clinic Sign Up</button>
+                <button onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }} className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5 cursor-pointer text-left">Book Demo</button>
+              </div>
+              <div className="space-y-2">
+                <p className="text-white font-bold uppercase tracking-wider text-[10px] font-mono mb-3">Legal</p>
+                <a href="/terms" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Terms &amp; Conditions</a>
+                <a href="/privacy" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Privacy Policy</a>
+                <a href="/refund-policy" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Refund Policy</a>
+                <a href="/contact-us" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Contact Us</a>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Contact CTA & Metadata */}
-          <div className="flex flex-col space-y-4 md:items-end">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleContactSupport}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold transition-all shadow-sm cursor-pointer select-none font-sans text-xs"
-              >
-                <MessageSquare className="w-4 h-4 text-white shrink-0" />
-                <span>Contact Support via WhatsApp</span>
-              </button>
-              <a
-                href="mailto:vivek@vitalsync.in"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-teal-300 font-bold transition-all shadow-sm no-underline font-sans text-xs"
-                title="Founder & CTO Desk"
-              >
-                <Mail className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>Founder &amp; CTO: vivek@vitalsync.in</span>
-              </a>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-500 font-medium">
-              <a href="/terms" className="hover:text-cyan-600 transition-colors">Terms & Conditions</a>
-              <span>•</span>
-              <a href="/privacy" className="hover:text-cyan-600 transition-colors">Privacy Policy</a>
-              <span>•</span>
-              <a href="/refund-policy" className="hover:text-cyan-600 transition-colors">Refund Policy</a>
-              <span>•</span>
-              <a href="/contact-us" className="hover:text-cyan-600 transition-colors">Contact Us</a>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 md:justify-end text-slate-450">
-              <span>© 2026 VitalSync Care Connected Ecosystem</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-200 hidden sm:inline" />
-              <span className="text-teal-700 font-bold hidden sm:inline">Virtual Hospital Network • Your Clinic. Now a Hospital.</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
-              <span className="font-mono">v1.0.0-stable</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+          {/* Bottom Row */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pt-6 text-xs">
+            <span className="text-slate-500 font-medium">© 2026 VitalSync Care Connected Ecosystem · Virtual Hospital Network</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 font-mono text-[10px]">DPDP Act 2023</span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 font-mono text-[10px]">NMC Ethics</span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-400 font-mono text-[10px]">ABDM Compliant</span>
               <button
                 type="button"
                 onClick={() => {
                   const curHostname = window.location.hostname;
                   const isSingleDomain = getIsSingleDomain(curHostname);
-                  
                   const adminUrl = isSingleDomain
                     ? `${window.location.origin}?console=true`
                     : (curHostname === 'localhost' || curHostname === '127.0.0.1'
@@ -3723,10 +3747,10 @@ Please confirm my live demo appointment! 🩺`;
                       : 'https://admin.vitalsync.in');
                   window.location.href = adminUrl;
                 }}
-                className="text-slate-400 hover:text-slate-655 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"
-                title="Go to admin.vitalsync.in"
+                className="text-slate-600 hover:text-slate-400 transition-colors font-mono text-[10px] tracking-widest uppercase cursor-pointer select-none"
+                title="Go to Platform Operations"
               >
-                Platform Operations
+                Platform Ops ↗
               </button>
             </div>
           </div>
@@ -3734,190 +3758,6 @@ Please confirm my live demo appointment! 🩺`;
       </footer>
 
       {/* Auth happens on app.vitalsync.in — no inline auth modal on the landing page */}
-
-      {showEligibilityModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in text-slate-800 font-sans">
-          <div className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col space-y-5 max-h-[90vh] overflow-y-auto text-left">
-            
-            {/* Close Button */}
-            <button
-              onClick={() => setShowEligibilityModal(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            {/* Header */}
-            <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-              <div className="p-3 bg-teal-50 border border-teal-200 text-teal-600 rounded-2xl">
-                <Sparkles className="h-6 w-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 font-heading">Start 90-Day Free Clinic Pilot</h3>
-                <p className="text-[11px] text-emerald-700 font-bold">100% Free for 90 Days · Zero Setup Cost · No Credit Card</p>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {eligibilityError && (
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2.5 animate-shake">
-                <AlertCircle className="h-4 w-4 text-rose-500 mt-0.5 shrink-0" />
-                <span className="text-[11px] font-semibold text-rose-700 leading-relaxed">{eligibilityError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleValidateEligibility} className="space-y-3.5">
-              {/* Registration Type Picker */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
-                  I Am Registering As
-                </label>
-                <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setRegistrationType('doctor')}
-                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                      registrationType === 'doctor'
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    👨‍⚕️ Doctor / Clinic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRegistrationType('partner')}
-                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                      registrationType === 'partner'
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    🏥 Pharmacy / Lab
-                  </button>
-                </div>
-              </div>
-
-              {/* Doctor / Lead Clinician Name */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
-                  {registrationType === 'doctor' ? 'Doctor Name & Degree' : 'Contact Person Name'}
-                </label>
-                <input
-                  type="text"
-                  value={pilotDoctorName}
-                  onChange={(e) => setPilotDoctorName(e.target.value)}
-                  placeholder={registrationType === 'doctor' ? 'Dr. Vivek Kumar, MBBS, MD' : 'Pharmacist / Lab Director'}
-                  className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 px-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all"
-                  required
-                />
-              </div>
-
-              {/* Clinic / Organization Name */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
-                  {registrationType === 'doctor' ? 'Clinic / Practice Name' : 'Pharmacy / Lab Name'}
-                </label>
-                <input
-                  type="text"
-                  value={pilotClinicName}
-                  onChange={(e) => setPilotClinicName(e.target.value)}
-                  placeholder="e.g. Sanjeevani Care Clinic, Line Bazar"
-                  className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 px-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all"
-                  required
-                />
-              </div>
-
-              {/* WhatsApp Number (For 1-Tap OTP & Activation) */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
-                  WhatsApp Number (For Instant Activation)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-400">+91</span>
-                  <input
-                    type="tel"
-                    value={pilotPhone}
-                    onChange={(e) => setPilotPhone(e.target.value)}
-                    placeholder="98765 43210"
-                    maxLength={14}
-                    className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 pl-12 pr-3 text-xs text-slate-800 placeholder-slate-400 outline-none font-mono transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Professional Email */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
-                  Account Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                  <input
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="doctor@clinic.com"
-                    className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 pl-9 pr-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Specialty Selector (if Doctor) */}
-              {registrationType === 'doctor' && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
-                    Primary Clinical Specialty
-                  </label>
-                  <select
-                    value={pilotSpecialty}
-                    onChange={(e) => setPilotSpecialty(e.target.value)}
-                    className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 px-3 text-xs text-slate-800 outline-none transition-all cursor-pointer"
-                  >
-                    <option value="General Medicine">General Medicine / Physician</option>
-                    <option value="Ophthalmology">Ophthalmology (Eye Care &amp; Refraction)</option>
-                    <option value="Pediatrics">Pediatrics &amp; Neonatology</option>
-                    <option value="Cardiology">Cardiology / Diabetology</option>
-                    <option value="Dermatology">Dermatology</option>
-                    <option value="Orthopedics">Orthopedics</option>
-                    <option value="ENT">ENT / Otorhinolaryngology</option>
-                    <option value="Gynecology">Obstetrics &amp; Gynecology</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Trust & Guarantee Banner */}
-              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-[10.5px] text-emerald-800 leading-relaxed space-y-1 font-medium">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span>Your 90-Day Free Pilot Guarantees:</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1 text-[10px] text-emerald-700">
-                  <span>• 0% OPD Consultation Cut</span>
-                  <span>• WhatsApp Assistant Active</span>
-                  <span>• Paper or Cloud EMR Choice</span>
-                  <span>• Cancel Anytime with 1 Tap</span>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="w-full py-3 mt-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
-              >
-                Launch My 90-Day Free Pilot <ArrowRight className="h-4 w-4" />
-              </button>
-
-              <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium text-center pt-1">
-                <Lock className="h-3 w-3" />
-                <span>Encrypted pod isolation · DPDP Act 2023 &amp; ABDM compliant</span>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
 
       {showDemoModal && (
@@ -3950,7 +3790,33 @@ Please confirm my live demo appointment! 🩺`;
               </div>
             </div>
 
-            {/* Modal Form Body */}
+            {/* Modal Body: Success State or Form */}
+            {demoSuccess ? (
+              <div className="p-8 flex flex-col items-center text-center gap-5">
+                <div className="w-16 h-16 rounded-full bg-emerald-50 border-2 border-emerald-400 flex items-center justify-center">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-slate-900 mb-1">Demo Request Confirmed! 🎉</h4>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Our clinical onboarding specialist will reach out to <span className="font-bold text-slate-700">+91 {demoPhone}</span> within <span className="font-bold text-emerald-700">2 hours</span> to schedule your personalized live demo.
+                  </p>
+                </div>
+                <div className="w-full p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-800 font-medium text-left">
+                  <p className="font-bold text-teal-900 mb-1">What happens next?</p>
+                  <p>✅ Our team reviews your clinic profile</p>
+                  <p>✅ We schedule a 30-min product walkthrough on your preferred slot</p>
+                  <p>✅ Your clinic's WhatsApp ID gets activated — 100% Free</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setShowDemoModal(false); setDemoSuccess(false); }}
+                  className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleBookDemoSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               {demoError && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
@@ -4087,7 +3953,7 @@ Please confirm my live demo appointment! 🩺`;
                   className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-teal-600/20 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <MessageSquare className="h-4 w-4" />
-                  Schedule Live Demo via WhatsApp
+                  Request Your Free Live Demo
                 </button>
                 <div className="flex items-center justify-center gap-3 text-[11px] text-slate-500 font-medium pt-2.5">
                   <span className="flex items-center gap-1">
@@ -4104,6 +3970,7 @@ Please confirm my live demo appointment! 🩺`;
                 </div>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
