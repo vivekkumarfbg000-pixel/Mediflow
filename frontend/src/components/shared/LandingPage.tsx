@@ -240,7 +240,7 @@ Please confirm my live demo appointment! 🩺`;
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
         title: 'Demo Request Scheduled! 📲',
-        message: 'Opening WhatsApp to connect you directly with Founder Desk...',
+        message: 'Opening WhatsApp to connect you with VitalSync Deployment Desk...',
         type: 'success'
       }
     }));
@@ -317,24 +317,24 @@ Please confirm my live demo appointment! 🩺`;
     window.location.href = 'https://app.vitalsync.in';
   };
 
-  const handleGetStartedClick = (e: React.MouseEvent) => {
+  const handleSignUpClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isSignupUnlocked) {
-      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
-      const isSingleDomain = getIsSingleDomain(hostname) || isLocal;
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.localhost');
+    const isSingleDomain = getIsSingleDomain(hostname) || isLocal;
 
-      if (isSingleDomain) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', 'register');
-        window.location.href = url.toString();
-        return;
-      }
-
-      window.location.href = 'https://app.vitalsync.in?tab=register';
-    } else {
-      setShowEligibilityModal(true);
-      setEligibilityError(null);
+    if (isSingleDomain) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('console', 'true');
+      url.searchParams.set('tab', 'register');
+      window.location.href = url.toString();
+      return;
     }
+
+    window.location.href = 'https://app.vitalsync.in?tab=register';
+  };
+
+  const handleGetStartedClick = (e: React.MouseEvent) => {
+    handleSignUpClick(e);
   };
 
   const handleValidateEligibility = async (e: React.FormEvent) => {
@@ -467,6 +467,13 @@ Please confirm my live demo appointment! 🩺`;
               className="text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
             >
               Sign In
+            </button>
+
+            <button
+              onClick={handleSignUpClick}
+              className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer flex items-center gap-1"
+            >
+              Clinic Sign Up
             </button>
 
             <button
@@ -1534,49 +1541,53 @@ Please confirm my live demo appointment! 🩺`;
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
               {/* Left Column: Conceptual Clinical Value */}
-              <div className="lg:col-span-5 space-y-4 text-left">
+              <div className="lg:col-span-6 space-y-4 text-left order-2 lg:order-1">
                 <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full bg-teal-500/20 text-teal-300 text-[10px] font-mono font-bold uppercase tracking-widest border border-teal-500/30">
                   <Sparkles className="h-3 w-3 text-teal-400" />
                   Sovereign Triad Architecture
                 </div>
                 <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-tight">
-                  One Unified WhatsApp Loop For Clinic, Chemist &amp; Lab
+                  Interconnected Dashboards for Clinic, Chemist &amp; Lab — Seamless WhatsApp for Patients
                 </h3>
                 <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-normal">
-                  Traditional clinics leak up to 60% of their medicine and diagnostic value to unlinked chain pharmacies and aggregators. VitalSync binds your trusted local chemist and diagnostic lab into an automated, hospital-grade outpatient ecosystem.
+                  VitalSync unites your Doctor Chamber, Partner Chemist, and Pathology Lab with realtime synchronized cloud dashboards, while keeping patients engaged through zero-install WhatsApp care loops. Stop leaking up to 60% of medicine and diagnostic value to unlinked aggregators.
                 </p>
 
                 <div className="space-y-2.5 pt-2 text-xs font-medium">
                   <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
                     <span className="w-2 h-2 rounded-full bg-teal-400 shrink-0" />
-                    <span className="text-slate-200"><strong>Doctor Chamber:</strong> Write Rx on paper or screen ➡️ 100% Fee direct to doctor.</span>
+                    <span className="text-slate-200"><strong>Doctor &amp; Compounder Desk:</strong> Dual input (Paper Pad Optical AI or Cloud EMR) with 100% consultation fee direct to doctor.</span>
                   </div>
                   <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-                    <span className="text-slate-200"><strong>Partner Chemist:</strong> Auto-queues Day 7 &amp; Day 25 chronic refills with 10% VIP savings.</span>
+                    <span className="text-slate-200"><strong>Chemist Pharmacy Counter:</strong> Interconnected POS dispensing queue + automated Day-25 1-click refill loop with 10% VIP savings.</span>
                   </div>
                   <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
-                    <span className="text-slate-200"><strong>Pathology Lab:</strong> Instant WhatsApp PDF report delivery + 2-touchpoint review loop.</span>
+                    <span className="text-slate-200"><strong>Pathology Lab Station:</strong> Interconnected LIS sample barcoding &amp; requisition worklist + automated electronic test records.</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                    <span className="text-slate-200"><strong>Patient Experience (WhatsApp):</strong> Zero app install — instant digital prescriptions, live OPD queue alerts &amp; PDF lab reports on WhatsApp.</span>
                   </div>
                 </div>
               </div>
 
               {/* Right Column: 3D Triad Glass Cards Graphic (heroImageSrc) */}
-              <div className="lg:col-span-7 flex justify-center items-center">
+              <div className="lg:col-span-6 flex justify-center items-center order-1 lg:order-2">
                 <div className="relative rounded-2xl overflow-hidden border border-teal-500/30 shadow-2xl bg-slate-950/60 p-2 sm:p-3 w-full group/img">
                   <img
                     src={heroImageSrc}
                     alt="VitalSync Connected Triad: Clinic, Pharmacy, and Pathology Lab Decentralized Virtual Hospital"
-                    className="w-full h-auto max-h-[380px] object-contain rounded-xl transition-transform duration-700 group-hover/img:scale-[1.02]"
+                    className="w-full h-auto max-h-[360px] object-contain rounded-xl transition-transform duration-700 group-hover/img:scale-[1.02] mx-auto"
                     loading="lazy"
                   />
                   <div className="mt-2 bg-slate-900/80 backdrop-blur-md border border-teal-500/30 px-3.5 py-2 rounded-xl flex items-center justify-between text-[10px] font-mono text-slate-300">
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span className="font-bold text-teal-300">Decentralized Virtual Hospital</span>
+                      <span className="font-bold text-teal-300">Interconnected Dashboards · WhatsApp for Patients</span>
                     </div>
-                    <span className="text-slate-400 hidden sm:inline">Zero Patient Leakage · 360° CDC Sync</span>
+                    <span className="text-slate-400 hidden sm:inline">Zero Leakage · 360° CDC Sync</span>
                   </div>
                 </div>
               </div>
@@ -3925,7 +3936,7 @@ Please confirm my live demo appointment! 🩺`;
                       Book 1-on-1 Live Demo <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Free</span>
                     </h3>
                     <p className="text-xs text-slate-300 mt-0.5">
-                      Direct WhatsApp connection to Vivek (Founder Desk · +91 9608032073)
+                      Official VitalSync Enterprise Clinical Onboarding Desk
                     </p>
                   </div>
                 </div>
@@ -3981,7 +3992,7 @@ Please confirm my live demo appointment! 🩺`;
                     type="text"
                     value={demoCity}
                     onChange={(e) => setDemoCity(e.target.value)}
-                    placeholder="e.g. Purnea, Bihar"
+                    placeholder="e.g. Patna, Bihar"
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-xs text-slate-800 transition-all placeholder:text-slate-400"
                   />
                 </div>
@@ -4084,7 +4095,7 @@ Please confirm my live demo appointment! 🩺`;
                   </span>
                   <span>·</span>
                   <span className="flex items-center gap-1">
-                    <Check className="h-3 w-3 text-emerald-600" /> Direct Founder Connection
+                    <Check className="h-3 w-3 text-emerald-600" /> Dedicated Clinical Specialist
                   </span>
                   <span>·</span>
                   <span className="flex items-center gap-1">

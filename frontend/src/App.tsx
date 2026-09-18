@@ -1616,7 +1616,8 @@ export default function App() {
     if (!isRegistering && isLoadingSession) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
-    if (session && activeProfile && !isRegistering && new URLSearchParams(window.location.search).get('landing') !== 'true') {
+    const isRegisterRequested = new URLSearchParams(window.location.search).get('tab') === 'register' || isRegistering;
+    if (session && activeProfile && !isRegisterRequested && new URLSearchParams(window.location.search).get('landing') !== 'true') {
       // Authenticated user on local / single-domain environment: Render Dashboard Workspace
       return (
         <ToastProvider>
@@ -1640,7 +1641,7 @@ export default function App() {
     }
     const consoleQuery = new URLSearchParams(window.location.search).get('console');
     const isConsoleRequested = Boolean(consoleQuery) || new URLSearchParams(window.location.search).get('tab') !== null;
-    if ((isConsoleRequested || isRegistering) && (!session || !activeProfile || isRegistering)) {
+    if (isConsoleRequested || isRegisterRequested) {
       return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />

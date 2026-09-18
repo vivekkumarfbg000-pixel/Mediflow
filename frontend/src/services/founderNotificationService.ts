@@ -41,7 +41,7 @@ export class FounderNotificationService {
 
     const cleanDoctorPhone = (phone || '').replace(/\D/g, '').slice(-10);
     const cleanSpec = specialization || 'General Practice';
-    const cleanCity = city || 'Line Bazar, Purnea';
+    const cleanCity = city || 'Patna, Bihar';
 
     // ── 1. Format Outbound WhatsApp Alert for Founder ─────────────────────────
     const whatsappMessage = 

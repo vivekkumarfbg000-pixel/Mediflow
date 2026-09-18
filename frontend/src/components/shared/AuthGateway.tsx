@@ -1284,7 +1284,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       email: targetEmail,
       clinicCode: finalCode,
       specialization: specialization,
-      city: address.trim() || 'Line Bazar, Purnea',
+      city: address.trim() || 'Patna, Bihar',
       source: 'auth_gateway_signup'
     }).catch(err => {
       console.warn('[AuthGateway] Founder notification dispatch notice:', err);
@@ -2421,9 +2421,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         {/* Sliding Tab Selector */}
         {initialSignupTab !== 'ops' && (
           <div className={`relative z-20 pointer-events-auto grid gap-1 bg-slate-200/50 p-1 rounded-xl border border-slate-200/80 ${
-            isDashboardSubdomain
-              ? (allowSignup ? 'grid-cols-3' : 'grid-cols-2')
-              : (allowSignup ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3')
+            allowSignup ? 'grid-cols-3' : 'grid-cols-2'
           }`}>
             <button
               type="button"
@@ -2438,7 +2436,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 onClick={() => handleTabSelect('register')}
                 className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'register' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
               >
-                Doctor Signup
+                Clinic Sign Up
               </button>
             )}
             <button
@@ -2448,15 +2446,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             >
               Partner Sign In
             </button>
-            {!isDashboardSubdomain && (
-              <button
-                type="button"
-                onClick={() => handleTabSelect('ops')}
-                className={`min-h-9 px-2 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer pointer-events-auto ${activeTab === 'ops' ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-md shadow-indigo-500/10' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/40'}`}
-              >
-                SaaS Ops
-              </button>
-            )}
           </div>
         )}
 
