@@ -230,10 +230,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
     };
   }, []);
 
-  // Eligibility Form States
-  const [ageConfirm, setAgeConfirm] = useState(false);
-  const [complianceConfirm, setComplianceConfirm] = useState(false);
-  const [baaConfirm, setBaaConfirm] = useState(false);
+  // 90-Day Free Pilot Onboarding Form States
+  const [pilotDoctorName, setPilotDoctorName] = useState('');
+  const [pilotClinicName, setPilotClinicName] = useState('');
+  const [pilotPhone, setPilotPhone] = useState('');
+  const [pilotSpecialty, setPilotSpecialty] = useState('General Medicine');
   const [emailInput, setEmailInput] = useState('');
   const [registrationType, setRegistrationType] = useState<'doctor' | 'partner'>('doctor');
   const [eligibilityError, setEligibilityError] = useState<string | null>(null);
@@ -287,16 +288,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
     e.preventDefault();
     setEligibilityError(null);
 
-    // 1. Verify Age
-    if (!ageConfirm) {
-      setEligibilityError('You must confirm you are 18 years of age or older to register.');
-      return;
-    }
-
-    // 2. Validate email format
+    // 1. Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailInput.trim()) {
-      setEligibilityError('Please enter a professional email address.');
+      setEligibilityError('Please enter your professional email address.');
       return;
     }
     if (!emailRegex.test(emailInput.trim())) {
@@ -304,29 +299,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       return;
     }
 
-    // 3. Prevent duplicate check on default accounts
-    const normalizedEmail = emailInput.trim().toLowerCase();
-
-    // 4. Verify compliance acceptances
-    if (!complianceConfirm) {
-      setEligibilityError('You must confirm compliance with the DPDP Act 2023 and ABDM healthcare guidelines.');
-      return;
-    }
-    if (!baaConfirm) {
-      setEligibilityError('You must accept the Clinic Data Protection Agreement & SOP Guidelines.');
+    // 2. Validate phone number
+    const cleanPhone = pilotPhone.trim().replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setEligibilityError('Please enter a valid 10-digit WhatsApp/mobile number.');
       return;
     }
 
-    // 5. Secure environment redirect (HTTPS check)
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      setEligibilityError('A secure and encrypted environment (HTTPS) is required. Redirecting to SSL...');
-      setTimeout(() => {
-        window.location.replace(window.location.href.replace('http:', 'https:'));
-      }, 1500);
-      return;
-    }
-
-    // Unlock signup
+    // Unlock signup & close modal
     setIsSignupUnlocked(true);
     setShowEligibilityModal(false);
 
@@ -337,24 +317,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
     if (isSingleDomain) {
       const url = new URL(window.location.href);
       url.searchParams.set('tab', registrationTab);
+      if (pilotDoctorName) url.searchParams.set('name', pilotDoctorName);
+      if (pilotClinicName) url.searchParams.set('clinic', pilotClinicName);
+      if (pilotPhone) url.searchParams.set('phone', pilotPhone);
       targetUrl = url.toString();
     } else {
-      targetUrl = hostname === 'localhost' || hostname === '127.0.0.1'
-        ? `http://app.localhost:${window.location.port || '5173'}?tab=${registrationTab}`
-        : `https://app.vitalsync.in?tab=${registrationTab}`;
+      const baseUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
+        ? `http://app.localhost:${window.location.port || '5173'}`
+        : `https://app.vitalsync.in`;
+      targetUrl = `${baseUrl}?tab=${registrationTab}&name=${encodeURIComponent(pilotDoctorName)}&clinic=${encodeURIComponent(pilotClinicName)}&phone=${encodeURIComponent(pilotPhone)}`;
     }
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
-        title: 'Eligibility Verified',
-        message: 'Redirecting you to initialize your secure clinical workspace...',
+        title: '90-Day Free Pilot Initialized',
+        message: 'Redirecting to your secure clinical workspace setup...',
         type: 'success'
       }
     }));
 
-    setTimeout(() => {
-      window.location.href = targetUrl;
-    }, 1200);
+    window.location.href = targetUrl;
   };
 
   return (
@@ -432,6 +414,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
             <a href="#how-it-works" className="hover:text-teal-700 transition-colors font-bold text-teal-800">How It Works</a>
             <a href="#triad-architecture" className="hover:text-teal-700 transition-colors">Why VitalSync</a>
+            <a href="#optional-emr" className="hover:text-teal-700 transition-colors flex items-center gap-1">
+              Cloud EMR
+              <span className="text-[9px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">Optional</span>
+            </a>
             <a href="#emr-comparison" className="hover:text-teal-700 transition-colors flex items-center gap-1">
               vs Practo Ray
               <span className="text-[9px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">New</span>
@@ -2156,134 +2142,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
-      {/* ── 4-STEP CLINICAL OPERATING WORKFLOW (ZERO HABIT CHANGE) ── */}
-      <section className="py-16 relative z-10 bg-slate-50 border-t border-slate-200 text-slate-800">
-        <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
-          <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-widest font-mono">
-            <Zap className="h-3.5 w-3.5 text-teal-600" /> Seamless 4-Step Clinic Operating Loop
-          </div>
-          
-          <div className="space-y-2">
-            <h2 className="text-2xl md:text-4xl font-black tracking-tight text-slate-900">
-              How VitalSync Works in 4 Simple Clinic Steps
-            </h2>
-            <p className="text-slate-600 text-xs md:text-sm max-w-3xl mx-auto leading-relaxed font-medium">
-              Zero disruption to your daily OPD rush. Patients book 24/7 via WhatsApp AI or walk in at your desk — while doctors write on paper or screen with zero data entry.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 text-left pt-2">
-            {/* Step 1 */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                    01
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
-                    🤖 24/7 WhatsApp AI &amp; Desk Intake
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900">WhatsApp AI Booking &amp; OPD Token</h3>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1.5 list-disc list-inside">
-                    <li><strong className="text-slate-800">24/7 WhatsApp AI Agent:</strong> Patients book checkups in 30s with 1-tap buttons.</li>
-                    <li><strong className="text-slate-800">Smart Sequential Token:</strong> Instant token (<code className="text-[10px] bg-slate-100 px-1 rounded font-bold font-mono">#TK-001</code>) + live turn alerts.</li>
-                    <li><strong className="text-slate-800">Front Desk Intake:</strong> Walk-ins registered with BP, Pulse, SpO₂, Temp &amp; Sugar.</li>
-                    <li><strong className="text-slate-800">Payment Gate:</strong> Direct Doctor UPI QR or Cash clears patients safely.</li>
-                  </ul>
-                </div>
-              </div>
-              <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-teal-800 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-teal-600" /> 30s WhatsApp Auto-Booking + Zero Rush
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="p-5 rounded-2xl bg-teal-50/70 border-2 border-teal-300 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                    02
-                  </span>
-                  <span className="text-[10px] font-bold text-teal-900 bg-teal-100 px-2 py-0.5 rounded-md border border-teal-200">
-                    👨‍⚕️ Doctor's Choice
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-teal-950">2-Way Flexible Consult</h3>
-                  <div className="space-y-2 mt-2 text-xs">
-                    <div className="p-2 bg-white rounded-lg border border-teal-200">
-                      <strong className="text-teal-950 font-bold block">Option A (Paper-Friendly):</strong>
-                      <span className="text-slate-600 text-[11px]">Write on paper pad as usual. Compounder snaps 1 photo ➡️ AI digitizes in 1.2s.</span>
-                    </div>
-                    <div className="p-2 bg-white rounded-lg border border-teal-200">
-                      <strong className="text-teal-950 font-bold block">Option B (1-Click Screen):</strong>
-                      <span className="text-slate-600 text-[11px]">Select 1-click clinical protocols or AI Voice Scribe on screen.</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="pt-2 border-t border-teal-200 text-[10.5px] font-bold text-teal-900 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-teal-700" /> 100% Doctor Fee Protected
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                    03
-                  </span>
-                  <span className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                    ⚡ Auto-Billing Hub
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900">Instant Itemized Bill</h3>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1 list-disc list-inside">
-                    <li>Medicines &amp; lab tests auto-load with live catalog prices.</li>
-                    <li>Compounder explains 4 VIP Member Benefits to patient.</li>
-                    <li>Collects payment: Cash or Dynamic Zero-Fee UPI QR.</li>
-                    <li>1-Click prints consolidated computerized receipt.</li>
-                  </ul>
-                </div>
-              </div>
-              <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-indigo-700 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-indigo-600" /> Zero manual data entry
-              </div>
-            </div>
-
-            {/* Step 4 */}
-            <div className="p-5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 shadow-sm transition-all duration-300 space-y-3 relative group flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                    04
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    📱 360° Real-time Sync
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900">WhatsApp &amp; Partner Dispatch</h3>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1 list-disc list-inside">
-                    <li>Patient receives WhatsApp e-Rx + 1 Free Follow-up pass.</li>
-                    <li>Pharmacy Dashboard receives medicine dispensing order.</li>
-                    <li>Lab Dashboard receives blood sample LOINC requisition.</li>
-                    <li>Patient picks up packed meds &amp; gives sample with ₹0 delay.</li>
-                  </ul>
-                </div>
-              </div>
-              <div className="pt-2 border-t border-slate-100 text-[10.5px] font-bold text-emerald-800 flex items-center gap-1">
-                <Check className="w-3.5 h-3.5 text-emerald-600" /> 100% Zero Patient Leakage
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* 4 Premium Patient Member Benefits Section */}
       <section className="py-16 relative z-10 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white border-y border-emerald-700/40">
         <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
@@ -2507,55 +2365,224 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
-      {/* Features Grid Section */}
-      <section id="features" className="py-20 relative z-10 border-t border-slate-100 bg-slate-50/30">
+      {/* ── SECTION: BUILT-IN CLOUD DOCTOR EMR SUITE (OPTIONAL POWER MODULE) ── */}
+      <section id="optional-emr" className="py-20 relative z-10 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Virtual Hospital Core Modules</h2>
-            <p className="text-slate-500 text-sm font-semibold mt-2">Connecting all clinical stakeholders on a single high-speed database.</p>
+          
+          {/* Section Header */}
+          <div className="mb-14 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
+              <Activity className="h-3.5 w-3.5 text-indigo-600" />
+              Optional Power Module · Included At ₹0 Extra Cost
+            </div>
+            
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight font-heading">
+              Prefer Screens Over Paper?<br />
+              <span className="bg-gradient-to-r from-indigo-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent">
+                Full Cloud Doctor EMR Ready on Day 1.
+              </span>
+            </h2>
+            
+            <p className="text-slate-600 text-sm sm:text-base font-normal max-w-3xl mx-auto leading-relaxed">
+              Our primary philosophy is zero-screen: keep writing on your trusted paper pad, your compounder scans in 1.2s, and AI digitizes everything. But if you or your associates prefer digital charting on desktop or iPad, VitalSync includes a hospital-grade Cloud Doctor EMR at zero extra cost. Ready when you are—or never touch a keyboard if you love paper.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-emerald-400/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] hover:-translate-y-1.5 duration-350 transition-all group text-left">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Activity className="h-5 w-5 text-emerald-650" />
+          {/* 4 Feature Bento Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+            
+            {/* Card 1: CDSS AI Scribe & Clinical Decision Support */}
+            <div className="p-7 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:border-indigo-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <Bot className="h-6 w-6" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                    CDSS AI Clinical Scribe
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 font-heading">
+                    AI Clinical Decision Support &amp; Voice Scribe
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Ambient voice-to-SOAP notes with intelligent drug-safety alerts.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-slate-600 font-medium">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <span><strong>Voice-to-SOAP Scribe:</strong> Dictate clinical findings naturally; AI structures chief complaints, diagnosis &amp; advice.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <span><strong>Realtime Drug-Safety Guard:</strong> Instant warnings for drug-drug interactions, contraindications, and pediatric dosage caps.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <span><strong>ICD-10 Smart Typeahead:</strong> Standardized diagnostic coding with one-tap suggestions.</span>
+                  </li>
+                </ul>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Doctor EMR Suite</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Complete clinical workspace: 1-Click Patient History, CDSS AI Scribe, live pharmacy inventory typeahead, Ophthalmic Refraction Grid, and SOP Config Tab.
-              </p>
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-indigo-700">
+                <span>Groq Llama-3 70B + Gemini Clinical Engine</span>
+                <span className="font-bold">Sub-250ms latency</span>
+              </div>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left mt-2 lg:mt-6">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Layers className="h-5 w-5 text-cyan-650" />
+            {/* Card 2: Multi-Specialty Clinical Grids */}
+            <div className="p-7 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:border-teal-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-teal-50 border border-teal-100 text-teal-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <Eye className="h-6 w-6" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-teal-800 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                    Multi-Specialty Grids
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 font-heading">
+                    Ophthalmology, Pediatrics &amp; Cardiology Modes
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Specialized charting interfaces designed for clinical specialty workflows.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-slate-600 font-medium">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
+                    <span><strong>Ophthalmic Refraction Matrix:</strong> 8-point RE/LE grid (Sph, Cyl, Axis, VA, IOP, Fundus) with 1-click spectacle print.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
+                    <span><strong>Pediatrics Growth Curves:</strong> Interactive WHO percentile curves (Weight/Age, Height/Age) + automated vaccination milestones.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
+                    <span><strong>Cardiology &amp; Diabetology:</strong> Longitudinal BP, HbA1c &amp; Blood Glucose trend graphs.</span>
+                  </li>
+                </ul>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pathology Lab Hub</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                Direct LOINC test requisitions, barcode sample tracking (`BAR-XXXX`), and automated instant PDF report dispatch to patient WhatsApp.
-              </p>
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-teal-700">
+                <span>SpecializationContext Dynamic Layouts</span>
+                <span className="font-bold">5 Specialties Built-In</span>
+              </div>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-teal-400/40 hover:shadow-[0_0_30px_rgba(20,184,166,0.08)] hover:-translate-y-1.5 duration-350 transition-all group text-left lg:mt-3">
-              <div className="w-10 h-10 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Building2 className="h-5 w-5 text-teal-650" />
+            {/* Card 3: 1-Tap Digital Rx Builder */}
+            <div className="p-7 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:border-emerald-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <Pill className="h-6 w-6" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                    Smart Rx Studio
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 font-heading">
+                    1-Tap Digital Prescription Builder
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Rapid drug selector connected live to your partner chemist's inventory.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-slate-600 font-medium">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Fast Dosage Regimens:</strong> 1-click frequency shortcuts (<code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded font-mono font-bold">1-0-1</code>, <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded font-mono font-bold">0-1-0</code>) and meal timing tags.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Live Chemist Stock Check:</strong> Real-time visibility into local pharmacy inventory avoids out-of-stock substitutions.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Instant Multi-Channel Dispatch:</strong> Auto-delivers branded PDF to patient WhatsApp and pushes dispensing order to pharmacy POS.</span>
+                  </li>
+                </ul>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Pharmacy POS &amp; Refills</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                FEFO batch inventory management (`BATCH-2026-X1`), 1-Click home delivery, and automated 3-stage chronic refill reminders (Day 7, Month 1, Month 3).
-              </p>
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-emerald-700">
+                <span>FEFO Chemist Sync</span>
+                <span className="font-bold">Zero Re-Typing</span>
+              </div>
             </div>
 
-            <div className="p-6 rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200 hover:border-indigo-400/40 hover:shadow-[0_0_30px_rgba(99,102,241,0.06)] hover:-translate-y-1.5 duration-350 transition-all group text-left mt-1 lg:mt-8">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
-                <Clock className="h-5 w-5 text-indigo-650" />
+            {/* Card 4: Unified Longitudinal Timeline */}
+            <div className="p-7 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:border-cyan-400 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="h-12 w-12 rounded-2xl bg-cyan-50 border border-cyan-100 text-cyan-600 flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                    <FileSpreadsheet className="h-6 w-6" />
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-cyan-800 bg-cyan-50 border border-cyan-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                    ABHA / ABDM Unified Record
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 font-heading">
+                    Unified Longitudinal Health Record
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Complete patient history, previous visits, and verified lab trends on one screen.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-slate-600 font-medium">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-cyan-600 shrink-0 mt-0.5" />
+                    <span><strong>Chronological Visit Timeline:</strong> Previous prescriptions, vital trends, and doctor notes visible side-by-side in &lt;1s.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-cyan-600 shrink-0 mt-0.5" />
+                    <span><strong>Integrated Lab Correlation:</strong> Pathology biomarker curves (HbA1c, Creatinine) plotted alongside medication changes.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-cyan-600 shrink-0 mt-0.5" />
+                    <span><strong>ABHA ID Health Locker:</strong> ABDM M1, M2 &amp; M3 compliant consent-based record exchange across India.</span>
+                  </li>
+                </ul>
               </div>
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">Compounder OPD Desk</h3>
-              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                OPD token generation (#TK-001), patient vitals logging (BP, SpO2, Sugar, BMI), 15-min eye dilation countdown timer, and Emergency SOS #1 priority routing.
+              <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-cyan-700">
+                <span>DPDP Act 2023 &amp; HIPAA Compliant</span>
+                <span className="font-bold">100% Doctor-Owned</span>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Dual-Mode Sovereign Invariant Callout */}
+          <div className="mt-10 p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 text-left">
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="inline-flex items-center gap-2 py-0.5 px-3 rounded-full bg-indigo-500/20 text-indigo-300 font-mono text-[10px] font-bold uppercase tracking-wider">
+                <Sparkles className="h-3 w-3 text-indigo-400" />
+                The Doctor's Autonomous Choice
+              </div>
+              <h4 className="text-base font-bold text-white font-heading">
+                Write on Paper Pad (1.2s AI Vision) ⇄ Click on Screen (Cloud EMR)
+              </h4>
+              <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                Choose your consultation mode per patient. Both flows feed the exact same automated WhatsApp Assistant, Chemist POS dispensing queue, and Lab LIS test worklist.
               </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={scrollToGate}
+                className="px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+              >
+                Explore Doctor EMR
+              </button>
+              <button
+                onClick={handleGetStartedClick}
+                className="px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                Start 90-Day Free Pilot <ArrowRight className="h-3.5 w-3.5" />
+              </button>
             </div>
           </div>
+
         </div>
       </section>
 
@@ -3318,129 +3345,170 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-              <div className="p-3 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded-2xl">
-                <Shield className="h-6 w-6" />
+              <div className="p-3 bg-teal-50 border border-teal-200 text-teal-600 rounded-2xl">
+                <Sparkles className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900 uppercase tracking-wider">Signup Eligibility Check</h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Verify credentials for medical pod initialization</p>
+                <h3 className="text-base font-black text-slate-900 font-heading">Start 90-Day Free Clinic Pilot</h3>
+                <p className="text-[11px] text-emerald-700 font-bold">100% Free for 90 Days · Zero Setup Cost · No Credit Card</p>
               </div>
             </div>
 
             {/* Error Message */}
             {eligibilityError && (
               <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-2.5 animate-shake">
-                <AlertCircle className="h-4 w-4 text-rose-400 mt-0.5 shrink-0" />
+                <AlertCircle className="h-4 w-4 text-rose-500 mt-0.5 shrink-0" />
                 <span className="text-[11px] font-semibold text-rose-700 leading-relaxed">{eligibilityError}</span>
               </div>
             )}
 
-            <form onSubmit={handleValidateEligibility} className="space-y-4">
+            <form onSubmit={handleValidateEligibility} className="space-y-3.5">
               {/* Registration Type Picker */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
-                  Proposed Clinician Role
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
+                  I Am Registering As
                 </label>
-                <div className="grid grid-cols-2 gap-2 bg-slate-55 p-1 rounded-xl border border-slate-200 animate-fade-in">
+                <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
                   <button
                     type="button"
                     onClick={() => setRegistrationType('doctor')}
-                    className={`py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                       registrationType === 'doctor'
-                        ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-500 hover:text-slate-850'
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Doctor / Clinic
+                    👨‍⚕️ Doctor / Clinic
                   </button>
                   <button
                     type="button"
                     onClick={() => setRegistrationType('partner')}
-                    className={`py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                    className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                       registrationType === 'partner'
-                        ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
-                        : 'text-slate-500 hover:text-slate-850'
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Pharmacy / Lab
+                    🏥 Pharmacy / Lab
                   </button>
                 </div>
               </div>
 
-              {/* Email Address Check */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5">
-                  Account Registration Email
+              {/* Doctor / Lead Clinician Name */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
+                  {registrationType === 'doctor' ? 'Doctor Name & Degree' : 'Contact Person Name'}
+                </label>
+                <input
+                  type="text"
+                  value={pilotDoctorName}
+                  onChange={(e) => setPilotDoctorName(e.target.value)}
+                  placeholder={registrationType === 'doctor' ? 'Dr. Vivek Kumar, MBBS, MD' : 'Pharmacist / Lab Director'}
+                  className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 px-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              {/* Clinic / Organization Name */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
+                  {registrationType === 'doctor' ? 'Clinic / Practice Name' : 'Pharmacy / Lab Name'}
+                </label>
+                <input
+                  type="text"
+                  value={pilotClinicName}
+                  onChange={(e) => setPilotClinicName(e.target.value)}
+                  placeholder="e.g. Sanjeevani Care Clinic, Line Bazar"
+                  className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 px-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all"
+                  required
+                />
+              </div>
+
+              {/* WhatsApp Number (For 1-Tap OTP & Activation) */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
+                  WhatsApp Number (For Instant Activation)
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-400">+91</span>
+                  <input
+                    type="tel"
+                    value={pilotPhone}
+                    onChange={(e) => setPilotPhone(e.target.value)}
+                    placeholder="98765 43210"
+                    maxLength={14}
+                    className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 pl-12 pr-3 text-xs text-slate-800 placeholder-slate-400 outline-none font-mono transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Professional Email */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
+                  Account Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                   <input
                     type="email"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="proposed-email@vitalsync.in"
-                    className="w-full bg-white border border-slate-200 focus:border-indigo-500/50 rounded-xl py-2.5 pl-10 pr-3.5 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all duration-300 font-sans"
+                    placeholder="doctor@clinic.com"
+                    className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 pl-9 pr-3 text-xs text-slate-800 placeholder-slate-400 outline-none transition-all"
                     required
                   />
                 </div>
-                <p className="text-[9px] text-slate-500 leading-normal pl-0.5 font-semibold">
-                  Privacy assurance: Email is validated locally and encrypted to protect clinic registry and practitioner identity.
-                </p>
               </div>
 
-              {/* Gating checklist */}
-              <div className="space-y-3 pt-1">
-                {/* Age check */}
-                <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={ageConfirm}
-                    onChange={(e) => setAgeConfirm(e.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 accent-indigo-500 rounded border-slate-200 bg-white"
-                  />
-                  <span className="text-[11px] text-slate-650 font-semibold leading-tight">
-                    I confirm that I am 18 years of age or older and legally authorized to practice medicine or manage clinical nodes.
-                  </span>
-                </label>
+              {/* Specialty Selector (if Doctor) */}
+              {registrationType === 'doctor' && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block pl-0.5 font-mono">
+                    Primary Clinical Specialty
+                  </label>
+                  <select
+                    value={pilotSpecialty}
+                    onChange={(e) => setPilotSpecialty(e.target.value)}
+                    className="w-full bg-white border border-slate-200 focus:border-teal-500 rounded-xl py-2 px-3 text-xs text-slate-800 outline-none transition-all cursor-pointer"
+                  >
+                    <option value="General Medicine">General Medicine / Physician</option>
+                    <option value="Ophthalmology">Ophthalmology (Eye Care &amp; Refraction)</option>
+                    <option value="Pediatrics">Pediatrics &amp; Neonatology</option>
+                    <option value="Cardiology">Cardiology / Diabetology</option>
+                    <option value="Dermatology">Dermatology</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="ENT">ENT / Otorhinolaryngology</option>
+                    <option value="Gynecology">Obstetrics &amp; Gynecology</option>
+                  </select>
+                </div>
+              )}
 
-                {/* Compliance check */}
-                <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={complianceConfirm}
-                    onChange={(e) => setComplianceConfirm(e.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 accent-indigo-500 rounded border-slate-200 bg-white"
-                  />
-                  <span className="text-[11px] text-slate-650 font-semibold leading-tight">
-                    I agree to maintain compliance with the Digital Personal Data Protection (DPDP) Act 2023 and ABDM standards.
-                  </span>
-                </label>
-
-                {/* Data Agreement check */}
-                <label className="flex items-start gap-2.5 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={baaConfirm}
-                    onChange={(e) => setBaaConfirm(e.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 accent-indigo-500 rounded border-slate-200 bg-white"
-                  />
-                  <span className="text-[11px] text-slate-650 font-semibold leading-tight">
-                    I accept the Clinic Sovereign Pod Data Agreement and clinical care coordination terms.
-                  </span>
-                </label>
+              {/* Trust & Guarantee Banner */}
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-[10.5px] text-emerald-800 leading-relaxed space-y-1 font-medium">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-900">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Your 90-Day Free Pilot Guarantees:</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-[10px] text-emerald-700">
+                  <span>• 0% OPD Consultation Cut</span>
+                  <span>• WhatsApp Assistant Active</span>
+                  <span>• Paper or Cloud EMR Choice</span>
+                  <span>• Cancel Anytime with 1 Tap</span>
+                </div>
               </div>
 
-              {/* Submit / Validation button */}
+              {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-3 mt-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+                className="w-full py-3 mt-1 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
               >
-                Verify Eligibility & Proceed <ArrowRight className="h-4 w-4" />
+                Launch My 90-Day Free Pilot <ArrowRight className="h-4 w-4" />
               </button>
 
-              <div className="flex items-center justify-center gap-1.5 text-[9px] text-slate-500 font-bold text-center border-t border-slate-200 pt-3">
+              <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-medium text-center pt-1">
                 <Lock className="h-3 w-3" />
-                <span>SSL Encrypted Transport Channel Active (HTTPS verified)</span>
+                <span>Encrypted pod isolation · DPDP Act 2023 &amp; ABDM compliant</span>
               </div>
             </form>
           </div>

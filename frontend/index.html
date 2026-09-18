@@ -202,15 +202,15 @@
           "url": "https://www.vitalsync.in",
           "offers": {
             "@type": "Offer",
-            "price": "0",
+            "price": "999",
             "priceCurrency": "INR",
-            "description": "100% Free Adoption for Doctors with Zero Setup Costs and Zero SaaS Fees"
+            "description": "90-Day Full-Access Free Pilot followed by flat ₹999/month Clinical Operations Fee with 0% OPD Commission"
           },
           "description": "VitalSync is an all-in-one Cloud Electronic Medical Record (EMR) and Virtual Hospital Network. Clinic staff operate on a dedicated Cloud EMR web platform (Doctor Chamber, Compounder Desk, Pharmacy POS, Lab LIS), while patients connect with the clinic via standard WhatsApp with zero app download required.",
           "featureList": [
             "Native Doctor EMR Console with CDSS AI Scribe & Refraction Matrix",
             "Full ABDM M1, M2, M3 & ABHA ID Healthcare Architecture Compliance",
-            "Realtime Sub-250ms PostgreSQL Change Data Capture (CDC) Sync",
+            "Realtime Sub-250ms Clinic Synchronization",
             "Compounder OPD Token Desk & Vitals Management",
             "Pharmacy FEFO Batch Inventory & 1-Click Refill Delivery",
             "Pathology LOINC Laboratory Information System (LIS)",
@@ -262,7 +262,7 @@
               "name": "Do doctors have to manually copy-paste or parallel-enter patient data between WhatsApp and VitalSync?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Zero manual entry is required. WhatsApp is purely the patient-facing interface. When a patient books an appointment, chats, or receives a prescription via WhatsApp, the data is automatically synced into the Doctor EMR and Compounder Desk in real time (<250ms latency) via Supabase PostgreSQL Change Data Capture (CDC)."
+                "text": "Zero manual entry is required. WhatsApp is purely the patient-facing interface. When a patient books an appointment, chats, or receives a prescription via WhatsApp, the data is automatically synced into the Doctor EMR and Compounder Desk in real time (<250ms latency) via instant cloud synchronization."
               }
             },
             {
@@ -278,7 +278,7 @@
               "name": "Who owns the clinical data and how is patient privacy protected?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "The doctor and clinic retain 100% ownership of all digital patient records in strict compliance with India's Digital Personal Data Protection (DPDP) Act 2023 and HIPAA guidelines. All records are isolated per clinic pod using PostgreSQL Row-Level Security (RLS) and encrypted in transit (TLS 1.3) and at rest (AES-256)."
+                "text": "The doctor and clinic retain 100% ownership of all digital patient records in strict compliance with India's Digital Personal Data Protection (DPDP) Act 2023 and HIPAA guidelines. All records are isolated per clinic pod and encrypted in transit (TLS 1.3) and at rest (AES-256)."
               }
             },
             {
