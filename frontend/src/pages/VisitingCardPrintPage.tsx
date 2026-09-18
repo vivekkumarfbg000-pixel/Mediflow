@@ -186,7 +186,7 @@ END:VCARD`;
             ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
             : 'bg-emerald-950/80 border-emerald-500/40 text-emerald-300'
         }`}>
-          ₹0 Setup • ₹0 SaaS
+          90 Days Free • ₹999/mo
         </span>
       </div>
 
@@ -213,7 +213,7 @@ END:VCARD`;
           <div><strong className={cardTheme === 'pearl' ? 'text-teal-900 font-black' : 'text-teal-300'}>1. Hospital Network:</strong> Unite clinic, chemist &amp; lab under ₹0 capital.</div>
           <div><strong className={cardTheme === 'pearl' ? 'text-emerald-900 font-black' : 'text-emerald-300'}>2. +20%–50% Earnings:</strong> Retain Medicine &amp; Lab income lost to outside shops.</div>
           <div><strong className={cardTheme === 'pearl' ? 'text-cyan-900 font-black' : 'text-cyan-300'}>3. Patient Retention:</strong> Follow-up consults, refills &amp; 90-day re-tests on WhatsApp.</div>
-          <div><strong className={cardTheme === 'pearl' ? 'text-amber-900 font-black' : 'text-amber-300'}>4. 100% Doctor Fee Protection:</strong> 100% consultation fees to bank with ₹0 SaaS &amp; ₹0 commission.</div>
+          <div><strong className={cardTheme === 'pearl' ? 'text-amber-900 font-black' : 'text-amber-300'}>4. 100% Doctor Fee Protection:</strong> 100% consultation fees to bank with 0% OPD commission (90 Days Free • ₹999/mo).</div>
           <div><strong className={cardTheme === 'pearl' ? 'text-indigo-900 font-black' : 'text-indigo-300'}>5. 1-Tap WhatsApp:</strong> Appointment booking, digital e-Rx &amp; lab PDFs on WA.</div>
           <div><strong className={cardTheme === 'pearl' ? 'text-purple-900 font-black' : 'text-purple-300'}>6. AI Clinical Suite:</strong> PubMed-backed OPD EMR &amp; AI Lab Report Analyzer.</div>
         </div>

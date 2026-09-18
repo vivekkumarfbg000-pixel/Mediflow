@@ -491,7 +491,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </p>
 
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              Lab, clinic, and pharmacy connected with interconnected dashboards and connect with patients through WhatsApp. Empowering independent doctors, local chemists, and pathology labs to unite into an automated hospital-grade outpatient network. Doctors choose <strong>Paper Pad (1.2s AI Vision scan)</strong> or <strong>Cloud EMR</strong>. Chronic patients get automated Day-25 1-tap WhatsApp refills with 10% VIP discounts and 90-day diagnostic re-test loops. Keep 100% of your consultation fees with <strong>₹0 setup cost and ₹0 software fees</strong>.
+              Lab, clinic, and pharmacy connected with interconnected dashboards and connect with patients through WhatsApp. Empowering independent doctors, local chemists, and pathology labs to unite into an automated hospital-grade outpatient network. Doctors choose <strong>Paper Pad (1.2s AI Vision scan)</strong> or <strong>Cloud EMR</strong>. Chronic patients get automated Day-25 1-tap WhatsApp refills with 10% VIP discounts and 90-day diagnostic re-test loops. Keep 100% of your consultation fees with a <strong>90-Day Free Pilot, then flat ₹999/month with 0% OPD commission</strong>.
             </p>
           </div>
 
@@ -759,7 +759,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
-                    <span><strong>₹0 Setup / ₹0 SaaS Fees:</strong> Permanent free adoption with zero recurring software licensing costs.</span>
+                    <span><strong>90-Day Free Pilot · Then ₹999/mo:</strong> Full-access clinical pilot with 0% OPD commission and zero hardware cost.</span>
                   </li>
                 </ul>
               </div>
@@ -2280,7 +2280,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   <td className="p-5 bg-teal-100/50 border-x border-teal-300 font-extrabold text-teal-950">
                     <div className="flex items-start gap-2">
                       <Award className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span><strong>₹0 Setup / ₹0 SaaS Fees:</strong> 100% of patient consultation fees go directly to doctor with 0% platform deductions.</span>
+                      <span><strong>90 Days Free · Then ₹999/mo:</strong> 100% of patient consultation fees go directly to doctor with 0% OPD commission (vs ₹1,500–₹5,000/mo by legacy EMRs).</span>
                     </div>
                   </td>
                   <td className="p-5 text-slate-600 font-medium">
@@ -2455,7 +2455,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-teal-700 bg-teal-100 border border-teal-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    0% Platform Fee (100% Free)
+                    0% OPD Platform Fee (100% Doctor Payout)
                   </span>
                   <Sparkles className="h-4 w-4 text-teal-600" />
                 </div>
@@ -2484,7 +2484,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    0% Platform Fee (100% Free)
+                    0% OPD Platform Fee (100% Doctor Payout)
                   </span>
                   <Award className="h-4 w-4 text-emerald-600" />
                 </div>
@@ -2502,7 +2502,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     <span>₹500.00 (100%)</span>
                   </div>
                   <div className="text-[10px] text-emerald-700 font-bold font-sans pt-1">
-                    ✓ Zero SaaS Subscription • Zero OPD Commission
+                    ✓ 90 Days Free • Flat ₹999/mo • Zero OPD Commission
                   </div>
                 </div>
               </div>

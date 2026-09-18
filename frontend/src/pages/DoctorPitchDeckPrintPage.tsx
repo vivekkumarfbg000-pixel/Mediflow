@@ -374,7 +374,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 </p>
                 
                 <p className="text-xs text-slate-700 leading-relaxed font-normal">
-                  Unite your OPD room with your local pharmacy and lab into an automated outpatient network. Deliver continuous care, <strong className="text-slate-950 font-bold">maximize lifelong patient retention</strong>, and <strong className="text-slate-950 font-bold">recover the 90% diagnostic &amp; medication value currently lost outside your clinic</strong> — expanding practice revenue by <strong className="text-teal-800 font-bold">2.5x to 3.8x per patient</strong> with <strong className="text-slate-950 font-bold">zero setup costs, zero SaaS fees, and zero workflow changes</strong>.
+                  Unite your OPD room with your local pharmacy and lab into an automated outpatient network. Deliver continuous care, <strong className="text-slate-950 font-bold">maximize lifelong patient retention</strong>, and <strong className="text-slate-950 font-bold">recover the 90% diagnostic &amp; medication value currently lost outside your clinic</strong> — expanding practice revenue by <strong className="text-teal-800 font-bold">2.5x to 3.8x per patient</strong> with <strong className="text-slate-950 font-bold">a 90-day free pilot, flat ₹999/month, and zero workflow changes</strong>.
                 </p>
               </div>
 
@@ -423,7 +423,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-slate-200">
               <div className="p-2 bg-slate-100 rounded-xl border border-slate-300 text-center">
                 <div className="text-[9px] font-bold uppercase text-teal-800">Adoption Cost</div>
-                <div className="text-xs font-black text-slate-900">₹0 Setup / ₹0 SaaS</div>
+                <div className="text-xs font-black text-slate-900">90 Days Free • ₹999/mo</div>
               </div>
               <div className="p-2 bg-slate-100 rounded-xl border border-slate-300 text-center">
                 <div className="text-[9px] font-bold uppercase text-indigo-800">Doctor Consultation</div>
@@ -760,7 +760,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   {/* 360 Guarantee */}
                   <div className="p-1.5 bg-emerald-100/90 rounded-lg border border-emerald-300 text-[9.5px] font-bold text-emerald-950 flex items-center justify-between shadow-2xs">
                     <span>💎 <strong>100% Patient Retention:</strong> 4 WhatsApp VIP Perks keep patients at your connected network.</span>
-                    <span className="font-black font-mono text-emerald-800">₹0 Software Fee</span>
+                    <span className="font-black font-mono text-emerald-800">90 Days Free • ₹999/mo</span>
                   </div>
                 </div>
               </div>
