@@ -487,11 +487,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </h1>
 
             <p className="text-base lg:text-lg font-bold text-teal-900 tracking-tight">
-              Zero Screen Fatigue for Doctors. 100% Chronic Patient Retention on WhatsApp.
+              Zero Screen Fatigue for Doctors. Increase Patient Retention on WhatsApp.
             </p>
 
             <p className="text-sm lg:text-base text-slate-650 leading-relaxed max-w-lg font-medium">
-              Empowering independent doctors, local chemists, and pathology labs to unite into an automated hospital-grade outpatient network. Doctors choose <strong>Paper Pad (1.2s AI Vision scan)</strong> or <strong>Cloud EMR</strong>. Chronic patients get automated Day-25 1-tap WhatsApp refills with 10% VIP discounts and 90-day diagnostic re-test loops. Keep 100% of your consultation fees with <strong>₹0 setup cost and ₹0 software fees</strong>.
+              Lab, clinic, and pharmacy connected with interconnected dashboards and connect with patients through WhatsApp. Empowering independent doctors, local chemists, and pathology labs to unite into an automated hospital-grade outpatient network. Doctors choose <strong>Paper Pad (1.2s AI Vision scan)</strong> or <strong>Cloud EMR</strong>. Chronic patients get automated Day-25 1-tap WhatsApp refills with 10% VIP discounts and 90-day diagnostic re-test loops. Keep 100% of your consultation fees with <strong>₹0 setup cost and ₹0 software fees</strong>.
             </p>
           </div>
 
@@ -651,7 +651,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <h3 className="text-base font-bold tracking-wide uppercase">The Decentralized Virtual Hospital</h3>
               <p className="text-xs text-slate-200 mt-0.5 leading-relaxed font-sans font-medium">
-                Independent Doctor + Partner Chemist + Partner Lab connected into an automated WhatsApp healthcare engine.
+                Lab, clinic, and pharmacy connected with interconnected dashboards and connect with patients through WhatsApp.
               </p>
             </div>
           </div>

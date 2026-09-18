@@ -1192,13 +1192,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         className="md:hidden fixed bottom-2 left-3 right-3 z-[9999] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.4)] rounded-2xl px-2 py-1.5"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 4px) + 4px)' }}
       >
-        <div className="flex items-center justify-between h-12 max-w-md mx-auto gap-1">
+        <div className="flex items-center justify-between h-12 max-w-md mx-auto gap-0.5 sm:gap-1">
           {(() => {
             if (currentRole === 'doctor') {
               const docTabs = [
                 { id: 'pod_view', label: 'Pod', icon: LayoutDashboard },
                 ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consult', icon: ClipboardList }] : []),
                 { id: 'chronic', label: 'Care Club', icon: HeartPulse },
+                { id: 'virtual_schedule', label: 'Video Consult', icon: Video },
                 { id: 'patients', label: 'Patients', icon: Users },
                 { id: 'financials', label: 'Finance', icon: CreditCard },
                 { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare }

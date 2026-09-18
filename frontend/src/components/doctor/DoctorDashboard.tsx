@@ -2957,6 +2957,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               { id: 'pod_view',          label: 'Clinic Dashboard',     icon: LayoutDashboard, badge: 0 },
               ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList, badge: 0 }] : []),
               { id: 'chronic',           label: 'Care Club 💊',         icon: HeartPulse, badge: vBadge },
+              { id: 'virtual_schedule',  label: 'Video Consult 💻',     icon: Video, badge: vBadge },
               { id: 'financials',        label: 'Finances',               icon: CreditCard, badge: 0 },
               { id: 'patients',          label: 'Patient Directory',      icon: Users, badge: 0 },
               { id: 'whatsapp',          label: 'WhatsApp Inbox',         icon: MessageSquare, badge: 0 },
@@ -3054,50 +3055,6 @@ Keep the tone professional, clinical, objective, and precise.`;
         {renderTabContent()}
       </div>
 
-      {/* ── DOCTOR RESPONSIVE SHORTCUT DOCK / FOOTER ── */}
-      {/* Tablet-Only Sticky Bottom Navigation Footer (hidden on mobile to prevent duplicate with root Navbar dock) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 px-2 py-1.5 hidden md:flex lg:hidden items-center justify-around shadow-2xl overflow-x-auto">
-        {(() => {
-          const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
-          const dockTabs = [
-            { id: 'pod_view',          label: 'Pod',         icon: LayoutDashboard, badge: 0 },
-            ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consult', icon: Stethoscope, badge: 0 }] : []),
-            { id: 'chronic',           label: 'Care Club',   icon: HeartPulse,      badge: vBadge },
-            { id: 'patients',          label: 'Patients',    icon: Users,           badge: 0 },
-            { id: 'financials',        label: 'Finance',     icon: CreditCard,      badge: 0 },
-            { id: 'whatsapp',          label: 'WhatsApp',    icon: MessageSquare,   badge: 0 }
-          ];
-          return dockTabs.map(item => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id as any)}
-                className={`relative flex flex-col items-center gap-0.5 text-[9px] font-bold py-1 px-2 rounded-xl transition-all cursor-pointer border-0 shrink-0 ${
-                  isActive
-                    ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 shadow-xs'
-                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 bg-transparent'
-                }`}
-              >
-                <div className="relative">
-                  <Icon className="w-4 h-4" />
-                  {item.badge > 0 && (
-                    <span className="absolute -top-1 -right-2 px-1 py-0.2 text-[8px] font-bold bg-rose-500 text-white rounded-full leading-none animate-pulse">
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.id === 'chronic' && !isActive && (
-                    <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                  )}
-                </div>
-                <span>{item.label}</span>
-              </button>
-            );
-          });
-        })()}
-      </div>
-
       {/* Desktop Floating Shortcut Pill Dock (>= lg) */}
       <div className="hidden lg:flex fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-2xl rounded-full p-1.5 items-center gap-1">
         {(() => {
@@ -3105,8 +3062,8 @@ Keep the tone professional, clinical, objective, and precise.`;
           const desktopDockTabs = [
             { id: 'pod_view',          label: 'Pod Matrix',       icon: LayoutDashboard, badge: 0 },
             ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'OPD Queue', icon: ClipboardList, badge: 0 }] : []),
-            // Care Club badge shows virtual appt count; Video Consult reachable via sub-switcher inside Care Club
             { id: 'chronic',           label: 'Care Club 💊',     icon: HeartPulse,      badge: vBadge },
+            { id: 'virtual_schedule',  label: 'Video Consult 💻', icon: Video,           badge: vBadge },
             { id: 'patients',          label: 'Patients',         icon: Users,           badge: 0 },
             { id: 'financials',        label: 'Finances',         icon: CreditCard,      badge: 0 },
             { id: 'whatsapp',          label: 'WhatsApp',         icon: MessageSquare,   badge: 0 },
