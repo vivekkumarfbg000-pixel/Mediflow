@@ -2,8 +2,8 @@
 -- 🏛️ VITALSYNC BIG TECH SOVEREIGN MIGRATION
 -- Migration: 20260918000003_whatsapp_infallibility_sentinel.sql
 -- Directives: Directive 100, 130, 131 (Edge Infallibility & Zero Dead-End Standard)
--- Description: Idempotent indexing, telemetry, and CDC publication for the Infallible
---              Autonomous Outbound WhatsApp Fallback Sentinel.
+-- Description: Idempotent indexing, telemetry harmonization, and CDC publication
+--              for the Infallible Autonomous Outbound WhatsApp Fallback Sentinel.
 -- ==============================================================================
 
 -- 1. Idempotent Column Additions on appointments
@@ -20,20 +20,28 @@ CREATE INDEX IF NOT EXISTS idx_appointments_phone_created_desc
 CREATE INDEX IF NOT EXISTS idx_appointments_payment_status_triage 
     ON public.appointments (pod_id, payment_status, status);
 
--- 3. Telemetry Table Idempotent Verification
+-- 3. Telemetry Table Idempotent Column Harmonization
 CREATE TABLE IF NOT EXISTS public.system_health_telemetry (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pod_id UUID,
-    service_name TEXT NOT NULL,
-    status TEXT NOT NULL,
-    details JSONB DEFAULT '{}'::jsonb,
-    error_message TEXT,
-    recorded_at TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    subsystem VARCHAR(50) DEFAULT 'whatsapp_api',
+    severity VARCHAR(50) DEFAULT 'info',
+    error_code VARCHAR(255),
+    error_stack TEXT,
+    healing_attempts INTEGER DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'unresolved',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_telemetry_pod_service_recorded 
-    ON public.system_health_telemetry (pod_id, service_name, recorded_at DESC);
+ALTER TABLE IF EXISTS public.system_health_telemetry 
+    ADD COLUMN IF NOT EXISTS service_name TEXT,
+    ADD COLUMN IF NOT EXISTS details JSONB DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS error_message TEXT,
+    ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMPTZ DEFAULT NOW();
+
+CREATE INDEX IF NOT EXISTS idx_telemetry_pod_created 
+    ON public.system_health_telemetry (pod_id, created_at DESC);
 
 -- 4. Idempotent Realtime CDC Publication Verification (Directive 125)
 DO $$
