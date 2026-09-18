@@ -496,7 +496,90 @@ if (fs.existsSync(SW_JS_PATH)) {
 
 scanFiles(SRC_DIR);
 
+// ── INVARIANT_26: Zero Auth Toast on Login (Bug Recurrence Shield) ────────────
+// Prevents re-introduction of the "Professional Portal Initialized" toast that
+// appeared on every login. No professional clinical app announces auth state in-app.
+{
+  const authFiles = ['App.tsx', 'AuthGateway.tsx'];
+  for (const fname of authFiles) {
+    const found = [];
+    function findFile(dir) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fp = path.join(dir, entry.name);
+        if (entry.isDirectory()) findFile(fp);
+        else if (entry.name === fname) found.push(fp);
+      }
+    }
+    findFile(SRC_DIR);
+    for (const fp of found) {
+      const relPath = path.relative(path.resolve(__dirname, '..'), fp);
+      const lines = fs.readFileSync(fp, 'utf8').split('\n');
+      lines.forEach((line, idx) => {
+        if (
+          (line.includes('Professional Portal') ||
+           line.includes('Successfully authenticated as') ||
+           line.includes('Portal Initialized')) &&
+          line.includes('mediflow-toast')
+        ) {
+          violations.push({
+            rule: 'INVARIANT_26_NO_AUTH_TOAST',
+            file: relPath,
+            line: idx + 1,
+            content: line.trim(),
+            reason: 'Login success toast ("Professional Portal Initialized") is forbidden. Auth success is self-evident from dashboard render. No professional clinical app announces auth state inside the UI.'
+          });
+        }
+      });
+    }
+  }
+}
+
+// ── INVARIANT_27: Single Bottom Nav in DoctorDashboard (Bug Recurrence Shield) ─
+// Prevents re-introduction of a duplicate `fixed bottom-0` nav bar that caused
+// the footer to appear in the header area on mobile.
+{
+  const ddPath = path.resolve(SRC_DIR, 'components/doctor/DoctorDashboard.tsx');
+  if (fs.existsSync(ddPath)) {
+    const ddContent = fs.readFileSync(ddPath, 'utf8');
+    const relPath = path.relative(path.resolve(__dirname, '..'), ddPath);
+    const fixedBottomCount = (ddContent.match(/fixed bottom-0/g) || []).length;
+    if (fixedBottomCount > 1) {
+      violations.push({
+        rule: 'INVARIANT_27_SINGLE_BOTTOM_NAV',
+        file: relPath,
+        line: 0,
+        content: `found ${fixedBottomCount} instances of "fixed bottom-0"`,
+        reason: `DoctorDashboard must have exactly ONE "fixed bottom-0" mobile nav bar. Found ${fixedBottomCount}. A duplicate nav causes the footer to appear in the header area on mobile viewports.`
+      });
+    }
+  }
+}
+
+// ── INVARIANT_28: Virtual Tab Must Be Merged Into Care Club (Bug Recurrence Shield) ─
+// Prevents virtual_schedule from being re-added as a standalone mobile bottom
+// dock tab. Virtual Reviews must be accessed via the Care Club sub-switcher only.
+{
+  const ddPath = path.resolve(SRC_DIR, 'components/doctor/DoctorDashboard.tsx');
+  if (fs.existsSync(ddPath)) {
+    const ddContent = fs.readFileSync(ddPath, 'utf8');
+    const relPath = path.relative(path.resolve(__dirname, '..'), ddPath);
+    // Look specifically inside the lg:hidden mobile dock section for virtual_schedule
+    const mobileDockMatch = ddContent.match(/lg:hidden[\s\S]*?const dockTabs[\s\S]*?\];/);
+    if (mobileDockMatch && mobileDockMatch[0].includes("'virtual_schedule'")) {
+      violations.push({
+        rule: 'INVARIANT_28_VIRTUAL_TAB_MERGED_INTO_CARE_CLUB',
+        file: relPath,
+        line: 0,
+        content: "id: 'virtual_schedule' in mobile dockTabs",
+        reason: "virtual_schedule must NOT appear as a standalone tab in the mobile bottom dock. Virtual Reviews is accessed via the Care Club sub-switcher pill. Remove it from dockTabs to keep the bottom nav to 5 items."
+      });
+    }
+  }
+}
+
 if (violations.length > 0) {
+
   console.error('\n================================================================================');
   console.error('🚨 MILITARY-GRADE ARCHITECTURAL INVARIANT BREACH DETECTED');
   console.error('================================================================================');

@@ -89,6 +89,39 @@ const WhatsAppTab = safeLazy(() => import('./tabs/WhatsAppTab').then(m => ({ def
 const SopConfigTab = safeLazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
 const ChronicCareTab = safeLazy(() => import('./tabs/ChronicCareTab').then(m => ({ default: m.ChronicCareTab })));
 
+// ── Idle Prefetcher: pre-download top-3 tab chunks during browser idle time ────
+// This silently fetches all tab JS bundles after the first paint so that every
+// subsequent tab switch is instant — zero download wait regardless of order.
+const prefetchTabChunks = () => {
+  const idle = (typeof window !== 'undefined' && 'requestIdleCallback' in window)
+    ? (cb: IdleRequestCallback) => window.requestIdleCallback(cb, { timeout: 3000 })
+    : (cb: () => void) => setTimeout(cb, 500);
+  idle(() => { import('./tabs/ConsultationTab').catch(() => {}); });
+  idle(() => { import('./tabs/PatientsDirectoryTab').catch(() => {}); });
+  idle(() => { import('./tabs/FinancialsTab').catch(() => {}); });
+  idle(() => { import('./tabs/WhatsAppTab').catch(() => {}); });
+  idle(() => { import('./tabs/ChronicCareTab').catch(() => {}); });
+  idle(() => { import('./tabs/SopConfigTab').catch(() => {}); });
+};
+
+// ── Tab Shimmer Skeleton: shown while lazy chunk is downloading ────────────────
+const TabShimmer: React.FC = () => (
+  <div className="w-full pb-20 px-2 animate-pulse" aria-hidden="true">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      {[1,2,3].map(i => (
+        <div key={`shimmer-card-top-${i}`} className="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+      ))}
+    </div>
+    <div className="h-4 rounded-full bg-slate-200 dark:bg-slate-800 w-3/4 mb-3" />
+    <div className="h-4 rounded-full bg-slate-200 dark:bg-slate-800 w-1/2 mb-3" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+      {[1,2,3,4].map(i => (
+        <div key={`shimmer-card-bottom-${i}`} className="h-32 rounded-2xl bg-slate-200 dark:bg-slate-800" />
+      ))}
+    </div>
+  </div>
+);
+
 export const DoctorDashboard: React.FC = () => {
   const { activePod, activeEntity, activeProfile } = useClinic();
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'>('pod_view');
@@ -152,6 +185,11 @@ export const DoctorDashboard: React.FC = () => {
       window.removeEventListener('storage', handleStorage);
     };
   }, [activeTab]);
+
+  // ── Idle Prefetch: silently download all tab chunks on first mount ──────────
+  // Runs once. After first paint the browser downloads all lazy chunks
+  // during idle time so every subsequent tab click is zero-wait instant.
+  useEffect(() => { prefetchTabChunks(); }, []);
 
   const handleToggleDigitalEmr = (newVal: boolean) => {
     setIsDigitalEmrEnabled(newVal);
@@ -819,34 +857,78 @@ export const DoctorDashboard: React.FC = () => {
 
     syncDashboardData();
 
+    // ── Targeted Per-Event Refreshers (Lightning Performance Fix) ─────────────
+    // Each CDC callback only reads the specific data store that changed.
+    // BEFORE: every event fired debouncedSync() which read ALL 8 stores.
+    // AFTER: onAppointmentChange only re-reads appointments, etc.
+    // Global debouncedSync is kept for multi-store events (SOP, settlement changes).
+
+    let apptDebounce: any = null;
+    const refreshAppointments = () => {
+      if (apptDebounce) clearTimeout(apptDebounce);
+      apptDebounce = setTimeout(() => setAppointments(api.getAppointments()), 50);
+    };
+
+    let patDebounce: any = null;
+    const refreshPatients = () => {
+      if (patDebounce) clearTimeout(patDebounce);
+      patDebounce = setTimeout(() => {
+        const registered = api.getPatients();
+        setPatients(registered);
+        setSelectedPatient(prev => prev ? (registered.find((p: any) => p.id === prev.id) || prev) : prev);
+      }, 50);
+    };
+
+    let ledgerDebounce: any = null;
+    const refreshLedgers = () => {
+      if (ledgerDebounce) clearTimeout(ledgerDebounce);
+      ledgerDebounce = setTimeout(() => setFinancialLedgers(api.getFinancialLedgers()), 50);
+    };
+
+    let invoiceDebounce: any = null;
+    const refreshInvoices = () => {
+      if (invoiceDebounce) clearTimeout(invoiceDebounce);
+      // Invoices affect appointments display (payment status) — refresh both
+      invoiceDebounce = setTimeout(() => {
+        setAppointments(api.getAppointments());
+        setFinancialLedgers(api.getFinancialLedgers());
+      }, 50);
+    };
+
+    let pathDebounce: any = null;
+    const refreshPathology = () => {
+      if (pathDebounce) clearTimeout(pathDebounce);
+      pathDebounce = setTimeout(() => setPathologyReports(api.getPathologyReports()), 50);
+    };
+
     let syncDebounceTimer: any = null;
     const debouncedSync = () => {
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
       syncDebounceTimer = setTimeout(() => {
         const registered = api.getPatients();
         setPatients(registered);
-        setSelectedPatient(prev => prev ? (registered.find(p => p.id === prev.id) || prev) : prev);
+        setSelectedPatient(prev => prev ? (registered.find((p: any) => p.id === prev.id) || prev) : prev);
         setAppointments(api.getAppointments());
         setPharmacyInventory(api.getPharmacyInventory());
         setWhatsAppOrders(api.getWhatsAppDrugOrders());
         setPathologyReports(api.getPathologyReports());
         setFinancialLedgers(api.getFinancialLedgers());
         setWhatsAppSessions(api.getWhatsAppSessions());
-      }, 50);
+      }, 250);
     };
 
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
+      // ── Targeted refreshes (fast: only updates the affected data slice) ───────
       onAppointmentChange: (payload) => {
         console.log('[DoctorDashboard] Realtime Appointment update received:', payload);
-        debouncedSync();
-        // Live appointments sync silently via debouncedSync() into the live OPD queue without intrusive popup banners
+        refreshAppointments(); // Only re-reads appointments — not all 8 stores
       },
-      onPatientChange: () => debouncedSync(),
-      onMedicineBillChange: () => debouncedSync(),
-      onLabRequisitionChange: () => debouncedSync(),
-      onFinancialLedgerChange: () => debouncedSync(),
-      onUnifiedInvoiceChange: () => debouncedSync(),
-      onEncounterChange: () => debouncedSync(),
+      onPatientChange: () => refreshPatients(),
+      onMedicineBillChange: () => refreshAppointments(), // medicine bill = queue update
+      onLabRequisitionChange: () => refreshPathology(),
+      onFinancialLedgerChange: () => refreshLedgers(),
+      onUnifiedInvoiceChange: () => refreshInvoices(),
+      onEncounterChange: () => refreshAppointments(),
       onWhatsAppSessionChange: (payload) => {
         console.log('[DoctorDashboard] Realtime WhatsApp Session update received:', payload);
         const dbSession = payload.new;
@@ -889,14 +971,16 @@ export const DoctorDashboard: React.FC = () => {
         }
         debouncedSync();
       },
-      onPathologyReportChange: () => debouncedSync(),
+      // ── Targeted refreshes (continued) ─────────────────────────────────────
+      onPathologyReportChange: () => refreshPathology(),
+      onLabTestBillChange: () => refreshPathology(),
+      onInventoryHoldChange: () => setPharmacyInventory(api.getPharmacyInventory()),
+      onChronicCohortChange: () => refreshPatients(),
+      // ── Full sync only for multi-store events ──────────────────────────────
       onPoolSettlementChange: () => debouncedSync(),
       onClinicSopChange: () => debouncedSync(),
-      onSaaSInvoiceChange: () => debouncedSync(),
-      onSaaSPrescriptionChange: () => debouncedSync(),
-      onInventoryHoldChange: () => debouncedSync(),
-      onChronicCohortChange: () => debouncedSync(),
-      onLabTestBillChange: () => debouncedSync()
+      onSaaSInvoiceChange: () => refreshLedgers(),
+      onSaaSPrescriptionChange: () => refreshAppointments()
     });
 
     const apiUnsub = api.subscribe(debouncedSync);
@@ -2126,12 +2210,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   const renderTabContent = () => {
     return (
       <div className="w-full relative pb-20">
-        <React.Suspense fallback={
-          <div className="glass-panel p-12 text-center text-slate-500 rounded-2xl">
-            <RefreshCw className="w-5 h-5 animate-spin text-primary mx-auto" />
-            <p className="text-xs mt-2 font-medium">Loading clinical workspace...</p>
-          </div>
-        }>
+        <React.Suspense fallback={<TabShimmer />}>
           {/* 1. Clinic Dashboard / Pod View */}
           {visitedTabs.has('pod_view') && (
             <div key="tab-pane-pod_view" style={{ display: activeTab === 'pod_view' ? 'block' : 'none' }}>

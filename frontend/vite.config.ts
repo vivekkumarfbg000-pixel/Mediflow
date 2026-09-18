@@ -5,7 +5,7 @@ import { visualizer } from 'rollup-plugin-visualizer'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const plugins = [react()]
-  
+
   if (mode === 'analyze') {
     plugins.push(visualizer({
       filename: 'bundle-analysis.html',
@@ -18,6 +18,15 @@ export default defineConfig(({ mode }) => {
 
   return defineConfig({
     plugins,
+    // ⚡ Pre-bundle heavy deps on dev-server start — instant first page load
+    optimizeDeps: {
+      include: [
+        '@supabase/supabase-js',
+        'react',
+        'react-dom',
+        'lucide-react'
+      ]
+    },
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || ''),
       'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '')
@@ -27,6 +36,10 @@ export default defineConfig(({ mode }) => {
       port: 5173
     },
     build: {
+      // Modern esbuild target: smaller output, faster compilation
+      target: 'es2020',
+      // Skip gzip/brotli size reporting in CI — saves ~8-10s per Vercel build
+      reportCompressedSize: false,
       chunkSizeWarningLimit: 600,
       cssCodeSplit: true,
       rollupOptions: {
@@ -42,7 +55,8 @@ export default defineConfig(({ mode }) => {
               if (id.includes('lucide-react')) {
                 return 'vendor-lucide';
               }
-              if (id.includes('pdf-lib')) {
+              // pdf-lib is ~500KB — keep isolated so it never blocks initial app load
+              if (id.includes('pdf-lib') || id.includes('pdfmake')) {
                 return 'vendor-pdf';
               }
               if (id.includes('date-fns') || id.includes('dayjs') || id.includes('moment')) {
@@ -62,4 +76,3 @@ export default defineConfig(({ mode }) => {
     }
   })
 })
-
