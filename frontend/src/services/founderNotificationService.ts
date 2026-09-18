@@ -186,6 +186,23 @@ ${email ? `📧 *Doctor Email:* ${email}\n` : ''}🏷️ *Clinic Code:* ${clinic
       console.warn('[FounderNotification] Demo WA outbound queue notice:', waErr);
     }
 
+    // ── 2b. Dispatch WhatsApp Confirmation to Doctor ─────────────────────────
+    if (cleanDoctorPhone) {
+      const doctorMessage = `Namaste ${doctorName ? `Dr. ${doctorName}` : 'Doctor'}! 🙏\n\nThank you for booking a Live Demo with VitalSync.\n\nYour request for ${preferredTime || 'soon'} has been received. Our Deployment Desk will connect with you shortly to confirm the slot.\n\nRef: ${refCode}`;
+      try {
+        console.log(`[FounderNotification] Dispatching demo confirmation to Doctor (${cleanDoctorPhone})...`);
+        WhatsAppService.sendWhatsAppMessagePayload(
+          `91${cleanDoctorPhone}`,
+          'mediflow_conversational_reply',
+          { replyText: doctorMessage }
+        ).catch(err => {
+          console.warn('[FounderNotification] Doctor confirmation WA dispatch notice:', err);
+        });
+      } catch (waErr) {
+        console.warn('[FounderNotification] Doctor WA outbound queue notice:', waErr);
+      }
+    }
+
     // ── 3. Dual-Write to Cloud Telemetry ────────────────────────────────────
     try {
       await supabase.from('system_health_telemetry').insert([{
@@ -214,7 +231,7 @@ ${email ? `📧 *Doctor Email:* ${email}\n` : ''}🏷️ *Clinic Code:* ${clinic
       console.warn('[FounderNotification] Demo telemetry dual-write notice:', dbErr);
     }
 
-    // ── 4. Log to Local Founder Alerts Radar ────────────────────────────────
+    // ── 4. Log to Local Founder Alerts Radar & Escalation Tickets ─────────────
     try {
       if (typeof window !== 'undefined') {
         const existing = safeGetStorageJSON<any[]>('founder_alerts', []);
@@ -229,6 +246,20 @@ ${email ? `📧 *Doctor Email:* ${email}\n` : ''}🏷️ *Clinic Code:* ${clinic
         };
         safeSetStorageJSON('founder_alerts', [newAlert, ...existing.slice(0, 25)]);
         window.dispatchEvent(new CustomEvent('mediflow-founder-alert', { detail: newAlert }));
+        
+        // Push as a High-Priority Lead to SaaS Admin Support Tickets Dashboard
+        import('./whatsappSupportBotService').then(({ WhatsAppSupportBotService }) => {
+          WhatsAppSupportBotService.logEscalationTicket({
+            clinic_name: clinicName || 'New Lead',
+            doctor_name: doctorName || 'Anonymous Doctor',
+            sender_role: 'doctor',
+            query_text: `Demo Requested\nSpecialty: ${specialty || 'General'}\nPatients: ${patientsVolume || 'N/A'}\nTime: ${preferredTime || 'N/A'}`,
+            category: 'sales_lead' as any,
+            status: 'open',
+            pod_id: 'SYSTEM',
+            phone: cleanDoctorPhone || FOUNDER_PHONE
+          }).catch(() => {});
+        }).catch(() => {});
       }
     } catch (_localErr) {
       /* ignore */

@@ -31,6 +31,7 @@ const InteractivePlexus3D: React.FC = () => {
     let animationFrameId: number;
     let width = (canvas.width = window.innerWidth);
     let height = (canvas.height = window.innerHeight);
+    let isIntersecting = true;
 
     const particles: Array<{
       x: number;
@@ -81,6 +82,7 @@ const InteractivePlexus3D: React.FC = () => {
     window.addEventListener('resize', resize);
 
     const render = () => {
+      if (!isIntersecting) return;
       ctx.clearRect(0, 0, width, height);
 
       // Plexus background is transparent to let the CSS Parallax 3D background show through underneath
@@ -146,10 +148,22 @@ const InteractivePlexus3D: React.FC = () => {
       animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isIntersecting = entry.isIntersecting;
+        if (isIntersecting) {
+          // ensure we don't start multiple loops
+          cancelAnimationFrame(animationFrameId);
+          render();
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(canvas);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      observer.disconnect();
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseleave', handleMouseLeave);
       window.removeEventListener('resize', resize);
@@ -247,24 +261,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       setSimStep(nextStep);
     }, 400);
   };
-  // Mouse coordinates state for background parallax effect
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    let ticking = false;
     const handleMouseMove = (e: MouseEvent) => {
-      // Normalize values between -0.5 and 0.5
-      const x = (e.clientX / window.innerWidth) - 0.5;
-      const y = (e.clientY / window.innerHeight) - 0.5;
-      setMousePos({ x, y });
-
-      // Update CSS variables for the mouse follow glow spotlight
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const pxX = e.clientX - rect.left;
-        const pxY = e.clientY - rect.top;
-        containerRef.current.style.setProperty('--mouse-x', `${pxX}px`);
-        containerRef.current.style.setProperty('--mouse-y', `${pxY}px`);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (containerRef.current) {
+            const rect = containerRef.current.getBoundingClientRect();
+            const pxX = e.clientX - rect.left;
+            const pxY = e.clientY - rect.top;
+            containerRef.current.style.setProperty('--mouse-x', `${pxX}px`);
+            containerRef.current.style.setProperty('--mouse-y', `${pxY}px`);
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 

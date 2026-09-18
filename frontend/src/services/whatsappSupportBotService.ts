@@ -198,7 +198,7 @@ export class WhatsAppSupportBotService {
   }
 
   // ── Log Ticket to Local State & Supabase ───────────────────────────────────
-  private static async logEscalationTicket(ticket: Omit<SupportEscalationTicket, 'id' | 'created_at'>) {
+  static async logEscalationTicket(ticket: Omit<SupportEscalationTicket, 'id' | 'created_at'>) {
     const cleanPhone = ticket.phone ? ticket.phone.replace(/\D/g, '').slice(-10) : undefined;
     const newTicket: SupportEscalationTicket = {
       ...ticket,
