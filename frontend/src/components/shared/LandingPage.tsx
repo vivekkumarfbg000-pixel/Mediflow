@@ -646,7 +646,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   <Sparkles className="h-3 w-3" /> Hyper-Local Triad SOP
                 </span>
                 <span className="inline-flex items-center gap-1 text-[9px] font-mono text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                  ⚡ 250ms CDC Sync
+                  ⚡ Sub-Second Live Sync
                 </span>
               </div>
               <h3 className="text-base font-bold tracking-wide uppercase">The Decentralized Virtual Hospital</h3>
@@ -875,7 +875,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <Zap className="h-4 w-4" />
               </span>
               <span>
-                <strong>Unified Realtime Highway:</strong> Supabase PostgreSQL CDC streams updates between Doctor EMR, Pharmacy POS, and Lab LIS at <strong>sub-250ms latency</strong> with zero manual copy-pasting.
+                <strong>Unified Realtime Highway:</strong> Instant cloud synchronization connects Doctor EMR, Pharmacy POS, and Lab LIS at <strong>sub-250ms speed</strong> with zero manual copy-pasting.
               </span>
             </div>
             <span className="font-mono text-[11px] text-teal-400 whitespace-nowrap bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
@@ -2150,7 +2150,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   <td className="p-5 bg-teal-50/30 border-x border-teal-200/60 font-semibold text-slate-900">
                     <div className="flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                      <span><strong>Zero Double-Entry:</strong> Live sub-250ms PostgreSQL CDC synchronizes patient bookings &amp; charts straight to Doctor Console.</span>
+                      <span><strong>Zero Double-Entry:</strong> Live sub-250ms instant cloud sync delivers patient bookings &amp; charts straight to Doctor Console.</span>
                     </div>
                   </td>
                   <td className="p-5 text-slate-600">
@@ -2436,7 +2436,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                  Covers 24/7 Meta WhatsApp API costs, real-time Supabase cloud sync, AI clinical triage, and automated 5-console triad networking.
+                  Covers 24/7 official WhatsApp Business messaging, real-time cloud data sync, AI clinical triage, and automated 5-console clinic networking.
                 </p>
                 <button
                   type="button"
@@ -2620,7 +2620,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <strong className="text-slate-900">Zero manual entry or copy-pasting is required.</strong> WhatsApp functions purely as the friction-free patient interface (for booking, receiving prescriptions, and ordering refills).
                     </p>
                     <p>
-                      All interactions sync directly with our high-speed PostgreSQL database via real-time Change Data Capture (CDC) at <strong>sub-250ms latency</strong>. When a patient books an appointment or a doctor issues a digital prescription, tokens and clinical records are automatically populated inside the Doctor EMR, Compounder Desk, and Pharmacy POS in real time.
+                      All interactions synchronize instantly across all clinic devices at <strong>sub-250ms speed</strong>. When a patient books an appointment or a doctor issues a digital prescription, tokens and clinical records are automatically populated inside the Doctor EMR, Compounder Desk, and Pharmacy POS in real time.
                     </p>
                   </div>
                 )
@@ -2647,7 +2647,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 answer: (
                   <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
                     <p>
-                      <strong className="text-slate-900">You and your clinic retain 100% ownership of your patient records.</strong> In strict compliance with India's <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and HIPAA privacy guidelines, data is partitioned per clinic pod using PostgreSQL Row-Level Security (RLS).
+                      <strong className="text-slate-900">You and your clinic retain 100% ownership of your patient records.</strong> In strict compliance with India's <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and HIPAA privacy guidelines, your clinic's patient records are isolated in dedicated private encrypted storage.
                     </p>
                     <p>
                       All payloads are encrypted in transit using <strong>TLS 1.3</strong> and at rest using <strong>AES-256</strong>. VitalSync never aggregates, sells, or monetizes patient data.
@@ -3066,8 +3066,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                       <Shield className="h-12 w-12" />
                     </div>
                     <div className="space-y-2">
-                      <h4 className="text-lg font-extrabold text-white">Postgres Row Isolation</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">Physical-like database isolation rules protect patient records. Fully compliant, ultra-secure.</p>
+                      <h4 className="text-lg font-extrabold text-white">Bank-Grade Data Isolation</h4>
+                      <p className="text-xs text-slate-400 leading-relaxed">Encrypted cloud isolation guarantees complete privacy for all patient records. Fully compliant, ultra-secure.</p>
                     </div>
                   </>
                 )}
@@ -3302,16 +3302,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
                 {tourSlide === 5 && (
                   <div className="space-y-4 animate-fade-in text-left">
-                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">PostgreSQL Row-Level Security & Compliance</h3>
+                    <h3 className="text-xl font-extrabold text-slate-900 leading-tight">Bank-Grade Data Privacy &amp; Compliance</h3>
                     <p className="text-xs text-slate-655 leading-relaxed">
-                      Patient data protection is enforced at the storage engine layer. All database schemas are hardened to comply with strict regulatory frameworks.
+                      Patient data protection is enforced at the highest architectural standards. All clinical records are protected to comply with strict medical regulatory frameworks.
                     </p>
                     <div className="space-y-3">
                       <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-start gap-3">
                         <Shield className="h-4.5 w-4.5 text-emerald-600 mt-0.5 shrink-0" />
                         <div>
                           <span className="text-xs font-bold text-emerald-800">Walled Multi-Tenancy</span>
-                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Strict PostgreSQL Row-Level Security (RLS) partitions data per tenant, preventing cross-tenant access.</span>
+                          <span className="text-[10px] text-slate-500 mt-0.5 block leading-relaxed">Dedicated private tenant partitions isolate your practice data, preventing any unauthorized or external access.</span>
                         </div>
                       </div>
                       <div className="p-3 bg-cyan-50/50 border border-cyan-100 rounded-xl flex items-start gap-3">

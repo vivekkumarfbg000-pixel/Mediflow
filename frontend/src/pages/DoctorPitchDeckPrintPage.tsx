@@ -427,7 +427,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               </div>
               <div className="p-2 bg-slate-100 rounded-xl border border-slate-300 text-center">
                 <div className="text-[9px] font-bold uppercase text-indigo-800">Doctor Consultation</div>
-                <div className="text-xs font-black text-slate-900">100% Protected (Rule 58)</div>
+                <div className="text-xs font-black text-slate-900">100% Doctor Payout</div>
               </div>
               <div className="p-2 bg-slate-100 rounded-xl border border-slate-300 text-center">
                 <div className="text-[9px] font-bold uppercase text-emerald-800">Patient Adoption</div>
@@ -1064,7 +1064,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
 
                 <div className="p-3 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-1.5">
                   <div className="text-xs font-black text-slate-950 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> Rule 58 / 103: Fee Protection
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" /> 100% Doctor Fee Protection Guarantee
                   </div>
                   <p className="text-[10px] text-slate-800 font-medium">
                     100% of patient consultation fees booked at counter go directly to you with <strong>0% platform deduction</strong>.
@@ -1290,7 +1290,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
 
             {/* Bottom Invariant Banner */}
             <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
-              <span className="text-slate-800 font-bold">100% Realtime CDC synchronized • Zero app downloads required for patients.</span>
+              <span className="text-slate-800 font-bold">100% Real-time synchronization • Zero app downloads required for patients.</span>
               <span className="text-teal-800 font-black">Revenue Simulator →</span>
             </div>
           </section>
@@ -1501,14 +1501,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 Launch Your Connected Practice in 3 Simple Steps
               </h2>
               <p className="text-xs text-slate-700 mt-0.5">
-                Zero upfront SaaS subscription fees. Zero complex hardware. Practice onboarding in under 15 minutes.
+                First 90 days 100% Free. Zero complex hardware. Practice onboarding in under 15 minutes.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mt-3">
                 <div className="p-3 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-1 text-center">
                   <div className="w-7 h-7 rounded-lg bg-teal-700 text-white mx-auto flex items-center justify-center font-black text-xs shadow-sm">1</div>
                   <div className="text-xs font-black text-slate-950">Practice Setup &amp; Bank</div>
-                  <p className="text-[10px] text-slate-800 font-medium">Register clinic profile and link direct settlement bank account (Rule 58).</p>
+                  <p className="text-[10px] text-slate-800 font-medium">Register clinic profile and link direct settlement bank account for instant payouts.</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-1 text-center">
