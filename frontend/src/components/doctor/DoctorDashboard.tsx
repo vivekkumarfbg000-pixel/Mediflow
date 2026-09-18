@@ -58,69 +58,13 @@ import { DoctorRegistrationModal } from '../auth/DoctorRegistrationModal';
 import { WhatsAppTestDispatcherModal } from '../shared/WhatsAppTestDispatcherModal';
 import { WhatsAppService } from '../../services/whatsappService';
 
-const safeLazy = (importFn: () => Promise<any>) =>
-  React.lazy(() =>
-    importFn().catch((err) => {
-      console.warn('[VitalSync] Dynamic chunk load failed (fresh build deployment detected). Executing auto-recovery reload...', err);
-      if (typeof window !== 'undefined') {
-        let reloaded = false;
-        try {
-          reloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard') === 'true';
-        } catch {
-          /* ignore storage security restrictions */
-        }
-        if (!reloaded) {
-          try {
-            sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
-          } catch {
-            /* ignore storage security restrictions */
-          }
-          window.location.reload();
-        }
-      }
-      return importFn();
-    })
-  );
+import { ConsultationTab } from './tabs/ConsultationTab';
+import { FinancialsTab } from './tabs/FinancialsTab';
+import { PatientsDirectoryTab } from './tabs/PatientsDirectoryTab';
+import { WhatsAppTab } from './tabs/WhatsAppTab';
+import { SopConfigTab } from './tabs/SopConfigTab';
+import { ChronicCareTab } from './tabs/ChronicCareTab';
 
-const ConsultationTab = safeLazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
-const FinancialsTab = safeLazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
-const PatientsDirectoryTab = safeLazy(() => import('./tabs/PatientsDirectoryTab').then(m => ({ default: m.PatientsDirectoryTab })));
-const WhatsAppTab = safeLazy(() => import('./tabs/WhatsAppTab').then(m => ({ default: m.WhatsAppTab })));
-const SopConfigTab = safeLazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
-const ChronicCareTab = safeLazy(() => import('./tabs/ChronicCareTab').then(m => ({ default: m.ChronicCareTab })));
-
-// ── Idle Prefetcher: pre-download top-3 tab chunks during browser idle time ────
-// This silently fetches all tab JS bundles after the first paint so that every
-// subsequent tab switch is instant — zero download wait regardless of order.
-const prefetchTabChunks = () => {
-  const idle = (typeof window !== 'undefined' && 'requestIdleCallback' in window)
-    ? (cb: IdleRequestCallback) => window.requestIdleCallback(cb, { timeout: 3000 })
-    : (cb: () => void) => setTimeout(cb, 500);
-  idle(() => { import('./tabs/ConsultationTab').catch(() => {}); });
-  idle(() => { import('./tabs/PatientsDirectoryTab').catch(() => {}); });
-  idle(() => { import('./tabs/FinancialsTab').catch(() => {}); });
-  idle(() => { import('./tabs/WhatsAppTab').catch(() => {}); });
-  idle(() => { import('./tabs/ChronicCareTab').catch(() => {}); });
-  idle(() => { import('./tabs/SopConfigTab').catch(() => {}); });
-};
-
-// ── Tab Shimmer Skeleton: shown while lazy chunk is downloading ────────────────
-const TabShimmer: React.FC = () => (
-  <div className="w-full pb-20 px-2 animate-pulse" aria-hidden="true">
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-      {[1,2,3].map(i => (
-        <div key={`shimmer-card-top-${i}`} className="h-24 rounded-2xl bg-slate-200 dark:bg-slate-800" />
-      ))}
-    </div>
-    <div className="h-4 rounded-full bg-slate-200 dark:bg-slate-800 w-3/4 mb-3" />
-    <div className="h-4 rounded-full bg-slate-200 dark:bg-slate-800 w-1/2 mb-3" />
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-      {[1,2,3,4].map(i => (
-        <div key={`shimmer-card-bottom-${i}`} className="h-32 rounded-2xl bg-slate-200 dark:bg-slate-800" />
-      ))}
-    </div>
-  </div>
-);
 
 export const DoctorDashboard: React.FC = () => {
   const { activePod, activeEntity, activeProfile } = useClinic();
@@ -186,10 +130,6 @@ export const DoctorDashboard: React.FC = () => {
     };
   }, [activeTab]);
 
-  // ── Idle Prefetch: silently download all tab chunks on first mount ──────────
-  // Runs once. After first paint the browser downloads all lazy chunks
-  // during idle time so every subsequent tab click is zero-wait instant.
-  useEffect(() => { prefetchTabChunks(); }, []);
 
   const handleToggleDigitalEmr = (newVal: boolean) => {
     setIsDigitalEmrEnabled(newVal);
@@ -2200,8 +2140,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   const renderTabContent = () => {
     return (
       <div className="w-full relative pb-20">
-        <React.Suspense fallback={<TabShimmer />}>
-          {/* 1. Clinic Dashboard / Pod View */}
+        {/* 1. Clinic Dashboard / Pod View */}
           {visitedTabs.has('pod_view') && (
             <div key="tab-pane-pod_view" style={{ display: activeTab === 'pod_view' ? 'block' : 'none' }}>
               <PodCommandCenter 
@@ -2439,7 +2378,6 @@ Keep the tone professional, clinical, objective, and precise.`;
               />
             </div>
           )}
-        </React.Suspense>
       </div>
     );
   };
