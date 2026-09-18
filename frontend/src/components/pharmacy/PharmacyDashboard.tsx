@@ -678,7 +678,7 @@ export const PharmacyDashboard: React.FC = () => {
 
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 animate-fade-in"
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 min-h-screen flex flex-col justify-between"
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
     >
       <style>{`
@@ -699,7 +699,7 @@ export const PharmacyDashboard: React.FC = () => {
             TAB 1: EXECUTIVE OVERVIEW COCKPIT (MODERN BENTO GRID)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
-          <div className="space-y-6 text-left animate-fade-in">
+          <div className="space-y-6 text-left">
             {/* Bento KPI Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* Card 1: Active Prescriptions */}
@@ -1026,7 +1026,7 @@ export const PharmacyDashboard: React.FC = () => {
             TAB 2: DISPENSATION WORKLIST & GATE 3 HUB
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'dispensation_queue' && (
-          <div className="space-y-6 text-left animate-fade-in">
+          <div className="space-y-6 text-left">
             {/* Sub Switcher */}
             <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
               <button
@@ -1685,7 +1685,7 @@ export const PharmacyDashboard: React.FC = () => {
             TAB 3: SMART INVENTORY & FEFO ENGINE
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'inventory_catalog' && (
-          <div className="space-y-6 text-left animate-fade-in">
+          <div className="space-y-6 text-left">
             {/* Sub Switcher */}
             <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
               <button
@@ -2217,7 +2217,7 @@ export const PharmacyDashboard: React.FC = () => {
             TAB 4: FINANCIALS, LEDGER & SETTLEMENTS
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'financials_ledger' && (
-          <div className="space-y-6 text-left animate-fade-in">
+          <div className="space-y-6 text-left">
             {/* Sub Switcher */}
             <div className="grid grid-cols-4 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
               <button

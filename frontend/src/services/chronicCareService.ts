@@ -1,4 +1,4 @@
-﻿import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
 import { ClinicalNotificationService } from './clinicalNotificationService';
@@ -23,7 +23,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'DIABETES',
     name: 'Type-2 Diabetes Mellitus',
     category: 'Endocrine & Metabolic',
-    icon: 'ðŸ©¸',
+    icon: '🩸',
     color: 'emerald',
     standardSupplyDays: 30,
     mandatoryRetestCode: '4544-3',
@@ -36,7 +36,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'HYPERTENSION',
     name: 'Essential Hypertension',
     category: 'Cardiovascular',
-    icon: 'ðŸ«€',
+    icon: '🫀',
     color: 'rose',
     standardSupplyDays: 30,
     mandatoryRetestCode: '2160-0',
@@ -49,7 +49,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'THYROID',
     name: 'Hypothyroidism / Thyroid Disorders',
     category: 'Endocrine & Metabolic',
-    icon: 'ðŸ¦‹',
+    icon: '🦋',
     color: 'purple',
     standardSupplyDays: 60,
     mandatoryRetestCode: '3016-3',
@@ -62,7 +62,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'CARDIAC',
     name: 'Ischemic Heart Disease (CAD / Stent)',
     category: 'Cardiovascular',
-    icon: 'ðŸ’“',
+    icon: '💓',
     color: 'red',
     standardSupplyDays: 30,
     mandatoryRetestCode: '2093-3',
@@ -75,7 +75,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'RESPIRATORY',
     name: 'Asthma & COPD',
     category: 'Pulmonary',
-    icon: 'ðŸ«',
+    icon: '🫁',
     color: 'cyan',
     standardSupplyDays: 60,
     mandatoryRetestCode: '1989-3',
@@ -88,7 +88,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'ARTHRITIS',
     name: 'Osteoarthritis & Rheumatoid Arthritis',
     category: 'Rheumatology',
-    icon: 'ðŸ¦´',
+    icon: '🦴',
     color: 'amber',
     standardSupplyDays: 30,
     mandatoryRetestCode: '30522-7',
@@ -101,7 +101,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'CKD',
     name: 'Chronic Kidney Disease (Stage 1-3)',
     category: 'Renal & Nephrology',
-    icon: 'ðŸ§ª',
+    icon: '🧪',
     color: 'blue',
     standardSupplyDays: 30,
     mandatoryRetestCode: '33914-3',
@@ -114,7 +114,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     code: 'EPILEPSY',
     name: 'Epilepsy & Seizure Disorders',
     category: 'Neurology',
-    icon: 'âš¡',
+    icon: '⚡',
     color: 'indigo',
     standardSupplyDays: 30,
     mandatoryRetestCode: '1742-6',
@@ -755,7 +755,7 @@ export class ChronicCareService {
       // 4. Dispatch WhatsApp confirmation to patient
       if (patientPhone) {
         const cleanPhone = patientPhone.replace(/\D/g, '').slice(-10);
-        const waMsg = `ðŸŒŸ *WELCOME TO ${programName.toUpperCase()}!* ðŸ©º\n\nNamaste *${patientName}*!\n\nAapka Doctor Care Club Retainer successfully activate ho gaya hai:\n\nâ€¢ Program: *${programName}*\nâ€¢ Duration: *${durationMonths} Months*\nâ€¢ Retainer Fee: *â‚¹${totalFee}* (Paid)\nâ€¢ Monthly Virtual Check-in: *1 Free Video Consult / month* (Next: ${nextVirtualDate})\nâ€¢ 24/7 WhatsApp Care Concierge: *Active* ðŸ¤–\nâ€¢ Chronic Medicine Refills: *10% VIP Discount Guaranteed* ðŸ’Š\n\nAapka health trajectory ab Dr. ke direct active clinical surveillance mein hai. Kisi bhi sawal ke liye yahan message karein! Dhanyawad! ðŸ˜Š`;
+        const waMsg = `🌟 *WELCOME TO ${programName.toUpperCase()}!* 🩺\n\nNamaste *${patientName}*!\n\nAapka Doctor Care Club Retainer successfully activate ho gaya hai:\n\n• Program: *${programName}*\n• Duration: *${durationMonths} Months*\n• Retainer Fee: *₹${totalFee}* (Paid)\n• Monthly Virtual Check-in: *1 Free Video Consult / month* (Next: ${nextVirtualDate})\n• 24/7 WhatsApp Care Concierge: *Active* 🤖\n• Chronic Medicine Refills: *10% VIP Discount Guaranteed* 💊\n\nAapka health trajectory ab Dr. ke direct active clinical surveillance mein hai. Kisi bhi sawal ke liye yahan message karein! Dhanyawad! 😊`;
         
         try {
           const { WhatsAppService } = await import('./whatsappService');
@@ -786,15 +786,15 @@ export class ChronicCareService {
 
     let guideText = "";
     if (conditionCode === 'DIABETES') {
-      guideText = `ðŸ¥— *ICMR & ADA 2024 DIABETES DIET & LIFESTYLE GUIDE* ðŸ©¸\n\nNamaste *${patientName}*! Aapke blood sugar control ke liye doctor-approved guidance:\n\nâ€¢ *Carb Control:* Maida, meetha, aalu aur safed chawal kam karein. Multigrain roti (Jowar/Bajra/Chana) chunein.\nâ€¢ *Plate Rule:* Aadhi plate hari sabzi/salad, 1/4 daal/paneer (protein), 1/4 complex carb.\nâ€¢ *Walking:* Har khane ke 20 minute baad 10-15 min brisk walk karein.\nâ€¢ *Dose Timing:* Metformin khane ke beech mein ya turant baad lein jisse pet kharab na ho.`;
+      guideText = `🥗 *ICMR & ADA 2024 DIABETES DIET & LIFESTYLE GUIDE* 🩺\n\nNamaste *${patientName}*! Aapke blood sugar control ke liye doctor-approved guidance:\n\n• *Carb Control:* Maida, meetha, aalu aur safed chawal kam karein. Multigrain roti (Jowar/Bajra/Chana) chunein.\n• *Plate Rule:* Aadhi plate hari sabzi/salad, 1/4 daal/paneer (protein), 1/4 complex carb.\n• *Walking:* Har khane ke 20 minute baad 10-15 min brisk walk karein.\n• *Dose Timing:* Metformin khane ke beech mein ya turant baad lein jisse pet kharab na ho.`;
     } else if (conditionCode === 'HYPERTENSION' || conditionCode === 'CARDIAC') {
-      guideText = `ðŸ«€ *ACC/AHA & ICMR HYPERTENSION & CARDIAC CARE GUIDE* ðŸ©º\n\nNamaste *${patientName}*! Aapke BP aur heart health ke liye doctor-approved tips:\n\nâ€¢ *Salt Reduction (DASH Diet):* Namak din bhar mein 1 chammach (<5g) se kam lein. Papad, achar aur namkeen bilkul avoid karein.\nâ€¢ *Hydration:* Din bhar mein 2.5 - 3 litre paani piyein (unless advised otherwise by kidney doctor).\nâ€¢ *BP Log:* Subah dawai lene se pehle aur shaam ko BP record karein.\nâ€¢ *Emergency Alert:* Chest pain, ghabrahat ya pasina aane par turant WhatsApp par 'SOS' reply karein!`;
+      guideText = `🫀 *ACC/AHA & ICMR HYPERTENSION & CARDIAC CARE GUIDE* 🩺\n\nNamaste *${patientName}*! Aapke BP aur heart health ke liye doctor-approved tips:\n\n• *Salt Reduction (DASH Diet):* Namak din bhar mein 1 chammach (<5g) se kam lein. Papad, achar aur namkeen bilkul avoid karein.\n• *Hydration:* Din bhar mein 2.5 - 3 litre paani piyein (unless advised otherwise by kidney doctor).\n• *BP Log:* Subah dawai lene se pehle aur shaam ko BP record karein.\n• *Emergency Alert:* Chest pain, ghabrahat ya pasina aane par turant WhatsApp par 'SOS' reply karein!`;
     } else if (conditionCode === 'THYROID') {
-      guideText = `ðŸ¦‹ *THYROID CARE & HORMONE OPTIMIZATION GUIDE* ðŸ©º\n\nNamaste *${patientName}*! Hypothyroidism management ke essential rules:\n\nâ€¢ *Morning Dose:* Thyronorm/Eltroxin subah bina kuch khaye ek glass gungune paani ke sath lein.\nâ€¢ *1-Hour Gap:* Dawa lene ke kam se kam 45-60 minute baad hi chai, coffee ya nashta lein.\nâ€¢ *Calcium/Iron Gap:* Calcium ya iron ki goli thyroid dawa ke kam se kam 4 ghante baad lein.`;
+      guideText = `🦋 *THYROID CARE & HORMONE OPTIMIZATION GUIDE* 🩺\n\nNamaste *${patientName}*! Hypothyroidism management ke essential rules:\n\n• *Morning Dose:* Thyronorm/Eltroxin subah bina kuch khaye ek glass gungune paani ke sath lein.\n• *1-Hour Gap:* Dawa lene ke kam se kam 45-60 minute baad hi chai, coffee ya nashta lein.\n• *Calcium/Iron Gap:* Calcium ya iron ki goli thyroid dawa ke kam se kam 4 ghante baad lein.`;
     } else if (conditionCode === 'CKD') {
-      guideText = `ðŸ§ª *KDIGO RENAL HYDRATION & KIDNEY PROTECTION GUIDE* ðŸ’§\n\nNamaste *${patientName}*! Kidney health preservation guidelines:\n\nâ€¢ *Painkiller Ban:* Bina doctor ki parchi ke Diclofenac / Ibuprofen / Combiflam bilkul na lein!\nâ€¢ *Protein Balance:* Doctor dwara tay kiye gaye limit mein hi daal/protein lein.\nâ€¢ *Electrolytes:* High potassium fruits (kela, nariyal paani) lene se pehle doctor se confirm karein.`;
+      guideText = `🧪 *KDIGO RENAL HYDRATION & KIDNEY PROTECTION GUIDE* 💧\n\nNamaste *${patientName}*! Kidney health preservation guidelines:\n\n• *Painkiller Ban:* Bina doctor ki parchi ke Diclofenac / Ibuprofen / Combiflam bilkul na lein!\n• *Protein Balance:* Doctor dwara tay kiye gaye limit mein hi daal/protein lein.\n• *Electrolytes:* High potassium fruits (kela, nariyal paani) lene se pehle doctor se confirm karein.`;
     } else {
-      guideText = `ðŸŒ¿ *VITALSYNC CHRONIC WELLNESS & LIFESTYLE GUIDE* ðŸ©º\n\nNamaste *${patientName}*! Doctor dwara nirdharit guidelines:\n\nâ€¢ Dawa ka schedule regular rakhein aur bina doctor advice ke dose band na karein.\nâ€¢ Adequate neend (7-8 ghante) aur regular hydration maintain karein.\nâ€¢ Kisi bhi side-effect ya lakshan mein turant WhatsApp par query bhejein.`;
+      guideText = `🌿 *VITALSYNC CHRONIC WELLNESS & LIFESTYLE GUIDE* 🩺\n\nNamaste *${patientName}*! Doctor dwara nirdharit guidelines:\n\n• Dawa ka schedule regular rakhein aur bina doctor advice ke dose band na karein.\n• Adequate neend (7-8 ghante) aur regular hydration maintain karein.\n• Kisi bhi side-effect ya lakshan mein turant WhatsApp par query bhejein.`;
     }
 
     try {

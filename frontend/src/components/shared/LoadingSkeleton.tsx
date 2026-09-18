@@ -48,19 +48,10 @@ function TableRowSkeleton() {
   );
 }
 
-// Dashboard header skeleton
+// Dashboard header skeleton — subtle non-jumping indicator (prevents fake header flash on section transition)
 function DashboardHeaderSkeleton() {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="space-y-2">
-        <SkeletonBlock className="h-7 w-52" />
-        <SkeletonBlock className="h-4 w-36" />
-      </div>
-      <div className="flex gap-3">
-        <SkeletonBlock className="h-10 w-28 rounded-xl" />
-        <SkeletonBlock className="h-10 w-10 rounded-xl" />
-      </div>
-    </div>
+    <div className="h-2 w-full mb-4 opacity-50" aria-hidden="true" />
   );
 }
 

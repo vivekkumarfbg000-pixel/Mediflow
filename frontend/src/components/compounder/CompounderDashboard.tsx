@@ -3103,7 +3103,7 @@ export const CompounderDashboard: React.FC = () => {
 
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 animate-fade-in bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen transition-colors duration-300"
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen flex flex-col justify-between transition-colors duration-300"
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
     >
       {/* Ambient Background Glow for visual hierarchy */}

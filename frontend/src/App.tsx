@@ -478,7 +478,7 @@ function AppContent({
           </div>
         )}
 
-        <div className="animate-fade-in flex-1">
+        <div className="flex-1 flex flex-col">
           <ErrorBoundary>
             <Suspense fallback={getSkeleton()}>
               {renderDashboard()}
@@ -1463,27 +1463,30 @@ export default function App() {
     api.setSimulatedRole(apiRole);
 
     if (!isBypassMode && activeProfile) {
-      const allModules: UserRole[] = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
+      const clinicalModules: UserRole[] = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction'];
+      const adminModules: UserRole[] = ['doctor', 'compounder', 'lab', 'pharmacy', 'billing', 'patient', 'refraction', 'saas_admin'];
       const allowedRoles: Record<string, UserRole[]> = {
-        'doctor': allModules,
-        'ophthalmologist': allModules,
-        'general_physician': allModules,
-        'physician': allModules,
-        'compounder': allModules,
-        'receptionist': allModules,
-        'staff': allModules,
-        'lab_technician': allModules,
-        'lab': allModules,
-        'pharmacist': allModules,
-        'pharmacy': allModules,
+        'doctor': clinicalModules,
+        'ophthalmologist': clinicalModules,
+        'general_physician': clinicalModules,
+        'physician': clinicalModules,
+        'compounder': ['compounder', 'billing', 'doctor'],
+        'receptionist': ['compounder', 'billing', 'doctor'],
+        'staff': ['compounder', 'billing', 'doctor'],
+        'lab_technician': ['lab', 'doctor'],
+        'lab': ['lab', 'doctor'],
+        'pharmacist': ['pharmacy', 'doctor'],
+        'pharmacy': ['pharmacy', 'doctor'],
         'patient': ['patient'],
-        'admin': allModules,
-        'platform_admin': allModules,
-        'saas_admin': allModules
+        'admin': adminModules,
+        'platform_admin': adminModules,
+        'saas_admin': adminModules,
+        'superadmin': adminModules,
+        'owner': adminModules
       };
 
       const userRole = activeProfile.role || 'doctor';
-      const allowed = allowedRoles[userRole] || allModules;
+      const allowed = allowedRoles[userRole] || clinicalModules;
 
       if (!allowed.includes(role)) {
         const errorMsg = `De-authorization: Account role (${userRole.replace('_', ' ')}) is not permitted to view the ${role.toUpperCase()} module under active compliance policy.`;

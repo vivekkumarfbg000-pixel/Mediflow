@@ -1853,7 +1853,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 };
 
                 return (
-                  <div className="space-y-5 animate-fade-in text-left">
+                  <div className="space-y-5 text-left">
                     {/* ── Stats Cards Row ── */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {[
@@ -2245,7 +2245,7 @@ Keep the tone professional, clinical, objective, and precise.`;
           {visitedTabs.has('consultation') && (
             <div key="tab-pane-consultation" style={{ display: activeTab === 'consultation' ? 'block' : 'none' }}>
               {!isDigitalEmrEnabled ? (
-                <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xl text-center space-y-5 animate-fade-in text-slate-800 dark:text-white">
+                <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-xl text-center space-y-5 text-slate-800 dark:text-white">
                   <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
                     <FileText className="w-8 h-8" />
                   </div>
@@ -2836,7 +2836,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-36 lg:pb-28 space-y-5 animate-fade-in text-slate-800" 
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-36 lg:pb-28 space-y-5 min-h-[calc(100vh-8rem)] flex flex-col justify-between text-slate-800" 
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
       onTouchStart={handleTouchStart} 
       onTouchEnd={handleTouchEnd}
@@ -3055,8 +3055,8 @@ Keep the tone professional, clinical, objective, and precise.`;
       </div>
 
       {/* ── DOCTOR RESPONSIVE SHORTCUT DOCK / FOOTER ── */}
-      {/* Mobile Sticky Bottom Navigation Footer (lg:hidden) */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 px-2 py-1.5 flex items-center justify-around lg:hidden shadow-2xl overflow-x-auto">
+      {/* Tablet-Only Sticky Bottom Navigation Footer (hidden on mobile to prevent duplicate with root Navbar dock) */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-white/10 px-2 py-1.5 hidden md:flex lg:hidden items-center justify-around shadow-2xl overflow-x-auto">
         {(() => {
           const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
           const dockTabs = [

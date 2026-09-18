@@ -1084,7 +1084,7 @@ export const LabDashboard: React.FC = () => {
   ══════════════════════════════════════════════════════════════ */
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-12 space-y-6 animate-fade-in"
+      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-12 space-y-6 min-h-screen flex flex-col justify-between"
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
     >
       {viewingDocUrl && (
@@ -1126,7 +1126,7 @@ export const LabDashboard: React.FC = () => {
           TAB 1: EXECUTIVE OVERVIEW COCKPIT
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'overview' && (
-        <div className="space-y-6 text-left animate-fade-in">
+        <div className="space-y-6 text-left">
           {/* 4 Bento KPI Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div 
@@ -1325,7 +1325,7 @@ export const LabDashboard: React.FC = () => {
           TAB 2: WORKLIST & PROCESSING QUEUE
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'worklist' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left: Requisition queue cards */}
           <div className="lg:col-span-8 space-y-6">
 
@@ -1899,7 +1899,7 @@ export const LabDashboard: React.FC = () => {
           TAB 3: INTAKE & SMART UPLOAD STATION
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'intake_upload' && (
-        <div className="space-y-6 text-left animate-fade-in">
+        <div className="space-y-6 text-left">
           {/* Sub Switcher */}
           <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
             <button
@@ -2919,7 +2919,7 @@ export const LabDashboard: React.FC = () => {
           TAB 4: FINANCIALS, LEDGER & SETTLEMENTS
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'financials_ledger' && (
-        <div className="space-y-6 text-left animate-fade-in">
+        <div className="space-y-6 text-left">
           {/* Sub Switcher */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
             <button
@@ -3464,7 +3464,7 @@ export const LabDashboard: React.FC = () => {
           TAB 5: RATE CARD & LAB FEE SCHEDULE MANAGER
       ══════════════════════════════════════════════════════════ */}
       {activeTab === 'rate_card' && (
-        <div className="space-y-6 text-left animate-fade-in">
+        <div className="space-y-6 text-left">
           {/* Rate Card Bento KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div className="glass-panel p-4 sm:p-5 border-indigo-200 bg-gradient-to-br from-indigo-50/70 to-indigo-100/30 rounded-3xl shadow-xs">

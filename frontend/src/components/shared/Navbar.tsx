@@ -37,7 +37,8 @@ import {
   Building,
   Coins,
   Sliders,
-  Video
+  Video,
+  HeartPulse
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
@@ -374,7 +375,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const userProfileRole = (activeProfile?.role || '').toLowerCase();
   const activeUserRole = userProfileRole || (currentRole === 'lab' ? 'lab_technician' : currentRole === 'pharmacy' ? 'pharmacist' : currentRole).toLowerCase();
-  const allowedList = allowedRolesMap[activeUserRole] || (['admin', 'platform_admin', 'saas_admin', 'doctor'].includes(activeUserRole) ? adminModulesList : clinicalModulesList);
+  const allowedList = allowedRolesMap[activeUserRole] || (['admin', 'platform_admin', 'saas_admin', 'superadmin', 'owner'].includes(activeUserRole) ? adminModulesList : clinicalModulesList);
 
   const visibleRoles = isBypassMode 
     ? roles 
@@ -1196,12 +1197,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             if (currentRole === 'doctor') {
               const docTabs = [
                 { id: 'pod_view', label: 'Pod', icon: LayoutDashboard },
-                ...(isDigitalEmrEnabled
-                  ? [{ id: 'consultation', label: 'Consult', icon: ClipboardList }]
-                  : [{ id: 'virtual_schedule', label: 'Virtual', icon: Video }]
-                ),
-                { id: 'financials', label: 'Finance', icon: CreditCard },
+                ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consult', icon: ClipboardList }] : []),
+                { id: 'chronic', label: 'Care Club', icon: HeartPulse },
                 { id: 'patients', label: 'Patients', icon: Users },
+                { id: 'financials', label: 'Finance', icon: CreditCard },
                 { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare }
               ];
               return docTabs.map(t => {
