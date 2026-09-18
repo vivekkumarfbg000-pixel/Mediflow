@@ -76,7 +76,6 @@ export interface PodContext {
 // Module-scoped live context cache (initialized safely)
 let _ctx: PodContext | null = null;
 
-/**
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isValidUuid(id: unknown): id is string {

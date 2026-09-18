@@ -13,7 +13,7 @@ import { AIService, type AIResult } from './aiService';
 import { ClinicalNotificationService } from './clinicalNotificationService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
-import { getPodContext, resolvePodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID } from './podContext';
+import { getPodContext, resolvePodContext, resolveSovereignPodId, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
 
 import type { 
