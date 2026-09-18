@@ -1950,15 +1950,6 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
 
       recordAttempt(email, true, { user_id: data.user.id });
-      
-      // Dispatch toast manually on login success
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Professional Portal Initialized',
-          message: `Successfully authenticated as ${profile.display_name}. Role: ${profile.role.toUpperCase()}`,
-          type: 'success'
-        }
-      }));
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Ops login failed:', err);

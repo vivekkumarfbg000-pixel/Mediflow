@@ -2941,39 +2941,41 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
       )}
 
-      {/* Unified Chronic Care & Virtual Video Sub-Switcher */}
+      {/* Unified Chronic Care & Virtual Video Sub-Switcher — only on Care Club / Virtual tabs */}
       {(activeTab === 'chronic' || activeTab === 'virtual_schedule') && (
-        <div className="flex items-center justify-center my-1 animate-fade-in">
-          <div className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs gap-1">
-            <button
-              type="button"
-              onClick={() => setActiveTab('chronic')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'chronic'
-                  ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/60 dark:border-white/10'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <HeartPulse className="w-4 h-4 text-emerald-500" />
-              <span>Chronic Disease Care & Refill Cockpit 💊</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('virtual_schedule')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'virtual_schedule'
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-white/10'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Video className="w-4 h-4 text-blue-500" />
-              <span>Virtual Consultations & Evening Reviews 💻</span>
-              {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length > 0 && (
-                <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-500 text-white rounded-full leading-none">
-                  {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length}
-                </span>
-              )}
-            </button>
+        <div className="w-full overflow-x-auto">
+          <div className="flex items-center justify-center my-1 animate-fade-in min-w-0">
+            <div className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveTab('chronic')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'chronic'
+                    ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/60 dark:border-white/10'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <HeartPulse className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span>Chronic Care 💊</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('virtual_schedule')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'virtual_schedule'
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-white/10'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Video className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span>Virtual Reviews 💻</span>
+                {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length > 0 && (
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-500 text-white rounded-full leading-none">
+                    {appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2991,11 +2993,10 @@ Keep the tone professional, clinical, objective, and precise.`;
           const dockTabs = [
             { id: 'pod_view',          label: 'Pod',         icon: LayoutDashboard, badge: 0 },
             ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consult', icon: Stethoscope, badge: 0 }] : []),
-            { id: 'chronic',           label: 'Care Club',   icon: HeartPulse,      badge: 0 },
-            { id: 'virtual_schedule',  label: 'Virtual',     icon: Video,           badge: vBadge },
+            { id: 'chronic',           label: 'Care Club',   icon: HeartPulse,      badge: vBadge },
             { id: 'patients',          label: 'Patients',    icon: Users,           badge: 0 },
-            { id: 'financials',        label: 'Finances',    icon: CreditCard,      badge: 0 },
-            { id: 'whatsapp',          label: 'Inbox',       icon: MessageSquare,   badge: 0 }
+            { id: 'financials',        label: 'Finance',     icon: CreditCard,      badge: 0 },
+            { id: 'whatsapp',          label: 'WhatsApp',    icon: MessageSquare,   badge: 0 }
           ];
           return dockTabs.map(item => {
             const Icon = item.icon;

@@ -1341,14 +1341,6 @@ export default function App() {
     else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
     
     setCurrentRole(defaultRole);
-
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'Professional Portal Initialized',
-        message: `Successfully authenticated as ${finalProfile.display_name}. Role: ${finalProfile.role.toUpperCase()}`,
-        type: 'success'
-      }
-    }));
   };
 
 
