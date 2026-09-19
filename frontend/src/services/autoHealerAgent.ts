@@ -981,6 +981,21 @@ export class StateHealingEngine {
       }
 
       try {
+        // 1.5 Send incident to agent-telemetry-webhook
+        const webhookUrl = `${(import.meta.env.VITE_SUPABASE_URL as string) || 'https://kguupaybvbngyzyofjun.supabase.co'}/functions/v1/agent-telemetry-webhook`;
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            level: severity === 'critical' ? 'fatal' : severity,
+            source: 'autoHealerAgent',
+            message: errMsg,
+            stackTrace: errStack,
+            clinicId: podId,
+            metadata: { errorName: errName, subsystem }
+          })
+        }).catch(err => console.warn('[Auto-Healer] Webhook telemetry dispatch failed:', err));
+
         // Gap 1 Fix: Check for existing active incident matching this error+subsystem
         const { data: existingIncident } = await supabase
           .from('system_health_telemetry')

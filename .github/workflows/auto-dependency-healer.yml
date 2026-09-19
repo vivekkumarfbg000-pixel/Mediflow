@@ -1,0 +1,88 @@
+name: 🛡️ SecOps — Continuous Dependency Healer
+
+on:
+  schedule:
+    # Run at 00:00 every Sunday
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  auto-heal-dependencies:
+    name: 🤖 Auto-Heal Vulnerabilities & Merge
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Configure Git for Autonomous Bot
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create Healing Branch
+        id: branch
+        run: |
+          BRANCH_NAME="secops/auto-heal-deps-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Run NPM Audit Fix (Frontend)
+        working-directory: frontend
+        run: |
+          echo "Running npm audit fix to resolve security vulnerabilities..."
+          npm audit fix || true
+
+      - name: Check for Modifications
+        id: diff
+        run: |
+          if git diff --quiet; then
+            echo "No security vulnerabilities found. Ecosystem is healthy."
+            echo "HAS_CHANGES=false" >> $GITHUB_ENV
+          else
+            echo "Vulnerabilities healed. Preparing to push."
+            echo "HAS_CHANGES=true" >> $GITHUB_ENV
+          fi
+
+      - name: Commit and Push Changes
+        if: env.HAS_CHANGES == 'true'
+        run: |
+          git add frontend/package.json frontend/package-lock.json
+          git commit -m "chore(secops): autonomous npm audit fix"
+          git push origin ${{ env.BRANCH_NAME }}
+
+      - name: Create Pull Request & Enable Auto-Merge
+        if: env.HAS_CHANGES == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create the PR
+          PR_URL=$(gh pr create \
+            --title "🛡️ SecOps: Autonomous Dependency Healing" \
+            --body "## 🤖 Autonomous SecOps Agent
+            
+            I have detected and patched security vulnerabilities in the NPM dependencies. 
+            
+            This PR will be automatically merged if the **Playwright Visual Guard** (CI) passes, proving that these patches did not break the UI.
+            
+            **Actions Taken:**
+            - Ran \`npm audit fix\` in \`frontend/\`" \
+            --base master \
+            --head ${{ env.BRANCH_NAME }})
+          
+          echo "Created PR: $PR_URL"
+          
+          # Tell GitHub to merge it automatically once CI checks pass
+          gh pr merge "$PR_URL" --auto --merge

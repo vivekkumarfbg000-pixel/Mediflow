@@ -5,6 +5,7 @@ import {
   Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Upload, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
   Camera, Image, ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send, Phone
 } from 'lucide-react';
+import { SearchInput } from '../../ui/SearchInput';
 import { api } from '../../../services/api';
 import { EncounterService } from '../../../services/encounterService';
 import { PharmacyService } from '../../../services/pharmacyService';
@@ -2391,13 +2392,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by name, phone, token..."
+              <SearchInput
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800"
+                onChange={setSearchQuery}
+                placeholder="Search by name, phone, token..."
+                className="w-full pl-9 pr-9 py-2 border border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-100 rounded-xl text-xs outline-none bg-white text-slate-800 transition-all"
               />
             </div>
 

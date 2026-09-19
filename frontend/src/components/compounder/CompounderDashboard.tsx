@@ -106,6 +106,7 @@ import {
   User,
   FileCheck
 } from 'lucide-react';
+import { SearchInput } from '../ui/SearchInput';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
   const nameLower = (medicineName || '').toLowerCase();
@@ -3593,8 +3594,7 @@ export const CompounderDashboard: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveTab('clinical_hub');
-                            setClinicalSubTab('labs');
+                            window.dispatchEvent(new CustomEvent('SWITCH_APP_TAB', { detail: 'lab' }));
                           }}
                           className="mt-3 px-3.5 py-1.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer inline-flex items-center gap-1.5 hover:bg-purple-100 transition"
                         >
@@ -3885,14 +3885,12 @@ export const CompounderDashboard: React.FC = () => {
                   Patient Registry Lookup
                 </h2>
                 <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search patient by phone, name, or ABHA ID..."
+                  <SearchInput
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full input-field pl-12 focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-600 text-sm py-2.5 bg-white border-slate-200 text-slate-800 rounded-xl"
+                    onChange={setSearchQuery}
+                    placeholder="Search patient by phone, name, or ABHA ID..."
+                    className="w-full pl-12 pr-9 focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-600 text-sm py-2.5 bg-white border border-slate-200 text-slate-800 rounded-xl outline-none transition-all"
                   />
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 h-5 w-5" />
                 </div>
 
                 {searchQuery && (
@@ -4346,25 +4344,12 @@ export const CompounderDashboard: React.FC = () => {
 
                   {/* Search Bar for Past Records */}
                   <div className="mb-4">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search past appointments by Patient Name, Phone, Token #, or Date..."
+                      <SearchInput
                         value={pastHistorySearchQuery}
-                        onChange={(e) => setPastHistorySearchQuery(e.target.value)}
-                        className="w-full input-field text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-xl outline-none placeholder:text-slate-400"
+                        onChange={setPastHistorySearchQuery}
+                        placeholder="Search past appointments by Patient Name, Phone, Token #, or Date..."
+                        className="w-full text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-xl outline-none placeholder:text-slate-400 transition-all"
                       />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                      {pastHistorySearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setPastHistorySearchQuery('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer p-0.5 bg-transparent border-0"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
                   </div>
 
                   {/* Table of Past Records */}
@@ -5471,25 +5456,12 @@ export const CompounderDashboard: React.FC = () => {
 
                     {/* Search Bar */}
                     <div className="w-full sm:w-80 relative select-none">
-                      <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                        <Search className="w-4 h-4" />
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="Search medicine or generic name..."
+                      <SearchInput
                         value={medSearchQuery}
-                        onChange={(e) => setMedSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none transition-all shadow-xs"
+                        onChange={setMedSearchQuery}
+                        placeholder="Search medicine or generic name..."
+                        className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 focus:outline-none transition-all shadow-xs"
                       />
-                      {medSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setMedSearchQuery('')}
-                          className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer border-0 bg-transparent"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -6666,13 +6638,11 @@ export const CompounderDashboard: React.FC = () => {
 
               {/* Search Bar */}
               <div className="relative mt-2.5">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="text"
+                <SearchInput 
                   value={vitalsSearchTerm}
-                  onChange={(e) => setVitalsSearchTerm(e.target.value)}
+                  onChange={setVitalsSearchTerm}
                   placeholder="Search patient by name, mobile number, or token #..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-9 py-2 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 transition-all"
                 />
               </div>
             </div>
@@ -7123,12 +7093,9 @@ export const CompounderDashboard: React.FC = () => {
                       Search Existing Patient (Prefix e.g. "N", "Ramesh" / Patient ID e.g. "N2" / Mobile)
                     </label>
                     <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                      <input 
-                        type="text"
+                      <SearchInput
                         value={instantSearchQuery}
-                        onChange={(e) => {
-                          const val = e.target.value;
+                        onChange={(val) => {
                           setInstantSearchQuery(val);
                           const q = val.trim().toLowerCase();
                           if (!q) {
@@ -7149,20 +7116,8 @@ export const CompounderDashboard: React.FC = () => {
                           }
                         }}
                         placeholder="Search by name prefix (N...), Patient ID / Smart Code (N2...), or mobile number..."
-                        className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-2xl pl-10 pr-9 py-2.5 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 transition"
+                        className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 rounded-2xl pl-10 pr-9 py-2.5 text-xs font-bold text-slate-800 dark:text-white outline-none focus:border-indigo-500 transition-all"
                       />
-                      {instantSearchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setInstantSearchQuery('');
-                            setInstantSelectedPatient(null);
-                          }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-bold cursor-pointer border-0 bg-transparent"
-                        >
-                          ✕
-                        </button>
-                      )}
 
                       {/* Dropdown Suggestions List (Prefix & Smart Code Matches) */}
                       {instantMatchingPatients.length > 0 && !instantSelectedPatient && (
@@ -7532,13 +7487,11 @@ export const CompounderDashboard: React.FC = () => {
                 {/* Search and Select All Bar */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="relative flex-1">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                    <input
-                      type="text"
-                      placeholder="Search by name, phone, or token..."
+                    <SearchInput
                       value={batchPrintSearchTerm}
-                      onChange={(e) => setBatchPrintSearchTerm(e.target.value)}
-                      className="w-full pl-8.5 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500"
+                      onChange={setBatchPrintSearchTerm}
+                      placeholder="Search by name, phone, or token..."
+                      className="w-full pl-8 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-blue-500 transition-all"
                     />
                   </div>
                   <button

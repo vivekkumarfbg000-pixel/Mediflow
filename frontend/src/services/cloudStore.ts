@@ -34,6 +34,7 @@ export type CollectionName =
   | 'chronic_care_cohorts'
   | 'pharmacy_inventory'
   | 'reagent_inventory'
+  | 'vitalsync_pool_settlements'
   | 'encounters';
 
 export interface CloudStoreOptions {
@@ -374,7 +375,8 @@ export class SovereignCloudStore {
           'chronic_care_cohorts': ['chronic_care_cohorts'],
           'pharmacy_inventory': ['pharmacy_inventory', 'mediflow_inventory'],
           'reagent_inventory': ['reagents', 'reagent_inventory'],
-          'encounters': ['encounters']
+          'encounters': ['encounters'],
+          'vitalsync_pool_settlements': ['vitalsync_pool_settlements']
         };
 
         const keys = storageKeyMap[collection] || [collection];

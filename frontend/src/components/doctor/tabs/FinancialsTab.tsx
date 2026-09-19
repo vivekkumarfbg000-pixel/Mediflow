@@ -269,6 +269,36 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     return 'UPI / QR Code 📱';
   }, [invoices, appointments]);
 
+  const getPaymentModeBadge = useCallback((entry: FinancialLedgerEntry) => {
+    const label = getPaymentModeLabel(entry);
+    if (label.includes('Cash Counter')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+          💵 Cash
+        </span>
+      );
+    }
+    if (label.includes('WhatsApp UPI')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-green-50 text-green-700 border border-green-200">
+          💬 WhatsApp UPI
+        </span>
+      );
+    }
+    if (label.includes('Card POS')) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-violet-50 text-violet-700 border border-violet-200">
+          💳 Card POS
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+        📱 UPI / QR
+      </span>
+    );
+  }, [getPaymentModeLabel]);
+
   const filteredLedgers = useMemo(() => {
     const activeLedgers = (financialLedgers && financialLedgers.length > 0) ? financialLedgers : BillingService.getFinancialLedgers();
 
@@ -709,7 +739,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
               {filteredLedgers.length > 0 ? filteredLedgers.map(entry => (
                 <tr key={entry.id} className="hover:bg-slate-55/50 transition-colors">
                   <td className="p-3.5 font-sans font-bold text-slate-900 text-xs">{getPatientName(entry)}</td>
-                  <td className="p-3.5 font-mono text-slate-700 text-[11px] font-semibold">{getPaymentModeLabel(entry)}</td>
+                  <td className="p-3.5">{getPaymentModeBadge(entry)}</td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider font-mono ${
                       entry.transactionType === 'appointment_fee'

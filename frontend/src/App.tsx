@@ -229,7 +229,8 @@ function AppContent({
   };
 
   const getBreadcrumbs = () => {
-    const items = [{ label: 'Ecosystem' }];
+    const clinicName = activeProfile?.clinicName || activeProfile?.clinic_name || 'Ecosystem';
+    const items = [{ label: `Clinic: ${clinicName}` }];
     
     const roleNames: Record<UserRole, string> = {
       doctor: 'Doctor Console',
@@ -1586,7 +1587,10 @@ export default function App() {
   // Prevent premature evaluation of email verification or intermediate routes before the profile finishes resolving
   const isRegistering = getIsRegisteringActive(activeProfile);
 
-  if (!isRegistering && isLoadingSession) {
+  // Skip full-page loader when session + activeProfile are already hydrated from localStorage cache.
+  // The async supabase.auth.getSession() reconciliation continues silently in the background.
+  // This eliminates the 1–2s blank flash for returning users on every page load.
+  if (!isRegistering && isLoadingSession && !(session && activeProfile)) {
     return <FullPageLoader message="Initializing clinical session..." />;
   }
 
@@ -1613,7 +1617,7 @@ export default function App() {
   // 2. Landing Page & Local Single-Domain Routing
   // If authenticated on local/preview single-domain, render the Dashboard workspace directly.
   if (isLandingPageDomain) {
-    if (!isRegistering && isLoadingSession) {
+    if (!isRegistering && isLoadingSession && !(session && activeProfile)) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
     const isRegisterRequested = new URLSearchParams(window.location.search).get('tab') === 'register' || isRegistering;
@@ -1680,7 +1684,7 @@ export default function App() {
     isPwaLaunch;
 
   if (isSingleDomain) {
-    if (!isRegistering && isLoadingSession) {
+    if (!isRegistering && isLoadingSession && !(session && activeProfile)) {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
     if (!session || !activeProfile || isRegistering) {

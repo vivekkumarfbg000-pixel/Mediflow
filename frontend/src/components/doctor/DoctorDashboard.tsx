@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
@@ -299,6 +299,8 @@ export const DoctorDashboard: React.FC = () => {
   }, [selectedPatient]);
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  // Tracks which model served the last AI response: '' = not yet loaded, 'static-fallback' = AI offline, any other string = live AI model name
+  const [aiModelUsed, setAiModelUsed] = useState<string>('');
   
   const [baselineDate, setBaselineDate] = useState<string | null>(null);
   const [comparisonDate, setComparisonDate] = useState<string | null>(null);
@@ -1056,7 +1058,8 @@ export const DoctorDashboard: React.FC = () => {
         }`);
       }
     }
-    setCdssAnomalies(anomalies);
+    // Bug 2 fix: wrap non-critical anomaly update in startTransition so sidebar clicks stay responsive
+    startTransition(() => { setCdssAnomalies(anomalies); });
 
     // Asynchronous RAG clinical insight pipeline with 5s timeout & containment
     const fetchRAGInsights = async () => {
@@ -1273,7 +1276,11 @@ Keep the tone professional, clinical, objective, and precise.`;
         }
 
         clearTimeout(timeoutId);
-        setAiInsight(synthesizedInsight);
+        // Bug 2 fix: defer non-critical AI state update so sidebar interactions aren't blocked
+        startTransition(() => {
+          setAiInsight(synthesizedInsight);
+          setAiModelUsed(modelUsed);
+        });
         persistRAGResult(synthesizedInsight, modelUsed);
 
       } catch (err) {
@@ -1337,7 +1344,11 @@ Keep the tone professional, clinical, objective, and precise.`;
           fallbackInsight += `\n`;
         }
 
-        setAiInsight(fallbackInsight);
+        // Bug 2+5 fix: defer fallback render, track static-fallback model so badge appears
+        startTransition(() => {
+          setAiInsight(fallbackInsight);
+          setAiModelUsed('static-fallback');
+        });
         persistRAGResult(fallbackInsight, 'static-fallback');
       } finally {
         setIsAiLoading(false);
@@ -2259,6 +2270,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   cdssAnomalies={cdssAnomalies}
                   aiInsight={aiInsight}
                   isAiLoading={isAiLoading}
+                  aiModelUsed={aiModelUsed}
                   baselineDate={baselineDate}
                   setBaselineDate={setBaselineDate}
                   comparisonDate={comparisonDate}

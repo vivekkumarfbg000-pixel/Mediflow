@@ -1445,7 +1445,7 @@ export const LabDashboard: React.FC = () => {
                                 }}
                                 className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl uppercase tracking-wider text-[9px] cursor-pointer text-center active:scale-95 transition-transform"
                               >
-                                UPI / QR
+                                Direct Doctor UPI
                               </button>
                             </div>
                           </div>
@@ -3140,7 +3140,7 @@ export const LabDashboard: React.FC = () => {
                                   }}
                                   className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer border-0"
                                 >
-                                  UPI / QR
+                                  Direct Doctor UPI
                                 </button>
                               </div>
                             </div>

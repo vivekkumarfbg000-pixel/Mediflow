@@ -107,6 +107,7 @@ interface ConsultationTabProps {
   cdssAnomalies: string[];
   aiInsight: string;
   isAiLoading: boolean;
+  aiModelUsed?: string;
   baselineDate: string | null;
   setBaselineDate: (d: string | null) => void;
   comparisonDate: string | null;
@@ -162,6 +163,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   cdssAnomalies,
   aiInsight,
   isAiLoading,
+  aiModelUsed,
   baselineDate,
   setBaselineDate,
   comparisonDate,
@@ -1718,6 +1720,12 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 <span className="text-[9px] font-mono text-slate-500 font-bold bg-slate-100 px-1.5 py-0.2 rounded-full">
                   {patients.length} Total
                 </span>
+                {aiModelUsed === 'static-fallback' && (
+                  <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 ml-1 animate-pulse flex items-center gap-1" title="AI Services Offline - Operating in Static Fallback Mode">
+                    <span className="w-1.5 h-1.5 bg-rose-500 rounded-full inline-block"></span>
+                    AI Offline
+                  </span>
+                )}
               </div>
               {selectedPatient && (
                 <button

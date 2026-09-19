@@ -18,6 +18,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'
   },
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixels: 100, // Tolerance for minor anti-aliasing differences
+      animations: 'disabled' // Disable animations during screenshots for stability
+    }
+  },
   projects: [
     {
       name: 'chromium',

@@ -666,9 +666,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div 
                   className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.02)] relative group hover:scale-105 transition-all duration-200"
                 >
-                  {activeProfile.display_name.charAt(0)}
+                  {(activeProfile.display_name?.split(' - ')[0] || '?').charAt(0).toUpperCase()}
                   <div className="absolute left-12 bg-slate-900/95 backdrop-blur-md text-white text-[9px] font-bold px-2.5 py-1.5 rounded-lg shadow-lg border border-slate-700/50 opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0 z-[100] whitespace-nowrap">
-                    {activeProfile.display_name} ({displayRole(activeProfile.role)})
+                    {activeProfile.display_name?.split(' - ')[0] || ''} ({displayRole(activeProfile.role)})
                   </div>
                 </div>
 
@@ -689,12 +689,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/60 dark:border-white/5 font-sans shadow-2xs">
                   <div className="relative flex-shrink-0">
                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white font-black text-xs flex items-center justify-center shadow-xs">
-                      {activeProfile.display_name.charAt(0).toUpperCase()}
+                      {(activeProfile.display_name?.split(' - ')[0] || '?').charAt(0).toUpperCase()}
                     </div>
                     <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold text-slate-900 dark:text-zinc-100 truncate leading-snug">{activeProfile.display_name}</span>
+                    <span className="block text-xs font-bold text-slate-900 dark:text-zinc-100 truncate leading-snug">{activeProfile.display_name?.split(' - ')[0] || ''}</span>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                       <span className="inline-block px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-widest bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded border border-indigo-200/60 dark:border-indigo-800/40">{displayRole(activeProfile.role)}</span>
                     </div>
@@ -1031,10 +1031,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {/* Profile Card */}
                   <div className="flex items-center gap-2.5 p-2 rounded-lg bg-white/80 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 font-sans shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                     <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
-                      {activeProfile.display_name.charAt(0)}
+                      {(activeProfile.display_name?.split(' - ')[0] || '?').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate leading-tight">{activeProfile.display_name}</span>
+                      <span className="block text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate leading-tight">{activeProfile.display_name?.split(' - ')[0] || ''}</span>
                       <span className="block text-[9px] text-slate-600 dark:text-zinc-400 font-semibold uppercase tracking-wider mt-0.5">{displayRole(activeProfile.role)}</span>
                     </div>
                   </div>

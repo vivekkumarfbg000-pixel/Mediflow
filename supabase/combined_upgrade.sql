@@ -7759,10 +7759,87 @@ BEGIN
   END IF;
 END $$;
 
+-- [20260920022800] Create system logs table for autonomous AI telemetry and crash reporting
+CREATE TABLE IF NOT EXISTS public.system_logs (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    level text NOT NULL CHECK (level IN ('info', 'warning', 'error', 'fatal')),
+    source text NOT NULL,
+    message text NOT NULL,
+    stack_trace text,
+    user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+    clinic_id uuid,
+    metadata jsonb DEFAULT '{}'::jsonb,
+    is_resolved boolean DEFAULT false,
+    resolved_at timestamp with time zone,
+    resolved_by text
+);
 
+ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Users can view their own clinic logs" ON public.system_logs
+    FOR SELECT
+    USING (auth.uid() = user_id OR clinic_id IS NOT NULL);
 
+CREATE POLICY "Users can insert logs" ON public.system_logs
+    FOR INSERT
+    WITH CHECK (true);
 
+CREATE INDEX IF NOT EXISTS idx_system_logs_level ON public.system_logs(level);
+CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON public.system_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_system_logs_unresolved ON public.system_logs(is_resolved) WHERE is_resolved = false;
 
+-- [20260920024000] Rollback Sentinel Trigger
+CREATE OR REPLACE FUNCTION public.check_anomaly_threshold()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    fatal_count integer;
+    threshold integer := 5;
+    window_minutes integer := 3;
+BEGIN
+    IF NEW.level = 'fatal' THEN
+        SELECT count(*)
+        INTO fatal_count
+        FROM public.system_logs
+        WHERE level = 'fatal'
+        AND created_at >= (now() - (window_minutes || ' minutes')::interval);
 
+        IF fatal_count = threshold THEN
+            BEGIN
+                PERFORM net.http_post(
+                    url := coalesce(current_setting('app.settings.supabase_url', true), 'http://kong:8000') || '/functions/v1/rollback-sentinel',
+                    headers := '{"Content-Type": "application/json", "Authorization": "Bearer ' || coalesce(current_setting('app.settings.supabase_anon_key', true), 'anon') || '"}'::jsonb,
+                    body := jsonb_build_object(
+                        'trigger', 'anomaly_threshold_breached',
+                        'fatal_count', fatal_count,
+                        'window_minutes', window_minutes,
+                        'last_error_message', NEW.message
+                    )
+                );
+            EXCEPTION WHEN OTHERS THEN
+                RAISE WARNING 'Failed to invoke rollback sentinel webhook via pg_net: %', SQLERRM;
+            END;
+            
+            UPDATE public.system_logs
+            SET is_resolved = true,
+                resolved_by = 'rollback_sentinel_trigger',
+                resolved_at = now()
+            WHERE level = 'fatal'
+            AND is_resolved = false
+            AND created_at >= (now() - (window_minutes || ' minutes')::interval);
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
 
+CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA extensions;
+
+DROP TRIGGER IF EXISTS trigger_check_anomaly_threshold ON public.system_logs;
+CREATE TRIGGER trigger_check_anomaly_threshold
+    AFTER INSERT ON public.system_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION public.check_anomaly_threshold();

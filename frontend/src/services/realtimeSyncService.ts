@@ -42,6 +42,9 @@ export class RealtimeSyncService {
   private static flushTimer: ReturnType<typeof setTimeout> | null = null;
   private static readonly CDC_DEBOUNCE_MS = 250;
 
+  // Unique per-session suffix prevents duplicate-channel conflicts on HMR / StrictMode double-mounts (Bug 4)
+  private static readonly CHANNEL_SUFFIX: string = Math.random().toString(36).slice(2, 7);
+
   private static normalizeRecord(record: any): any {
     if (!record || typeof record !== 'object') return record;
     const normalized: any = { ...record };
@@ -587,7 +590,7 @@ export class RealtimeSyncService {
         handleTableSync(labReqsRes, 'lab_requisitions', ['lab_requisitions'], 'lab_requisitions');
         handleTableSync(labBillsRes, 'lab_test_bills', ['lab_test_bills'], 'lab_test_bills');
         handleTableSync(reportsRes, 'pathology_reports', ['pathology_reports', 'full_lab_reports'], 'pathology_reports');
-        handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements'], 'clinic_sops');
+        handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements'], 'vitalsync_pool_settlements'); // Bug 3 fix: was incorrectly 'clinic_sops'
         handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops'], 'clinic_sops');
         handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts'], 'chronic_care_cohorts');
         handleTableSync(encountersRes, 'encounters', ['encounters'], 'encounters');
@@ -654,7 +657,7 @@ export class RealtimeSyncService {
     this.updateStatus('reconnecting');
 
     this.activeChannel = supabase
-      .channel('vitalsync-live-clinic-channel')
+      .channel(`vitalsync-live-clinic-${RealtimeSyncService.CHANNEL_SUFFIX}`) // Bug 4 fix: unique suffix per session
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
@@ -894,8 +897,10 @@ export class RealtimeSyncService {
     const backoffMs = Math.min(800 * Math.pow(2, Math.min(this.reconnectAttempts - 1, 4)), 10000); // 800ms, 1.6s, 3.2s, 6.4s, max 10s
 
     this.reconnectTimer = setTimeout(() => {
-      console.log(`[RealtimeSync Watchdog] 🔄 Executing automated WebSocket reconnect sequence (attempt ${this.reconnectAttempts}, backoff: ${backoffMs}ms)...`);
       if (this.subscribers.size > 0) {
+        // Bug 4 fix: Skip if channel is already joining or joined — prevents thundering-herd on HMR
+        const channelState = (this.activeChannel as any)?.state;
+        if (channelState === 'joining' || channelState === 'joined') return;
         if (this.activeChannel) {
           try { supabase.removeChannel(this.activeChannel); } catch (_e) { /* ignore error */ }
           this.activeChannel = null;
