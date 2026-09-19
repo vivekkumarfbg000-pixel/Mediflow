@@ -45,7 +45,7 @@ export interface Patient {
   abhaId?: string;
   vitals?: PatientVitals;
   tokenNumber?: string;
-  queueStatus?: 'registered' | 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed' | 'sos_priority';
+  queueStatus?: 'registered' | 'pending_payment' | 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed' | 'sos_priority';
   pastReportsSummary?: string;
   createdAt: string;
   registeredAt?: string;

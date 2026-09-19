@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Upload, Loader2, CheckCircle2, User, Phone, ShieldCheck, FileText, ChevronRight, Activity, Zap, Terminal, SearchCode, Fingerprint } from 'lucide-react';
 import { api } from '../../../services/api';
-import type { Patient, Prescription } from '../../../types';
+import type { Patient, Prescription, Encounter, MedicationRequest, DiagnosticTest } from '../../../types';
+import { PatientService } from '../../../services/patientService';
+import { EncounterService } from '../../../services/encounterService';
 
 interface AiPrescriptionUploadTabProps {
   onSuccess?: (patientId: string) => void;
@@ -118,7 +120,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         allergies: [],
         chronicConditions: [],
         createdAt: new Date().toISOString(),
-        queueStatus: 'registered',
+        queueStatus: 'pending_payment',
         abhaId: `ABHA-91-${Math.floor(1000+Math.random()*9000)}`
       };
       
@@ -169,6 +171,33 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       };
       
       setExtractedPrescription(mockPrescription);
+      
+      // AUTO-COMMIT: Pipeline directly to Global DB and Encounter
+      addLog('Committing profile to global patient registry...', 'info');
+      PatientService.savePatient(patientData);
+      
+      addLog('Piping extracted medicines to Pharmacy Cart...', 'info');
+      const encounterMeds: MedicationRequest[] = meds.map((m: any, idx: number) => ({
+        id: `med-${idx}`,
+        medicineName: m.name || '',
+        dosage: m.dosage || '',
+        frequency: m.frequency || '',
+        duration: m.duration || ''
+      }));
+      
+      EncounterService.createEncounter({
+        patientId: mockId,
+        patientName: patientData.name,
+        patientPhone: patientData.phone,
+        doctorId: 'doc-ocr',
+        clinicalNotes: 'Auto-extracted from OCR paper prescription.',
+        medications: encounterMeds,
+        diagnosticTests: []
+      });
+
+      // Maintain 'pending_payment' instead of complete because Compounder must bill it.
+      PatientService.updatePatientQueueStatus(mockId, 'pending_payment');
+      
       setCurrentStep('done');
       addLog('PROTOCOL COMPLETE. Dashboard state updated seamlessly.', 'success');
       
