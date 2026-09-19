@@ -1043,11 +1043,12 @@ Dhyan rakhein aur jaldi theek hon!`;
 
       const pass1Prompt = `You are an expert Indian clinical pharmacist and medical scribe reading a handwritten doctor's prescription slip. Your accuracy is CRITICAL — a real patient's medicine depends on this.
 
-⚠️ ANTI-HALLUCINATION RULES (Non-Negotiable):
-- If a word or number is unclear or illegible, write [ILLEGIBLE] — DO NOT guess.
-- NEVER invent medicine names, dosages, or patient details not visible on the paper.
-- If a field is not written on the slip, mark it as NOT_WRITTEN or UNKNOWN — never fill with assumptions.
-- For phone numbers: only extract if a 10-digit number is clearly written. Otherwise: NOT_WRITTEN.
+🚨 MILITARY-GRADE ZERO-HALLUCINATION PROTOCOL (Non-Negotiable) 🚨
+1. DOUBLE-VERIFICATION: Before extracting any word, look at the visual evidence twice. Do not guess based on clinical context if the spelling is completely illegible.
+2. EXACT TRANSCRIPTION: Extract the EXACT spelling of medicines and lab test names exactly as written, even if the doctor misspelled it. Do NOT infer broader lab panels (e.g., if "HbA1c" is written, do NOT output "Diabetic Panel").
+3. NO INVENTIONS: NEVER invent medicine names, dosages, durations, or patient details not explicitly visible on the paper.
+4. UNKNOWN HANDLING: If a word, number, or field is unclear, ambiguous, or illegible (confidence < 90%), YOU MUST write [ILLEGIBLE]. If a field is missing, write NOT_WRITTEN.
+5. PHONE NUMBERS: Only extract if a 10-digit number is clearly written. Otherwise: NOT_WRITTEN.
 
 Read the prescription image EXTREMELY carefully, line by line.
 Transcribe EVERY visible piece of text exactly as written. Do NOT skip any line.
