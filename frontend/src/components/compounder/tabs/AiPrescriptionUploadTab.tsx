@@ -26,7 +26,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   
   // Extracted Data State
   const [extractedPatient, setExtractedPatient] = useState<Patient | null>(null);
-  const [extractedPrescription, setExtractedPrescription] = useState<Prescription | null>(null);
+  const [extractedPrescription, setExtractedPrescription] = useState<any | null>(null);
   const [chronicBadges, setChronicBadges] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,8 +96,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       
       const result = await api.ocrScan(file);
       
-      if (!result.success || !result.extractedData) {
-        throw new Error(result.error || 'Failed to parse prescription data');
+      if (!result.extracted_text) {
+        throw new Error('Failed to parse prescription data');
       }
       
       addLog('Vision extraction complete. Double-verifying syntax...', 'success');
@@ -107,13 +107,16 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       addLog('Normalizing patient demographic parameters...', 'info');
       await new Promise(r => setTimeout(r, 1200));
       
+      const extractedData = (result as any).digitizedPrescription || result.structured_data || {};
       const mockId = `pat-${Date.now().toString().slice(-6)}`;
       const patientData: Patient = {
         id: mockId,
-        name: result.extractedData.patientName || 'Unknown Patient',
-        phone: result.extractedData.patientPhone || '9999999999',
-        age: result.extractedData.patientAge ? String(result.extractedData.patientAge) : undefined,
-        gender: result.extractedData.patientGender,
+        name: extractedData.patientName || 'Unknown Patient',
+        phone: extractedData.patientPhone || '9999999999',
+        age: extractedData.patientAge ? Number(extractedData.patientAge) : 0,
+        gender: (extractedData.patientGender || 'Other') as any,
+        allergies: [],
+        chronicConditions: [],
         createdAt: new Date().toISOString(),
         queueStatus: 'registered',
         abhaId: `ABHA-91-${Math.floor(1000+Math.random()*9000)}`
@@ -126,7 +129,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       addLog('Executing cross-reference against chronic cohort matrices...', 'info');
       await new Promise(r => setTimeout(r, 900));
       
-      const meds = result.extractedData.medications || [];
+      const meds = extractedData.medications || [];
       const identifiedBadges: string[] = [];
       const rxText = JSON.stringify(meds).toLowerCase();
       
@@ -150,12 +153,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       addLog('Compiling standardized Digital Prescription PDF...', 'info');
       await new Promise(r => setTimeout(r, 800));
       
-      const mockPrescription: Prescription = {
+      const mockPrescription: any = {
         id: `rx-${Date.now()}`,
         patientId: mockId,
         doctorId: 'doc-ocr',
         date: new Date().toISOString().split('T')[0],
-        medications: meds.map(m => ({
+        medications: meds.map((m: any) => ({
           id: `med-${Math.random()}`,
           name: m.name || '',
           dosage: m.dosage || '',

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { 
   Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
-  ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send, Phone
+  ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send, Phone, CreditCard
 } from 'lucide-react';
 import { SearchInput } from '../../ui/SearchInput';
 import { api } from '../../../services/api';
@@ -30,7 +30,7 @@ import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } f
 
 
 export interface BillHubTabProps {
-  initialMode?: 'manual_billing';
+  initialMode?: 'manual_billing' | 'ocr_scan';
   initialPatientId?: string | null;
 }
 
@@ -1014,11 +1014,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 </div>
 
                 {/* Pharmacy Items */}
-                {billingLedger?.medicinesList.length > 0 && (
+                {(billingLedger?.medicinesList?.length || 0) > 0 && (
                   <div>
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Pharmacy Prescriptions (Auto-Synced)</h4>
                     <div className="space-y-2">
-                      {billingLedger.medicinesList.map((med: any, i: number) => {
+                      {billingLedger?.medicinesList?.map((med: any, i: number) => {
                         const isSelected = selectedMedicines[med.name.toLowerCase()]?.selected;
                         return (
                           <div key={i} className={`p-3 rounded-xl border flex items-center justify-between ${isSelected ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20' : 'bg-slate-50 border-slate-100'}`}>
@@ -1050,11 +1050,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 )}
 
                 {/* Lab Tests */}
-                {billingLedger?.testsList.length > 0 && (
+                {(billingLedger?.testsList?.length || 0) > 0 && (
                   <div>
                     <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Pathology Tests (Auto-Synced)</h4>
                     <div className="space-y-2">
-                      {billingLedger.testsList.map((test: any, i: number) => {
+                      {billingLedger?.testsList?.map((test: any, i: number) => {
                         const isSelected = selectedTests[test.loincCode];
                         return (
                           <div key={i} className={`p-3 rounded-xl border flex items-center justify-between ${isSelected ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20' : 'bg-slate-50 border-slate-100'}`}>
