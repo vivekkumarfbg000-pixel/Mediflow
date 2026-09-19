@@ -438,26 +438,50 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                     <span className="text-xs font-bold uppercase tracking-widest">Compiling Encrypted PDF...</span>
                   </div>
                 ) : currentStep === 'done' && extractedPrescription ? (
-                  <div className="mt-auto pt-6 border-t border-slate-200 dark:border-white/5 animate-in slide-in-from-bottom-4 fade-in duration-500 delay-300 fill-mode-both">
+                  <div className="mt-auto pt-6 border-t border-slate-200 dark:border-white/5 animate-in slide-in-from-bottom-4 fade-in duration-500 delay-300 fill-mode-both flex flex-col gap-3">
                     <button 
                       onClick={() => {
                         if (extractedPrescription.digitalPdfUrl) {
                           alert('Opening synthesized digital PDF viewer...');
                         }
                       }}
-                      className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-indigo-600 dark:hover:bg-indigo-50 transition-all shadow-xl hover:shadow-2xl group overflow-hidden relative"
+                      className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-between px-5 py-3 rounded-2xl hover:bg-indigo-600 dark:hover:bg-indigo-50 transition-all shadow-lg hover:shadow-xl group overflow-hidden relative"
                     >
                       <div className="absolute inset-0 bg-white/10 dark:bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <div className="flex items-center gap-4 relative z-10">
-                        <div className="w-10 h-10 rounded-xl bg-white/20 dark:bg-slate-900/10 flex items-center justify-center backdrop-blur-sm">
-                          <FileText className="w-5 h-5" />
+                        <div className="w-9 h-9 rounded-xl bg-white/20 dark:bg-slate-900/10 flex items-center justify-center backdrop-blur-sm">
+                          <FileText className="w-4 h-4" />
                         </div>
                         <div className="text-left">
-                          <span className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-tight mb-0.5">Artifact Generated</span>
+                          <span className="block text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-tight mb-0.5">Artifact Generated</span>
                           <span className="block text-sm font-black tracking-tight">Access Digital Prescription</span>
                         </div>
                       </div>
-                      <ChevronRight className="w-5 h-5 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all relative z-10" />
+                      <ChevronRight className="w-4 h-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all relative z-10" />
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-change-tab', {
+                          detail: {
+                            tab: 'invoice_generator',
+                            patientId: extractedPatient?.id
+                          }
+                        }));
+                      }}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white flex items-center justify-between px-5 py-3 rounded-2xl hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-emerald-500/25 group overflow-hidden relative"
+                    >
+                      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner">
+                          <Zap className="w-4 h-4 text-emerald-50" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-[9px] font-black text-emerald-100 uppercase tracking-widest leading-tight mb-0.5">Next Action</span>
+                          <span className="block text-sm font-black tracking-tight">Proceed to Auto-Billing</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-emerald-100 opacity-70 group-hover:opacity-100 group-hover:translate-x-1 transition-all relative z-10" />
                     </button>
                   </div>
                 ) : null}

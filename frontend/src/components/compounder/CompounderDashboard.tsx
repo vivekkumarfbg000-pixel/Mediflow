@@ -615,9 +615,11 @@ export const CompounderDashboard: React.FC = () => {
   // Synchronize tabs from mobile footer dock & ecosystem events
   useEffect(() => {
     const handleTabChange = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      const target = customEvent.detail;
-      if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare') {
+      const customEvent = e as CustomEvent<any>;
+      const payload = customEvent.detail;
+      const target = typeof payload === 'string' ? payload : payload?.tab;
+
+      if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload') {
         setActiveTab(target);
       } else if (target === 'tokens' || target === 'patients') {
         setActiveTab('opd_patients');
@@ -628,6 +630,10 @@ export const CompounderDashboard: React.FC = () => {
       } else if (target === 'ot_billing' || target === 'invoice_generator') {
         setActiveTab('billing_daycare');
         setBillingSubTab('billing');
+        if (payload?.patientId) {
+          setSelectedPatientForBillHub(payload.patientId);
+          setBillHubInitialMode('manual_billing');
+        }
       }
     };
 
