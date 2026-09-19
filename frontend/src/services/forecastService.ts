@@ -1233,7 +1233,7 @@ Return ONLY this exact JSON with no markdown, no code fences, no extra text:
                     break;
                   }
                 } catch (parseErr: any) {
-                  console.warn('[Mediflow AI] JSON Parse error on PASS 2:', pass2Text.substring(0, 50));
+                  console.warn('[Mediflow AI] JSON Parse error on PASS 2:', raw2.substring(0, 50));
                   failureReasons.push(`Tier 1 JSON Parse Error: ${parseErr.message}`);
                 }
               } else {
@@ -1489,9 +1489,7 @@ Extract all visible patient and medication details accurately into valid JSON.
         };
       }
       // If we reach here and parsedResult is STILL null, it means BOTH Tier 1 and Tier 2 failed.
-      if (!parsedResult) {
-        throw new Error(`Vision OCR Extraction Failed.\nReasons:\n- ${failureReasons.join('\n- ')}`);
-      }
+      throw new Error(`Vision OCR Extraction Failed.\nReasons:\n- ${failureReasons.join('\n- ')}`);
 
     } catch (error: any) {
       console.error('[Mediflow AI] OCR Extraction exception:', error);
