@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabaseClient';
 import { WhatsAppService, normalizeWhatsAppPhone } from './whatsappService';
 import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { writeAuditLog } from './apiHelper';
+import { WhatsAppTemplateEngine } from './WhatsAppTemplateEngine';
 
 export interface LabReportNotificationParams {
   patientPhone: string;
@@ -214,50 +215,25 @@ export class ClinicalNotificationService {
     const { patientPhone, patientName, testName, loincCode, biomarkers, reportPdfUrl, doctorName, clinicName, assignedTime } = params;
     if (!patientPhone) return '';
 
-    const resolvedClinic = clinicName || WhatsAppService.getDynamicClinicName();
     const resolvedDoc = doctorName || WhatsAppService.getActiveDoctorName();
     const interpretation = this.generateHinglishLabInterpretation(loincCode, testName, biomarkers);
 
-    let biomarkerLines = '';
-    if (biomarkers && typeof biomarkers === 'object') {
-      const entries = Object.entries(biomarkers).filter(([k]) => !k.endsWith('_unit') && k !== 'unit' && k !== 'testCode');
-      if (entries.length > 0) {
-        biomarkerLines = entries.map(([k, v]) => `• *${k}*: ${v}`).join('\n');
-      }
-    }
+    const docLastName = resolvedDoc.replace('Dr. ', '').split(' ').pop() || 'Doctor';
 
-    let msg = `🔬 *${resolvedClinic} Diagnostics Report* 📋\n\n`;
-    msg += `Namaste *${patientName}*! Aapka *${testName}* report verify aur publish ho gaya hai.\n\n`;
-
-    if (biomarkerLines) {
-      msg += `📊 *Report Biomarkers:*\n${biomarkerLines}\n\n`;
-    }
-
-    msg += `👉 *Report Guidance (Hinglish):*\n${interpretation}\n\n`;
-
-    if (reportPdfUrl) {
-      msg += `📥 *Official Electronic Lab Report (PDF):*\n🔗 ${reportPdfUrl}\n\n`;
-    }
-
-    msg += `🏥 *Next Step (Doctor Review):*\n`;
-    msg += `${resolvedDoc} ke paas report review ke liye aapka evening slot assign kar diya gaya hai.\n`;
-    msg += `• Time: *${assignedTime || 'Evening Slot'}*\n\n`;
-    msg += `Please reply *1* ya *[ 🏥 Confirm Clinic Visit ]* button tap kijiye! Stay healthy! 🟢`;
-
-    // 1. Update in-app WhatsApp Session Simulator & Supabase DB
-    WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-
-    // 2. Direct Outbound Meta Graph API Relay
-    await this.relayMetaGraphApi(patientPhone, msg);
-
-    writeAuditLog('WHATSAPP_LAB_REPORT_DISPATCHED', {
-      phone: patientPhone,
+    // 1. Delegate directly to the Canonical Template Engine (Rule 4 & 9) 
+    // This enforces the 2-Button Review Loop (Physical vs Virtual)
+    await WhatsAppTemplateEngine.dispatchLabReportReady({
+      patientPhone,
       patientName,
       testName,
-      hasPdf: Boolean(reportPdfUrl)
-    }, null);
+      aiSummaryHinglish: interpretation,
+      pdfUrl: reportPdfUrl,
+      doctorLastName: docLastName
+    });
 
-    return msg;
+    // 2. We don't return the raw message anymore since the TemplateEngine handles the bot push and db writes internally.
+    // However, since the return type is Promise<string>, we'll return a success stub.
+    return 'Template 4 (Lab Report Ready) dispatched successfully.';
   }
 
   /**
