@@ -402,31 +402,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
             <button
               onClick={scrollToGate}
-              className="hidden md:inline-flex text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
+              className="text-xs font-bold text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-all cursor-pointer"
             >
               Sign In
-            </button>
-
-            <button
-              onClick={handleSignUpClick}
-              className="hidden md:inline-flex px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer items-center gap-1"
-            >
-              Clinic Sign Up
-            </button>
-
-            <button
-              onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
-              className="hidden md:inline-flex px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs hover:shadow-sm transition-all cursor-pointer items-center gap-1.5"
-            >
-              Book a Live Demo <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-
-            {/* Mobile: Clinic Sign Up CTA */}
-            <button
-              onClick={handleSignUpClick}
-              className="md:hidden px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
-            >
-              Sign Up
             </button>
 
             {/* Mobile: Hamburger Toggle */}
@@ -469,12 +447,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 className="w-full py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
               >
                 Sign In
-              </button>
-              <button
-                onClick={(e) => { setIsMobileMenuOpen(false); setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
-                className="w-full py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all cursor-pointer"
-              >
-                Book a Live Demo
               </button>
             </div>
           </div>
@@ -607,12 +579,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               >
                 Book 1-on-1 Live Demo
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
-              <button
-                onClick={scrollToGate}
-                className="px-5 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs uppercase tracking-wider transition-all shadow-xs cursor-pointer flex items-center gap-2"
-              >
-                Doctor &amp; Staff Sign In
               </button>
             </div>
 
@@ -1100,14 +1066,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           
           {/* Header */}
           <div className="mb-14 text-center space-y-3">
-            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-widest font-mono">
-              <Zap className="h-3.5 w-3.5 text-teal-600" /> The Complete Operating Lifecycle
+            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-slate-900 border border-slate-700 text-slate-100 text-xs font-bold uppercase tracking-widest font-mono shadow-sm">
+              <Zap className="h-3.5 w-3.5 text-teal-400" /> The Connected Clinic Operating System
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900">
-              From Handwritten Paper to Automated Virtual Hospital
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
+              The Virtual Hospital Automation Loop
             </h2>
             <p className="text-slate-600 text-sm sm:text-base max-w-3xl mx-auto leading-relaxed font-normal">
-              Doctors write on paper as usual. Staff snaps a photo or uploads the prescription. VitalSync AI digitizes the chart, WhatsApp delivers the prescription, and your partner pharmacy and lab sync in real-time—retaining even distant chronic patients 100–200 km away.
+              Doctors write on paper as usual. The compounder scans the prescription to instantly build a complete patient profile. From there, the Clinic OS automates the next booking, follow-ups, VIP scheduling, video consults, and fully integrates your financial dashboard with the pharmacy and lab.
             </p>
           </div>
 
@@ -1210,10 +1176,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     Step 02 · Front Desk Speed (Optical AI Ingestion)
                   </div>
                   <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                    Compounder Snaps &amp; Uploads at Front Desk.
+                    Compounder Scans to Build Patient Profile.
                   </h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-normal">
-                    When the patient steps out of the doctor chamber, they hand the paper slip to the front desk. Your compounder opens the VitalSync OPD desk on any phone, tablet, or PC webcam and clicks "Scan Rx". In moments, the scan uploads to the secure clinical cloud.
+                    When the patient steps out, they hand the paper slip to the front desk. Your compounder opens the VitalSync OS on any device and clicks "Scan Rx". Instantly, the AI digitizes the document and builds a comprehensive digital patient profile, triggering the automation loop.
                   </p>
                   <div className="space-y-2.5 pt-2 text-xs text-slate-700 font-medium">
                     <div className="flex items-center gap-2">
@@ -1325,10 +1291,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     Step 04 · Frictionless WhatsApp Assistant
                   </div>
                   <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                    Smart WhatsApp AI Assistant Takes Over All Operations.
+                    Automated Bookings, Follow-ups & VIP Access.
                   </h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-normal">
-                    Before the patient leaves the clinic parking lot, their WhatsApp buzzes. The VitalSync Clinic AI Assistant delivers their official digital prescription PDF, breaks down medication timing in friendly Hinglish, and issues sequential tokens. It answers clinical questions 24/7 and sends proactive follow-up reminders.
+                    Before the patient leaves, their WhatsApp buzzes. The system automatically schedules their next booking, sends routine follow-ups, and offers VIP queue upgrades. All interactions sync in real-time with your interconnected virtual hospital (Lab & Pharmacy) and financial dashboard.
                   </p>
                   <div className="space-y-2.5 pt-2 text-xs text-slate-700 font-medium">
                     <div className="flex items-center gap-2">
@@ -1501,12 +1467,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   Provide hospital-grade continuity of care for your most loyal chronic patients, no matter how far they live.
                 </p>
-                <button
-                  onClick={handleGetStartedClick}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-                >
-                  Enable 90-Day Free Pilot
-                </button>
               </div>
             </div>
           </div>
@@ -1521,7 +1481,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-widest font-mono">
               <Building2 className="h-3.5 w-3.5 text-teal-600" /> Decentralized Virtual Hospital Network
             </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-slate-900">
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
               The Connected Triad Architecture
             </h2>
             <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
@@ -1592,7 +1552,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-7 text-left">
             {/* Triad 1: Doctor Chamber */}
-            <div className="p-7 rounded-3xl bg-gradient-to-b from-teal-50/70 to-white border-2 border-teal-200 hover:border-teal-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative group">
+            <div className="p-7 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-sm hover:border-teal-300 hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative group">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="h-12 w-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md">
@@ -1638,7 +1598,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
 
             {/* Triad 2: Partner Chemist */}
-            <div className="p-7 rounded-3xl bg-gradient-to-b from-emerald-50/70 to-white border-2 border-emerald-200 hover:border-emerald-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative group">
+            <div className="p-7 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-sm hover:border-emerald-300 hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative group">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="h-12 w-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md">
@@ -1684,7 +1644,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
 
             {/* Triad 3: Partner Pathology Lab */}
-            <div className="p-7 rounded-3xl bg-gradient-to-b from-indigo-50/70 to-white border-2 border-indigo-200 hover:border-indigo-400 hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative group">
+            <div className="p-7 rounded-3xl bg-white/70 backdrop-blur-md border border-white/80 shadow-sm hover:border-indigo-300 hover:shadow-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative group">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="h-12 w-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
@@ -1754,7 +1714,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-widest font-mono">
               <HeartPulse className="h-3.5 w-3.5 text-emerald-600" /> Multi-Chronic Disease Care Engine
             </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-slate-900">
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
               Turn One-Off OPD Visits Into 10-Year Recurring Care
             </h2>
             <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
@@ -1905,7 +1865,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-bold uppercase tracking-widest font-mono">
               <Calendar className="h-3.5 w-3.5 text-cyan-600" /> Longitudinal Care Flow
             </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-slate-900">
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
               The 360° Chronic Patient Journey
             </h2>
             <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
@@ -1948,9 +1908,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </span>
                   <span className="text-xs text-slate-400">Doctor Chamber Consultation</span>
                 </div>
-                <h3 className="text-2xl font-black text-white">Chamber Intake &amp; Dual-Mode Prescription</h3>
+                <h3 className="text-2xl font-black text-white">Chamber Intake &amp; Compounder AI Scan</h3>
                 <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Ramesh Ji (Age 52, Type-2 Diabetes) visits Dr. Verma. Doctor writes on paper prescription pad as usual. Compounder snaps 1 photo on phone ➡️ AI instantly digitizes prescription with structured dosage (<code className="text-cyan-300 font-mono">Glycomet-GP2 1-0-1</code>).
+                  Ramesh Ji (Age 52, Type-2 Diabetes) visits Dr. Verma. Doctor writes on paper as usual. The compounder scans the slip at the front desk ➡️ Clinic OS instantly builds a digital patient profile and extracts the structured dosage (<code className="text-cyan-300 font-mono">Glycomet-GP2 1-0-1</code>).
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
                   <div className="p-3 rounded-xl bg-white/10 border border-white/10">
@@ -2020,9 +1980,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </span>
                   <span className="text-xs text-slate-400">Proactive Diagnostic Loop</span>
                 </div>
-                <h3 className="text-2xl font-black text-white">90-Day Diagnostic Re-test &amp; Home Phlebotomy</h3>
+                <h3 className="text-2xl font-black text-white">Automated Interconnected Virtual Lab Re-test</h3>
                 <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Before Ramesh's quarterly doctor checkup, WhatsApp prompts a repeat HbA1c &amp; Serum Creatinine test. Partner Lab sends a phlebotomist to collect the morning blood sample. The report is verified and automatically delivered as a PDF on WhatsApp in 4 hours.
+                  Before the quarterly checkup, the Clinic OS prompts a repeat HbA1c test. Your interconnected Partner Lab sends a phlebotomist. The report is automatically synced to the doctor's EMR and delivered to the patient via WhatsApp, fully integrating the virtual hospital loop.
                 </p>
                 <div className="p-4 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-indigo-200">
                   🔬 <strong>Closed-Loop Diagnostics:</strong> Dr. Verma's EMR receives the HbA1c result before Ramesh even arrives at the clinic chamber.
@@ -2038,9 +1998,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </span>
                   <span className="text-xs text-slate-400">Quarterly Clinical Review</span>
                 </div>
-                <h3 className="text-2xl font-black text-white">Quarterly Outcome Review &amp; AI Longitudinal Trend</h3>
+                <h3 className="text-2xl font-black text-white">VIP Booking, Outcomes &amp; Financial Dashboard</h3>
                 <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Ramesh returns for his 90-day consult. Dr. Verma's EMR displays a clean 90-day trajectory: HbA1c dropped from <strong>9.2% to 6.8%</strong>! Adherence score: <strong>98%</strong>. Dr. Verma optimizes dosage with 1 click.
+                  Ramesh books a VIP slot via WhatsApp for his 90-day consult. Dr. Verma reviews the clean HbA1c trajectory. Simultaneously, your centralized Financial Dashboard records the consultation and automated lab/pharmacy splits, capturing complete practice revenue.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
                   <div className="p-3 rounded-xl bg-white/10 border border-white/10">
@@ -2069,7 +2029,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-800 text-xs font-bold uppercase tracking-widest font-mono">
               <Sparkles className="h-3.5 w-3.5 text-indigo-600" /> Interactive Platform Tour
             </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-slate-900">
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
               5 Connected Consoles. One Realtime Highway.
             </h2>
             <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
@@ -2967,20 +2927,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 Choose your consultation mode per patient. Both flows feed the exact same automated WhatsApp Assistant, Chemist POS dispensing queue, and Lab LIS test worklist.
               </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <button
-                onClick={scrollToGate}
-                className="px-5 py-3 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
-              >
-                Explore Doctor EMR
-              </button>
-              <button
-                onClick={handleGetStartedClick}
-                className="px-5 py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-1.5"
-              >
-                Start 90-Day Free Pilot <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
+
           </div>
 
         </div>
@@ -3233,19 +3180,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             ))}
           </div>
 
-          {/* Call-to-action bar */}
-          <div className="mt-16 p-6 rounded-3xl bg-white border border-slate-200 shadow-md flex flex-col sm:flex-row items-center justify-between gap-6 text-left">
-            <div>
-              <p className="text-base font-bold text-slate-900 uppercase tracking-wider">Initialize Your Workspace</p>
-              <p className="text-xs text-slate-500 mt-1 font-semibold">Open the credentials panel and complete your registration checklist.</p>
-            </div>
-            <button
-              onClick={handleSignUpClick}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold text-xs uppercase tracking-wider hover:from-indigo-400 hover:to-indigo-500 transition-all shadow-lg shadow-indigo-500/20 whitespace-nowrap cursor-pointer"
-            >
-              Start Clinic Sign Up <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
         </div>
       </section>
 
@@ -3257,7 +3191,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <Shield className="h-3.5 w-3.5 text-teal-600" />
               100% Transparent Platform Pricing
             </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Platform Fee Schedule</h2>
+            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 tracking-tight uppercase">Platform Fee Schedule</h2>
             <p className="text-slate-500 text-sm font-semibold mt-2 max-w-2xl mx-auto">
               VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. We maintain 0% commission on Doctor OPD consultations, alongside ultra-low B2B splits on partner Pathology Lab (2%) and Pharmacy Counter (1%).
             </p>
@@ -3314,13 +3248,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
                   Covers 24/7 official WhatsApp Business messaging, real-time cloud data sync, AI clinical triage, and automated 5-console clinic networking.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setShowDemoModal(true)}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  Book 1-on-1 Live Demo <ArrowRight className="h-4 w-4" />
-                </button>
+
               </div>
             </div>
           </div>
@@ -3666,16 +3594,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
-              onClick={handleSignUpClick}
-              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white font-extrabold text-sm uppercase tracking-wider shadow-xl shadow-teal-500/20 transition-all cursor-pointer flex items-center gap-2"
-            >
-              <Sparkles className="h-4 w-4" /> Register Your Clinic — Free
-            </button>
-            <button
               onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
-              className="px-8 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-sm transition-all cursor-pointer flex items-center gap-2"
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl shadow-teal-500/25 transition-all cursor-pointer flex items-center gap-2.5 group"
             >
-              <Calendar className="h-4 w-4" /> Book 1-on-1 Demo
+              <Calendar className="h-4 w-4" /> Book Your 1-on-1 Clinic Demo
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-400 font-medium pt-2">
