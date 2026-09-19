@@ -39,6 +39,7 @@ import type {
   EveningSlot
 } from '../../types';
 import { BillHubTab } from './tabs/BillHubTab';
+import { AiPrescriptionUploadTab } from './tabs/AiPrescriptionUploadTab';
 import { InvoiceCard } from '../InvoiceCard';
 import { PatientsDirectoryTab } from '../doctor/tabs/PatientsDirectoryTab';
 import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
@@ -142,7 +143,7 @@ export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities, activePod, activeProfile } = useClinic();
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
-  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare' | 'ai_ocr_upload'>('overview');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
   const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming'>('today');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
@@ -3387,11 +3388,7 @@ export const CompounderDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setBillHubInitialMode('ocr_scan');
-                    setBillingSubTab('ocr_scan');
-                    setActiveTab('billing_daycare');
-                  }}
+                  onClick={() => setActiveTab('ai_ocr_upload')}
                   className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-950/40 dark:to-purple-900/20 border border-purple-200/80 dark:border-purple-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
                 >
                   <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-purple-500/20">
@@ -4887,8 +4884,7 @@ export const CompounderDashboard: React.FC = () => {
                                   type="button"
                                   onClick={() => {
                                     setSelectedPatientForBillHub(patient.id);
-                                    setActiveTab('billing_daycare');
-                                    setBillingSubTab('ocr_scan');
+                                    setActiveTab('ai_ocr_upload');
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                   }}
                                   className={`font-bold rounded-xl uppercase tracking-wider transition-all cursor-pointer border-0 shadow-md flex items-center gap-1.5 active:scale-95 ${
@@ -4954,8 +4950,7 @@ export const CompounderDashboard: React.FC = () => {
                                   type="button"
                                   onClick={() => {
                                     setSelectedPatientForBillHub(patient.id);
-                                    setActiveTab('billing_daycare');
-                                    setBillingSubTab('ocr_scan');
+                                    setActiveTab('ai_ocr_upload');
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                   }}
                                   className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700 rounded text-[8px] font-bold cursor-pointer"
@@ -5553,7 +5548,7 @@ export const CompounderDashboard: React.FC = () => {
         {activeTab === 'billing_daycare' && (
           <div className="space-y-6 animate-fade-in text-left">
             {/* Compact 3-column horizontal icon row — replaces verbose flex-wrap buttons */}
-            <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5">
+            <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5">
               {/* 1. Counter Invoice */}
               <button
                 type="button"
@@ -5576,28 +5571,6 @@ export const CompounderDashboard: React.FC = () => {
                 <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'billing' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>POS Invoicing</span>
               </button>
 
-              {/* 2. AI Scan OCR */}
-              <button
-                type="button"
-                onClick={() => {
-                  setBillingSubTab('ocr_scan');
-                  setBillHubInitialMode('ocr_scan');
-                }}
-                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition active:scale-95 cursor-pointer border-0 ${
-                  billingSubTab === 'ocr_scan'
-                    ? 'bg-gradient-to-br from-purple-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/20'
-                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
-                }`}
-              >
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
-                  billingSubTab === 'ocr_scan' ? 'bg-white/20' : 'bg-purple-100 dark:bg-purple-900/40'
-                }`}>
-                  <Camera className={`w-3.5 h-3.5 ${billingSubTab === 'ocr_scan' ? 'text-white' : 'text-purple-600 dark:text-purple-400'}`} />
-                </div>
-                <span className="text-[9.5px] font-extrabold text-center leading-tight">AI Rx Scan</span>
-                <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'ocr_scan' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>Prescription OCR</span>
-              </button>
-
               {/* 3. Minor OT / Daycare */}
               <button
                 type="button"
@@ -5617,15 +5590,9 @@ export const CompounderDashboard: React.FC = () => {
                 <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'ot_daycare' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>Procedures &amp; Triage</span>
               </button>
             </div>
-
             {/* Sub-View 1: Manual Counter Billing */}
             {billingSubTab === 'billing' && (
               <BillHubTab initialMode="manual_billing" initialPatientId={selectedPatientForBillHub} />
-            )}
-
-            {/* Sub-View 2: AI Prescription Scan OCR */}
-            {billingSubTab === 'ocr_scan' && (
-              <BillHubTab initialMode="ocr_scan" initialPatientId={selectedPatientForBillHub} />
             )}
 
             {/* Sub-View 3: OT & Daycare Surgery */}
