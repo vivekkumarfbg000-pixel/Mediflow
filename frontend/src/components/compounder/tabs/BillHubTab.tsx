@@ -74,6 +74,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     medications: any[];
     diagnosticTests: any[];
     matchedAppointment?: any;
+    // Clinic OS extended fields
+    tokenNumber?: string | null;
+    chronicConditions?: string[];
+    isChronic?: boolean;
+    prescriptionImageUrl?: string | null;
+    waDispatched?: boolean;
+    isNewPatient?: boolean;
+    consultFee?: number;
   } | null>(null);
   const [manualExtractedData, setManualExtractedData] = useState<{
     raw: string;
@@ -1113,7 +1121,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         chronicConditions: (digitized as any).chronicConditions || [],
         prescriptionImageFile: file || null,
         appointmentId: activeApptId
-      } as any).then(({ prescriptionImageUrl }) => {
+      } as any).then(({ prescriptionImageUrl: rxUrl }) => {
+        // Update lastScannedResult with the real Rx PDF URL once upload completes
+        setLastScannedResult(prev => prev ? { ...prev, prescriptionImageUrl: rxUrl } : prev);
+        const prescriptionImageUrl = rxUrl;
         const validPhone = (patientObj.phone || '').replace(/\D/g, '').slice(-10);
 
         // Q1 Invariant: If phone is missing or incomplete, prompt compounder with popup modal!
@@ -1243,7 +1254,15 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         patient: patientObj,
         medications: medicationsList,
         diagnosticTests: diagnosticTestsList,
-        matchedAppointment: matchedAppt
+        matchedAppointment: matchedAppt,
+        // Clinic OS extended fields
+        tokenNumber: matchedAppt ? (matchedAppt.tokenNumber || matchedAppt.token_number || null) : null,
+        chronicConditions: (digitized as any).chronicConditions || [],
+        isChronic: (digitized as any).isChronic || false,
+        prescriptionImageUrl: null, // filled async in persistPrescriptionToSupabase callback
+        waDispatched: !!(patientObj.phone && patientObj.phone.replace(/\D/g, '').slice(-10).length === 10),
+        isNewPatient: !matchedAppt,
+        consultFee
       });
       setRefreshKey(prev => prev + 1);
 
@@ -2019,80 +2038,258 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             </div>
           </div>
 
-          {/* Right Area: Scanned Result Dashboard & Auto-Dispatch Hub */}
+          {/* Right Area: Clinic OS — Post-Scan Patient Profile & Auto-Dispatch Hub */}
           <div className="lg:col-span-6 space-y-4">
             {lastScannedResult ? (
-              <div className="glass-panel p-6 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-3xl space-y-5 text-left animate-fade-in">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <div>
-                    <span className="text-[9px] font-mono font-black uppercase text-indigo-600 tracking-wider">AI Scan Extracted Successfully</span>
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base mt-0.5">{lastScannedResult.patient.name}</h3>
-                    <p className="text-xs text-slate-500 font-mono">📱 +91 {lastScannedResult.patient.phone} · {lastScannedResult.patient.age}y ({lastScannedResult.patient.gender})</p>
-                  </div>
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2.5 py-1 rounded-xl font-bold flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Auto-Matched
-                  </span>
-                </div>
+              <div className="space-y-4 animate-fade-in">
 
-                {/* Prescribed Medicines */}
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Pill className="h-3.5 w-3.5 text-indigo-500" />
-                    Prescribed Medicines ({(lastScannedResult?.medications || []).length}) ➔ Dispatched to Pharmacy
-                  </h4>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                    {(lastScannedResult?.medications || []).length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">No oral medications detected.</p>
-                    ) : (
-                      (lastScannedResult?.medications || []).map((m, idx) => (
-                        <div key={`ocr-med-${idx}-${m.medicineName || 'item'}`} className="p-2.5 rounded-xl border border-slate-200/80 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-bold text-slate-800 dark:text-white">{m.medicineName}</span>
-                            <span className="text-[10px] text-slate-500 block font-mono">Dosage: {m.dosage} ({m.frequency || 'twice daily'})</span>
-                          </div>
-                          <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded font-bold font-mono">Reserved ✅</span>
+                {/* ── HEADER: Patient Profile Card ─────────────────────────────── */}
+                <div className="glass-panel p-5 bg-white dark:bg-clinical-900/40 border border-emerald-200/60 dark:border-emerald-800/30 shadow-sm rounded-3xl">
+                  {/* Top bar: status + NEW SCAN button */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-9 w-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-mono font-black uppercase text-emerald-600 tracking-wider block">✅ Clinic OS — Profile Created</span>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          {lastScannedResult.isNewPatient ? '🆕 New Patient Registered' : '🔍 Existing Patient Matched'}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLastScannedResult(null);
+                        setFileName(null);
+                        setSelectedImagePreview(null);
+                        setManualExtractedData(null);
+                        setSelectedMedicines({});
+                        setSelectedTests({});
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-indigo-100 dark:bg-slate-800 dark:hover:bg-indigo-900/40 text-slate-600 dark:text-slate-300 hover:text-indigo-700 text-[11px] font-bold transition-all border border-slate-200 dark:border-slate-700 cursor-pointer"
+                      title="Scan next prescription"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      New Scan
+                    </button>
+                  </div>
+
+                  {/* Patient Identity Row */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-lg shrink-0 shadow-md">
+                      {(lastScannedResult.patient.name || 'P').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight truncate">{lastScannedResult.patient.name}</h3>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">
+                        📱 +91 {lastScannedResult.patient.phone || '—'} &nbsp;·&nbsp;
+                        {lastScannedResult.patient.age}y ({lastScannedResult.patient.gender})
+                      </p>
+                    </div>
+                    {/* Token Badge */}
+                    {(lastScannedResult.tokenNumber || lastScannedResult.matchedAppointment?.tokenNumber || lastScannedResult.matchedAppointment?.token_number) && (
+                      <div className="ml-auto shrink-0 text-center bg-indigo-600 text-white px-3 py-2 rounded-2xl shadow-md">
+                        <div className="text-[9px] font-bold uppercase tracking-wider opacity-80">Token</div>
+                        <div className="text-sm font-black">
+                          {lastScannedResult.tokenNumber || lastScannedResult.matchedAppointment?.tokenNumber || lastScannedResult.matchedAppointment?.token_number}
                         </div>
-                      ))
+                      </div>
                     )}
                   </div>
-                </div>
 
-                {/* Prescribed Lab Tests */}
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <FlaskConical className="h-3.5 w-3.5 text-purple-500" />
-                    Prescribed Diagnostics ({(lastScannedResult?.diagnosticTests || []).length}) ➔ Dispatched to Pathology Lab
-                  </h4>
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                    {(lastScannedResult?.diagnosticTests || []).length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">No diagnostic lab tests required.</p>
-                    ) : (
-                      (lastScannedResult?.diagnosticTests || []).map((t, idx) => (
-                        <div key={`ocr-test-${idx}-${t.loincCode || t.name || 'test'}`} className="p-2.5 rounded-xl border border-slate-200/80 dark:border-white/5 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center text-xs">
-                          <div>
-                            <span className="font-bold text-slate-800 dark:text-white">{t.name}</span>
-                            <span className="text-[10px] text-slate-500 block font-mono">LOINC: {t.loincCode}</span>
-                          </div>
-                          <span className="text-[9px] bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded font-bold font-mono">Requisition Created ✅</span>
-                        </div>
-                      ))
-                    )}
+                  {/* Chronic Disease Tags */}
+                  {lastScannedResult.isChronic && (lastScannedResult.chronicConditions || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-4">
+                      <span className="text-[9px] font-bold text-rose-600 uppercase tracking-wider self-center">🩺 Chronic:</span>
+                      {(lastScannedResult.chronicConditions || []).map((cond, ci) => (
+                        <span
+                          key={`chronic-tag-${ci}`}
+                          className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40"
+                        >
+                          {cond}
+                        </span>
+                      ))}
+                      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
+                        📦 Day-25 Refill Enrolled
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Status Indicators Row */}
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-[10px] font-bold ${
+                      lastScannedResult.waDispatched
+                        ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200/60 dark:border-green-800/30'
+                        : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/30'
+                    }`}>
+                      <Send className="h-3 w-3 shrink-0" />
+                      {lastScannedResult.waDispatched ? '✅ WhatsApp Rx Sent' : '⚠️ Phone Missing — WA Skipped'}
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-[10px] font-bold bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/30">
+                      <FlaskConical className="h-3 w-3 shrink-0" />
+                      {(lastScannedResult.diagnosticTests || []).length > 0
+                        ? `✅ ${lastScannedResult.diagnosticTests.length} Lab Req. Created`
+                        : 'No Lab Tests'}
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/30">
+                      <Pill className="h-3 w-3 shrink-0" />
+                      {(lastScannedResult.medications || []).length > 0
+                        ? `✅ ${lastScannedResult.medications.length} Meds → Pharmacy`
+                        : 'No Medications'}
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-[10px] font-bold bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/40">
+                      <FileText className="h-3 w-3 shrink-0" />
+                      {lastScannedResult.prescriptionImageUrl
+                        ? <a href={lastScannedResult.prescriptionImageUrl} target="_blank" rel="noreferrer" className="underline">📄 View Scanned Rx</a>
+                        : 'Uploading Rx...'}
+                    </div>
                   </div>
                 </div>
 
-                {/* Proceed Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPatient(lastScannedResult.patient);
-                    setInvoiceSectionTab('manual_billing');
-                  }}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <span>💳 Proceed to Final Billing & Settlement ({lastScannedResult.patient.name})</span>
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                {/* ── MEDICINES LIST ───────────────────────────────────────────── */}
+                {(lastScannedResult.medications || []).length > 0 && (
+                  <div className="glass-panel p-4 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                      <Pill className="h-3.5 w-3.5 text-indigo-500" />
+                      Prescribed Medicines — Dispatched to Pharmacy Counter
+                    </h4>
+                    <div className="space-y-1.5">
+                      {(lastScannedResult.medications || []).map((m, idx) => {
+                        const invMatch = inventory.find(i =>
+                          (i.name || '').toLowerCase().includes((m.medicineName || '').toLowerCase().split(' ')[0]) ||
+                          (m.medicineName || '').toLowerCase().includes((i.name || '').toLowerCase().split(' ')[0])
+                        );
+                        const inStock = invMatch && (invMatch.stock || 0) > 0;
+                        const price = invMatch?.price || 0;
+                        const qty = m.quantity || 10;
+                        return (
+                          <div key={`ocr-med-detail-${idx}`} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/80 dark:bg-slate-900/40 text-xs gap-2">
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-800 dark:text-white block truncate">{m.medicineName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">{m.dosage} · {m.frequency} · {m.duration}</span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {price > 0 && (
+                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">₹{(price * qty).toFixed(0)}</span>
+                              )}
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold font-mono ${
+                                inStock
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                                  : invMatch
+                                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                              }`}>
+                                {inStock ? '✅ In Stock' : invMatch ? '⚠️ Low Stock' : '📋 Held'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── LAB TESTS LIST ──────────────────────────────────────────── */}
+                {(lastScannedResult.diagnosticTests || []).length > 0 && (
+                  <div className="glass-panel p-4 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                      <FlaskConical className="h-3.5 w-3.5 text-purple-500" />
+                      Lab Tests — Requisitions Sent to Pathology
+                    </h4>
+                    <div className="space-y-1.5">
+                      {(lastScannedResult.diagnosticTests || []).map((t, idx) => (
+                        <div key={`ocr-test-detail-${idx}`} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/80 dark:bg-slate-900/40 text-xs gap-2">
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-800 dark:text-white block truncate">{t.name}</span>
+                            <span className="text-[10px] text-slate-500 font-mono">LOINC: {t.loincCode}</span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {(t.price || 0) > 0 && (
+                              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">₹{t.price}</span>
+                            )}
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold font-mono bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300">
+                              ✅ Req #{('BAR-' + t.loincCode + '-').substring(0, 12)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── INLINE QUICK BILLING ─────────────────────────────────────── */}
+                <div className="glass-panel p-4 bg-white dark:bg-clinical-900/40 border border-emerald-200/50 dark:border-emerald-800/30 shadow-sm rounded-2xl">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <Receipt className="h-3.5 w-3.5 text-emerald-600" />
+                    Quick Bill Summary
+                    <span className="ml-auto text-[9px] font-bold text-slate-400 normal-case">Click Proceed to edit & print</span>
+                  </h4>
+                  <div className="space-y-1.5 mb-3">
+                    {/* Consultation Fee */}
+                    {(lastScannedResult.consultFee || 0) > 0 && (
+                      <div className="flex justify-between text-xs px-1">
+                        <span className="text-slate-600 dark:text-slate-400">🏥 OPD Consultation</span>
+                        <span className="font-bold text-slate-800 dark:text-white">₹{(lastScannedResult.consultFee || 0).toFixed(0)}</span>
+                      </div>
+                    )}
+                    {/* Pharmacy subtotal */}
+                    {(lastScannedResult.medications || []).length > 0 && (
+                      <div className="flex justify-between text-xs px-1">
+                        <span className="text-slate-600 dark:text-slate-400">💊 Pharmacy ({lastScannedResult.medications.length} items)</span>
+                        <span className="font-bold text-slate-800 dark:text-white">
+                          ₹{(lastScannedResult.medications || []).reduce((acc, m) => {
+                            const inv = inventory.find(i =>
+                              (i.name || '').toLowerCase().includes((m.medicineName || '').toLowerCase().split(' ')[0])
+                            );
+                            return acc + ((inv?.price || 0) * (m.quantity || 10));
+                          }, 0).toFixed(0)}
+                        </span>
+                      </div>
+                    )}
+                    {/* Lab subtotal */}
+                    {(lastScannedResult.diagnosticTests || []).length > 0 && (
+                      <div className="flex justify-between text-xs px-1">
+                        <span className="text-slate-600 dark:text-slate-400">🔬 Lab Tests ({lastScannedResult.diagnosticTests.length} tests)</span>
+                        <span className="font-bold text-slate-800 dark:text-white">
+                          ₹{(lastScannedResult.diagnosticTests || []).reduce((acc, t) => acc + (t.price || 0), 0).toFixed(0)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between text-sm px-1">
+                      <span className="font-extrabold text-slate-800 dark:text-white">Estimated Total</span>
+                      <span className="font-extrabold text-emerald-600">
+                        ₹{(
+                          (lastScannedResult.consultFee || 0) +
+                          (lastScannedResult.medications || []).reduce((acc, m) => {
+                            const inv = inventory.find(i =>
+                              (i.name || '').toLowerCase().includes((m.medicineName || '').toLowerCase().split(' ')[0])
+                            );
+                            return acc + ((inv?.price || 0) * (m.quantity || 10));
+                          }, 0) +
+                          (lastScannedResult.diagnosticTests || []).reduce((acc, t) => acc + (t.price || 0), 0)
+                        ).toFixed(0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* CTA: Proceed to Full Billing */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPatient(lastScannedResult.patient);
+                      setInvoiceSectionTab('manual_billing');
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    <span>💳 Finalize & Print Bill ({lastScannedResult.patient.name})</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+
               </div>
             ) : (
               <div className="glass-panel p-10 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-3xl flex flex-col items-center justify-center text-center space-y-4 min-h-[320px]">
@@ -2100,8 +2297,15 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                   <Sparkles className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-bold text-slate-800 dark:text-white text-sm">Awaiting Prescription Upload</h4>
-                  <p className="text-xs text-slate-500 max-w-sm">Capture or select a doctor's handwritten paper prescription on the left. The AI will automatically extract patient information, medicines, and tests.</p>
+                  <h4 className="font-bold text-slate-800 dark:text-white text-sm">Awaiting Prescription Scan</h4>
+                  <p className="text-xs text-slate-500 max-w-sm">Capture or upload the doctor's handwritten paper prescription. AI will extract patient profile, detect chronic conditions, dispatch to pharmacy & lab — all automatically.</p>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <span className="text-[10px] px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 font-bold border border-indigo-200/60">👤 Auto-Register Patient</span>
+                  <span className="text-[10px] px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 font-bold border border-rose-200/60">🩺 Detect Chronic</span>
+                  <span className="text-[10px] px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 font-bold border border-purple-200/60">🔬 Fire Lab Requisition</span>
+                  <span className="text-[10px] px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 font-bold border border-emerald-200/60">💊 Reserve Pharmacy</span>
+                  <span className="text-[10px] px-3 py-1.5 rounded-xl bg-green-50 dark:bg-green-950/40 text-green-600 font-bold border border-green-200/60">📱 WhatsApp Rx</span>
                 </div>
               </div>
             )}

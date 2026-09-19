@@ -1056,16 +1056,42 @@ Dhyan rakhein aur jaldi theek hon!`;
       // Pass 2: Plain text → JSON structuring (no vision, pure logic)
       // ═══════════════════════════════════════════════════════════════════════
 
-      const pass1Prompt = `You are an expert Indian clinical pharmacist and medical scribe reading a handwritten doctor's prescription slip.
+      const pass1Prompt = `You are an expert Indian clinical pharmacist and medical scribe reading a handwritten doctor's prescription slip. Your accuracy is CRITICAL — a real patient's medicine depends on this.
+
+⚠️ ANTI-HALLUCINATION RULES (Non-Negotiable):
+- If a word or number is unclear or illegible, write [ILLEGIBLE] — DO NOT guess.
+- NEVER invent medicine names, dosages, or patient details not visible on the paper.
+- If a field is not written on the slip, mark it as NOT_WRITTEN or UNKNOWN — never fill with assumptions.
+- For phone numbers: only extract if a 10-digit number is clearly written. Otherwise: NOT_WRITTEN.
 
 Read the prescription image EXTREMELY carefully, line by line.
 Transcribe EVERY visible piece of text exactly as written. Do NOT skip any line.
 
 INDIAN CLINICAL NOTATION & FREQUENCY GUIDE:
-- Frequencies: 1-0-1 (BD / Twice daily), 1-1-1 (TDS / Three times daily), 1-0-0 (OD / Once daily morning), 0-0-1 (HS / Bedtime), SOS (PRN / As needed).
+- Frequencies: 1-0-1 (BD / Twice daily), 1-1-1 (TDS / Three times daily), 1-0-0 (OD / Once daily morning), 0-0-1 (HS / Bedtime), SOS (PRN / As needed), 1-1-0 (BD Morning+Afternoon).
 - Timing: AC / BBF (Before Food / Before Breakfast), PC / AF (After Food).
-- Form prefixes: Tab. / Tab (Tablet), Cap. / Cap (Capsule), Syp. / Syp (Syrup), Inj. (Injection), Drops / Gtt (Eye/Ear drops), Oint. (Ointment).
-- Common Indian brands/salts: Metformin / Glycomet, Telmisartan / Telma, Pantoprazole / Pan / Pan-D, Amoxicillin-Clav / Augmentin, Paracetamol / Dolo / Calpol, Montelukast-Levocetirizine / Montair-LC, Atorvastatin / Atorva / Rozavel, Thyroxine / Thyronorm.
+- Form prefixes: Tab. / Tab (Tablet), Cap. / Cap (Capsule), Syp. / Syp (Syrup), Inj. (Injection), Drops / Gtt (Eye/Ear drops), Oint. (Ointment), Cream, Gel, Inhaler.
+- QUANTITY RULE: If quantity not written, calculate from frequency × duration. Examples: 1-0-1 for 10 days = 20 tabs. 1-1-1 for 30 days = 90 tabs. 1-0-0 for 30 days = 30 tabs. Round up to nearest 5.
+
+COMMON INDIAN BRAND → SALT GUIDE (for recognition only — output the brand name as written):
+Metformin/Glycomet/Glucophage, Telmisartan/Telma/Telnit, Amlodipine/Amlokind/Amlo, Atorvastatin/Atorva/Lipitor/Rozavel,
+Pantoprazole/Pan/Pan-D/Pantop, Omeprazole/Omez/Omesec, Rabeprazole/Razo/Rablet,
+Amoxicillin-Clavulanate/Augmentin/Mox-Clav, Azithromycin/Azee/Zithromax/Azithral,
+Cetirizine/Cetzine/Okacet, Levocetirizine/Levocet, Montelukast-Levocetirizine/Montair-LC/Mozucare-LC,
+Paracetamol/Dolo/Calpol/Pyrigesic, Ibuprofen/Brufen/Combiflam (with Paracetamol),
+Aceclofenac/Zerodol/Hifenac, Diclofenac/Voveran/Dicloran, Nimesulide/Nise/Nimulid,
+Thyroxine/Thyronorm/Eltroxin/Thyrofit, Metoprolol/Betaloc/Met-XL,
+Ramipril/Cardace/Hopace, Losartan/Losar/Covance, Cilnidipine/Cilacar/Clinidip,
+Glimepride/Amaryl/Glimer, Glibenclamide/Daonil, Voglibose/Volix/Vobose,
+Insulin Glargine/Lantus/Basalog, Insulin Aspart/Novorapid,
+Calcium+D3/Shelcal/Calcirol/Gemcal, Vitamin B12/Neurobion/Mecobalamin/Mecord,
+Vitamin D3/Uprise-D3/Arachitol, Folic Acid/Folvite, Iron+Folic/Autrin/Feronia,
+Albuterol/Salbutamol/Asthalin, Budesonide/Budecort, Tiotropium/Tiova,
+Esomeprazole/Nexium/Raciper, Domperidone/Domstal/Motilium,
+Ondansetron/Ondem/Emeset, Metoclopramide/Perinorm,
+Allopurinol/Zyloric, Febuxostat/Febuget/Unimart,
+Doxycycline/Doxcil/Doxybiotic, Ciprofloxacin/Ciplox/Cifran,
+Co-trimoxazole/Septran/Bactrim, Nitrofurantoin/Macrobid.
 
 Output in this EXACT plain-text format (no JSON, no code fences):
 
@@ -1074,14 +1100,14 @@ DOCTOR_NAME: [doctor name and qualifications, or UNKNOWN]
 PATIENT_NAME: [full patient name, or UNKNOWN]
 PATIENT_AGE: [age with unit e.g. 45 Years, or UNKNOWN]
 PATIENT_GENDER: [Male / Female / Other, or UNKNOWN]
-PATIENT_PHONE: [10-digit mobile number, or NOT_WRITTEN]
+PATIENT_PHONE: [10-digit mobile number only if clearly written, or NOT_WRITTEN]
 PATIENT_ADDRESS: [full address if written anywhere on slip, or NOT_WRITTEN]
 DATE: [prescription date, or UNKNOWN]
 DIAGNOSIS: [diagnosis, complaints, or symptoms written by doctor, or NONE]
-CHRONIC_INDICATORS: [list any of: Diabetes/DM/Sugar, Hypertension/BP, Thyroid/TSH, Cardiac/Heart, Asthma/COPD, CKD/Kidney — or NONE]
+CHRONIC_INDICATORS: [list any of: Diabetes/DM/Sugar, Hypertension/BP, Thyroid/TSH, Cardiac/Heart, Asthma/COPD, CKD/Kidney, Dyslipidemia/Cholesterol, Arthritis/RA — or NONE]
 
 MEDICATIONS (one per line, use pipe | separator):
-MED_1: [Full Brand Name + Strength, e.g. Tab Metformin 500mg] | [Dosage, e.g. 500mg] | [Frequency, e.g. 1-0-1 or BD or OD] | [Duration, e.g. 30 Days] | [Qty, e.g. 60 Tabs — if written, else UNKNOWN]
+MED_1: [Full Brand Name + Strength exactly as written, e.g. Tab Metformin 500mg] | [Dosage, e.g. 500mg] | [Frequency, e.g. 1-0-1 or BD or OD] | [Duration, e.g. 30 Days] | [Calculated Qty using frequency×duration rule — e.g. 60 Tabs]
 MED_2: [continue for each medicine line written]
 
 LAB_TESTS (one per line):
@@ -1150,10 +1176,15 @@ DOCTOR_NOTES: [any additional instructions, follow-up notes, or NONE]`;
 
         // PASS 2: Structure transcription into JSON (pure text, no vision — eliminates hallucination)
         if (pass1Text) {
-          const pass2Prompt = `Convert the following prescription transcription into a valid JSON object.
-Use ONLY information explicitly stated. Missing or NOT_WRITTEN fields must be null. Do NOT invent data.
-Decode standard Indian doctor abbreviations: OD=1-0-0, BD=1-0-1, TDS=1-1-1, HS=0-0-1, AC=Before Food, PC=After Food, SOS=As Needed.
-Detect chronic conditions (Diabetes, Hypertension, Thyroid, CAD, Asthma) from drugs or diagnosis.
+          const pass2Prompt = `You are a clinical data structuring engine. Convert the following prescription transcription into a valid JSON object.
+
+CRITICAL RULES:
+1. Use ONLY information EXPLICITLY stated in the transcription. If a field says NOT_WRITTEN, UNKNOWN, or [ILLEGIBLE] — set it to null. NEVER invent or assume data.
+2. For phone: only populate if a valid 10-digit number is in the transcription. Otherwise null.
+3. Decode standard Indian doctor abbreviations: OD=1-0-0, BD=1-0-1, TDS=1-1-1, QID=1-1-1-1, HS=0-0-1, AC=Before Food, PC=After Food, SOS=As Needed.
+4. Detect chronic conditions from drug names AND diagnosis: Diabetes (Metformin/Glipizide/Insulin/HbA1c), Hypertension (Amlodipine/Telmisartan/Ramipril/Losartan), Thyroid (Thyroxine/Thyronorm/TSH), CAD/Dyslipidemia (Atorvastatin/Rosuvastatin/Aspirin), Asthma/COPD (Salbutamol/Budesonide/Montelukast), CKD (Creatinine test/low eGFR notes), Arthritis (Aceclofenac/Methotrexate).
+5. For medications where quantity was calculated (not written), still include the calculated value.
+6. Set isChronic: true if ANY chronic condition is detected.
 
 TRANSCRIPTION:
 ${pass1Text}
