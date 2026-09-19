@@ -2801,7 +2801,7 @@ Keep the tone professional, clinical, objective, and precise.`;
 
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-6 pb-36 lg:pb-28 space-y-5 min-h-[calc(100vh-8rem)] flex flex-col justify-between text-slate-800" 
+      className="w-full max-w-[1680px] mx-auto p-2 sm:p-4 md:p-6 pb-12 lg:pb-16 space-y-5 min-h-[calc(100vh-8rem)] flex flex-col justify-between text-slate-800" 
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
       onTouchStart={handleTouchStart} 
       onTouchEnd={handleTouchEnd}
@@ -2915,7 +2915,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
 
         {/* Desktop tab nav — integrated into header */}
-        <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
+        <div className="hidden md:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px overflow-x-auto">
           {(() => {
             const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
             return [
@@ -3019,47 +3019,6 @@ Keep the tone professional, clinical, objective, and precise.`;
         {renderTabContent()}
       </div>
 
-      {/* Desktop Floating Shortcut Pill Dock (>= lg) */}
-      <div className="hidden lg:flex fixed bottom-5 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 shadow-2xl rounded-full p-1.5 items-center gap-1">
-        {(() => {
-          const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
-          const desktopDockTabs = [
-            { id: 'pod_view',          label: 'Pod Matrix',       icon: LayoutDashboard, badge: 0 },
-            ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'OPD Queue', icon: ClipboardList, badge: 0 }] : []),
-            { id: 'chronic',           label: 'Care Club 💊',     icon: HeartPulse,      badge: vBadge },
-            { id: 'patients',          label: 'Patients',         icon: Users,           badge: 0 },
-            { id: 'financials',        label: 'Finances',         icon: CreditCard,      badge: 0 },
-            { id: 'whatsapp',          label: 'WhatsApp',         icon: MessageSquare,   badge: 0 },
-            { id: 'sop',               label: 'SOP Config',       icon: Settings,        badge: 0 }
-          ];
-          return desktopDockTabs.map(item => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id || (item.id === 'chronic' && activeTab === 'virtual_schedule');
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id as any)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 ${
-                  isActive
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 border border-indigo-500'
-                    : 'text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-                title={item.label}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-zinc-400'}`} />
-                <span>{item.label}</span>
-                {item.badge > 0 && (
-                  <span className={`px-1.5 py-0.2 text-[9px] font-mono rounded-full leading-tight ${
-                    isActive ? 'bg-white text-indigo-700' : 'bg-rose-500 text-white animate-pulse'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          });
-        })()}
-      </div>
 
       {/* Desktop Enterprise Status Footer */}
       <div className="hidden lg:flex items-center justify-between pt-4 mt-6 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
