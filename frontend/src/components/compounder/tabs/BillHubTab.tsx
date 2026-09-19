@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { 
-  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Printer, Mic, MicOff, Plus, AlertCircle, ShieldCheck,
+  Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Printer, Mic, MicOff, Plus, Minus, Trash2, Tag, DollarSign, Camera, AlertCircle, ShieldCheck,
   ArrowRight, CheckCircle2, Pill, FlaskConical, Calendar, Stethoscope, RefreshCw, Loader2, Receipt, UserPlus, Send, Phone, CreditCard
 } from 'lucide-react';
 import { SearchInput } from '../../ui/SearchInput';
@@ -110,6 +110,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cash'>('upi');
   const [isClearing, setIsClearing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showWalkInModal, setShowWalkInModal] = useState(false);
+  const [walkInName, setWalkInName] = useState('');
+  const [walkInPhone, setWalkInPhone] = useState('');
+  const [walkInAge, setWalkInAge] = useState('');
+  const [walkInGender, setWalkInGender] = useState<'Male' | 'Female' | 'Other'>('Male');
 
   // Missing Phone Modal State for Paper Mode OCR
   const [missingPhoneModalData, setMissingPhoneModalData] = useState<{
@@ -448,6 +453,41 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     recognition.start();
   };
 
+
+  const handleCreateQuickWalkIn = () => {
+    if (!walkInName.trim()) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Name Required', message: 'Please enter the walk-in patient name.', type: 'warning' }
+      }));
+      return;
+    }
+    const cleanPhone = walkInPhone.replace(/\D/g, '').slice(-10);
+    const newPat = PatientService.registerPatient({
+      name: walkInName.trim(),
+      phone: cleanPhone ? `+91 ${cleanPhone}` : '+91 9999999999',
+      age: parseInt(walkInAge) || 30,
+      gender: walkInGender,
+      tokenNumber: `#TK-${String(Math.floor(100 + Math.random() * 900))}`,
+      chronicConditions: [],
+      allergies: []
+    });
+
+    setPatients(PatientService.getPatients());
+    setSelectedPatient(newPat);
+    setShowWalkInModal(false);
+    setWalkInName('');
+    setWalkInPhone('');
+    setWalkInAge('');
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: { 
+        title: 'Walk-In Patient Registered! 👤', 
+        message: `${newPat.name} (Token: ${newPat.tokenNumber}) added and ready for counter billing.`, 
+        type: 'success' 
+      }
+    }));
+  };
+
   // Medicine & Test Selection Handlers
   const handleToggleMedicine = (medName: string, isChecked: boolean) => {
     const key = medName.toLowerCase();
@@ -470,6 +510,25 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       ...prev,
       [loincCode]: isChecked
     }));
+  };
+
+
+  const handleRemoveManualMedicine = (medName: string) => {
+    setManualMedicinesList(prev => prev.filter(m => (m.name || '').toLowerCase() !== medName.toLowerCase()));
+    setSelectedMedicines(prev => {
+      const next = { ...prev };
+      delete next[medName.toLowerCase()];
+      return next;
+    });
+  };
+
+  const handleRemoveManualTest = (loincCode: string) => {
+    setManualTestsList(prev => prev.filter(t => t.loincCode !== loincCode));
+    setSelectedTests(prev => {
+      const next = { ...prev };
+      delete next[loincCode];
+      return next;
+    });
   };
 
   // Active items mapping (syncing prices)
@@ -946,102 +1005,328 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT COLUMN: Patient Selection */}
-        <div className="lg:col-span-3 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl flex flex-col h-[calc(100vh-140px)]">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
-            <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+        {/* LEFT COLUMN: Patient Selection (Today's OPD / All Patients) */}
+        <div className="lg:col-span-3 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-[calc(100vh-140px)]">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+            <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Users className="h-4 w-4 text-indigo-500" />
               Patient Selection
             </h3>
+            <button
+              type="button"
+              onClick={() => setShowWalkInModal(true)}
+              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[10px] rounded-lg shadow-xs flex items-center gap-1 transition cursor-pointer border-0"
+              title="Add a walk-in patient directly at counter"
+            >
+              <UserPlus className="w-3 h-3" />
+              + Walk-In
+            </button>
+          </div>
+
+          {/* Today's OPD vs All filter toggle */}
+          <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/80 rounded-xl mb-3">
+            <button
+              type="button"
+              onClick={() => setPatientFilterTab('today_queue')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-extrabold transition cursor-pointer border-0 ${
+                patientFilterTab === 'today_queue'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-transparent'
+              }`}
+            >
+              📅 Today's OPD ({patients.filter(p => todayOpdPatientIds.has(p.id)).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPatientFilterTab('all')}
+              className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-extrabold transition cursor-pointer border-0 ${
+                patientFilterTab === 'all'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-transparent'
+              }`}
+            >
+              👥 All ({patients.length})
+            </button>
           </div>
           
           <SearchInput 
             value={searchQuery} 
             onChange={setSearchQuery} 
-            placeholder="Search patients..." 
-            className="mb-4"
+            placeholder="Search name, phone, token..." 
+            className="mb-3"
           />
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar">
             {filteredPatients.length === 0 ? (
-              <div className="text-center p-4 text-slate-400 text-xs">No patients found.</div>
-            ) : (
-              filteredPatients.map(p => (
-                <div 
-                  key={p.id}
-                  onClick={() => setSelectedPatient(p)}
-                  className={`p-3 rounded-xl cursor-pointer border transition-all ${
-                    selectedPatient?.id === p.id 
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
-                      : 'border-slate-100 dark:border-slate-800 hover:border-indigo-300'
-                  }`}
+              <div className="text-center p-6 text-slate-400 text-xs flex flex-col items-center gap-2">
+                <Users className="w-8 h-8 opacity-20" />
+                <span>No patients found</span>
+                <button
+                  type="button"
+                  onClick={() => setShowWalkInModal(true)}
+                  className="mt-1 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-bold text-[10px] rounded-lg border border-indigo-200 dark:border-indigo-800 cursor-pointer"
                 >
-                  <div className="font-bold text-sm text-slate-900 dark:text-white">{p.name}</div>
-                  <div className="text-xs text-slate-500">{p.phone}</div>
-                </div>
-              ))
+                  + Add Walk-In Patient
+                </button>
+              </div>
+            ) : (
+              filteredPatients.map(p => {
+                const isSelected = selectedPatient?.id === p.id;
+                const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, p));
+                const saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : []).filter((r: any) => isEncounterMatchingPatient(r, p));
+                const hasRx = encounters.length > 0 || saasPrescriptions.length > 0;
+
+                return (
+                  <div 
+                    key={p.id}
+                    onClick={() => setSelectedPatient(p)}
+                    className={`p-3 rounded-xl cursor-pointer border transition-all text-left relative ${
+                      isSelected 
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xs' 
+                        : 'border-slate-100 dark:border-slate-800 hover:border-indigo-300 bg-white/50 dark:bg-slate-900/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[70%]">{p.name}</div>
+                      <span className="text-[9px] font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
+                        {p.tokenNumber || 'WALK-IN'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
+                      <span>{p.phone || 'No phone'}</span>
+                      {hasRx && (
+                        <span className="text-[8px] font-black px-1.5 py-0.2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded">
+                          Rx Ready
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* MIDDLE COLUMN: Cart / Auto-Populated Items */}
-        <div className="lg:col-span-5 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 shadow-sm rounded-2xl flex flex-col h-[calc(100vh-140px)]">
+        {/* MIDDLE COLUMN: Cart, Live Catalog Search & Voice Billing */}
+        <div className="lg:col-span-5 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-[calc(100vh-140px)]">
           {!selectedPatient ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
-              <CreditCard className="h-12 w-12 mb-3 opacity-20" />
-              <p>Select a patient to generate invoice</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-3">
+              <CreditCard className="h-12 w-12 opacity-20" />
+              <div className="text-center">
+                <p className="font-bold text-sm text-slate-700 dark:text-slate-300">Select a Patient to Open Counter POS</p>
+                <p className="text-xs text-slate-400 mt-1">Pick an OPD consultation from the left list or create a quick walk-in patient.</p>
+              </div>
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
-                <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-emerald-500" />
-                  Itemized Cart
-                </h3>
+              {/* Selected Patient Banner */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white">{selectedPatient.name}</h3>
+                    <span className="text-[9px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
+                      {selectedPatient.tokenNumber || 'PAT'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500">{selectedPatient.phone} · {selectedPatient.age || '—'} Y / {selectedPatient.gender || '—'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPatient(null)}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer border-0 bg-transparent"
+                >
+                  Change
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto pr-1 space-y-4">
-                {/* Consult Fee */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <Stethoscope className="h-5 w-5 text-indigo-500" />
-                    <div>
-                      <div className="font-bold text-sm">Doctor Consultation</div>
-                      <div className="text-xs text-slate-500">Standard OPD Fee</div>
-                    </div>
-                  </div>
-                  <div className="font-bold">₹{billingLedger?.consultFee || 0}</div>
+              {/* Search & Add Catalog Item Engine + Voice Billing */}
+              <div className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-2 mb-3 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-indigo-500" />
+                    Add Medicine or Lab Test
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleStartVoiceBilling}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[9.5px] font-black uppercase tracking-wider border-0 transition-all cursor-pointer ${
+                      isListening 
+                        ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/20' 
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'
+                    }`}
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff className="w-3 h-3 animate-spin" />
+                        <span>Listening...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-3 h-3" />
+                        <span>Speak Billing</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                {/* Pharmacy Items */}
+                {voiceTranscript && (
+                  <div className="p-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/50 rounded-xl text-[10px] text-indigo-700 dark:text-indigo-300 font-medium text-left">
+                    🎤 {voiceTranscript}
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search medicine (e.g. Paracetamol) or lab test (e.g. HbA1c)..."
+                    value={manualItemSearchQuery}
+                    onChange={(e) => setManualItemSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200 rounded-xl text-xs outline-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white transition"
+                  />
+
+                  {/* Autocomplete Dropdown */}
+                  {catalogSuggestions.length > 0 && (
+                    <div className="absolute top-11 left-0 right-0 z-30 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                      {catalogSuggestions.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleAddSuggestedItem(s)}
+                          className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-indigo-50 dark:hover:bg-slate-800 cursor-pointer border-0 bg-transparent flex items-center justify-between group transition-all"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600">{s.name}</span>
+                            <span className="block text-[9px] text-slate-400 uppercase tracking-widest mt-0.5">
+                              {s.type === 'pharmacy' ? `Medicine Stock (${(s.item as any)?.stock ?? 'In Stock'})` : 'Pathology Diagnostic Test'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-indigo-600 dark:text-indigo-400">₹{s.price}</span>
+                            <span className="text-[9px] bg-indigo-600 text-white font-black px-2 py-0.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                              <Plus className="w-2.5 h-2.5" /> Add
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Scrollable Cart List */}
+              <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar text-left">
+                {/* 1. Doctor Consultation Fee */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeConsult}
+                      onChange={(e) => setIncludeConsult(e.target.checked)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                    />
+                    <div className="flex items-center gap-2.5">
+                      <Stethoscope className="h-4 w-4 text-indigo-500 shrink-0" />
+                      <div>
+                        <div className="font-bold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                          Doctor Consultation (OPD Fee)
+                          {!includeConsult && (
+                            <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">Paid at Booking ✅</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-500">Pure Doctor Fee · 0% Platform Deduction</div>
+                      </div>
+                    </div>
+                  </label>
+                  <div className="font-bold text-sm text-slate-900 dark:text-white">₹{billingLedger?.consultFee || 0}</div>
+                </div>
+
+                {/* 2. Pharmacy Medicines in Cart */}
                 {(billingLedger?.medicinesList?.length || 0) > 0 && (
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Pharmacy Prescriptions (Auto-Synced)</h4>
-                    <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between ml-1">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Pill className="w-3 h-3 text-emerald-500" />
+                        Pharmacy Items ({billingLedger?.medicinesList.length})
+                      </h4>
+                      <span className="text-[9px] text-slate-400 font-mono">Stock Synced</span>
+                    </div>
+
+                    <div className="space-y-1.5">
                       {billingLedger?.medicinesList?.map((med: any, i: number) => {
                         const isSelected = selectedMedicines[med.name.toLowerCase()]?.selected;
+                        const currentQty = selectedMedicines[med.name.toLowerCase()]?.qty || 10;
+                        const isManual = manualMedicinesList.some(m => (m.name || '').toLowerCase() === med.name.toLowerCase());
+
                         return (
-                          <div key={i} className={`p-3 rounded-xl border flex items-center justify-between ${isSelected ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20' : 'bg-slate-50 border-slate-100'}`}>
-                            <div className="flex items-center gap-3">
+                          <div 
+                            key={i} 
+                            className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                              isSelected 
+                                ? 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/40' 
+                                : 'bg-slate-50/40 border-slate-100 dark:bg-slate-900/20 opacity-60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
                               <input 
                                 type="checkbox" 
                                 checked={!!isSelected}
-                                onChange={(e) => setSelectedMedicines(prev => ({ ...prev, [med.name.toLowerCase()]: { selected: e.target.checked, qty: prev[med.name.toLowerCase()]?.qty || 10 } }))}
-                                className="rounded text-emerald-600 focus:ring-emerald-500"
+                                onChange={(e) => setSelectedMedicines(prev => ({ 
+                                  ...prev, 
+                                  [med.name.toLowerCase()]: { selected: e.target.checked, qty: prev[med.name.toLowerCase()]?.qty || 10 } 
+                                }))}
+                                className="rounded text-emerald-600 focus:ring-emerald-500 shrink-0"
                               />
-                              <div>
-                                <div className="font-bold text-sm">{med.name}</div>
-                                <div className="text-xs text-slate-500">₹{med.price} / unit</div>
+                              <div className="truncate">
+                                <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{med.name}</div>
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  ₹{med.price}/unit · Batch: {med.batch} · Stock: {med.stock}
+                                </div>
                               </div>
                             </div>
-                            {isSelected && (
-                              <input 
-                                type="number" 
-                                className="w-16 p-1 text-sm border rounded bg-white text-center"
-                                value={selectedMedicines[med.name.toLowerCase()]?.qty || 10}
-                                onChange={(e) => setSelectedMedicines(prev => ({ ...prev, [med.name.toLowerCase()]: { selected: true, qty: parseInt(e.target.value) || 0 } }))}
-                              />
-                            )}
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isSelected && (
+                                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMedicineQtyChange(med.name, Math.max(1, currentQty - 1))}
+                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded cursor-pointer border-0 bg-transparent text-xs"
+                                  >
+                                    -
+                                  </button>
+                                  <input 
+                                    type="number" 
+                                    min="1"
+                                    className="w-10 text-xs font-bold border-0 text-center outline-none bg-transparent"
+                                    value={currentQty}
+                                    onChange={(e) => handleMedicineQtyChange(med.name, parseInt(e.target.value) || 1)}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMedicineQtyChange(med.name, currentQty + 1)}
+                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded cursor-pointer border-0 bg-transparent text-xs"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              )}
+
+                              <span className="text-xs font-black text-slate-900 dark:text-white min-w-[50px] text-right">
+                                ₹{(med.price * (isSelected ? currentQty : 0)).toFixed(2)}
+                              </span>
+
+                              {isManual && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveManualMedicine(med.name)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer border-0 bg-transparent"
+                                  title="Remove item"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -1049,31 +1334,74 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                   </div>
                 )}
 
-                {/* Lab Tests */}
+                {/* 3. Pathology Tests in Cart */}
                 {(billingLedger?.testsList?.length || 0) > 0 && (
-                  <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 ml-1">Pathology Tests (Auto-Synced)</h4>
-                    <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between ml-1">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <FlaskConical className="w-3 h-3 text-teal-500" />
+                        Diagnostic Tests ({billingLedger?.testsList.length})
+                      </h4>
+                      <span className="text-[9px] text-slate-400 font-mono">LOINC Standardized</span>
+                    </div>
+
+                    <div className="space-y-1.5">
                       {billingLedger?.testsList?.map((test: any, i: number) => {
                         const isSelected = selectedTests[test.loincCode];
+                        const isManual = manualTestsList.some(t => t.loincCode === test.loincCode);
+
                         return (
-                          <div key={i} className={`p-3 rounded-xl border flex items-center justify-between ${isSelected ? 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20' : 'bg-slate-50 border-slate-100'}`}>
-                            <div className="flex items-center gap-3">
+                          <div 
+                            key={i} 
+                            className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                              isSelected 
+                                ? 'bg-teal-50/70 border-teal-200 dark:bg-teal-950/20 dark:border-teal-800/40' 
+                                : 'bg-slate-50/40 border-slate-100 dark:bg-slate-900/20 opacity-60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
                               <input 
                                 type="checkbox" 
                                 checked={!!isSelected}
                                 onChange={(e) => setSelectedTests(prev => ({ ...prev, [test.loincCode]: e.target.checked }))}
-                                className="rounded text-emerald-600 focus:ring-emerald-500"
+                                className="rounded text-teal-600 focus:ring-teal-500 shrink-0"
                               />
-                              <div>
-                                <div className="font-bold text-sm">{test.name}</div>
+                              <div className="truncate">
+                                <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{test.name}</div>
+                                <div className="text-[10px] text-slate-500 font-mono">
+                                  LOINC: {test.loincCode} · {test.category || 'Clinical'}
+                                </div>
                               </div>
                             </div>
-                            <div className="font-bold text-sm">₹{test.price}</div>
+
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-xs font-black text-slate-900 dark:text-white">
+                                ₹{test.price}
+                              </span>
+
+                              {isManual && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveManualTest(test.loincCode)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer border-0 bg-transparent"
+                                  title="Remove test"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* Empty Cart Notice */}
+                {(billingLedger?.medicinesList?.length === 0 && billingLedger?.testsList?.length === 0) && (
+                  <div className="p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl text-center text-xs text-slate-400 space-y-1">
+                    <p className="font-semibold text-slate-600 dark:text-slate-300">No medicines or lab tests in cart</p>
+                    <p className="text-[10px]">Use the catalog search above or tap "Speak Billing" to add items.</p>
                   </div>
                 )}
               </div>
@@ -1081,79 +1409,272 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           )}
         </div>
 
-        {/* RIGHT COLUMN: Financial Summary & Checkout */}
-        <div className="lg:col-span-4 glass-panel p-5 bg-gradient-to-br from-indigo-900 to-slate-900 text-white shadow-xl rounded-2xl flex flex-col h-[calc(100vh-140px)]">
+        {/* RIGHT COLUMN: Financial Summary, Discounts & Checkout */}
+        <div className="lg:col-span-4 glass-panel p-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 text-white shadow-xl rounded-2xl flex flex-col h-[calc(100vh-140px)] text-left">
           <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-indigo-200">
+            <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-indigo-200">
               <Receipt className="h-4 w-4" />
-              Final Settlement
+              Final Settlement POS
             </h3>
+            <span className="text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">
+              Live CDC
+            </span>
           </div>
 
           {!selectedPatient || !billingLedger ? (
-            <div className="flex-1 flex items-center justify-center text-white/40 text-sm">
-              Pending Patient Selection
+            <div className="flex-1 flex items-center justify-center text-white/40 text-xs text-center p-4">
+              Select a patient on the left to review ledger and complete payment.
             </div>
           ) : (
-            <div className="flex flex-col h-full">
-              <div className="space-y-3 flex-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Consultation</span>
-                  <span>₹{billingLedger.consultTotal.toFixed(2)}</span>
+            <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
+              <div className="space-y-2.5 flex-1 pr-1 text-xs">
+                <div className="flex justify-between text-slate-300">
+                  <span className="flex items-center gap-1.5">
+                    <Stethoscope className="w-3 h-3 text-indigo-400" />
+                    Doctor Consultation:
+                  </span>
+                  <span className="font-mono font-bold">₹{billingLedger.consultTotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Pharmacy</span>
-                  <span>₹{billingLedger.pharmacySub.toFixed(2)}</span>
+
+                <div className="flex justify-between text-slate-300">
+                  <span className="flex items-center gap-1.5">
+                    <Pill className="w-3 h-3 text-emerald-400" />
+                    Pharmacy Medicines:
+                  </span>
+                  <span className="font-mono font-bold">₹{billingLedger.pharmacySub.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Pathology</span>
-                  <span>₹{billingLedger.labSub.toFixed(2)}</span>
+
+                <div className="flex justify-between text-slate-300">
+                  <span className="flex items-center gap-1.5">
+                    <FlaskConical className="w-3 h-3 text-teal-400" />
+                    Pathology Tests:
+                  </span>
+                  <span className="font-mono font-bold">₹{billingLedger.labSub.toFixed(2)}</span>
                 </div>
+
                 <div className="h-px bg-white/10 my-2" />
-                <div className="flex justify-between text-sm text-rose-400">
-                  <span>Discounts</span>
-                  <span>-₹{billingLedger.totalDiscount.toFixed(2)}</span>
+
+                {/* Referral Code (10% OFF) */}
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Referral Code:</span>
+                  <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1">
+                    <Tag className="w-3 h-3 text-emerald-400" />
+                    <input
+                      type="text"
+                      placeholder="REF-XXXX"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      className="w-20 bg-transparent text-right font-mono text-[11px] text-white outline-none placeholder:text-white/30"
+                    />
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm text-slate-400">
-                  <span>GST (5% & 18%)</span>
-                  <span>+₹{billingLedger.totalGst.toFixed(2)}</span>
+
+                {/* Compounder Custom Discount */}
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-[11px]">Custom Discount:</span>
+                  <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1">
+                    <span className="text-[10px] text-slate-400">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={discountInput || ''}
+                      onChange={(e) => setDiscountInput(parseFloat(e.target.value) || 0)}
+                      className="w-16 bg-transparent text-right font-mono text-[11px] text-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                {billingLedger.totalDiscount > 0 && (
+                  <div className="flex justify-between text-rose-400 font-bold">
+                    <span>Total Discounts:</span>
+                    <span className="font-mono">-₹{billingLedger.totalDiscount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-slate-400 text-[11px]">
+                  <span>GST (5% Meds + 18% Lab):</span>
+                  <span className="font-mono">+₹{billingLedger.totalGst.toFixed(2)}</span>
                 </div>
               </div>
 
-              <div className="mt-auto pt-4 border-t border-white/10">
-                <div className="flex justify-between items-end mb-6">
-                  <span className="text-sm font-bold text-slate-300">Total Payable</span>
-                  <span className="text-3xl font-black text-emerald-400">₹{billingLedger.finalTotal.toFixed(2)}</span>
+              <div className="mt-auto pt-3 border-t border-white/10 space-y-3">
+                <div className="flex justify-between items-baseline">
+                  <div>
+                    <span className="text-xs font-bold text-slate-300">Total Net Amount</span>
+                    {selectedPatient.isPremiumMember && (
+                      <span className="block text-[8px] text-amber-400 font-bold">✨ Premium VIP Refill Discount Applied</span>
+                    )}
+                  </div>
+                  <span className="text-2xl font-black text-emerald-400">
+                    ₹{billingLedger.finalTotal.toFixed(2)}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                {/* Payment Method Selector */}
+                <div className="grid grid-cols-2 gap-2">
                   <button 
+                    type="button"
                     onClick={() => setPaymentMethod('upi')}
-                    className={`py-3 rounded-xl text-sm font-bold transition-all ${paymentMethod === 'upi' ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
+                      paymentMethod === 'upi' 
+                        ? 'bg-indigo-600 border-indigo-400 text-white shadow-md' 
+                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                    }`}
                   >
-                    UPI / QR
+                    <QrCode className="w-3.5 h-3.5" />
+                    UPI / QR Standee
                   </button>
                   <button 
+                    type="button"
                     onClick={() => setPaymentMethod('cash')}
-                    className={`py-3 rounded-xl text-sm font-bold transition-all ${paymentMethod === 'cash' ? 'bg-emerald-500 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}
+                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
+                      paymentMethod === 'cash' 
+                        ? 'bg-emerald-600 border-emerald-400 text-white shadow-md' 
+                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                    }`}
                   >
-                    Cash
+                    <Check className="w-3.5 h-3.5" />
+                    Cash Counter
                   </button>
                 </div>
+
+                {/* Dynamic Direct UPI Standee Preview */}
+                {paymentMethod === 'upi' && dynamicUpiPayload && (
+                  <div className="p-2.5 bg-black/40 border border-white/10 rounded-xl flex items-center gap-3">
+                    <img
+                      src={generateQRCodeDataURI(dynamicUpiPayload, { size: 120, color: '#0f172a' }) || `https://quickchart.io/qr?size=120&text=${encodeURIComponent(dynamicUpiPayload)}`}
+                      alt="UPI QR"
+                      className="w-16 h-16 rounded-lg p-1 bg-white object-contain shrink-0"
+                    />
+                    <div className="text-left space-y-0.5">
+                      <span className="block text-[9px] font-mono font-bold text-indigo-300 uppercase">Doctor Direct UPI QR</span>
+                      <p className="text-[10px] text-slate-300 leading-tight">Patient scans with GPay, PhonePe, Paytm or BHIM for instant ₹{billingLedger.finalTotal.toFixed(2)} settlement.</p>
+                    </div>
+                  </div>
+                )}
 
                 <button 
+                  type="button"
                   onClick={handleClearBill}
                   disabled={isClearing}
-                  className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-white font-black text-lg shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0"
                 >
-                  {isClearing ? 'Clearing...' : 'Submit & Send Invoice'}
-                  {!isClearing && <Send className="w-5 h-5" />}
+                  {isClearing ? 'Settling & Clearing...' : `Clear & Dispatch Bill (${paymentMethod.toUpperCase()})`}
+                  {!isClearing && <Send className="w-4 h-4" />}
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Quick Walk-In Registration Modal */}
+      {showWalkInModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowWalkInModal(false)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-left"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Quick Walk-In Patient</h3>
+                  <p className="text-[10px] text-slate-500">Register new patient for instant counter POS billing</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWalkInModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 border-0 bg-transparent cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Patient Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Ramesh Kumar"
+                  value={walkInName}
+                  onChange={(e) => setWalkInName(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Mobile / WhatsApp</label>
+                  <input
+                    type="tel"
+                    placeholder="9876543210"
+                    value={walkInPhone}
+                    onChange={(e) => setWalkInPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Age (Years)</label>
+                  <input
+                    type="number"
+                    placeholder="35"
+                    value={walkInAge}
+                    onChange={(e) => setWalkInAge(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1">Gender</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Male', 'Female', 'Other'] as const).map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setWalkInGender(g)}
+                      className={`py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                        walkInGender === g
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
+                          : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 bg-transparent'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowWalkInModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer border-0 bg-transparent"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateQuickWalkIn}
+                className="px-5 py-2 text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md cursor-pointer border-0"
+              >
+                Register & Start Billing
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

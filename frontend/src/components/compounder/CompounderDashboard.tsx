@@ -619,15 +619,15 @@ export const CompounderDashboard: React.FC = () => {
       const payload = customEvent.detail;
       const target = typeof payload === 'string' ? payload : payload?.tab;
 
-      if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload') {
-        setActiveTab(target);
+      if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan') {
+        setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : target);
       } else if (target === 'tokens' || target === 'patients') {
         setActiveTab('opd_patients');
         setOpdSubTab('today_queue');
       } else if (target === 'labs' || target === 'pharmacy') {
         setActiveTab('clinical_hub');
         setClinicalSubTab(target === 'pharmacy' ? 'pharmacy' : 'labs');
-      } else if (target === 'ot_billing' || target === 'invoice_generator') {
+      } else if (target === 'ot_billing' || target === 'invoice_generator' || target === 'billing_daycare') {
         setActiveTab('billing_daycare');
         setBillingSubTab('billing');
         if (payload?.patientId) {
@@ -3134,6 +3134,7 @@ export const CompounderDashboard: React.FC = () => {
         {[
           { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4 text-indigo-500" /> },
           { id: 'opd_patients', label: 'OPD & Patients', icon: <Users className="h-4 w-4 text-indigo-600" /> },
+          { id: 'ai_ocr_upload', label: 'Prescription Scan', icon: <Camera className="h-4 w-4 text-rose-500" /> },
           { id: 'clinical_hub', label: isOphthalmology ? 'Biometry & Optical' : 'Labs & Pharmacy', icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
           { id: 'billing_daycare', label: isOphthalmology ? 'Billing & Daycare' : 'Billing & Minor OT', icon: <Receipt className="h-4 w-4 text-amber-500" /> }
         ].map((tab) => (
@@ -5757,6 +5758,19 @@ export const CompounderDashboard: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          TAB: PRESCRIPTION SCAN (AUTONOMOUS OCR & VISION ENGINE)
+      ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'ai_ocr_upload' && (
+        <AiPrescriptionUploadTab 
+          onSuccess={(patientId) => {
+            setSelectedPatientForBillHub(patientId);
+            setActiveTab('billing_daycare');
+            setBillingSubTab('billing');
+          }}
+        />
       )}
       </div>
 

@@ -494,12 +494,19 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
                     <button 
                       onClick={() => {
-                        window.dispatchEvent(new CustomEvent('mediflow-change-tab', {
-                          detail: {
-                            tab: 'invoice_generator',
-                            patientId: extractedPatient?.id
-                          }
-                        }));
+                        if (extractedPatient?.id && onSuccess) {
+                          onSuccess(extractedPatient.id);
+                        } else {
+                          window.dispatchEvent(new CustomEvent('mediflow-change-tab', {
+                            detail: {
+                              tab: 'billing_daycare',
+                              patientId: extractedPatient?.id
+                            }
+                          }));
+                          window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', {
+                            detail: 'billing_daycare'
+                          }));
+                        }
                       }}
                       className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white flex items-center justify-between px-5 py-3 rounded-2xl hover:from-emerald-600 hover:to-teal-600 transition-all shadow-lg hover:shadow-emerald-500/25 group overflow-hidden relative"
                     >

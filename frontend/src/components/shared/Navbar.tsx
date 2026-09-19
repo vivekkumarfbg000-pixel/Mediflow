@@ -38,7 +38,8 @@ import {
   Coins,
   Sliders,
   Video,
-  HeartPulse
+  HeartPulse,
+  Camera
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
@@ -397,6 +398,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       return [
         { id: 'overview', label: 'Overview', icon: LayoutDashboard },
         { id: 'opd_patients', label: 'OPD Token Queue', icon: Users },
+        { id: 'ai_ocr_upload', label: 'Prescription Scan', icon: Camera },
         { id: 'clinical_hub', label: isOphthalmology ? 'Biometry / Rx' : 'Labs & Rx Hub', icon: FlaskConical },
         { id: 'billing_daycare', label: isOphthalmology ? 'Bill / Daycare' : 'Bill & OT', icon: Receipt }
       ];
@@ -1229,6 +1231,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               const compTabs = [
                 { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                 { id: 'opd_patients', label: 'OPD Queue', icon: Users },
+                { id: 'ai_ocr_upload', label: 'Rx Scan', icon: Camera },
                 { id: 'clinical_hub', label: isOphthalmology ? 'Biometry/Rx' : 'Labs & Rx', icon: FlaskConical },
                 { id: 'billing_daycare', label: isOphthalmology ? 'Bill/Daycare' : 'Bill & OT', icon: Receipt }
               ];
