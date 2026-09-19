@@ -171,7 +171,9 @@ function AppContent({
 
   useEffect(() => {
     const handleSidebarToggle = () => {
-      setIsSidebarCollapsed(prev => !prev);
+      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+        setIsSidebarCollapsed(prev => !prev);
+      }
     };
     window.addEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
     return () => window.removeEventListener('mediflow-toggle-sidebar', handleSidebarToggle);

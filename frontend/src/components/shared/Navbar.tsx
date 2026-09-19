@@ -463,14 +463,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      {/* Desktop Backdrop Overlay when Sidebar is expanded */}
-      {!isSidebarCollapsed && (
-        <div 
-          className="fixed inset-0 bg-slate-900/25 backdrop-blur-2xs z-40 hidden md:block animate-fade-in cursor-pointer"
-          onClick={() => onToggleSidebarCollapse?.(true)}
-          title="Click to close sidebar"
-        />
-      )}
 
       {/* Premium Desktop Left Sidebar Navigation Drawer */}
       <aside 
