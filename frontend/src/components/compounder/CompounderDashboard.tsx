@@ -3662,7 +3662,7 @@ export const CompounderDashboard: React.FC = () => {
                             >
                               <div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-900 dark:text-white">{p.name}</span>
+                                  <span className="text-xs font-bold text-slate-900 dark:text-white"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span>
                                   <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                     Token #{p.tokenNumber || 'TK-01'}
                                   </span>
@@ -3919,7 +3919,7 @@ export const CompounderDashboard: React.FC = () => {
                           >
                             <div className="space-y-1">
                               <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
-                                {p.name}
+                                <span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span>
                                 <span className="text-[9px] font-black font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 px-2 py-0.5 rounded-md">
                                   ID: {p.tokenNumber || 'N/A'}
                                 </span>
@@ -5645,7 +5645,7 @@ export const CompounderDashboard: React.FC = () => {
                             >
                               <div className="space-y-1.5 flex-1 pr-4 text-left">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <h4 className="font-bold text-xs text-slate-800">{p.name}</h4>
+                                  <h4 className="font-bold text-xs text-slate-800"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></h4>
                                   <span className="text-[8px] font-mono font-bold bg-indigo-50 text-indigo-755 border border-indigo-200 px-1.5 py-0.2 rounded uppercase">
                                     Eye: {booking.eye}
                                   </span>
@@ -5674,7 +5674,7 @@ export const CompounderDashboard: React.FC = () => {
                             >
                               <div className="space-y-1.5 flex-1 pr-4 text-left">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <h4 className="font-bold text-xs text-slate-800">{p.name}</h4>
+                                  <h4 className="font-bold text-xs text-slate-800"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></h4>
                                   <span className="text-[8px] font-mono font-bold bg-amber-50 text-amber-750 border border-amber-200 px-1.5 py-0.2 rounded uppercase">
                                     Room: {booking.room}
                                   </span>
@@ -6282,7 +6282,7 @@ export const CompounderDashboard: React.FC = () => {
                           const tagLabel = tag === 'whatsapp' ? 'WhatsApp 🟢' : tag === 'qr_scan' ? 'QR 📲' : 'Counter 🏥';
                           return (
                             <option key={p.id} value={p.id} className="text-slate-900 font-medium">
-                              #{p.tokenNumber || 'TK'} · {p.name} [{tagLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
+                              #{p.tokenNumber || 'TK'} · <span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span> [{tagLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
                             </option>
                           );
                         })}
@@ -6644,7 +6644,7 @@ export const CompounderDashboard: React.FC = () => {
                     const srcLabel = srcTag === 'whatsapp' ? 'WhatsApp Bot 🟢' : srcTag === 'qr_scan' ? 'QR Scan 📲' : 'Walk-In 🏥';
                     return (
                       <option key={p.id} value={p.id}>
-                        #{p.tokenNumber || 'TK'} · {p.name} · [{srcLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
+                        #{p.tokenNumber || 'TK'} · <span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span> · [{srcLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
                       </option>
                     );
                   })}
@@ -6692,7 +6692,7 @@ export const CompounderDashboard: React.FC = () => {
                               className="text-xs font-black text-slate-900 dark:text-white cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-colors"
                               title="Click to view full professional patient dossier"
                             >
-                              {p.name}
+                              <span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span>
                             </span>
                             <button
                               type="button"
@@ -7116,7 +7116,7 @@ export const CompounderDashboard: React.FC = () => {
                               >
                                 <div className="min-w-0">
                                   <div className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-2">
-                                    <span>{p.name}</span>
+                                    <span><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span>
                                     <span className="text-[10px] font-mono px-1.5 py-0.2 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-md border border-indigo-200/60 dark:border-indigo-800 font-bold">
                                       ID: {pCode}
                                     </span>
@@ -7519,7 +7519,7 @@ export const CompounderDashboard: React.FC = () => {
                                 <span className="px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-[10px] rounded">
                                   #{p.tokenNumber || (p as any).token_number || 'OPD'}
                                 </span>
-                                <strong className="text-xs font-bold text-slate-900 dark:text-white">{p.name}</strong>
+                                <strong className="text-xs font-bold text-slate-900 dark:text-white"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></strong>
                                 <span className="text-[10px] text-slate-500">({p.age}y/{p.gender})</span>
                               </div>
                               <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-700 dark:text-emerald-400 mt-1">

@@ -282,7 +282,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   >
                     <div className="font-bold text-xs flex justify-between items-center">
                       <span className="flex items-center gap-1.5 truncate">
-                        <span className="truncate">{p.name}</span>
+                        <span className="truncate"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span>
                         {p.syncStatus === 'pending' && (
                           <span title="Syncing to Supabase..." className="inline-flex">
                             <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
@@ -1083,7 +1083,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                     {parsedList.map((p, idx) => (
                       <div key={`import-preview-${idx}-${p.phone || p.name}`} className="p-2.5 flex justify-between items-center text-[10px] font-sans">
                         <div>
-                          <span className="font-bold text-slate-700">{p.name}</span> ({p.gender}, {p.age} yrs)
+                          <span className="font-bold text-slate-700"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span> ({p.gender}, {p.age} yrs)
                         </div>
                         <span className="font-mono text-slate-500 font-medium">{p.phone}</span>
                       </div>

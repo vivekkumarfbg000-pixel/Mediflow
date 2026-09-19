@@ -115,6 +115,8 @@ import { CommandBar } from './components/shared/CommandBar';
 import { ToastProvider } from './components/shared/ToastProvider';
 import { resolvePodContext, clearPodContext } from './services/podContext';
 import { RealtimeSyncService } from './services/realtimeSyncService';
+import { PatientService } from './services/patientService';
+import { PatientProfileModal } from './components/shared/PatientProfileModal';
 import {
   DashboardSkeleton,
   DoctorDashboardSkeleton,
@@ -158,6 +160,8 @@ function AppContent({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
   const [activeDoctorTab, setActiveDoctorTab] = useState('pod_view');
+  const [globalProfilePatient, setGlobalProfilePatient] = useState<any>(null);
+  const [isGlobalProfileOpen, setIsGlobalProfileOpen] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') === 'dark' || document.documentElement.classList.contains('dark');
@@ -183,6 +187,29 @@ function AppContent({
     window.addEventListener('mediflow-change-role', handleRoleEvent as any);
     return () => window.removeEventListener('mediflow-change-role', handleRoleEvent as any);
   }, [handleRoleChange]);
+
+  useEffect(() => {
+    const handleOpenProfile = (e: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      if (customEvent.detail) {
+        const patientData = customEvent.detail.patient || customEvent.detail;
+        if (typeof patientData === 'string') {
+          // If it's just an ID, fetch the full patient
+          const patients = PatientService.getPatients();
+          const p = patients.find(p => p.id === patientData);
+          if (p) {
+            setGlobalProfilePatient(p);
+            setIsGlobalProfileOpen(true);
+          }
+        } else {
+          setGlobalProfilePatient(patientData);
+          setIsGlobalProfileOpen(true);
+        }
+      }
+    };
+    window.addEventListener('mediflow-open-patient-profile', handleOpenProfile as any);
+    return () => window.removeEventListener('mediflow-open-patient-profile', handleOpenProfile as any);
+  }, []);
 
   useEffect(() => {
     const handleThemeChange = (e: Event) => {
@@ -501,6 +528,13 @@ function AppContent({
           <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white shrink-0" />
         </button>
       )}
+
+      {/* Global Patient Profile Modal */}
+      <PatientProfileModal 
+        patient={globalProfilePatient}
+        isOpen={isGlobalProfileOpen}
+        onClose={() => setIsGlobalProfileOpen(false)}
+      />
 
       <PatientWhatsAppSimulator isOpen={isSimulatorOpen} onClose={() => setIsSimulatorOpen(false)} />
       <CommandBar 

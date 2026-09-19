@@ -1898,7 +1898,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                                         onClick={() => { setVirtualSelectedPatientId(p.id); setVirtualPatientSearch(''); }}
                                         className="w-full text-left px-3 py-2 text-sm hover:bg-cyan-50 dark:hover:bg-cyan-950/30 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-700/50 last:border-0"
                                       >
-                                        <span className="font-bold text-slate-900 dark:text-white">{p.name}</span>
+                                        <span className="font-bold text-slate-900 dark:text-white"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span>
                                         <span className="text-xs text-slate-500 ml-2">{p.phone || 'No phone'} · {p.age ? `${p.age}y` : ''}</span>
                                       </button>
                                     ))}
