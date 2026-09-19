@@ -518,17 +518,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
 
           {/* SaaS Headline & Subtitle */}
-          <div className="space-y-4">
-            <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-black text-slate-900 leading-[1.14] tracking-tight">
-              Run Your Clinic Like a Connected Hospital.<br />
-              <span className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent">
-                Write on Paper. AI &amp; WhatsApp Do the Rest.
+          <div className="space-y-6 animate-fade-in-up">
+            <h1 className="text-3xl sm:text-4xl lg:text-[2.5rem] font-bold text-slate-900 dark:text-white leading-[1.2] tracking-tight">
+              Turn Your Clinic Into a Virtual Hospital.<br />
+              <span className="text-xl sm:text-2xl lg:text-[1.75rem] font-bold bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 bg-clip-text text-transparent mt-2 inline-block">
+                Write on Paper Prescription Pad. VitalSync AI &amp; Your Clinic OS Automate the Rest.
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl font-normal">
-              Keep writing paper prescriptions as usual. Your compounder scans or uploads it; VitalSync AI builds the digital profile, delivers the e-Rx on WhatsApp, and automates clinic operations. Unites your practice, pharmacy, and lab on interconnected dashboards—while giving chronic patients 100–200 km away remote video care with their trusted doctor.
-            </p>
+            {/* Attractive Premium Box for the Paragraph */}
+            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200 dark:border-slate-700 p-5 sm:p-6 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-slate-900/40 inline-block max-w-3xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-teal-500 to-emerald-500"></div>
+              <p className="text-sm sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                Keep writing paper prescriptions as usual. Your compounder scans or uploads it; VitalSync AI builds the digital profile, delivers the e-Rx on WhatsApp, and automates clinic operations. Unites your practice, pharmacy, and lab on interconnected dashboards—while giving chronic patients 100–200 km away remote video care with their trusted doctor.
+              </p>
+            </div>
+
+            {/* Visual Workflow Map with WhatsApp Connection */}
+            <div className="flex flex-col items-center justify-center mt-6 space-y-1">
+              {/* The Clinic Network (Grouped) */}
+              <div className="flex flex-wrap items-center justify-center gap-2 p-2 bg-slate-50/80 dark:bg-slate-800/50 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/50 rounded-2xl shadow-sm">
+                <span className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Stethoscope className="w-3.5 h-3.5" /> Doctor EMR
+                </span>
+                <span className="text-slate-300 dark:text-slate-600 font-bold px-1">↔</span>
+                <span className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Pill className="w-3.5 h-3.5" /> Pharmacy
+                </span>
+                <span className="text-slate-300 dark:text-slate-600 font-bold px-1">↔</span>
+                <span className="px-3 py-1.5 bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Microscope className="w-3.5 h-3.5" /> Pathology
+                </span>
+              </div>
+              
+              {/* Vertical Connection Bridge */}
+              <div className="flex flex-col items-center justify-center py-1">
+                <div className="w-px h-5 bg-gradient-to-b from-slate-300 to-[#25D366] dark:from-slate-600 dark:to-[#25D366]"></div>
+                <div className="w-2 h-2 rounded-full bg-[#25D366] -mt-1 shadow-[0_0_8px_rgba(37,211,102,0.6)]"></div>
+              </div>
+
+              {/* Patient Endpoint */}
+              <span className="px-5 py-2.5 bg-[#25D366]/10 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 rounded-xl text-sm font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-[#25D366]/10 relative overflow-hidden group hover:scale-105 transition-transform cursor-default">
+                <div className="absolute inset-0 bg-[#25D366]/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <MessageSquare className="w-4 h-4" /> Patient's WhatsApp
+              </span>
+            </div>
           </div>
 
           {/* 3-Pillar Glassmorphic Bento Cards — Clean & Modern */}

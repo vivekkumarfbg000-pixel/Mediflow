@@ -349,7 +349,15 @@ export class LabService {
   }): LabRequisition[] {
     const existing = this.getLabRequisitions();
     const currentPodId = getPodContext().podId;
-    const newReqs: LabRequisition[] = params.tests.map(t => ({
+    
+    // Deduplicate: Don't recreate the exact same test for the same encounter
+    const newTestsToCreate = params.encounterId 
+      ? params.tests.filter(t => !existing.some(e => e.encounterId === params.encounterId && e.testCode === t.loincCode))
+      : params.tests;
+
+    if (newTestsToCreate.length === 0) return []; // All requested tests already exist for this encounter
+
+    const newReqs: LabRequisition[] = newTestsToCreate.map(t => ({
       id: `req-${crypto.randomUUID().substring(0, 8)}`,
       encounterId: params.encounterId || `enc-${crypto.randomUUID().substring(0, 6)}`,
       patientId: params.patientId,
@@ -362,6 +370,7 @@ export class LabService {
       podId: currentPodId,
       createdAt: new Date().toISOString()
     }));
+    
     newReqs.forEach(r => {
       cloudStore.applyLocalDiff('lab_requisitions', r);
     });
@@ -515,20 +524,7 @@ export class LabService {
         writeAuditLog('lab_result_submitted', { reqId, resultValue }, reqId);
 
         const patient = PatientService.getPatients().find(p => p.id === req.patientId);
-        await supabase.from('lab_reports').upsert({
-          id: `report-${reqId}`,
-          requisition_id: reqId,
-          patient_id: req.patientId,
-          patient_name: patient?.name || req.patientName || 'Unknown',
-          test_name: req.testName,
-          test_code: req.testCode,
-          barcode: req.barcode,
-          result_data: resultValue,
-          status: 'verified',
-          pod_id: req.podId || getPodContext().podId || FALLBACK_POD_ID,
-          created_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-
+        
         // AI extraction and summary update
         try {
           const history = PatientService.getPatientHistoricalBiomarkers(req.patientId);

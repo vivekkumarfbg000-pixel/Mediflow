@@ -176,6 +176,10 @@ export const CompounderDashboard: React.FC = () => {
   const [showOpdRegisterPrintModal, setShowOpdRegisterPrintModal] = useState(false);
   const [registerSelectedDate, setRegisterSelectedDate] = useState(() => getIstDateString());
   const [selectedPatientForBillHub, setSelectedPatientForBillHub] = useState<string | null>(null);
+  
+  // Post-Consultation Smart Queue States
+  const [assignSlotReportId, setAssignSlotReportId] = useState<string | null>(null);
+  const [assignSlotTime, setAssignSlotTime] = useState('17:00');
 
   const vitalsDonePatients = useMemo(() => {
     return patients.filter(p => {
@@ -1501,20 +1505,9 @@ export const CompounderDashboard: React.FC = () => {
   }, [pendingVitalsList, vitalsSourceFilter, vitalsSearchTerm, whatsappPendingVitals, qrPendingVitals, counterPendingVitals]);
 
   const arrivedLabReports = useMemo(() => {
-    const reqs = LabService.getLabRequisitions();
-    const seen = new Set<string>();
-    const uniqueReqs: typeof reqs = [];
-
-    for (const r of reqs) {
-      const isDone = r.status === 'collected' || Boolean(r.quantitativeResult) || (r as any).status === 'completed' || (r as any).status === 'processed';
-      if (!isDone) continue;
-      const key = `${r.patientId || (r as any).patient_id}-${r.testCode || r.testName}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueReqs.push(r);
-      }
-    }
-    return uniqueReqs.slice(0, 8);
+    const reports = LabService.getFullLabReports();
+    // Only show reports that are newly published by pathology and pending compounder evening slot assignment
+    return reports.filter(r => r.status === 'pending').slice(0, 8);
   }, [dataRevision]);
 
   const formatBiomarkerResult = (res: any): string => {
@@ -1540,42 +1533,27 @@ export const CompounderDashboard: React.FC = () => {
     return String(res);
   };
 
-  const handleSendLabReportWhatsApp = async (req: LabRequisition) => {
+  const handleConfirmEveningSlot = async (reportId: string, timeVal: string) => {
     try {
-      const p = patients.find(pat => pat.id === req.patientId);
-      const rawPhone = p?.phone || (req as any).patientPhone || (req as any).patient_phone || '';
-      if (!rawPhone) {
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: 'Missing Phone Number ⚠️',
-            message: `No registered contact number found for ${req.patientName || 'this patient'}.`,
-            type: 'error'
-          }
-        }));
-        return;
-      }
-      const phone = rawPhone.replace(/\D/g, '').slice(-10);
-      const patientName = req.patientName || p?.name || 'Patient';
-      
-      const msgText = `🔬 *VitalSync Lab Alert — Report Ready!* 📄\n\nDear *${patientName}*, your laboratory test *${req.testName}* report is ready.\n\n📊 *Result Summary:* ${req.quantitativeResult || 'Test Normal & Verified'}\n🏥 *Evening Review:* 04:30 PM - 05:30 PM at Clinic Counter with Dr. ${activePod?.doctor_name || 'Attending Physician'}.\n\n_VitalSync Virtual Hospital Network_`;
-
-      await api.pushWhatsAppMessageFromBot(phone, msgText);
+      const today = getIstDateString();
+      await LabService.approveLabReport(reportId, today, timeVal, 'Compounder assigned evening review slot');
       
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'WhatsApp Alert Dispatched! 📲',
-          message: `Lab result notification sent to ${patientName} (+91 ${(phone || '').slice(-4)}).`,
+          title: 'Evening Slot Assigned 🏥',
+          message: `Doctor review slot for ${timeVal} has been scheduled and the patient has been notified via WhatsApp.`,
           type: 'success'
         }
       }));
+      setAssignSlotReportId(null);
       setDataRevision(prev => prev + 1);
     } catch (_err) {
-      console.warn('[LabWhatsApp] Error sending alert:', _err);
+      console.warn('[EveningSlot] Error assigning slot:', _err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Alert Notice',
-          message: `WhatsApp notification queued for dispatch.`,
-          type: 'info'
+          title: 'Assignment Failed',
+          message: `Failed to assign evening slot. Please try again.`,
+          type: 'error'
         }
       }));
     }
@@ -3537,42 +3515,71 @@ export const CompounderDashboard: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-extrabold text-slate-900 dark:text-white">{req.patientName}</span>
                               <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[9px] font-mono font-bold rounded-lg border border-purple-200/60 dark:border-purple-800">
-                                #{(req.barcode || 'LAB').slice(-8)}
+                                #{(req.biomarkerJson?.barcode || 'LAB').slice(-8)}
                               </span>
                             </div>
                             <div className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                              {req.testName}
+                              {req.biomarkerJson?.testName || 'Laboratory Test'}
                             </div>
                             <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                📊 {formatBiomarkerResult(req.quantitativeResult)}
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100/80 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                ⏳ Pending Review
                               </span>
                               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                🕒 Evening Slot: {req.revisitScheduledAt ? new Date(req.revisitScheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '04:30 PM - 05:30 PM'}
+                                Needs Evening Slot Assignment
                               </span>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                            <button
-                              type="button"
-                              onClick={() => handleSendLabReportWhatsApp(req)}
-                              className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-[11px] font-bold rounded-xl cursor-pointer transition border-0 flex items-center gap-1.5 shadow-sm"
-                            >
-                              <Smartphone className="w-3.5 h-3.5" />
-                              <span>WhatsApp Alert</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveTab('clinical_hub');
-                                setClinicalSubTab('labs');
-                              }}
-                              className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer transition border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 shadow-xs"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>Worklist</span>
-                            </button>
+                            {assignSlotReportId === req.id ? (
+                              <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+                                <input 
+                                  type="time" 
+                                  value={assignSlotTime}
+                                  onChange={(e) => setAssignSlotTime(e.target.value)}
+                                  className="text-xs font-bold px-2 py-1 outline-none rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmEveningSlot(req.id, assignSlotTime)}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition flex items-center gap-1"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Confirm
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAssignSlotReportId(null)}
+                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 rounded-lg cursor-pointer transition"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAssignSlotReportId(req.id);
+                                    setAssignSlotTime('17:00');
+                                  }}
+                                  className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:scale-95 text-white text-[11px] font-bold rounded-xl cursor-pointer transition border-0 flex items-center gap-1.5 shadow-sm"
+                                >
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>Assign Slot</span>
+                                </button>
+                                {req.reportFileUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewingDocUrl(req.reportFileUrl || null)}
+                                    className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer transition border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 shadow-xs"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    <span>View PDF</span>
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

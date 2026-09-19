@@ -106,7 +106,7 @@ serve(async (req) => {
       // 0. Fetch the current invoice status first
       const { data: existingInvoice, error: fetchErr } = await supabase
         .from("unified_invoices")
-        .select("id, payment_status, pod_id, patient_id, total_amount, appointment_id")
+        .select("id, payment_status, pod_id, patient_id, total_amount, appointment_id, platform_fee, lab_fee, pharmacy_fee")
         .eq("cashfree_order_id", orderId)
         .maybeSingle();
 
@@ -184,7 +184,8 @@ serve(async (req) => {
         // 3. Credit commission pool with platform fee earned on this payment
         // This replenishes the pool that cash billing draws from.
         try {
-          const platformFee = existingInvoice.platform_fee ?? (totalAmount ? parseFloat((totalAmount * 0.03).toFixed(2)) : 0);
+          const fallbackFee = parseFloat(((existingInvoice.lab_fee || 0) * 0.02 + (existingInvoice.pharmacy_fee || 0) * 0.01).toFixed(2));
+          const platformFee = existingInvoice.platform_fee ?? fallbackFee;
           if (platformFee > 0 && existingInvoice.pod_id) {
             await supabase.rpc("credit_commission_pool", {
               p_pod_id:       existingInvoice.pod_id,

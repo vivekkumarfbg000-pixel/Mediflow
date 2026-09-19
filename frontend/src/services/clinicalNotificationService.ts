@@ -12,6 +12,7 @@ export interface LabReportNotificationParams {
   reportPdfUrl?: string;
   doctorName?: string;
   clinicName?: string;
+  assignedTime?: string;
 }
 
 export interface PrescriptionDosageParams {
@@ -210,7 +211,7 @@ export class ClinicalNotificationService {
    * 1. AUTOMATED LAB REPORT & HINGLISH SUMMARY DELIVERY
    */
   public static async dispatchLabReportWhatsApp(params: LabReportNotificationParams): Promise<string> {
-    const { patientPhone, patientName, testName, loincCode, biomarkers, reportPdfUrl, doctorName, clinicName } = params;
+    const { patientPhone, patientName, testName, loincCode, biomarkers, reportPdfUrl, doctorName, clinicName, assignedTime } = params;
     if (!patientPhone) return '';
 
     const resolvedClinic = clinicName || WhatsAppService.getDynamicClinicName();
@@ -239,10 +240,9 @@ export class ClinicalNotificationService {
     }
 
     msg += `🏥 *Next Step (Doctor Review):*\n`;
-    msg += `${resolvedDoc} ke saath aapka 2-Touchpoint Review loop ready hai. Kripya niche diye gaye options me se choose kijiye:\n`;
-    msg += `1️⃣ *Physical Review at Clinic* 🏥 (Doctor se clinic me milkar dawa adjust karwayein)\n`;
-    msg += `2️⃣ *Virtual Video Call* 💻 (Ghar baithe video call par report check karwayein)\n\n`;
-    msg += `Please reply *1* (Clinic Visit) ya *2* (Video Call)! Stay healthy! 🟢`;
+    msg += `${resolvedDoc} ke paas report review ke liye aapka evening slot assign kar diya gaya hai.\n`;
+    msg += `• Time: *${assignedTime || 'Evening Slot'}*\n\n`;
+    msg += `Please reply *1* ya *[ 🏥 Confirm Clinic Visit ]* button tap kijiye! Stay healthy! 🟢`;
 
     // 1. Update in-app WhatsApp Session Simulator & Supabase DB
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);

@@ -113,14 +113,14 @@ export class FinanceEngine {
 
         // Only accrue platform debt here if no explicit platform_fee entries exist for this ledger set
         if (isCash && !hasPlatformFeeEntries) {
-          const plat = platFee > 0 ? platFee : Math.round(gross * 0.02);
+          const plat = platFee > 0 ? platFee : Math.round(gross * 0.01);
           totalCashCommissionOwed += plat;
         }
       } else if (type === 'lab_commission') {
         labTotalEarned += net;
         // Only accrue platform debt here if no explicit platform_fee entries exist for this ledger set
         if (isCash && !hasPlatformFeeEntries) {
-          const plat = platFee > 0 ? platFee : Math.round(gross * 0.05);
+          const plat = platFee > 0 ? platFee : Math.round(gross * 0.02);
           totalCashCommissionOwed += plat;
         }
       } else if (type === 'platform_fee') {

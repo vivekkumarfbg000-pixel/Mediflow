@@ -95,7 +95,7 @@ serve(async (req) => {
     }
 
     // ── Calculate commission (5% lab, 2% pharmacy) ─────────────────────────
-    const commissionRate = saleType === "lab" ? 0.05 : 0.02;
+    const commissionRate = saleType === "lab" ? 0.02 : 0.01;
     const commissionAmount = parseFloat((grossAmount * commissionRate).toFixed(2));
 
     // ── Create cash_billing_session record ───────────────────────────────────
@@ -193,7 +193,7 @@ serve(async (req) => {
       session_id:        session.id,
       gross_amount:      grossAmount,
       commission_amount: commissionAmount,
-      commission_rate:   "3%",
+      commission_rate:   (commissionRate * 100) + "%",
       pool_status:       poolStatus,
       pool_balance:      balanceAfter,
       is_pool_low:       balanceAfter < POOL_LOW_THRESHOLD,

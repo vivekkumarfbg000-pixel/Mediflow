@@ -404,23 +404,8 @@ Return ONLY a valid JSON object matching:
         digitizedPrescription: digitized
       };
     } catch (err) {
-      console.warn('[Mediflow AI] Real Vision OCR pipeline failed, using structured fallback:', err);
-      return {
-        extracted_text: 'Handwritten Clinical Prescription\nPatient Name: Asha Devi\nAge: 50 | Gender: Female\nTab Thyronorm 50mcg 1-0-0\nTab Rozavel 10mg 0-0-1\nTab Forxiga 10mg 1-0-0\nTab Glycomet GP 1 1-0-1\nTab Telma 40mg 1-0-0\nHbA1c | Lipid Profile | Serum Creatinine',
-        structured_data: {
-          'Patient Name': 'Asha Devi',
-          'Age': '50',
-          'Gender': 'Female',
-          'Thyronorm 50mcg': '1-0-0',
-          'Rozavel 10mg': '0-0-1',
-          'Forxiga 10mg': '1-0-0',
-          'Glycomet GP 1': '1-0-1',
-          'Telma 40mg': '1-0-0',
-          'HbA1c': 'LOINC: 4544-3',
-          'Lipid Profile': 'LOINC: 24331-1',
-          'Serum Creatinine': 'LOINC: 2160-0'
-        }
-      };
+      console.error('[Mediflow AI] OCR pipeline failed:', err);
+      throw new Error('AI Vision OCR Failed: Unable to extract data from image. Please try again or check API configuration.');
     }
   }
 
@@ -1123,10 +1108,13 @@ DOCTOR_NOTES: [any additional instructions, follow-up notes, or NONE]`;
 
       let parsedResult: any = null;
       let pass1Text = '';
+      const failureReasons: string[] = [];
 
       // ── TIER 1: 2-Pass Direct Google Gemini Vision ─────────────────────────
       // API-key-verified stable model IDs only (Sept 2026).
       const geminiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any)?.process?.env?.GEMINI_API_KEY;
+      if (!geminiKey) failureReasons.push('Tier 1 skipped: No VITE_GEMINI_API_KEY found.');
+      
       if (!parsedResult && geminiKey && base64Data) {
         const candidateModels = [
           'gemini-2.5-flash',
@@ -1146,7 +1134,7 @@ DOCTOR_NOTES: [any additional instructions, follow-up notes, or NONE]`;
           try {
             const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
             const ctrl = new AbortController();
-            const tId = setTimeout(() => ctrl.abort(), 25000); // 25s — vision + handwriting needs time
+            const tId = setTimeout(() => ctrl.abort(), 30000); // 30s to allow for API latency on large images
             const res = await fetch(directEndpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1222,7 +1210,7 @@ Return ONLY this exact JSON with no markdown, no code fences, no extra text:
             try {
               const directEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
               const ctrl2 = new AbortController();
-              const tId2 = setTimeout(() => ctrl2.abort(), 15000);
+              const tId2 = setTimeout(() => ctrl2.abort(), 30000); // 30s timeout
               const res2 = await fetch(directEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1244,12 +1232,20 @@ Return ONLY this exact JSON with no markdown, no code fences, no extra text:
                     console.log(`[Mediflow AI] ✅ Pass 2 JSON structuring via ${candidateModel}`);
                     break;
                   }
-                } catch (_p2Err) {
-                  console.warn(`[Mediflow AI] Pass 2 JSON parse failed for ${candidateModel}`);
+                } catch (parseErr: any) {
+                  console.warn('[Mediflow AI] JSON Parse error on PASS 2:', pass2Text.substring(0, 50));
+                  failureReasons.push(`Tier 1 JSON Parse Error: ${parseErr.message}`);
                 }
+              } else {
+                failureReasons.push(`Tier 1 failed: No PASS 2 JSON extracted. Model response HTTP ${res2.status}`);
               }
-            } catch (p2Err) {
-              console.warn(`[Mediflow AI] Pass 2 (${candidateModel}) failed:`, (p2Err as any)?.message);
+            } catch (t1Err: any) {
+              console.warn('[Mediflow AI] Tier 1 Direct Vision call failed:', t1Err.message);
+              if (t1Err.name === 'AbortError') {
+                failureReasons.push('Tier 1 Direct Vision timed out after 15s.');
+              } else {
+                failureReasons.push(`Tier 1 Error: ${t1Err.message}`);
+              }
             }
           }
         }
@@ -1290,7 +1286,7 @@ Extract all visible patient and medication details accurately into valid JSON.
           ];
 
           const fcController = new AbortController();
-          const fcTimeoutId = setTimeout(() => fcController.abort(), 14000);
+          const fcTimeoutId = setTimeout(() => fcController.abort(), 30000); // 30s limit for edge func
 
           const response = await fetch(edgeFnUrl, {
             method: 'POST',
@@ -1322,18 +1318,30 @@ Extract all visible patient and medication details accurately into valid JSON.
                 if (parsedResult) {
                   console.log(`[Mediflow AI] ✅ Tier 2 Vision OCR success via ${result._model_used || 'edge-function'}`);
                 }
-              } catch (_parseErr) {
+              } catch (_parseErr: any) {
                 console.warn('[Mediflow AI] Tier 2 JSON parse failed, rawText:', rawText.substring(0, 100));
+                failureReasons.push(`Tier 2 JSON Parse Error: ${_parseErr.message}`);
               }
             } else {
               console.warn('[Mediflow AI] Tier 2 returned HTTP 200 but empty text. Full result:', JSON.stringify(result).substring(0, 200));
+              failureReasons.push(`Tier 2 Edge Function returned empty response.`);
             }
           } else {
             const errBody = await response.json().catch(() => ({}));
+            let errMsg = errBody.error || 'Unknown error';
+            if (response.status === 504 || errMsg.toLowerCase().includes('deadline')) {
+              errMsg = 'Deadline Exceeded. (Note: Supabase Free Tier kills functions after 10s. For OCR, deploy a Vercel function or add VITE_GEMINI_API_KEY).';
+            }
             console.warn('[Mediflow AI] Tier 2 Edge Function HTTP error:', response.status, JSON.stringify(errBody).substring(0, 150));
+            failureReasons.push(`Tier 2 Edge Function HTTP ${response.status}: ${errMsg}`);
           }
-        } catch (tier2Err) {
-          console.warn('[Mediflow AI] Tier 2 Edge Function Vision call failed:', (tier2Err as any)?.message);
+        } catch (tier2Err: any) {
+          console.warn('[Mediflow AI] Tier 2 Edge Function Vision call failed:', tier2Err.message);
+          if (tier2Err.name === 'AbortError') {
+            failureReasons.push('Tier 2 Supabase Edge Function timed out after 30s. Could be a cold start.');
+          } else {
+            failureReasons.push(`Tier 2 Fetch Error: ${tier2Err.message}`);
+          }
         }
       }
 
@@ -1480,62 +1488,14 @@ Extract all visible patient and medication details accurately into valid JSON.
           } : null
         };
       }
+      // If we reach here and parsedResult is STILL null, it means BOTH Tier 1 and Tier 2 failed.
+      if (!parsedResult) {
+        throw new Error(`Vision OCR Extraction Failed.\nReasons:\n- ${failureReasons.join('\n- ')}`);
+      }
 
-      // Graceful clinical fallback with informative user toast
-      try {
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: 'Prescription Scanned',
-            message: 'Transcription structure initialized successfully.',
-            type: 'info'
-          }
-        }));
-      } catch (_toastErr) { /* non-blocking */ }
-
-      // High-fidelity clinical template fallback (No dummy phone)
-      return {
-        clinicName: 'Life Line Sugar & Heart Clinic',
-        doctorName: 'Dr. Pankaj Kumar',
-        patientName: 'Asha Devi',
-        patientPhone: null,
-        patientAge: 50,
-        patientGender: 'Female',
-        medications: [
-          { medicineName: 'Thyronorm 50mcg', dosage: '50 mcg', frequency: '1-0-0', duration: '30 Days' },
-          { medicineName: 'Rozavel 10mg', dosage: '10 mg', frequency: '0-0-1', duration: '30 Days' },
-          { medicineName: 'Forxiga 10mg', dosage: '10 mg', frequency: '1-0-0', duration: '30 Days' },
-          { medicineName: 'Glycomet GP 1', dosage: '1 Tab', frequency: '1-0-1', duration: '30 Days' },
-          { medicineName: 'Telma 40mg', dosage: '40 mg', frequency: '1-0-0', duration: '30 Days' },
-          { medicineName: 'Pan 40mg', dosage: '40 mg', frequency: '1-0-0', duration: '15 Days' }
-        ],
-        diagnosticTests: [
-          MASTER_TEST_CATALOG[0],
-          MASTER_TEST_CATALOG[1]
-        ]
-      };
-
-    } catch (error) {
-      console.error('[Mediflow AI] OCR Extraction exception, using clinical fallback:', error);
-      return {
-        clinicName: 'Life Line Sugar & Heart Clinic',
-        doctorName: 'Dr. Pankaj Kumar',
-        patientName: 'Asha Devi',
-        patientPhone: null,
-        patientAge: 50,
-        patientGender: 'Female',
-        medications: [
-          { medicineName: 'Thyronorm 50mcg', dosage: '50 mcg', frequency: '1-0-0', duration: '30 Days' },
-          { medicineName: 'Rozavel 10mg', dosage: '10 mg', frequency: '0-0-1', duration: '30 Days' },
-          { medicineName: 'Forxiga 10mg', dosage: '10 mg', frequency: '1-0-0', duration: '30 Days' },
-          { medicineName: 'Glycomet GP 1', dosage: '1 Tab', frequency: '1-0-1', duration: '30 Days' },
-          { medicineName: 'Telma 40mg', dosage: '40 mg', frequency: '1-0-0', duration: '30 Days' },
-          { medicineName: 'Pan 40mg', dosage: '40 mg', frequency: '1-0-0', duration: '15 Days' }
-        ],
-        diagnosticTests: [
-          MASTER_TEST_CATALOG[0],
-          MASTER_TEST_CATALOG[1]
-        ]
-      };
+    } catch (error: any) {
+      console.error('[Mediflow AI] OCR Extraction exception:', error);
+      throw new Error(error.message || 'AI Vision OCR Failed.');
     }
   }
 

@@ -1232,6 +1232,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             patientId: patientObj.id,
             patientName: patientObj.name,
             doctorId: (activePod as any)?.doctor_id || "doc-ocr-scan",
+            encounterId: typeof matchedAppt !== 'undefined' && matchedAppt ? matchedAppt.id : undefined,
             tests: diagnosticTestsList.map(t => ({
               loincCode: t.loincCode,
               name: t.name,
@@ -1273,10 +1274,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           type: 'success' 
         }
       }));
-    } catch (err) {
+    } catch (err: any) {
       console.error('OCR Parsing Error:', err);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'OCR Failed', message: 'Unable to parse file. Please try again.', type: 'error' }
+        detail: { title: 'OCR Failed', message: err.message || 'Unable to parse file. Please try again.', type: 'error' }
       }));
     } finally {
       clearTimeout(safetyTimeout);
@@ -1727,10 +1728,12 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       // 3. Clear the unified invoice (triggers 3% platform fee split, commission pool refill, and financial ledgers)
       BillingService.clearInvoice(unifiedInvoiceId, paymentMethod);
 
-      // 4. Deduct pharmacy inventory stock for selected medicines
+      // 4. Deduct pharmacy inventory stock for selected medicines and create MedicineBill
       if (billingLedger.pharmacySub > 0) {
         const activeInventory = PharmacyService.getPharmacyInventory();
+        const billItems: any[] = [];
         let invUpdated = false;
+        
         billingLedger.medicinesList.forEach(m => {
           const mNameLower = (m.name || '').toLowerCase();
           const state = selectedMedicines[mNameLower];
@@ -1739,11 +1742,42 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             if (itemInInv) {
               itemInInv.stock = Math.max(0, itemInInv.stock - state.qty);
               invUpdated = true;
+              billItems.push({
+                inventoryItemId: itemInInv.id,
+                name: itemInInv.name,
+                batchNumber: itemInInv.batchNumber,
+                expiryDate: itemInInv.expiryDate,
+                quantity: state.qty,
+                mrp: itemInInv.mrp,
+                sellingPrice: itemInInv.price,
+                lineTotal: itemInInv.price * state.qty
+              });
             }
           }
         });
+        
         if (invUpdated) {
           PharmacyService.savePharmacyInventory(activeInventory);
+          
+          // Dispatch to Pharmacy POS!
+          const newMedicineBill = {
+            id: `medbill-${crypto.randomUUID().substring(0, 8)}`,
+            patientId: selectedPatient.id,
+            patientName: selectedPatient.name,
+            patientPhone: selectedPatient.phone,
+            items: billItems,
+            subtotal: billingLedger.pharmacySub,
+            loyaltyDiscountPercent: 0,
+            loyaltyDiscountAmount: 0,
+            itemDiscountAmount: 0,
+            gstAmount: parseFloat((billingLedger.pharmacySub * 0.05).toFixed(2)),
+            totalAmount: billingLedger.pharmacySub,
+            paymentMode: paymentMethod,
+            status: 'paid', // Already paid at counter
+            source: 'counter',
+            createdAt: new Date().toISOString()
+          };
+          PharmacyService.saveMedicineBill(newMedicineBill as any).catch(err => console.warn('[BillHubTab] Pharmacy dispatch failed', err));
         }
       }
 

@@ -591,18 +591,7 @@ export const LabDashboard: React.FC = () => {
 
         api.saveFullLabReport(newReport);
 
-        // Dispatch automated WhatsApp Lab Report with structured biomarkers and Hinglish interpretation
-        if (patientPhone) {
-          api.dispatchLabReportWhatsApp({
-            patientPhone,
-            patientName: activeReq.patientName,
-            testName: activeReq.testName || 'Pathology Test',
-            loincCode: activeReq.testCode,
-            biomarkers: parsedPayload?.biomarkers || parsedPayload,
-            reportPdfUrl: reportFileUrl || undefined,
-            clinicName: activePod?.name || activeEntity?.name
-          }).catch(err => console.warn('[LabDashboard] WhatsApp dispatch notice:', err));
-        }
+        // WhatsApp alert is now deferred to the Compounder Dashboard (Evening Review Assignment)
 
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
@@ -916,25 +905,15 @@ export const LabDashboard: React.FC = () => {
         patientName: selectedPatient.name,
         reportFileUrl: reportFileUrl || generatedBlobUrl || undefined,
         biomarkerJson: data,
-        status: 'approved',
+        status: 'pending', // Route to Compounder for Evening Slot assignment
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
+      await api.submitLabResult(reqId, stringifiedPayload);
       api.saveFullLabReport(newReport);
 
-      // Dispatch automated WhatsApp Lab Report with structured biomarkers and Hinglish interpretation
-      if (selectedPatient.phone) {
-        api.dispatchLabReportWhatsApp({
-          patientPhone: selectedPatient.phone,
-          patientName: selectedPatient.name,
-          testName: testItem.name,
-          loincCode: directTestCode,
-          biomarkers: data.biomarkers || data,
-          reportPdfUrl: reportFileUrl || generatedBlobUrl || undefined,
-          clinicName: activePod?.name || activeEntity?.name
-        }).catch(err => console.warn('[LabDashboard] Direct WhatsApp dispatch notice:', err));
-      }
+      // WhatsApp alert is now deferred to the Compounder Dashboard (Evening Review Assignment)
 
       // Realtime CDC broadcast to Doctor Dashboard & Compounder Desk
       window.dispatchEvent(new CustomEvent('mediflow-lab-report-ready', {

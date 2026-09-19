@@ -757,11 +757,9 @@ BEGIN
             ), v_pharmacy_entity_id, v_pod_id);
     END;
 
-    platform_fee := (doctor_fee + lab_fee + pharmacy_fee) * 0.03;
-    IF platform_fee < 10.00 THEN
-        platform_fee := 10.00;
-    END IF;
+    platform_fee := ROUND((lab_fee * 0.02) + (pharmacy_fee * 0.01), 2);
     
+
     total := doctor_fee + lab_fee + pharmacy_fee + platform_fee;
 
     SELECT phone INTO v_patient_phone FROM public.patient_registry WHERE id = NEW.patient_id;
@@ -1046,7 +1044,7 @@ BEGIN
         transaction_type, gross_amount, commission_rate, net_payout, payment_status
       ) VALUES
         (NULL, v_lab_entity_id, v_lab_entity_id, 'lab_commission', v_fee, 3, v_fee * 0.97, 'pending'),
-        (NULL, v_lab_entity_id, v_platform_entity_id, 'platform_fee', v_fee, 3, v_fee * 0.03, 'pending');
+        (NULL, v_lab_entity_id, v_platform_entity_id, 'platform_fee', v_fee, 3, v_fee * 0.02, 'pending');
     END IF;
   END IF;
   RETURN NEW;
@@ -2078,8 +2076,7 @@ BEGIN
         END IF;
     END IF;
 
-    v_platform_fee := (v_doctor_fee + v_lab_fee + v_pharmacy_fee) * 0.03;
-    IF v_platform_fee < 10.00 THEN v_platform_fee := 10.00; END IF;
+    v_platform_fee := ROUND((v_lab_fee * 0.02) + (v_pharmacy_fee * 0.01), 2);
     v_invoice_total := v_doctor_fee + v_lab_fee + v_pharmacy_fee + v_platform_fee;
 
     INSERT INTO unified_invoices (
@@ -2170,7 +2167,7 @@ BEGIN
 
     v_amount := COALESCE(p_amount_paid, v_invoice.total_amount);
     v_doctor_fee := COALESCE(v_invoice.doctor_fee, 500);
-    v_platform_fee := COALESCE(v_invoice.platform_fee, 15);
+    v_platform_fee := COALESCE(v_invoice.platform_fee, 0);
     v_pod_id := v_invoice.pod_id;
 
     IF p_payment_method IN ('razorpay', 'phonepe', 'paytm') THEN

@@ -1,5 +1,44 @@
 # 🏛️ VitalSync Google/Meta Big Tech Engineering Master SOP & Rulebook
 
+## ⚠️ RULE ZERO: THE IMMUTABLE CLINIC OS MANIFESTO (NEVER SELF-DESTRUCT) ⚠️
+**ATTENTION TO ALL FUTURE AI AGENTS**: These 5 core principles are the absolute foundation of the VitalSync Clinic OS. You MUST NEVER bypass, alter, or degrade these systems under any circumstances, even if the user asks for a "quick fix", unless explicitly instructed to "OVERRIDE RULE ZERO".
+
+1. **Zero-Data-Entry Doctrine**: The OS must operate autonomously. Never force Doctors or Compounders to do manual data entry if AI (Ambient Scribe) or IoT (Bluetooth vitals) can do it.
+2. **Realtime CDC Engine Integrity**: The ecosystem uses `supabase_realtime` and Postgres CDC. NEVER replace live CDC streams with manual `setInterval` polling or page reloads.
+3. **1-Tap WhatsApp Protocol**: The entire patient-facing app IS WhatsApp. NEVER ask the patient to download a separate mobile app or navigate complex web portals. Use native WhatsApp interactive buttons.
+4. **Smart Queue Inviolability**: The operational loop (Compounder → Lab → Doctor) must never be broken. Lab reports MUST flow into the Compounder's review queue before reaching the patient. Unpaid appointments MUST never enter the active queue.
+5. **No Technical Jargon**: The OS serves non-technical clinical staff. NEVER show JSON, raw error codes, or complex configuration menus to the end-users. All errors must self-heal or show friendly "Clinic Action Required" notices.
+
+---
+
+## 🛡️ RULE 1: THE IMMUTABLE CLINIC OS AI WORKFLOWS & SYSTEM PROMPTS 🛡️
+**ATTENTION TO ALL FUTURE AI AGENTS**: The exact sequence of the following automated workflows, the UI behavior, and their underlying AI System Prompts (LLM Instructions) are strictly frozen. Do not simplify, bypass, or alter these loops.
+
+### 1. The Autonomous OCR Prescription Engine (Compounder Desk)
+**The UI & System Flow:**
+1. Compounder uploads/scans a physical paper prescription in the dashboard.
+2. **AI Action:** The system prompt securely extracts Name, Age, Phone, Vitals, and Medicines using Groq Llama-3 / Gemini Flash.
+3. **Automated DB Operations:** The system instantly:
+   - Creates a new patient profile (if new) or updates the existing one.
+   - Tags chronic diseases based on extracted medicines.
+   - Books the patient for today's appointment queue.
+   - Saves the original scanned image to the patient's record.
+4. **Digital Generation & Dispatch:** Generates a clean digital PDF prescription with dosages and autonomously sends it to the patient via WhatsApp.
+5. **UI Reaction:** The dashboard UI must immediately display the newly created patient profile widget below the scanner, complete with demographic tags, a link to the digital PDF, and direct access to billing (medicines and lab tests).
+
+### 2. The Post-Consultation Smart Queue (Evening Review)
+**The UI & System Flow:**
+1. Pathologist uploads the lab report PDF.
+2. System saves the report as `status: pending` in the patient's profile.
+3. **UI Reaction:** Report appears in the Compounder's "Lab Reports Arrived" widget.
+4. Compounder clicks "Assign Slot" and selects an evening time.
+5. **Digital Dispatch:** AI triggers the canonical WhatsApp template directing the patient to physically visit the clinic at the assigned time. Virtual Video options are strictly banned from this loop.
+
+### 3. System Prompt & LLM Instruction Integrity
+Any future AI agent modifying the source code is **FORBIDDEN** from changing the behavior, tone, or structure of the backend LLM system prompts (e.g., extracting Hinglish, formatting medical terms, OCR logic). The intelligence logic is immutable unless explicitly requested by the user.
+
+---
+
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.
 - Always ensure that `.gitignore` lists all environment files and credentials.
