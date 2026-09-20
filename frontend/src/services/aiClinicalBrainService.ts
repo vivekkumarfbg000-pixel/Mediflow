@@ -3,6 +3,7 @@ import { EncounterService } from './encounterService';
 import { LabService } from './labService';
 import { WhatsAppTemplateEngine } from './WhatsAppTemplateEngine';
 import { load, save } from './apiHelper';
+import { LabReport } from '../types';
 
 export interface BiomarkerTrend {
   biomarker: string;
@@ -61,7 +62,7 @@ export class AiClinicalBrainService {
 
     // 4. Save the automated report into the DB
     const reportId = crypto.randomUUID();
-    const newReport = {
+    const newReport: LabReport = {
       id: reportId,
       requisitionId: 'whatsapp-direct',
       patientId: patientId,
