@@ -606,9 +606,9 @@ export const CompounderDashboard: React.FC = () => {
     }, 400);
   }, [activePod, appointments]);
 
-  // Realtime 1-sec clock ticker for live dilation countdowns
+  // Realtime 60-sec clock ticker for live dilation countdowns (Prevents main-thread freeze)
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -3248,9 +3248,18 @@ export const CompounderDashboard: React.FC = () => {
                             : 'border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800/90 hover:border-indigo-300 dark:hover:border-indigo-700'
                         }`}
                       >
-                        {/* Token Badge & Patient Info */}
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-white shrink-0 font-mono shadow-xs ${
+                        {/* Token Badge & Patient Info (Click to open 360° Profile) */}
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                              detail: p || { id: pid, name: displayName, phone: a.patientPhone, age: p?.age, gender: p?.gender }
+                            }));
+                          }}
+                          className="flex items-center gap-3 min-w-0 cursor-pointer group/pat"
+                          title="Click to view 360° Patient Profile"
+                        >
+                          <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-white shrink-0 font-mono shadow-xs group-hover/pat:scale-105 transition-transform ${
                             isSOS
                               ? 'bg-rose-600 animate-pulse'
                               : isInConsult
@@ -3264,11 +3273,14 @@ export const CompounderDashboard: React.FC = () => {
                           </div>
 
                           <div className="min-w-0">
-                            <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                            <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate flex items-center gap-1.5 group-hover/pat:text-cyan-600 dark:group-hover/pat:text-cyan-400 transition-colors">
                               <span className="truncate capitalize">{displayName}</span>
                               {src.includes('whatsapp') && <span className="text-[8.5px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-bold">🟢 WA</span>}
                               {src.includes('qr') && <span className="text-[8.5px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.2 rounded font-bold">📲 QR</span>}
                               {isSOS && <span className="text-[8.5px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1.5 py-0.2 rounded font-bold">🚨 SOS</span>}
+                              <span className="text-[8.5px] font-bold text-cyan-600 dark:text-cyan-400 opacity-0 group-hover/pat:opacity-100 transition-opacity ml-1">
+                                View Profile →
+                              </span>
                             </div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1.5">
                               <span className="font-mono font-semibold">ID: {pid}</span>
@@ -5554,48 +5566,52 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'billing_daycare' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* Compact 3-column horizontal icon row — replaces verbose flex-wrap buttons */}
-            <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5">
-              {/* 1. Counter Invoice */}
-              <button
-                type="button"
-                onClick={() => {
-                  setBillingSubTab('billing');
-                  setBillHubInitialMode('manual_billing');
-                }}
-                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition active:scale-95 cursor-pointer border-0 ${
-                  billingSubTab === 'billing'
-                    ? 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
-                }`}
-              >
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
-                  billingSubTab === 'billing' ? 'bg-white/20' : 'bg-indigo-100 dark:bg-indigo-900/40'
-                }`}>
-                  <Receipt className={`w-3.5 h-3.5 ${billingSubTab === 'billing' ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
-                </div>
-                <span className="text-[9.5px] font-extrabold text-center leading-tight">Counter Bill</span>
-                <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'billing' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>POS Invoicing</span>
-              </button>
+            {/* Enterprise Counter Billing Header Navigation */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+              <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200/50 dark:border-white/5 w-full sm:w-auto">
+                {/* 1. Counter POS Invoicing */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBillingSubTab('billing');
+                    setBillHubInitialMode('manual_billing');
+                  }}
+                  className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-xs backdrop-blur-md transition-all cursor-pointer border ${
+                    billingSubTab === 'billing'
+                      ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-sm'
+                      : 'bg-white/50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800/80'
+                  }`}
+                >
+                  <Receipt className="w-4 h-4" />
+                  <span>Cash &amp; UPI Counter POS</span>
+                </button>
 
-              {/* 3. Minor OT / Daycare */}
-              <button
-                type="button"
-                onClick={() => setBillingSubTab('ot_daycare')}
-                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition active:scale-95 cursor-pointer border-0 ${
-                  billingSubTab === 'ot_daycare'
-                    ? 'bg-gradient-to-br from-rose-600 to-orange-500 text-white shadow-md shadow-rose-500/20'
-                    : 'bg-transparent text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-white/5'
-                }`}
-              >
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
-                  billingSubTab === 'ot_daycare' ? 'bg-white/20' : 'bg-rose-100 dark:bg-rose-900/40'
-                }`}>
-                  <Scissors className={`w-3.5 h-3.5 ${billingSubTab === 'ot_daycare' ? 'text-white' : 'text-rose-600 dark:text-rose-400'}`} />
+                {/* 2. Minor OT / Daycare */}
+                <button
+                  type="button"
+                  onClick={() => setBillingSubTab('ot_daycare')}
+                  className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-bold text-xs backdrop-blur-md transition-all cursor-pointer border ${
+                    billingSubTab === 'ot_daycare'
+                      ? 'bg-white/90 dark:bg-slate-800/90 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 shadow-sm'
+                      : 'bg-white/50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800/80'
+                  }`}
+                >
+                  <Scissors className="w-4 h-4" />
+                  <span>{isOphthalmology ? 'Daycare Surgery OT' : 'Minor OT / Daycare'}</span>
+                </button>
+              </div>
+
+              {/* Status Indicator & Desk info */}
+              <div className="hidden md:flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 font-medium pr-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="font-semibold text-slate-700 dark:text-slate-200">Terminal #1 Active</span>
                 </div>
-                <span className="text-[9.5px] font-extrabold text-center leading-tight">{isOphthalmology ? 'Daycare' : 'Minor OT'}</span>
-                <span className={`text-[8px] font-medium leading-tight ${billingSubTab === 'ot_daycare' ? 'text-white/70' : 'text-slate-400 dark:text-slate-500'}`}>Procedures &amp; Triage</span>
-              </button>
+                <span>•</span>
+                <span className="font-mono text-[11px] text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-md border border-indigo-200/50 dark:border-indigo-800/40">
+                  Instant WhatsApp Dispatch 🟢
+                </span>
+              </div>
             </div>
             {/* Sub-View 1: Manual Counter Billing */}
             {billingSubTab === 'billing' && (

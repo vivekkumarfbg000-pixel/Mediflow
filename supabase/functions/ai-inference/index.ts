@@ -90,7 +90,7 @@ serve(async (req) => {
 
     const {
       prompt,
-      model = "gemini-2.5-flash",
+      model = "gemini-3.8-flash",
       maxTokens = 2048,
       temperature = 0.15,
       contents,
@@ -123,15 +123,18 @@ serve(async (req) => {
       const DEPRECATED_MODELS = new Set([
         "gemini-1.5-flash",
         "gemini-1.5-pro",
+        "gemini-2.0-flash",
         "gemini-2.5-pro",
         "gemini-pro",
       ]);
       const STABLE_FALLBACK_CHAIN = [
-        "gemini-2.5-flash",        // Primary: verified working production model
-        "gemini-flash-latest",     // Secondary: dynamic latest alias
-        "gemini-2.5-flash-lite",   // Tertiary: low-latency lite variant
-        "gemini-flash-lite-latest",// Quaternary: dynamic lite latest alias
-        "gemini-2.0-flash"         // Fallback
+        "gemini-3.8-flash",        // Primary: active stable 3.8 model
+        "gemini-3.5-flash-lite",   // High-availability lite model
+        "gemini-flash-lite-latest", // Dynamic lite latest alias
+        "gemini-3-flash-preview",  // Fast preview model
+        "gemini-3.6-flash",        // Stable 3.6 model
+        "gemini-flash-latest",     // Dynamic latest alias
+        "gemini-2.5-flash"         // Base fallback
       ];
       const clientRequestedModel = (model && !DEPRECATED_MODELS.has(model)) ? model : null;
       const candidateModels = (clientRequestedModel && !STABLE_FALLBACK_CHAIN.includes(clientRequestedModel))

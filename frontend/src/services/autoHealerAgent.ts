@@ -1914,20 +1914,29 @@ export class TraceEnricher {
     this.traceId = sessionStorage.getItem('mediflow_trace_id') || crypto.randomUUID();
     sessionStorage.setItem('mediflow_trace_id', this.traceId);
 
-    // Patch global fetch to inject X-Trace-ID on every outgoing request
+    // Patch global fetch to inject X-Trace-ID only on internal / same-origin requests
     const origFetch = window.fetch.bind(window);
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const traceId = TraceEnricher.traceId;
       if (traceId) {
-        const headers = new Headers(init?.headers || {});
-        headers.set('X-Trace-ID', traceId);
-        headers.set('X-Session-Timestamp', new Date().toISOString());
-        init = { ...init, headers };
+        // Prevent CORS preflight failures on third-party APIs (Google, Supabase, Groq)
+        const urlStr = typeof input === 'string'
+          ? input
+          : (input instanceof URL ? input.href : (input instanceof Request ? input.url : ''));
+        const isSameOrigin = !urlStr.startsWith('http://') && !urlStr.startsWith('https://')
+          || (typeof window !== 'undefined' && urlStr.startsWith(window.location.origin));
+
+        if (isSameOrigin) {
+          const headers = new Headers(init?.headers || {});
+          headers.set('X-Trace-ID', traceId);
+          headers.set('X-Session-Timestamp', new Date().toISOString());
+          init = { ...init, headers };
+        }
       }
       return origFetch(input, init);
     };
 
-    console.log(`[TraceEnricher] 🔍 Trace ID installed: ${this.traceId} — all fetch() calls now carry X-Trace-ID`);
+    console.log(`[TraceEnricher] 🔍 Trace ID installed: ${this.traceId} — same-origin fetch() calls carry X-Trace-ID`);
   }
 
   static getTraceId(): string | null { return this.traceId; }

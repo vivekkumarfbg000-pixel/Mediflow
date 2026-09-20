@@ -33,7 +33,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: true,
-      port: 5173
+      port: 5173,
+      proxy: {
+        '/api/gemini': {
+          target: 'https://generativelanguage.googleapis.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/gemini/, '')
+        }
+      }
     },
     build: {
       // Modern esbuild target: smaller output, faster compilation

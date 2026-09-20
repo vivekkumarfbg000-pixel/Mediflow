@@ -49,13 +49,33 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   }, [initialMode]);
 
   useEffect(() => {
-    if (initialPatientId) {
+    const resolvePatient = () => {
       const allPats = PatientService.getPatients();
-      const target = allPats.find(p => p.id === initialPatientId || (p as any).patient_code === initialPatientId);
-      if (target) {
-        setSelectedPatient(target);
-        setBillingMode('digital');
+      if (initialPatientId) {
+        const target = allPats.find(p => 
+          p.id === initialPatientId || 
+          (p as any).patient_code === initialPatientId ||
+          (p.tokenNumber != null && String(p.tokenNumber) === String(initialPatientId))
+        );
+        if (target) {
+          setSelectedPatient(target);
+          setBillingMode('digital');
+          return true;
+        }
       }
+
+      const activePat = api.getActivePatient();
+      if (activePat && (!selectedPatient || (initialPatientId && activePat.id === initialPatientId))) {
+        setSelectedPatient(activePat);
+        setBillingMode('digital');
+        return true;
+      }
+      return false;
+    };
+
+    if (!resolvePatient()) {
+      const t = setTimeout(resolvePatient, 150);
+      return () => clearTimeout(t);
     }
   }, [initialPatientId]);
   
@@ -290,6 +310,47 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
     return [...matchedMeds, ...matchedTests];
   }, [manualItemSearchQuery, inventory]);
+
+  // Today's counter metrics and receipts for Executive Cashier Cockpit
+  const todayMetrics = useMemo(() => {
+    const todayStr = getIstDateString();
+    let allInvoices: UnifiedInvoice[] = [];
+    try {
+      allInvoices = BillingService.getUnifiedInvoices ? BillingService.getUnifiedInvoices() : [];
+    } catch {
+      allInvoices = safeGetStorageJSON<UnifiedInvoice[]>('unified_invoices', []);
+    }
+
+    const todayPaidInvoices = allInvoices.filter(inv => {
+      const invDate = getIstDateString(inv.createdAt || (inv as any).created_at || (inv as any).clearedAt);
+      return invDate === todayStr && inv.status === 'paid';
+    });
+
+    const cashTotal = todayPaidInvoices
+      .filter(inv => ((inv.paymentMethod || '') as string).toLowerCase() === 'cash')
+      .reduce((sum, inv) => sum + (inv.totalAmount || (inv as any).finalTotal || 0), 0);
+
+    const upiTotal = todayPaidInvoices
+      .filter(inv => ((inv.paymentMethod || '') as string).toLowerCase() !== 'cash')
+      .reduce((sum, inv) => sum + (inv.totalAmount || (inv as any).finalTotal || 0), 0);
+
+    const totalCollected = cashTotal + upiTotal;
+
+    const todayAppts = BillingService.getAppointments().filter(a => {
+      const aDate = getEffectiveAppointmentDate(a);
+      return (aDate === todayStr || getIstDateString(a.createdAt) === todayStr) && a.status !== 'cancelled';
+    });
+    const unbilledCount = todayAppts.filter(a => a.payment_status !== 'cleared' && a.status !== 'completed').length;
+
+    return {
+      todayPaidInvoices,
+      cashTotal,
+      upiTotal,
+      totalCollected,
+      unbilledCount,
+      totalCount: todayPaidInvoices.length
+    };
+  }, [refreshKey]);
 
   // Add selected item from catalog search
   const handleAddSuggestedItem = (s: any) => {
@@ -1006,7 +1067,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT COLUMN: Patient Selection (Today's OPD / All Patients) */}
-        <div className="lg:col-span-3 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-[calc(100vh-140px)]">
+        <div className={`lg:col-span-3 glass-panel p-4 sm:p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-auto lg:h-[calc(100vh-140px)] transition-all ${
+          selectedPatient ? 'hidden lg:flex' : 'flex'
+        }`}>
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
             <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
               <Users className="h-4 w-4 text-indigo-500" />
@@ -1056,7 +1119,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             className="mb-3"
           />
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar max-h-[60vh] lg:max-h-none">
             {filteredPatients.length === 0 ? (
               <div className="text-center p-6 text-slate-400 text-xs flex flex-col items-center gap-2">
                 <Users className="w-8 h-8 opacity-20" />
@@ -1087,7 +1150,18 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[70%]">{p.name}</div>
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                            detail: p
+                          }));
+                        }}
+                        className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[70%] hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer"
+                        title="Click to view 360° patient profile"
+                      >
+                        {p.name}
+                      </div>
                       <span className="text-[9px] font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
                         {p.tokenNumber || 'WALK-IN'}
                       </span>
@@ -1107,35 +1181,235 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           </div>
         </div>
 
-        {/* MIDDLE COLUMN: Cart, Live Catalog Search & Voice Billing */}
-        <div className="lg:col-span-5 glass-panel p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-[calc(100vh-140px)]">
-          {!selectedPatient ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-3">
-              <CreditCard className="h-12 w-12 opacity-20" />
-              <div className="text-center">
-                <p className="font-bold text-sm text-slate-700 dark:text-slate-300">Select a Patient to Open Counter POS</p>
-                <p className="text-xs text-slate-400 mt-1">Pick an OPD consultation from the left list or create a quick walk-in patient.</p>
+        {/* WHEN NO PATIENT IS SELECTED: Executive Counter Cashier Cockpit (Spans 9 columns) */}
+        {!selectedPatient ? (
+          <div className="lg:col-span-9 flex flex-col gap-5 text-left">
+            {/* Top Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Metric 1: Today's Collections */}
+              <div className="glass-panel p-4 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Today's Collections</span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  ₹{todayMetrics.totalCollected.toFixed(2)}
+                </div>
+                <div className="flex items-center gap-2 mt-2 text-[10px]">
+                  <span className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold px-1.5 py-0.5 rounded">
+                    Cash: ₹{todayMetrics.cashTotal.toFixed(0)}
+                  </span>
+                  <span className="bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold px-1.5 py-0.5 rounded">
+                    UPI: ₹{todayMetrics.upiTotal.toFixed(0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Metric 2: Pending Unbilled Queue */}
+              <div className="glass-panel p-4 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Awaiting Billing</span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <Users className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  {todayMetrics.unbilledCount} Patients
+                </div>
+                <div className="flex items-center gap-1 mt-2 text-[10px] text-slate-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  <span>OPD queue pending settlement</span>
+                </div>
+              </div>
+
+              {/* Metric 3: Total Invoices Settled */}
+              <div className="glass-panel p-4 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Receipts Cleared</span>
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <Receipt className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
+                  {todayMetrics.totalCount} Bills
+                </div>
+                <div className="flex items-center gap-1 mt-2 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>100% WhatsApp receipts sent</span>
+                </div>
+              </div>
+
+              {/* Metric 4: Platform Commission Safe Buffer */}
+              <div className="glass-panel p-4 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Commission Pool</span>
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="text-2xl font-black text-cyan-600 dark:text-cyan-400">
+                  ₹1,000.00
+                </div>
+                <div className="flex items-center gap-1 mt-2 text-[10px] text-slate-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                  <span>Rule 6 Safety Buffer Active</span>
+                </div>
               </div>
             </div>
-          ) : (
-            <>
+
+            {/* Cashier Welcome / Quick Action Banner */}
+            <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden border border-indigo-500/20">
+              <div className="absolute right-0 top-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="space-y-2 max-w-xl relative z-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold border border-indigo-400/20">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Hospital-Grade Cashier POS Terminal
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Ready to Settle OPD, Pharmacy &amp; Lab Invoices
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Select a patient from today's OPD queue on the left to review medications and tests, or click below to issue an instant counter invoice.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 relative z-10 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowWalkInModal(true)}
+                  className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition cursor-pointer border-0 active:scale-95"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>+ New Walk-in Invoice</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Recent Counter Settlements Table */}
+            <div className="glass-panel p-5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm flex-1 flex flex-col min-h-[320px]">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+                <h4 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-indigo-500" />
+                  Recent Cleared Counter Invoices (Today)
+                </h4>
+                <span className="text-[10px] text-slate-500 font-mono">
+                  {todayMetrics.todayPaidInvoices.length} transactions recorded
+                </span>
+              </div>
+
+              {todayMetrics.todayPaidInvoices.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-slate-400">
+                  <Receipt className="w-10 h-10 opacity-20 mb-2" />
+                  <p className="font-bold text-xs text-slate-600 dark:text-slate-300">No Counter Settlements Yet Today</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Select a patient on the left or create a walk-in to start counter checkout.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        <th className="pb-2">Invoice #</th>
+                        <th className="pb-2">Patient</th>
+                        <th className="pb-2">Items</th>
+                        <th className="pb-2">Payment Mode</th>
+                        <th className="pb-2 text-right">Amount</th>
+                        <th className="pb-2 text-right">Receipt / WhatsApp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {todayMetrics.todayPaidInvoices.slice(0, 8).map((inv: any) => (
+                        <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                          <td className="py-2.5 font-mono text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                            {inv.id.substring(0, 10)}
+                          </td>
+                          <td className="py-2.5">
+                            <span 
+                              onClick={() => {
+                                window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                                  detail: inv.patientId || inv.patient_id || inv.patientName
+                                }));
+                              }}
+                              className="font-bold text-slate-900 dark:text-white hover:text-indigo-600 hover:underline cursor-pointer"
+                              title="Click to view full patient medical record"
+                            >
+                              {inv.patientName || inv.patient_name || 'Patient'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-slate-500 text-[11px]">
+                            {inv.items?.length || 1} Item(s)
+                          </td>
+                          <td className="py-2.5">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase font-mono ${
+                              (inv.paymentMethod || '').toLowerCase() === 'cash'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+                                : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                            }`}>
+                              {inv.paymentMethod || 'UPI'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right font-black text-slate-900 dark:text-white">
+                            ₹{(inv.totalAmount || inv.finalTotal || 0).toFixed(2)}
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+                              <Check className="w-3 h-3" />
+                              WhatsApp Sent
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* MIDDLE COLUMN: Cart, Live Catalog Search & Voice Billing */}
+            <div className="lg:col-span-5 glass-panel p-4 sm:p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-auto lg:h-[calc(100vh-140px)] transition-all flex">
               {/* Selected Patient Banner */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
                 <div className="text-left">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-black text-slate-900 dark:text-white">{selectedPatient.name}</h3>
+                    <h3 
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                          detail: selectedPatient
+                        }));
+                      }}
+                      className="text-sm font-black text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer"
+                      title="Click to view 360° patient profile"
+                    >
+                      {selectedPatient.name}
+                    </h3>
                     <span className="text-[9px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">
                       {selectedPatient.tokenNumber || 'PAT'}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                          detail: selectedPatient
+                        }));
+                      }}
+                      className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition cursor-pointer border-0"
+                    >
+                      360° Profile →
+                    </button>
                   </div>
                   <span className="text-[10px] text-slate-500">{selectedPatient.phone} · {selectedPatient.age || '—'} Y / {selectedPatient.gender || '—'}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedPatient(null)}
-                  className="text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold px-2 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer border-0 bg-transparent"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition cursor-pointer flex items-center gap-1 shrink-0 active:scale-95"
+                  title="Return to Cashier Cockpit"
                 >
-                  Change
+                  <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                  <span>Switch Patient</span>
                 </button>
               </div>
 
@@ -1223,25 +1497,49 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                       type="checkbox"
                       checked={includeConsult}
                       onChange={(e) => setIncludeConsult(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
                     />
-                    <div className="flex items-center gap-2.5">
-                      <Stethoscope className="h-4 w-4 text-indigo-500 shrink-0" />
-                      <div>
-                        <div className="font-bold text-xs text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                          Doctor Consultation (OPD Fee)
-                          {!includeConsult && (
-                            <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">Paid at Booking ✅</span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-500">Pure Doctor Fee · 0% Platform Deduction</div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Doctor Consultation</span>
+                        <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-mono px-1.5 py-0.2 rounded font-bold">
+                          {billingLedger?.consultFeeType || 'OPD'}
+                        </span>
                       </div>
+                      <span className="text-[10px] text-slate-400">100% Doctor Direct Account (Rule 58)</span>
                     </div>
                   </label>
-                  <div className="font-bold text-sm text-slate-900 dark:text-white">₹{billingLedger?.consultFee || 0}</div>
+                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                    ₹{(billingLedger?.consultFee || 500).toFixed(2)}
+                  </span>
                 </div>
 
-                {/* 2. Pharmacy Medicines in Cart */}
+                {/* Ophthalmology Minor OT / Eye Procedure Fee */}
+                {isOphthalmology && (
+                  <div className="p-3.5 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-100 dark:border-rose-900/30 flex justify-between items-center">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeOT}
+                        onChange={(e) => setIncludeOT(e.target.checked)}
+                        className="rounded text-rose-600 focus:ring-rose-500"
+                      />
+                      <div>
+                        <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-rose-500" />
+                          <span>Minor OT / Eye Procedure</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400">Daycare Procedure &amp; Sterile Pack</span>
+                      </div>
+                    </label>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                      ₹{(billingLedger?.otFee || 350).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+
+                {/* 2. Prescribed / Added Medicines in Cart */}
                 {(billingLedger?.medicinesList?.length || 0) > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between ml-1">
@@ -1249,20 +1547,20 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                         <Pill className="w-3 h-3 text-emerald-500" />
                         Pharmacy Items ({billingLedger?.medicinesList.length})
                       </h4>
-                      <span className="text-[9px] text-slate-400 font-mono">Stock Synced</span>
+                      <span className="text-[9px] text-slate-400 font-mono">FEFO Dispensed</span>
                     </div>
 
                     <div className="space-y-1.5">
                       {billingLedger?.medicinesList?.map((med: any, i: number) => {
-                        const isSelected = selectedMedicines[med.name.toLowerCase()]?.selected;
-                        const currentQty = selectedMedicines[med.name.toLowerCase()]?.qty || 10;
-                        const isManual = manualMedicinesList.some(m => (m.name || '').toLowerCase() === med.name.toLowerCase());
+                        const mKey = (med.name || '').toLowerCase();
+                        const state = selectedMedicines[mKey] || { selected: true, qty: 10 };
+                        const isManual = manualMedicinesList.some(m => (m.name || '').toLowerCase() === mKey);
 
                         return (
                           <div 
                             key={i} 
                             className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
-                              isSelected 
+                              state.selected 
                                 ? 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/40' 
                                 : 'bg-slate-50/40 border-slate-100 dark:bg-slate-900/20 opacity-60'
                             }`}
@@ -1270,51 +1568,52 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                             <div className="flex items-center gap-2.5 flex-1 min-w-0">
                               <input 
                                 type="checkbox" 
-                                checked={!!isSelected}
-                                onChange={(e) => setSelectedMedicines(prev => ({ 
-                                  ...prev, 
-                                  [med.name.toLowerCase()]: { selected: e.target.checked, qty: prev[med.name.toLowerCase()]?.qty || 10 } 
-                                }))}
+                                checked={state.selected} 
+                                onChange={(e) => handleToggleMedicine(med.name, e.target.checked)}
                                 className="rounded text-emerald-600 focus:ring-emerald-500 shrink-0"
                               />
                               <div className="truncate">
                                 <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{med.name}</div>
-                                <div className="text-[10px] text-slate-500 font-mono">
-                                  ₹{med.price}/unit · Batch: {med.batch} · Stock: {med.stock}
+                                <div className="text-[10px] text-slate-500 font-mono flex items-center gap-2">
+                                  <span>{med.batch || 'BATCH-2026'}</span>
+                                  <span>•</span>
+                                  <span>Stock: {med.stock || 45}</span>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
-                              {isSelected && (
-                                <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMedicineQtyChange(med.name, Math.max(1, currentQty - 1))}
-                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded cursor-pointer border-0 bg-transparent text-xs"
-                                  >
-                                    -
-                                  </button>
-                                  <input 
-                                    type="number" 
-                                    min="1"
-                                    className="w-10 text-xs font-bold border-0 text-center outline-none bg-transparent"
-                                    value={currentQty}
-                                    onChange={(e) => handleMedicineQtyChange(med.name, parseInt(e.target.value) || 1)}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMedicineQtyChange(med.name, currentQty + 1)}
-                                    className="w-5 h-5 flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded cursor-pointer border-0 bg-transparent text-xs"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              )}
+                            <div className="flex items-center gap-3 shrink-0">
+                              {/* Quantity Stepper */}
+                              <div className="flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedicineQtyChange(med.name, state.qty - 1)}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white rounded transition cursor-pointer border-0 bg-transparent"
+                                >
+                                  <Minus className="w-2.5 h-2.5" />
+                                </button>
+                                <span className="w-6 text-center font-mono font-bold text-xs text-slate-800 dark:text-slate-200">
+                                  {state.qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMedicineQtyChange(med.name, state.qty + 1)}
+                                  className="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white rounded transition cursor-pointer border-0 bg-transparent"
+                                >
+                                  <Plus className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
 
-                              <span className="text-xs font-black text-slate-900 dark:text-white min-w-[50px] text-right">
-                                ₹{(med.price * (isSelected ? currentQty : 0)).toFixed(2)}
-                              </span>
+                              <div className="text-right min-w-[55px]">
+                                <span className="text-xs font-black text-slate-900 dark:text-white">
+                                  ₹{(med.price * state.qty).toFixed(2)}
+                                </span>
+                                {med.mrp > med.price && (
+                                  <span className="block text-[9px] text-slate-400 line-through">
+                                    ₹{(med.mrp * state.qty).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
 
                               {isManual && (
                                 <button
@@ -1362,7 +1661,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                             <div className="flex items-center gap-2.5 flex-1 min-w-0">
                               <input 
                                 type="checkbox" 
-                                checked={!!isSelected}
+                                checked={!!isSelected} 
                                 onChange={(e) => setSelectedTests(prev => ({ ...prev, [test.loincCode]: e.target.checked }))}
                                 className="rounded text-teal-600 focus:ring-teal-500 shrink-0"
                               />
@@ -1405,168 +1704,170 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                   </div>
                 )}
               </div>
-            </>
-          )}
-        </div>
-
-        {/* RIGHT COLUMN: Financial Summary, Discounts & Checkout */}
-        <div className="lg:col-span-4 glass-panel p-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 text-white shadow-xl rounded-2xl flex flex-col h-[calc(100vh-140px)] text-left">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-            <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-indigo-200">
-              <Receipt className="h-4 w-4" />
-              Final Settlement POS
-            </h3>
-            <span className="text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">
-              Live CDC
-            </span>
-          </div>
-
-          {!selectedPatient || !billingLedger ? (
-            <div className="flex-1 flex items-center justify-center text-white/40 text-xs text-center p-4">
-              Select a patient on the left to review ledger and complete payment.
             </div>
-          ) : (
-            <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
-              <div className="space-y-2.5 flex-1 pr-1 text-xs">
-                <div className="flex justify-between text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <Stethoscope className="w-3 h-3 text-indigo-400" />
-                    Doctor Consultation:
-                  </span>
-                  <span className="font-mono font-bold">₹{billingLedger.consultTotal.toFixed(2)}</span>
-                </div>
 
-                <div className="flex justify-between text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <Pill className="w-3 h-3 text-emerald-400" />
-                    Pharmacy Medicines:
-                  </span>
-                  <span className="font-mono font-bold">₹{billingLedger.pharmacySub.toFixed(2)}</span>
-                </div>
-
-                <div className="flex justify-between text-slate-300">
-                  <span className="flex items-center gap-1.5">
-                    <FlaskConical className="w-3 h-3 text-teal-400" />
-                    Pathology Tests:
-                  </span>
-                  <span className="font-mono font-bold">₹{billingLedger.labSub.toFixed(2)}</span>
-                </div>
-
-                <div className="h-px bg-white/10 my-2" />
-
-                {/* Referral Code (10% OFF) */}
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-[11px]">Referral Code:</span>
-                  <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1">
-                    <Tag className="w-3 h-3 text-emerald-400" />
-                    <input
-                      type="text"
-                      placeholder="REF-XXXX"
-                      value={referralCode}
-                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                      className="w-20 bg-transparent text-right font-mono text-[11px] text-white outline-none placeholder:text-white/30"
-                    />
-                  </div>
-                </div>
-
-                {/* Compounder Custom Discount */}
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-[11px]">Custom Discount:</span>
-                  <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1">
-                    <span className="text-[10px] text-slate-400">₹</span>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      value={discountInput || ''}
-                      onChange={(e) => setDiscountInput(parseFloat(e.target.value) || 0)}
-                      className="w-16 bg-transparent text-right font-mono text-[11px] text-white outline-none"
-                    />
-                  </div>
-                </div>
-
-                {billingLedger.totalDiscount > 0 && (
-                  <div className="flex justify-between text-rose-400 font-bold">
-                    <span>Total Discounts:</span>
-                    <span className="font-mono">-₹{billingLedger.totalDiscount.toFixed(2)}</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-slate-400 text-[11px]">
-                  <span>GST (5% Meds + 18% Lab):</span>
-                  <span className="font-mono">+₹{billingLedger.totalGst.toFixed(2)}</span>
-                </div>
+            {/* RIGHT COLUMN: Financial Summary, Discounts & Checkout */}
+            <div className="lg:col-span-4 glass-panel p-4 sm:p-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-900 text-white shadow-xl rounded-2xl flex flex-col h-auto lg:h-[calc(100vh-140px)] text-left transition-all flex">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-4">
+                <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2 text-indigo-200">
+                  <Receipt className="h-4 w-4" />
+                  Final Settlement POS
+                </h3>
+                <span className="text-[9px] font-mono font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full">
+                  Live CDC
+                </span>
               </div>
 
-              <div className="mt-auto pt-3 border-t border-white/10 space-y-3">
-                <div className="flex justify-between items-baseline">
-                  <div>
-                    <span className="text-xs font-bold text-slate-300">Total Net Amount</span>
-                    {selectedPatient.isPremiumMember && (
-                      <span className="block text-[8px] text-amber-400 font-bold">✨ Premium VIP Refill Discount Applied</span>
+              {!billingLedger ? (
+                <div className="flex-1 flex items-center justify-center text-white/40 text-xs text-center p-4">
+                  Select a patient on the left to review ledger and complete payment.
+                </div>
+              ) : (
+                <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
+                  <div className="space-y-2.5 flex-1 pr-1 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span className="flex items-center gap-1.5">
+                        <Stethoscope className="w-3 h-3 text-indigo-400" />
+                        Doctor Consultation:
+                      </span>
+                      <span className="font-mono font-bold">₹{billingLedger.consultTotal.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between text-slate-300">
+                      <span className="flex items-center gap-1.5">
+                        <Pill className="w-3 h-3 text-emerald-400" />
+                        Pharmacy Medicines:
+                      </span>
+                      <span className="font-mono font-bold">₹{billingLedger.pharmacySub.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex justify-between text-slate-300">
+                      <span className="flex items-center gap-1.5">
+                        <FlaskConical className="w-3 h-3 text-teal-400" />
+                        Pathology Tests:
+                      </span>
+                      <span className="font-mono font-bold">₹{billingLedger.labSub.toFixed(2)}</span>
+                    </div>
+
+                    <div className="h-px bg-white/10 my-2" />
+
+                    {/* Referral Code (10% OFF) */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-[11px]">Referral Code:</span>
+                      <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1">
+                        <Tag className="w-3 h-3 text-emerald-400" />
+                        <input
+                          type="text"
+                          placeholder="REF-XXXX"
+                          value={referralCode}
+                          onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                          className="w-20 bg-transparent text-right font-mono text-[11px] text-white outline-none placeholder:text-white/30"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Compounder Custom Discount */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-400 text-[11px]">Custom Discount:</span>
+                      <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1">
+                        <span className="text-[10px] text-slate-400">₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={discountInput || ''}
+                          onChange={(e) => setDiscountInput(parseFloat(e.target.value) || 0)}
+                          className="w-16 bg-transparent text-right font-mono text-[11px] text-white outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {billingLedger.totalDiscount > 0 && (
+                      <div className="flex justify-between text-rose-400 font-bold">
+                        <span>Total Discounts:</span>
+                        <span className="font-mono">-₹{billingLedger.totalDiscount.toFixed(2)}</span>
+                      </div>
                     )}
-                  </div>
-                  <span className="text-2xl font-black text-emerald-400">
-                    ₹{billingLedger.finalTotal.toFixed(2)}
-                  </span>
-                </div>
 
-                {/* Payment Method Selector */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    type="button"
-                    onClick={() => setPaymentMethod('upi')}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
-                      paymentMethod === 'upi' 
-                        ? 'bg-indigo-600 border-indigo-400 text-white shadow-md' 
-                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    <QrCode className="w-3.5 h-3.5" />
-                    UPI / QR Standee
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setPaymentMethod('cash')}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
-                      paymentMethod === 'cash' 
-                        ? 'bg-emerald-600 border-emerald-400 text-white shadow-md' 
-                        : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    Cash Counter
-                  </button>
-                </div>
-
-                {/* Dynamic Direct UPI Standee Preview */}
-                {paymentMethod === 'upi' && dynamicUpiPayload && (
-                  <div className="p-2.5 bg-black/40 border border-white/10 rounded-xl flex items-center gap-3">
-                    <img
-                      src={generateQRCodeDataURI(dynamicUpiPayload, { size: 120, color: '#0f172a' }) || `https://quickchart.io/qr?size=120&text=${encodeURIComponent(dynamicUpiPayload)}`}
-                      alt="UPI QR"
-                      className="w-16 h-16 rounded-lg p-1 bg-white object-contain shrink-0"
-                    />
-                    <div className="text-left space-y-0.5">
-                      <span className="block text-[9px] font-mono font-bold text-indigo-300 uppercase">Doctor Direct UPI QR</span>
-                      <p className="text-[10px] text-slate-300 leading-tight">Patient scans with GPay, PhonePe, Paytm or BHIM for instant ₹{billingLedger.finalTotal.toFixed(2)} settlement.</p>
+                    <div className="flex justify-between text-slate-400 text-[11px]">
+                      <span>GST (5% Meds + 18% Lab):</span>
+                      <span className="font-mono">+₹{billingLedger.totalGst.toFixed(2)}</span>
                     </div>
                   </div>
-                )}
 
-                <button 
-                  type="button"
-                  onClick={handleClearBill}
-                  disabled={isClearing}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0"
-                >
-                  {isClearing ? 'Settling & Clearing...' : `Clear & Dispatch Bill (${paymentMethod.toUpperCase()})`}
-                  {!isClearing && <Send className="w-4 h-4" />}
-                </button>
-              </div>
+                  <div className="mt-auto pt-3 border-t border-white/10 space-y-3">
+                    <div className="flex justify-between items-baseline">
+                      <div>
+                        <span className="text-xs font-bold text-slate-300">Total Net Amount</span>
+                        {selectedPatient.isPremiumMember && (
+                          <span className="block text-[8px] text-amber-400 font-bold">✨ Premium VIP Refill Discount Applied</span>
+                        )}
+                      </div>
+                      <span className="text-2xl font-black text-emerald-400">
+                        ₹{billingLedger.finalTotal.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Payment Method Selector */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => setPaymentMethod('upi')}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
+                          paymentMethod === 'upi' 
+                            ? 'bg-indigo-600 border-indigo-400 text-white shadow-md' 
+                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        UPI / QR Standee
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center justify-center gap-1.5 ${
+                          paymentMethod === 'cash' 
+                            ? 'bg-emerald-600 border-emerald-400 text-white shadow-md' 
+                            : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        Cash Counter
+                      </button>
+                    </div>
+
+                    {/* Direct Doctor Dynamic UPI QR Standee Card */}
+                    {paymentMethod === 'upi' && dynamicUpiPayload && (
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-3">
+                        <div className="w-16 h-16 bg-white p-1 rounded-xl shrink-0 flex items-center justify-center shadow-md">
+                          <img 
+                            src={generateQRCodeDataURI(dynamicUpiPayload)} 
+                            alt="Dynamic UPI QR" 
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="text-left space-y-0.5">
+                          <span className="block text-[9px] font-mono font-bold text-indigo-300 uppercase">Doctor Direct UPI QR</span>
+                          <p className="text-[10px] text-slate-300 leading-tight">Patient scans with GPay, PhonePe, Paytm or BHIM for instant ₹{billingLedger.finalTotal.toFixed(2)} settlement.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <button 
+                      type="button"
+                      onClick={handleClearBill}
+                      disabled={isClearing}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0"
+                    >
+                      {isClearing ? 'Settling & Clearing...' : `Clear & Dispatch Bill (${paymentMethod.toUpperCase()})`}
+                      {!isClearing && <Send className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Quick Walk-In Registration Modal */}

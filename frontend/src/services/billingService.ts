@@ -713,6 +713,7 @@ export class BillingService {
       tokenNumber: tokenNumber,
       doctorId: ctx.doctorId || null, // BUG-04 FIX: Dynamic only, no hardcoded demo doctor
       status: 'pending_payment',
+      paymentStatus: source === 'counter' ? 'pending_counter' : 'unpaid',
       createdAt: new Date().toISOString(),
       source,
       date: effectiveDate,
@@ -726,6 +727,7 @@ export class BillingService {
     (newAppt as any).token_number = tokenNumber;
     (newAppt as any).patient_name = pat?.name || 'Patient';
     (newAppt as any).patient_phone = pat?.phone || '';
+    (newAppt as any).payment_status = source === 'counter' ? 'pending_counter' : 'unpaid';
     this.saveAppointment(newAppt);
 
     // Save corresponding unified invoice in cloud store

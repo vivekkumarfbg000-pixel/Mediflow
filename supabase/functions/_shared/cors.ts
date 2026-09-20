@@ -27,7 +27,7 @@ export function getCorsHeaders(req: Request) {
 
   return {
     "Access-Control-Allow-Origin": isAllowed ? (origin || "*") : "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-requested-with, x-trace-id, x-session-timestamp",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE, HEAD",
   };
 }

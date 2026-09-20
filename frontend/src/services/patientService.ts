@@ -80,8 +80,15 @@ export class PatientService {
       (cleanTargetPhone.length >= 10 && (p.phone || '').replace(/\D/g, '').slice(-10) === cleanTargetPhone)
     );
     if (idx >= 0) {
-      patients[idx] = { ...patients[idx], ...patient, id: patients[idx].id };
+      const existingName = patients[idx].name || '';
+      const incomingName = patient.name || '';
+      const isGenericExisting = existingName.toLowerCase().includes('walk-in') || existingName.toLowerCase().includes('assisted review') || existingName.toLowerCase() === 'patient' || existingName.trim() === '';
+      const isRealIncoming = incomingName.trim().length > 0 && !incomingName.toLowerCase().includes('walk-in') && incomingName.toLowerCase() !== 'patient';
+      const resolvedName = (isGenericExisting && isRealIncoming) ? incomingName : (isRealIncoming ? incomingName : (patient.name || patients[idx].name));
+
+      patients[idx] = { ...patients[idx], ...patient, name: resolvedName, id: patients[idx].id };
       patient.id = patients[idx].id;
+      patient.name = resolvedName;
     } else {
       patients.push(patient);
     }
@@ -1423,7 +1430,9 @@ Latest Vitals: ${vitals}
 Focus on: active health risks, medication adherence considerations, and 1 CDSS recommendation.
 Respond in plain text (no bullet points, no markdown, no JSON). Keep it under 80 words.`;
 
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+        const isDevLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        const geminiBase = isDevLocal ? '/api/gemini' : 'https://generativelanguage.googleapis.com';
+        const endpoint = `${geminiBase}/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

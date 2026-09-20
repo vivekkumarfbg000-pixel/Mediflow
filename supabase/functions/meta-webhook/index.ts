@@ -105,7 +105,7 @@ async function downloadMetaMedia(mediaId: string, systemToken: string): Promise<
 
 async function extractUpiDetailsFromScreenshot(base64Image: string, mimeType: string, geminiKey: string): Promise<{ utr: string | null; amount: number | null }> {
   try {
-    const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+    const candidateModels = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"];
     const payload = {
       contents: [
         {
@@ -127,24 +127,31 @@ async function extractUpiDetailsFromScreenshot(base64Image: string, mimeType: st
       }
     };
 
-    const response = await fetch(apiEndpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    for (const candModel of candidateModels) {
+      try {
+        const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candModel}:generateContent?key=${geminiKey}`;
+        const response = await fetch(apiEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-    if (!response.ok) {
-      const errBody = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error ${response.status}: ${JSON.stringify(errBody)}`);
+        if (response.ok) {
+          const result = await response.json();
+          const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          if (textResponse.trim()) {
+            const parsed = JSON.parse(textResponse.trim());
+            return {
+              utr: parsed.utr ? String(parsed.utr).trim().replace(/\D/g, "") : null,
+              amount: parsed.amount ? parseFloat(parsed.amount) : null
+            };
+          }
+        }
+      } catch (_candErr) {
+        // Continue to next model in candidate pool
+      }
     }
-
-    const result = await response.json();
-    const textResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const parsed = JSON.parse(textResponse.trim());
-    return {
-      utr: parsed.utr ? String(parsed.utr).trim().replace(/\D/g, "") : null,
-      amount: parsed.amount ? parseFloat(parsed.amount) : null
-    };
+    return { utr: null, amount: null };
   } catch (err: any) {
     console.error("[Meta Webhook] Gemini OCR failed:", err);
     return { utr: null, amount: null };
@@ -4073,30 +4080,34 @@ Rules:
 
         let aiGuidance = "";
 
-        // 3. Primary: Google Gemini 2.5 Flash
+        // 3. Primary: Google Gemini Multi-Model Pool (3.8 Flash / 3.5 Flash Lite)
         const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
         if (geminiApiKey) {
-          try {
-            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-            const geminiRes = await fetch(geminiUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [{ text: `${clinicalSystemPrompt}\n\nPatient Query: ${incomingText}` }]
-                }],
-                generationConfig: {
-                  temperature: 0.3,
-                  maxOutputTokens: 350
-                }
-              })
-            });
-            if (geminiRes.ok) {
-              const geminiData = await geminiRes.json();
-              aiGuidance = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+          const candidateModels = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"];
+          for (const candModel of candidateModels) {
+            if (aiGuidance) break;
+            try {
+              const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candModel}:generateContent?key=${geminiApiKey}`;
+              const geminiRes = await fetch(geminiUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{
+                    parts: [{ text: `${clinicalSystemPrompt}\n\nPatient Query: ${incomingText}` }]
+                  }],
+                  generationConfig: {
+                    temperature: 0.3,
+                    maxOutputTokens: 350
+                  }
+                })
+              });
+              if (geminiRes.ok) {
+                const geminiData = await geminiRes.json();
+                aiGuidance = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+              }
+            } catch (geminiErr) {
+              console.warn(`[Meta Webhook] Gemini ${candModel} AI Assistant query error:`, geminiErr);
             }
-          } catch (geminiErr) {
-            console.warn("[Meta Webhook] Gemini 2.5 Flash AI Assistant query error:", geminiErr);
           }
         }
 
@@ -4949,58 +4960,64 @@ CLINICAL GUIDELINES:
             console.error("[Meta Webhook] Failed to get dynamic Groq reply:", err);
           }
 
-          // Auto-Healer Hot-Rollover: Try Google Gemini 2.5 Flash if Groq failed or rate-limited
+          // Auto-Healer Hot-Rollover: Try Google Gemini Multi-Model Pool if Groq failed or rate-limited
           if (!aiSuccess) {
             const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
             if (geminiApiKey) {
-              try {
-                console.log("[Auto-Healer] Hot-rolling over to Gemini 2.5 Flash API...");
-                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-                
-                const geminiController = new AbortController();
-                const geminiTimeoutId = setTimeout(() => geminiController.abort(), LLM_TIMEOUT_MS);
+              const candidateModels = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash"];
+              for (const candModel of candidateModels) {
+                if (aiSuccess) break;
+                try {
+                  console.log(`[Auto-Healer] Hot-rolling over to Gemini ${candModel} API...`);
+                  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candModel}:generateContent?key=${geminiApiKey}`;
+                  
+                  const geminiController = new AbortController();
+                  const geminiTimeoutId = setTimeout(() => geminiController.abort(), LLM_TIMEOUT_MS);
 
-                const geminiRes = await callWithCircuitBreaker('gemini', async () => {
-                  const response = await fetch(geminiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      contents: [
-                        { parts: [{ text: `${systemPrompt}\n\nPatient Question: ${incomingText}` }] }
-                      ]
-                    }),
-                    signal: geminiController.signal
+                  const geminiRes = await callWithCircuitBreaker('gemini', async () => {
+                    const response = await fetch(geminiUrl, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        contents: [
+                          { parts: [{ text: `${systemPrompt}\n\nPatient Question: ${incomingText}` }] }
+                        ]
+                      }),
+                      signal: geminiController.signal
+                    });
+                    if (!response.ok && (response.status === 429 || response.status >= 500)) {
+                      throw new Error(`Gemini Upstream Failure: HTTP ${response.status}`);
+                    }
+                    return response;
                   });
-                  if (!response.ok && (response.status === 429 || response.status >= 500)) {
-                    throw new Error(`Gemini Upstream Failure: HTTP ${response.status}`);
-                  }
-                  return response;
-                });
 
-                clearTimeout(geminiTimeoutId);
+                  clearTimeout(geminiTimeoutId);
 
-                if (geminiRes.ok) {
-                  const geminiJson = await geminiRes.json();
-                  const geminiText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (geminiText) {
-                    replyText = geminiText.trim();
-                    aiSuccess = true;
-                    // Atomic increment via RPC to prevent lost updates
-                    try {
-                      const newCount = await supabase.rpc('increment_llm_usage', { p_session_id: session.id });
-                      if (newCount !== null) sessionData.llmUsage.count = newCount;
-                    } catch (e) {
-                      console.warn('[Meta Webhook] Atomic LLM increment failed, fallback to local:', e);
-                      sessionData.llmUsage.count += 1;
+                  if (geminiRes.ok) {
+                    const geminiJson = await geminiRes.json();
+                    const geminiText = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (geminiText) {
+                      replyText = geminiText.trim();
+                      aiSuccess = true;
                     }
                   }
+                } catch (_rolloverErr) {
+                  // Try next model in pool
                 }
-              } catch (gErr) {
-                console.warn("[Auto-Healer] Gemini hot-rollover failed:", gErr);
+              }
+
+              if (aiSuccess) {
+                // Atomic increment via RPC to prevent lost updates
+                try {
+                  const newCount = await supabase.rpc('increment_llm_usage', { p_session_id: session.id });
+                  if (newCount !== null) sessionData.llmUsage.count = newCount;
+                } catch (e) {
+                  console.warn('[Meta Webhook] Atomic LLM increment failed, fallback to local:', e);
+                  sessionData.llmUsage.count += 1;
+                }
               }
             }
           }
-        }
 
         if (!aiSuccess) {
           // Fallback to static RAG advice if Groq API is unavailable

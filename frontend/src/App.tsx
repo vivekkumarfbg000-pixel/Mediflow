@@ -195,12 +195,56 @@ function AppContent({
       const customEvent = e as CustomEvent<any>;
       if (customEvent.detail) {
         const patientData = customEvent.detail.patient || customEvent.detail;
+        const allPatients = PatientService.getPatients();
+        
         if (typeof patientData === 'string') {
-          // If it's just an ID, fetch the full patient
-          const patients = PatientService.getPatients();
-          const p = patients.find(p => p.id === patientData);
+          // If it's just an ID or phone or ABHA
+          const p = allPatients.find(item => 
+            item.id === patientData || 
+            item.abhaId === patientData || 
+            item.phone === patientData ||
+            (item as any).patient_code === patientData
+          );
           if (p) {
             setGlobalProfilePatient(p);
+            setIsGlobalProfileOpen(true);
+          }
+        } else if (patientData && (patientData.patientId || patientData.patient_id)) {
+          // It's an appointment or invoice object!
+          const targetId = patientData.patientId || patientData.patient_id;
+          const found = allPatients.find(p => 
+            p.id === targetId || 
+            p.abhaId === targetId || 
+            (patientData.patientPhone && p.phone === patientData.patientPhone) ||
+            (patientData.patientName && p.name && p.name.toLowerCase() === patientData.patientName.toLowerCase())
+          );
+          if (found) {
+            setGlobalProfilePatient(found);
+            setIsGlobalProfileOpen(true);
+          } else {
+            // Synthesize patient record from appointment details
+            setGlobalProfilePatient({
+              id: targetId,
+              name: patientData.patientName || patientData.name || 'Patient',
+              age: patientData.patientAge || patientData.age || 35,
+              gender: patientData.patientGender || patientData.gender || 'Male',
+              phone: patientData.patientPhone || patientData.phone || '',
+              abhaId: targetId,
+              status: 'active'
+            });
+            setIsGlobalProfileOpen(true);
+          }
+        } else if (patientData && (patientData.id || patientData.name)) {
+          // It's a patient object or partial patient
+          const found = allPatients.find(p => 
+            (patientData.id && p.id === patientData.id) ||
+            (patientData.name && p.name && p.name.toLowerCase() === patientData.name.toLowerCase())
+          );
+          if (found) {
+            setGlobalProfilePatient(found);
+            setIsGlobalProfileOpen(true);
+          } else {
+            setGlobalProfilePatient(patientData);
             setIsGlobalProfileOpen(true);
           }
         } else {

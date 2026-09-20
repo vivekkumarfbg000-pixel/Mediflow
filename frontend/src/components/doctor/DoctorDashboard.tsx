@@ -220,21 +220,31 @@ export const DoctorDashboard: React.FC = () => {
     };
 
     const handleTabChange = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      const rawTarget = customEvent.detail;
+      const customEvent = e as CustomEvent<any>;
+      const payload = customEvent.detail;
+      const rawTarget = typeof payload === 'string' ? payload : payload?.tab;
       if (!rawTarget) return;
       const normalizedTarget = DOCTOR_TAB_ALIASES[rawTarget] || rawTarget;
       if (VALID_DOCTOR_TABS.has(normalizedTarget)) {
+        if (normalizedTarget === 'consultation' && !isDigitalEmrEnabled) {
+          setIsDigitalEmrEnabled(true);
+          try {
+            localStorage.setItem('vitalsync_digital_emr_enabled', 'true');
+            localStorage.setItem('mediflow_digital_emr_enabled', 'true');
+            localStorage.setItem('vitalsync_operating_mode', 'digital_emr');
+            localStorage.setItem('mediflow_operating_mode', 'digital_emr');
+          } catch (_err) {}
+        }
         setActiveTab(normalizedTarget as any);
       }
     };
-    window.addEventListener('mediflow-doctor-tab-changed', handleTabChange);
     window.addEventListener('mediflow-change-tab', handleTabChange);
+    window.addEventListener('mediflow-doctor-tab-changed', handleTabChange);
     return () => {
-      window.removeEventListener('mediflow-doctor-tab-changed', handleTabChange);
       window.removeEventListener('mediflow-change-tab', handleTabChange);
+      window.removeEventListener('mediflow-doctor-tab-changed', handleTabChange);
     };
-  }, []);
+  }, [isDigitalEmrEnabled]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('mediflow-doctor-tab-changed', { detail: activeTab }));
@@ -945,15 +955,8 @@ export const DoctorDashboard: React.FC = () => {
       console.log('[DoctorDashboard] mediflow-financial-update received, refreshing ledgers...');
       setFinancialLedgers(api.getFinancialLedgers());
     };
-    const handleTabChange = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) {
-        setActiveTab(customEvent.detail as any);
-      }
-    };
     window.addEventListener('mediflow-financial-update', handleFinancialUpdate);
     window.addEventListener('mediflow-state-change', debouncedSync);
-    window.addEventListener('mediflow-change-tab', handleTabChange);
 
     return () => {
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
@@ -961,7 +964,6 @@ export const DoctorDashboard: React.FC = () => {
       unsubscribeRealtime();
       window.removeEventListener('mediflow-financial-update', handleFinancialUpdate);
       window.removeEventListener('mediflow-state-change', debouncedSync);
-      window.removeEventListener('mediflow-change-tab', handleTabChange);
     };
   }, [activePod?.id]);
 

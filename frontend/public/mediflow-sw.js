@@ -1,12 +1,12 @@
-// mediflow-sw.js — Mediflow Service Worker v13.0
+// mediflow-sw.js — Mediflow Service Worker v14.0
 // Offline-First Cache Agent for ServiceWorkerCacheAgent class
 
-const CACHE_NAME = 'mediflow-v13';
+const CACHE_NAME = 'mediflow-v14';
 const STATIC_ASSETS = ['/', '/index.html'];
 
 // Install: Pre-cache critical shell assets
 self.addEventListener('install', (event) => {
-  console.log('[mediflow-sw] Installing v13.0 cache...');
+  console.log('[mediflow-sw] Installing v14.0 cache...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       cache.addAll(STATIC_ASSETS).catch((err) =>
