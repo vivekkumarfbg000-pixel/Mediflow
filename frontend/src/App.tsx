@@ -28,6 +28,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
       if (typeof window !== 'undefined') {
         try {
           sessionStorage.removeItem('vitalsync_chunk_reloaded_guard');
+          sessionStorage.removeItem('vitalsync_chunk_reload_count');
         } catch {
           /* ignore storage security restrictions */
         }
@@ -36,22 +37,33 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
     } catch (error: any) {
       console.warn('[Auto-Healer] Dynamic chunk import failed:', error);
       if (typeof window !== 'undefined') {
-        let hasReloaded = false;
+        let reloadCount = 0;
         try {
-          hasReloaded = sessionStorage.getItem('vitalsync_chunk_reloaded_guard') === 'true';
+          reloadCount = parseInt(sessionStorage.getItem('vitalsync_chunk_reload_count') || '0', 10);
         } catch {
-          /* ignore storage security restrictions */
+          /* ignore */
         }
-        if (!hasReloaded) {
+
+        if (reloadCount < 2) {
+          // Allow up to 2 reload attempts before giving up (prevents permanent blank screen)
           try {
+            sessionStorage.setItem('vitalsync_chunk_reload_count', String(reloadCount + 1));
             sessionStorage.setItem('vitalsync_chunk_reloaded_guard', 'true');
           } catch {
             /* ignore storage security restrictions */
           }
-          console.log('[Auto-Healer] Executing 1-time cache refresh for new deployment...');
+          console.log(`[Auto-Healer] Executing cache-bust reload attempt ${reloadCount + 1}/2 for new deployment...`);
           const cleanUrl = window.location.origin + window.location.pathname;
           window.location.replace(cleanUrl);
           return new Promise<{ default: T }>(() => {});
+        }
+
+        // After 2 attempts: clear guard so next hard-refresh by user starts fresh
+        try {
+          sessionStorage.removeItem('vitalsync_chunk_reloaded_guard');
+          sessionStorage.removeItem('vitalsync_chunk_reload_count');
+        } catch {
+          /* ignore */
         }
       }
       throw error;

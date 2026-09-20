@@ -2128,10 +2128,18 @@ export const CompounderDashboard: React.FC = () => {
     window.addEventListener('visibilitychange', handleFocus);
     const unsubscribe = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onAppointmentChange: (payload) => {
-        console.log('[CompounderDashboard] Realtime Appointment update:', payload);
-        fetchLiveAppointments();
-        syncDataRef.current();
-        // Appointments sync silently into the live OPD queue without popup banners
+        console.log('[CompounderDashboard] Realtime Appointment CDC:', payload.eventType, payload.new?.id || payload.old?.id);
+        // 🌟 CRITICAL FIX: Force-pull latest appointments from Supabase so WhatsApp-booked
+        // appointments (written by Deno Edge Function server-side) appear immediately in the queue.
+        // Local storage cache alone doesn't get server-side INSERT events.
+        RealtimeSyncService.fetchInitialCloudData(undefined, true).then(() => {
+          fetchLiveAppointments();
+          syncDataRef.current();
+        }).catch(() => {
+          // Graceful fallback: still refresh from cache if cloud fetch fails
+          fetchLiveAppointments();
+          syncDataRef.current();
+        });
       },
       onPatientChange: () => syncDataRef.current(),
       onMedicineBillChange: () => syncDataRef.current(),

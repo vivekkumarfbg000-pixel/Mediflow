@@ -26,6 +26,7 @@ import { PatientService } from '../../../services/patientService';
 import { EncounterService } from '../../../services/encounterService';
 import { BillingService } from '../../../services/billingService';
 import { PaperModeService } from '../../../services/paperModeService';
+import { getPodContext, FALLBACK_DOCTOR_ID } from '../../../services/podContext';
 
 interface AiPrescriptionUploadTabProps {
   onSuccess?: (patientId: string) => void;
@@ -211,12 +212,14 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       );
       
       if (!hasApptToday) {
-        // Walk-in Patient -> Generate Appointment to enter Doctor's Queue
+        // Walk-in Patient → Generate Appointment to enter Doctor's Queue
+        // Use real resolved doctorId so appointment appears in the active Doctor EMR queue
+        const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
         BillingService.saveAppointment({
           id: crypto.randomUUID(),
           patientId: patientData.id,
           patientName: patientData.name,
-          doctorId: 'doc-ocr',
+          doctorId: resolvedDoctorId,
           date: todayISO,
           time: 'Walk-in',
           status: 'confirmed',
@@ -237,7 +240,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientId: patientData.id,
         patientName: patientData.name,
         patientPhone: patientData.phone,
-        doctorId: 'doc-ocr',
+        doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
         clinicalNotes: extractedData.diagnosis || 'Extracted via Scanner.',
         medications: encounterMeds,
         diagnosticTests: labs
@@ -582,7 +585,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
             {/* Extracted Profile Content */}
             {currentStep === 'done' && extractedPatient && (
-              <div className="flex-1 flex flex-col space-y-4">
+              <div className="flex-1 flex flex-col min-h-0">
 
                 {/* Patient Demographic Card */}
                 <div 
@@ -591,7 +594,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                       detail: extractedPatient
                     }));
                   }}
-                  className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/20 cursor-pointer transition-all group"
+                  className="shrink-0 flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/20 cursor-pointer transition-all group"
                   title="Click to view full 360° patient profile"
                 >
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform">
@@ -617,6 +620,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                     </div>
                   </div>
                 </div>
+
+                {/* Scrollable middle section: contact, tags, meds, labs */}
+                <div className="flex-1 min-h-0 overflow-y-auto pr-0.5 space-y-3 mt-3">
 
                 {/* Contact & Chronic Tags */}
                 <div className="space-y-2 text-xs">
@@ -698,7 +704,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 </div>
 
                 {/* Prescribed Medications List */}
-                <div className="flex-1">
+                <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       Prescribed Medications ({extractedMeds.length})
@@ -707,7 +713,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                       Auto-Matched
                     </span>
                   </div>
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  <div className="space-y-1.5">
                     {extractedMeds.length > 0 ? (
                       extractedMeds.map((m: any, idx: number) => (
                         <div
@@ -755,8 +761,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   </div>
                 )}
 
-                {/* Direct Action Button to Billing & Token Allocation */}
-                <div className="pt-2">
+                </div>{/* end scrollable middle */}
+
+                {/* ✅ Direct Action Button to Billing — ALWAYS VISIBLE, pinned to bottom */}
+                <div className="pt-3 shrink-0">
                   <button
                     onClick={() => {
                       if (extractedPatient?.id && onSuccess) {
