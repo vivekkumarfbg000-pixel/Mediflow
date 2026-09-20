@@ -262,6 +262,24 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         });
       }
 
+      // 5. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club from OCR scan
+      if (identifiedBadges.length > 0) {
+        import('../../../services/chronicCareService').then(({ ChronicCareService }) => {
+          ChronicCareService.autoIngestFromEncounter({
+            patientId: patientData.id,
+            patientName: patientData.name,
+            patientPhone: patientData.phone || '',
+            clinicalNotes: extractedData?.diagnosis || '',
+            chronicConditions: identifiedBadges,
+            medications: encounterMeds.map(m => ({
+              medicineName: m.medicineName,
+              dosage: m.dosage,
+              frequency: m.frequency
+            }))
+          }).catch(_e => console.warn('[OCR] Chronic auto-ingest notice:', _e));
+        }).catch(() => {});
+      }
+
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
       setCurrentStep('done');
 

@@ -1072,8 +1072,8 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
             </div>
           </div>
 
-          {/* Chronic Care & Recurring Refill Radar Widget */}
-          <div className="bg-white/90 dark:bg-slate-950/60 border border-indigo-200/80 dark:border-indigo-800/30 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md animate-fade-in">
+          {/* Chronic Care & Recurring Refill Radar Widget — hidden on Doctor EMR (has dedicated Care Club tab) */}
+          {!hideFulfillmentWidgets && <div className="bg-white/90 dark:bg-slate-950/60 border border-indigo-200/80 dark:border-indigo-800/30 rounded-2xl shadow-xs overflow-hidden backdrop-blur-md animate-fade-in">
             <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
             <div className="p-5">
               <div className="flex justify-between items-center mb-3">
@@ -1142,7 +1142,7 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
                 )}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Clinical Lab Reports Verification (Shown ONLY when doctor has active pending reports to sign off in Doctor View) */}
           {hideFulfillmentWidgets && pendingReports.length > 0 && (

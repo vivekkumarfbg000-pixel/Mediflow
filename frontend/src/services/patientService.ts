@@ -133,6 +133,35 @@ export class PatientService {
         console.warn('[PatientService] Remote patient dual-write notice:', err);
       }
     })();
+
+    // 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patients into Care Club engine
+    const isChronic = patient.isChronic || (patient as any).is_chronic ||
+      ((patient.chronicConditions || []).length > 0);
+    if (isChronic && patient.id && patient.name) {
+      (async () => {
+        try {
+          const { ChronicCareService } = await import('./chronicCareService');
+          await ChronicCareService.registerChronicPatient({
+            patientId: patient.id,
+            patientName: patient.name,
+            patientPhone: patient.phone || '',
+            conditionCode: 'DIABETES', // detectChronicCondition will refine this
+            conditionName: (patient.chronicConditions || [])[0] || 'Type-2 Diabetes Mellitus',
+            medications: [],
+            daysSupply: 30,
+            dispensedAt: new Date().toISOString(),
+            nextRefillDate: new Date(Date.now() + 25 * 86400000).toISOString().slice(0, 10),
+            nextRetestDate: new Date(Date.now() + 75 * 86400000).toISOString().slice(0, 10),
+            adherenceScore: 100,
+            status: 'active',
+            monthlyMedicineSpend: 1500
+          });
+          console.log('[PatientService] ✅ Chronic patient auto-ingested into Care Club:', patient.name);
+        } catch (_e) {
+          console.warn('[PatientService] Chronic auto-ingest notice:', _e);
+        }
+      })();
+    }
   }
   static getPatients(): Patient[] {
     const storePats = cloudStore.getSnapshot<Patient>('patients');
@@ -938,6 +967,35 @@ export class PatientService {
     this.checkAndDispatchWelcomeMessage(newPatient).catch(err => {
       console.warn('[PatientService] Auto welcome dispatch notice:', err);
     });
+
+    // 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patients into Care Club engine
+    const isPatientChronic = newPatient.isChronic || (newPatient as any).is_chronic ||
+      ((newPatient.chronicConditions || []).length > 0);
+    if (isPatientChronic) {
+      (async () => {
+        try {
+          const { ChronicCareService } = await import('./chronicCareService');
+          await ChronicCareService.registerChronicPatient({
+            patientId: newPatient.id,
+            patientName: newPatient.name,
+            patientPhone: newPatient.phone || '',
+            conditionCode: 'DIABETES',
+            conditionName: (newPatient.chronicConditions || [])[0] || 'Type-2 Diabetes Mellitus',
+            medications: [],
+            daysSupply: 30,
+            dispensedAt: new Date().toISOString(),
+            nextRefillDate: new Date(Date.now() + 25 * 86400000).toISOString().slice(0, 10),
+            nextRetestDate: new Date(Date.now() + 75 * 86400000).toISOString().slice(0, 10),
+            adherenceScore: 100,
+            status: 'active',
+            monthlyMedicineSpend: 1500
+          });
+          console.log('[PatientService] ✅ New chronic patient auto-ingested into Care Club:', newPatient.name);
+        } catch (_e) {
+          console.warn('[PatientService] Chronic auto-ingest notice:', _e);
+        }
+      })();
+    }
 
     return newPatient;
   }

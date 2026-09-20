@@ -315,6 +315,71 @@ export class ChronicCareService {
           }
         } catch (_regErr) { /* ignore */ }
 
+        // 🌟 TIER 3: Auto-sync locally registered patients with chronicConditions into Care Club
+        // This catches patients created via OCR scan, compounder desk, or WhatsApp onboarding
+        try {
+          const { PatientService: localPatientService } = await import('./patientService').catch(() => ({ PatientService: null }));
+          const localPatients = localPatientService ? (localPatientService as any).getPatients?.() || [] : [];
+          const newAutoIngests: Promise<boolean>[] = [];
+          for (const lp of localPatients) {
+            const isChronicLocal = lp.isChronic || lp.is_chronic || ((lp.chronicConditions || []).length > 0);
+            if (!isChronicLocal) continue;
+            const alreadyInMapped = mapped.some(m => m.patientId === lp.id);
+            if (alreadyInMapped) continue;
+            // Auto-detect correct protocol from chronicConditions strings
+            const condString = (lp.chronicConditions || []).join(' ').toLowerCase();
+            const medText = condString;
+            const detectedProto = this.detectChronicCondition(medText, condString) || CHRONIC_PROTOCOLS.DIABETES;
+            const condName = (lp.chronicConditions || [])[0] || detectedProto.name;
+            // Add to mapped immediately for UI responsiveness
+            mapped.push({
+              id: `cohort-local-${lp.id}`,
+              patientId: lp.id,
+              patientName: lp.name || 'Chronic Patient',
+              patientPhone: (lp.phone || '').replace(/\D/g, '').slice(-10),
+              doctorId: pod?.doctorId || '',
+              podId: podId,
+              conditionCode: detectedProto.code,
+              conditionName: condName,
+              medications: detectedProto.commonDrugs.slice(0, 2).map(d => ({ name: d, dosage: '1-0-1', frequency: 'Twice daily' })),
+              daysSupply: detectedProto.standardSupplyDays,
+              dispensedAt: new Date().toISOString(),
+              nextRefillDate: getIstOffsetDateString(25),
+              nextRetestDate: getIstOffsetDateString(detectedProto.retestFrequencyDays),
+              retestTestCode: detectedProto.mandatoryRetestCode,
+              retestTestName: detectedProto.mandatoryRetestName,
+              adherenceScore: 95.0,
+              status: 'active',
+              monthlyMedicineSpend: 1500,
+              careProgramStatus: lp.isCareProgramEnrolled ? 'enrolled' : 'not_enrolled',
+              careProgramFee: 4000
+            });
+            // Persist to Supabase in background (non-blocking)
+            newAutoIngests.push(this.registerChronicPatient({
+              patientId: lp.id,
+              patientName: lp.name,
+              patientPhone: (lp.phone || '').replace(/\D/g, '').slice(-10),
+              doctorId: pod?.doctorId || '',
+              conditionCode: detectedProto.code,
+              conditionName: condName,
+              medications: [],
+              daysSupply: detectedProto.standardSupplyDays,
+              dispensedAt: new Date().toISOString(),
+              nextRefillDate: getIstOffsetDateString(25),
+              nextRetestDate: getIstOffsetDateString(detectedProto.retestFrequencyDays),
+              retestTestCode: detectedProto.mandatoryRetestCode,
+              retestTestName: detectedProto.mandatoryRetestName,
+              adherenceScore: 100.0,
+              status: 'active',
+              monthlyMedicineSpend: 1500
+            }));
+          }
+          if (newAutoIngests.length > 0) {
+            console.log(`[ChronicCareService] 🌟 Auto-ingested ${newAutoIngests.length} local chronic patients into Care Club`);
+            Promise.allSettled(newAutoIngests); // fire-and-forget
+          }
+        } catch (_localErr) { /* ignore */ }
+
         if (typeof window !== 'undefined') {
           try {
             localStorage.setItem('chronic_care_cohorts', JSON.stringify(mapped));
