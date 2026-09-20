@@ -377,7 +377,8 @@ export class SovereignCloudStore {
           'pharmacy_inventory': ['pharmacy_inventory', 'mediflow_inventory'],
           'reagent_inventory': ['reagents', 'reagent_inventory'],
           'encounters': ['encounters'],
-          'vitalsync_pool_settlements': ['vitalsync_pool_settlements']
+          'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
+          'chronic_care_subscriptions': ['vitalsync_chronic_subscriptions']
         };
 
         const keys = storageKeyMap[collection] || [collection];
