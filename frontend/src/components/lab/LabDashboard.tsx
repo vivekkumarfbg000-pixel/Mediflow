@@ -1788,6 +1788,7 @@ export const LabDashboard: React.FC = () => {
                           type="file" 
                           accept="image/*,application/pdf" 
                           className="hidden" 
+                          style={{ display: 'none' }}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -2259,6 +2260,7 @@ export const LabDashboard: React.FC = () => {
                             type="file"
                             accept="application/pdf,image/*"
                             className="hidden"
+                            style={{ display: 'none' }}
                             onChange={handleDirectFileChange}
                           />
                         </label>
@@ -2273,6 +2275,7 @@ export const LabDashboard: React.FC = () => {
                             accept="image/*"
                             capture="environment"
                             className="hidden"
+                            style={{ display: 'none' }}
                             onChange={handleDirectFileChange}
                           />
                         </label>
@@ -2680,6 +2683,7 @@ export const LabDashboard: React.FC = () => {
                             type="file" 
                             accept="image/*,application/pdf" 
                             className="hidden" 
+                            style={{ display: 'none' }}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {

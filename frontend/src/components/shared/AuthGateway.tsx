@@ -761,7 +761,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Clinic Registered successfully! 🎉',
-          message: 'Welcome to Mediflow Care Console.',
+          message: 'Welcome to VitalSync Clinic OS.',
           type: 'success'
         }
       }));
@@ -818,7 +818,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Join Request Submitted! 🎉',
-          message: 'Welcome to Mediflow. Please request your doctor to approve your profile.',
+          message: 'Welcome to VitalSync. Please request your doctor to approve your profile.',
           type: 'success'
         }
       }));

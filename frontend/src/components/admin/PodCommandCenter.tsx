@@ -34,8 +34,11 @@ import {
   RefreshCw,
   AlertTriangle,
   Coins,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
+
+import { FinancialAuditService } from '../../services/financialAuditService';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    PodCommandCenter.tsx — Mediflow B2B Glassmorphic Matrix Console
@@ -120,6 +123,24 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
     }, 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Sentinel Audit States
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditResults, setAuditResults] = useState<{ totalCollected: number, leakageAmount: number, discrepancies: string[] } | null>(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+
+  const runFinancialAudit = async () => {
+    setIsAuditing(true);
+    setShowAuditModal(true);
+    try {
+      const results = await FinancialAuditService.runNightlyAudit();
+      setAuditResults(results);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAuditing(false);
+    }
+  };
 
   /* ─── Realtime Data Sync ───────────────────────────────────────── */
   useEffect(() => {
@@ -795,6 +816,18 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
                     <div className="text-xs font-bold font-mono text-indigo-700 dark:text-indigo-455 mt-0.5 flex items-center gap-1 justify-center">
                       <span className={`w-1.5 h-1.5 rounded-full ${overallHealthScore >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                       {overallHealthScore}%
+                    </div>
+                  </PointerGlowCard>
+
+                  <PointerGlowCard 
+                    containerClassName="min-w-[100px]" 
+                    onClick={runFinancialAudit}
+                    className={`p-2 text-center flex flex-col justify-center items-center cursor-pointer active:scale-95 transition-all hover:scale-[1.03] ${isAuditing ? 'bg-slate-100 dark:bg-slate-800 animate-pulse' : 'bg-blue-50/50 dark:bg-blue-950/20'}`}
+                    title="Run Financial Sentinel Audit"
+                  >
+                    <div className="text-[8px] text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider">Sentinel Audit</div>
+                    <div className="text-xs font-bold font-mono text-blue-700 dark:text-blue-455 mt-0.5 flex items-center gap-1 justify-center">
+                      {isAuditing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                     </div>
                   </PointerGlowCard>
 
@@ -1578,6 +1611,82 @@ export const PodCommandCenter: React.FC<PodCommandCenterProps> = ({
             >
               Consult High-Priority Patient
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── SENTINEL AUDIT MODAL ──────────────────────────────────── */}
+      {showAuditModal && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Financial Sentinel Audit</h3>
+                  <p className="text-[10px] text-slate-500">Live reconciliation scan</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAuditModal(false)}
+                className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-5">
+              {isAuditing ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Running zero-leakage cross-reference...</p>
+                </div>
+              ) : auditResults ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50">
+                      <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Cleared Revenue</div>
+                      <div className="text-lg font-mono font-bold text-slate-800 dark:text-slate-200">₹{auditResults.totalCollected.toLocaleString('en-IN')}</div>
+                    </div>
+                    <div className="bg-rose-50 dark:bg-rose-950/20 p-3 rounded-xl border border-rose-100 dark:border-rose-900/30">
+                      <div className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-1">Leakage Detected</div>
+                      <div className="text-lg font-mono font-bold text-rose-700 dark:text-rose-400">₹{auditResults.leakageAmount.toLocaleString('en-IN')}</div>
+                    </div>
+                  </div>
+                  
+                  {auditResults.discrepancies.length > 0 ? (
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                        Discrepancies Found ({auditResults.discrepancies.length})
+                      </h4>
+                      <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 border border-amber-100 dark:border-amber-900/30 max-h-40 overflow-y-auto">
+                        <ul className="space-y-2">
+                          {auditResults.discrepancies.map((d, i) => (
+                            <li key={i} className="text-xs text-amber-800 dark:text-amber-400 flex items-start gap-2">
+                              <span className="font-mono opacity-50 mt-0.5">{i + 1}.</span>
+                              <span>{d}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-xl p-4 border border-emerald-100 dark:border-emerald-900/30 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-emerald-800 dark:text-emerald-400">100% Reconciled</div>
+                        <div className="text-[11px] text-emerald-600 dark:text-emerald-500 mt-0.5">No revenue leakage or missing bills found.</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       )}

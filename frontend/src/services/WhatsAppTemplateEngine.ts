@@ -74,6 +74,7 @@ Doctor EMR aur Compounder Desk par aapki entry live sync ho chuki hai. Thank you
 • Test: {TestName}
 • Status: Verified & Approved 🟢
 • AI Clinical Summary: {AiSummaryHinglish}
+• Assigned Evening Slot: *{AssignedTime}*
 
 📥 {PdfDownloadUrl}
 
@@ -322,6 +323,7 @@ export interface LabReportReadyParams {
   aiSummaryHinglish?: string;
   pdfUrl?: string;
   doctorLastName?: string;
+  assignedTime?: string;
 }
 
 export interface RefillReminderParams {
@@ -529,6 +531,7 @@ export class WhatsAppTemplateEngine {
       .replace(/\{PatientName\}/g, params.patientName || 'Patient')
       .replace(/\{TestName\}/g, params.testName || 'Comprehensive Health Panel')
       .replace(/\{AiSummaryHinglish\}/g, params.aiSummaryHinglish || 'Aapke sabhi reports normal range mein hain.')
+      .replace(/\{AssignedTime\}/g, params.assignedTime || '05:00 PM')
       .replace(/\{PdfDownloadUrl\}/g, pdfLine)
       .replace(/\{DoctorLastName\}/g, params.doctorLastName || 'Kumar');
 

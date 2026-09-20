@@ -123,6 +123,7 @@ export const CHRONIC_PROTOCOLS: Record<string, ChronicConditionProtocol> = {
     adherenceRiskTier: 'critical',
     commonDrugs: ['Levetiracetam', 'Levipil', 'Sodium Valproate', 'Encorate', 'Oxcarbazepine', 'Clobazam', 'Pregabalin', 'Gabapentin']
   }
+
 };
 
 export interface ChronicCohortRecord {
@@ -822,6 +823,9 @@ export class ChronicCareService {
     timestamp: string;
   }> {
     try {
+      // 0. Dispatch Follow-ups for dispensing/delivery rules
+      await this.dispatchStrategicFollowUps();
+
       const cohorts = await this.getChronicCohorts();
       const today = new Date();
       const { WhatsAppTemplateEngine } = await import('./WhatsAppTemplateEngine');
@@ -909,4 +913,49 @@ export class ChronicCareService {
     }
   }
 
+  /**
+   * Scans local storage for strategic WhatsApp reminders (Day 7, Month 1, Month 3)
+   * Enforces Rule 5 of the Clinic OS SOP.
+   */
+  public static async dispatchStrategicFollowUps(): Promise<void> {
+    try {
+      const stored = localStorage.getItem('vitalsync_strategic_reminders');
+      if (!stored) return;
+      
+      let reminders: any[] = JSON.parse(stored);
+      const today = new Date();
+      let updated = false;
+      const { WhatsAppTemplateEngine } = await import('./WhatsAppTemplateEngine');
+
+      for (let i = 0; i < reminders.length; i++) {
+        const reminder = reminders[i];
+        if (reminder.status === 'pending') {
+          const triggerDate = new Date(reminder.triggerDate);
+          if (triggerDate.getTime() <= today.getTime()) {
+            console.log(`[ChronicCareService] Dispatching strategic reminder (${reminder.reminderType}) to ${reminder.patientName}`);
+            
+            // Re-use refill reminder for now, or you could create a specific follow-up template.
+            await WhatsAppTemplateEngine.dispatchRefillReminder({
+              patientPhone: reminder.patientPhone,
+              patientName: reminder.patientName,
+              medicineName: reminder.medicineName,
+              daysLeft: reminder.reminderType === '7_days' ? 23 : (reminder.reminderType === '1_month' ? 0 : 0),
+              clinicName: 'VitalSync Pharmacy',
+              mrpAmount: 550.00,
+              discountedAmount: 495.00
+            });
+            
+            reminder.status = 'sent';
+            updated = true;
+          }
+        }
+      }
+      
+      if (updated) {
+        localStorage.setItem('vitalsync_strategic_reminders', JSON.stringify(reminders));
+      }
+    } catch (e) {
+      console.error('[ChronicCareService] Failed to dispatch strategic follow-ups:', e);
+    }
+  }
 }

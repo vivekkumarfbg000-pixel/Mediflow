@@ -142,6 +142,7 @@ const InvoiceGenerator: React.FC = () => {
           type="file"
           accept="image/*,.pdf"
           className="hidden"
+          style={{ display: 'none' }}
           onChange={handleFileChange}
         />
       </div>

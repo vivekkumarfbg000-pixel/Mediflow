@@ -14,6 +14,7 @@ export interface LabReportNotificationParams {
   doctorName?: string;
   clinicName?: string;
   assignedTime?: string;
+  aiSummaryHinglish?: string;
 }
 
 export interface PrescriptionDosageParams {
@@ -212,11 +213,11 @@ export class ClinicalNotificationService {
    * 1. AUTOMATED LAB REPORT & HINGLISH SUMMARY DELIVERY
    */
   public static async dispatchLabReportWhatsApp(params: LabReportNotificationParams): Promise<string> {
-    const { patientPhone, patientName, testName, loincCode, biomarkers, reportPdfUrl, doctorName, clinicName, assignedTime } = params;
+    const { patientPhone, patientName, testName, loincCode, biomarkers, reportPdfUrl, doctorName, clinicName, assignedTime, aiSummaryHinglish } = params;
     if (!patientPhone) return '';
 
     const resolvedDoc = doctorName || WhatsAppService.getActiveDoctorName();
-    const interpretation = this.generateHinglishLabInterpretation(loincCode, testName, biomarkers);
+    const interpretation = aiSummaryHinglish || this.generateHinglishLabInterpretation(loincCode, testName, biomarkers);
 
     const docLastName = resolvedDoc.replace('Dr. ', '').split(' ').pop() || 'Doctor';
 
@@ -228,7 +229,8 @@ export class ClinicalNotificationService {
       testName,
       aiSummaryHinglish: interpretation,
       pdfUrl: reportPdfUrl,
-      doctorLastName: docLastName
+      doctorLastName: docLastName,
+      assignedTime
     });
 
     // 2. We don't return the raw message anymore since the TemplateEngine handles the bot push and db writes internally.

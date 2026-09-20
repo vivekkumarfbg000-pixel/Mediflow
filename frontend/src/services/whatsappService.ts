@@ -281,12 +281,27 @@ export class WhatsAppService {
       const cleaned = text.trim().toLowerCase();
       const sessions = this.getWhatsAppSessions();
       
+      // PHASE 1: WhatsApp-Native Lab Ingestion Engine (AI Clinical Brain)
       // Check if patient exists in registry (flexible 10-digit matching)
       const incomingLast10 = (phone || '').replace(/\D/g, '').slice(-10);
       const patient = PatientService.getPatients().find(p => {
         const pDigits = (p.phone || '').replace(/\D/g, '').slice(-10);
         return pDigits === incomingLast10;
       });
+
+      if (cleaned.includes('[attachment:') && cleaned.includes('.pdf') && patient) {
+        // Patient uploaded a lab report via WhatsApp!
+        const { AiClinicalBrainService } = await import('./aiClinicalBrainService');
+        // Extract mock URL
+        const mockPdfUrl = text.match(/\[ATTACHMENT:\s*(.*?)\]/i)?.[1] || 'uploaded_lab_report.pdf';
+        
+        // Analyze the report, cross-reference with past history & PubMed
+        const aiSummary = await AiClinicalBrainService.analyzeWhatsAppLabReport(patient.id, mockPdfUrl, text);
+        
+        // Send the Hinglish summary back to the patient instantly
+        this.pushWhatsAppMessageFromBot(phone, aiSummary);
+        return; // Stop normal processing
+      }
 
       const isUnregistered = !patient || 
         !patient.name || 
@@ -840,11 +855,64 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             replyMessage = `📁 *DIGITAL HEALTH LOCKER — ${clinicName}* 🔐\n\nNamaste *${patient.name}*! Aapka ABHA/VitalSync Health Locker secure cloud par active hai:\n\n• Consultations on File: *${encs.length}*\n• Pathology Lab Reports: *${reps.length}*\n\n📥 *Instant Access:*\n• Latest Prescription dekhne ke liye *SUMMARY* reply kijiye\n• Latest Lab Report dekhne ke liye *REPORT* reply kijiye\n\nAll records 100% HIPAA & ABDM compliant cloud encrypted hain! 🛡️`;
           } else if (cleaned === 'physical review' || cleaned.includes('physical review')) {
             nextState = 'COMPLETED';
-            replyMessage = `🏥 *${clinicName.toUpperCase()} EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye ${this.getDynamicDoctorName()} ne aaj shaam *04:00 PM - 06:00 PM* ka slot lock kar diya hai.\n\n• Location: ${clinicName}, Central Desk\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊`;
+            const todayStr = getIstDateString();
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, false);
+            const apptId = crypto.randomUUID();
+            const newAppt: Appointment = {
+              id: apptId,
+              patientId: patient.id,
+              patientName: patient.name,
+              patientPhone: patient.phone,
+              doctorId: '',
+              date: todayStr,
+              appointmentTime: new Date().toISOString(),
+              status: 'scheduled',
+              source: 'whatsapp',
+              tokenNumber: tokenNumber,
+              createdAt: new Date().toISOString()
+            };
+            BillingService.saveAppointment(newAppt);
+            patient.tokenNumber = tokenNumber;
+            patient.queueStatus = 'awaiting_consultation';
+            PatientService.savePatient(patient);
+            
+            // Dispatch live 360-degree UI update custom events to instantly refresh frontend queues
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+            
+            replyMessage = `🏥 *${clinicName.toUpperCase()} EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye ${this.getDynamicDoctorName()} ne aaj shaam *04:00 PM - 06:00 PM* ka slot lock kar diya hai.\n\n• Location: ${clinicName}, Central Desk\n• Token Number: *${tokenNumber}* 🎫\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊`;
           } else if (cleaned === 'virtual review' || cleaned.includes('virtual review')) {
             nextState = 'COMPLETED';
             const vApptId = crypto.randomUUID();
-            replyMessage = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\n${this.getDynamicDoctorName()} aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Time: Aaj shaam 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
+            const todayStr = getIstDateString();
+            const tokenNumber = PatientService.generateNextTokenNumber(todayStr, true);
+            const newAppt: Appointment = {
+              id: vApptId,
+              patientId: patient.id,
+              patientName: patient.name,
+              patientPhone: patient.phone,
+              doctorId: '',
+              date: todayStr,
+              appointmentTime: new Date().toISOString(),
+              status: 'ready_for_consult',
+              source: 'whatsapp',
+              tokenNumber: tokenNumber,
+              createdAt: new Date().toISOString(),
+              isVirtual: true,
+              is_virtual: true,
+              virtual_time: '04:00 PM',
+              virtual_link: `https://meet.jit.si/vitalsync-consult-${vApptId}`
+            };
+            BillingService.saveAppointment(newAppt);
+            patient.tokenNumber = tokenNumber;
+            patient.queueStatus = 'in_consultation';
+            PatientService.savePatient(patient);
+            
+            // Dispatch live 360-degree UI update custom events to instantly refresh frontend queues
+            window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+            window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+            
+            replyMessage = `💻 *EMERGENCY VIRTUAL VIDEO REVIEW ACTIVATED!* 🟢\n\n${this.getDynamicDoctorName()} aapki report online video consult par review karenge:\n• Meeting URL: https://meet.jit.si/vitalsync-consult-${vApptId}\n• Token Number: *${tokenNumber}* 🎫\n• Time: Aaj shaam 04:00 PM\n\nDawa refill & 1-Click home delivery request register ho gaya hai. Thank you! 😊`;
           } else if (cleaned === 'confirm refill' || cleaned.includes('confirm refill') || cleaned === '1-click refill') {
             nextState = 'COMPLETED';
             replyMessage = `📦 *1-CLICK MEDICINE REFILL CONFIRMED (10% OFF)!* 🟢\n\nNamaste *${patient.name}* Ji!\n\n• Clinic: *${clinicName} Pharmacy*\n• Discount: *10% VIP Refill Savings Applied* 🏷️\n• Status: *Packed & Reserved at Counter*\n• Delivery: Free Counter Pickup ya 24hr Home Delivery\n\nCompounder desk par aapka order note ho gaya hai. Dawa time par lein aur swasth rahein! Dhanyawad! 😊`;
@@ -2609,6 +2677,29 @@ Dr. ${docLastName} se report review ke liye option chuniye:
 
     this.pushWhatsAppMessageFromBot(phone, message);
     writeAuditLog('PROACTIVE_LAB_NUDGE_SENT', { phone, patientName: patient.name }, null);
+  }
+  static triggerAbhaCreationNudge(phone: string): void {
+    const cleanPhoneDigits = (phone || '').replace(/\D/g, '').slice(-10);
+    const patient = PatientService.getPatients().find(p => (p.phone || (p as any).patient_phone || '').replace(/\D/g, '').slice(-10) === cleanPhoneDigits);
+    
+    if (!patient) return;
+    
+    // Don't nudge if they already have an ABHA ID
+    if (patient.abhaId) return;
+
+    const message = `Namaste ${patient.name || 'Patient'} Ji 🙏,
+
+VitalSync Clinic OS supports the Ayushman Bharat Digital Mission (ABDM). By creating an *ABHA ID (Health ID)*, you can securely access all your prescriptions, lab reports, and vitals anytime on WhatsApp.
+
+*Benefits of ABHA ID:*
+✅ 100% Secure Digital Health Locker
+✅ Never lose your medical history
+✅ Accepted across all modern hospitals in India
+
+When you visit ${this.getDynamicClinicName()} next time, please ask the compounder desk to instantly generate and link your ABHA ID using your Aadhaar number. It takes only 60 seconds! ⏳🏥`;
+
+    this.pushWhatsAppMessageFromBot(phone, message);
+    writeAuditLog('PROACTIVE_ABHA_NUDGE_SENT', { phone, patientName: patient.name }, null);
   }
 
   static async referPatientToSpecialist(phone: string, targetDoctorId: string): Promise<void> {

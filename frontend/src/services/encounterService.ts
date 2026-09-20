@@ -157,8 +157,14 @@ export class EncounterService {
     saasPrescriptions.unshift(newRxRecord);
     save('saas_prescriptions', saasPrescriptions);
 
-    // Transition patient's local and database queue status to completed
-    PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
+    // Smart Queue Routing: Route patient to next desk based on prescription contents
+    if ((newEncounter.diagnosticTests || []).length > 0) {
+      PatientService.updatePatientQueueStatus(newEncounter.patientId, 'awaiting_lab');
+    } else if ((newEncounter.medications || []).length > 0) {
+      PatientService.updatePatientQueueStatus(newEncounter.patientId, 'awaiting_pharmacy');
+    } else {
+      PatientService.updatePatientQueueStatus(newEncounter.patientId, 'completed');
+    }
 
     // Auto-complete active same-day / advance appointment status
     const appts = load<any[]>('saas_appointments', []);
@@ -294,6 +300,11 @@ export class EncounterService {
     const saasInvoices = load<any[]>('saas_invoices', []);
     const patient = PatientService.getPatients().find(p => p.id === newEncounter.patientId);
 
+    // Check if they already have an existing consultation invoice for today (either WhatsApp saas_invoices or Instant OPD unified_invoices)
+    const existingConsultToday = 
+      saasInvoices.some((i: any) => i.patientId === newEncounter.patientId && i.type === 'consult' && i.createdAt?.slice(0, 10) === todayISO) ||
+      invoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult') && i.createdAt?.slice(0, 10) === todayISO);
+
     // Check if consultation fee was ALREADY paid at Gate 1 booking time
     const alreadyPaidConsult = saasInvoices.some((i: any) => i.patientId === newEncounter.patientId && i.type === 'consult' && i.status === 'paid') ||
                                invoices.some((i: any) => (i.patientId === newEncounter.patientId || i.patient_id === newEncounter.patientId) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
@@ -301,7 +312,9 @@ export class EncounterService {
     // BUG-05 FIX: Read doctor fee from active SOP config instead of hardcoded ₹400
     const activeSop = BillingService.getActiveSop();
     const sopDoctorFee = activeSop?.extractedConfig?.doctor_fee ?? 500;
-    const docFee = alreadyPaidConsult ? 0 : sopDoctorFee;
+    
+    // Deduplication Rule: If they already generated a consult invoice today (WhatsApp or OPD), don't charge docFee again on the scan!
+    const docFee = (alreadyPaidConsult || existingConsultToday) ? 0 : sopDoctorFee;
 
     // BUG-06 FIX: Look up actual lab test prices from MASTER_TEST_CATALOG
     let labFee = 0;

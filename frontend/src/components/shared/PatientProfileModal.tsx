@@ -40,6 +40,7 @@ interface PatientProfileModalProps {
   onClose: () => void;
   onBookAppointment?: (patient: Patient) => void;
   onSendWhatsApp?: (patient: Patient) => void;
+  onLinkAbha?: (patient: Patient) => void;
 }
 
 type ProfileTab = 'vitals' | 'encounters' | 'prescriptions' | 'labs' | 'billing' | 'loyalty';
@@ -49,7 +50,8 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
   isOpen,
   onClose,
   onBookAppointment,
-  onSendWhatsApp
+  onSendWhatsApp,
+  onLinkAbha
 }) => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('vitals');
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -227,11 +229,19 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
                       <span className="truncate max-w-[200px]">{patient.address}</span>
                     </span>
                   )}
-                  {patient.abhaId && (
+                  {patient.abhaId ? (
                     <span className="flex items-center gap-1 text-indigo-300 font-mono text-[11px]">
                       <CheckCircle2 className="w-3 h-3 text-teal-400" />
                       ABHA: {patient.abhaId}
                     </span>
+                  ) : (
+                    <button 
+                      onClick={() => onLinkAbha && onLinkAbha(patient)}
+                      className="flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 font-medium text-[10px] border border-indigo-500/30 transition-colors"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Link ABHA ID
+                    </button>
                   )}
                 </div>
               </div>

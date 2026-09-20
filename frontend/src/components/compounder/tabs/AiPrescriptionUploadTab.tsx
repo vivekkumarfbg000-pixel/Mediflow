@@ -25,6 +25,7 @@ import type { Patient, MedicationRequest } from '../../../types';
 import { PatientService } from '../../../services/patientService';
 import { EncounterService } from '../../../services/encounterService';
 import { BillingService } from '../../../services/billingService';
+import { PaperModeService } from '../../../services/paperModeService';
 
 interface AiPrescriptionUploadTabProps {
   onSuccess?: (patientId: string) => void;
@@ -193,41 +194,43 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         identifiedBadges.push('Hypothyroidism');
       }
 
-      // 1. Auto-commit to sovereign clinic registry
-      PatientService.savePatient(patientData);
+      // 1. Auto-commit to sovereign clinic registry (Bug 4: Look up first to prevent duplicates)
       const allSavedPats = PatientService.getPatients();
-      const canonicalPat = allSavedPats.find(p => p.id === patientData.id || (patientData.phone && (p.phone || '').replace(/\D/g, '').slice(-10) === patientData.phone)) || patientData;
+      const canonicalPat = allSavedPats.find(p => (patientData.phone && (p.phone || '').replace(/\D/g, '').slice(-10) === patientData.phone)) || patientData;
       patientData.id = canonicalPat.id;
+      PatientService.savePatient(patientData);
 
-      // 2. 🌟 AUTONOMOUS OPD APPOINTMENT BOOKING (Rule 1 Contract)
-      try {
-        await api.createGate1Consult(patientData.id, 'counter');
-        const todayAppts = api.getAppointments();
-        const createdAppt = todayAppts.find(a => a.patientId === patientData.id || (a as any).patient_id === patientData.id);
-        if (createdAppt) {
-          createdAppt.status = 'scheduled';
-          (createdAppt as any).paymentStatus = 'pending_counter';
-          (createdAppt as any).payment_status = 'pending_counter';
-          api.saveAppointment(createdAppt);
-          const tok = createdAppt.tokenNumber || (createdAppt as any).token_number;
-          if (tok) {
-            patientData.tokenNumber = tok;
-            (patientData as any).token_number = tok;
-            canonicalPat.tokenNumber = tok;
-            PatientService.savePatient(canonicalPat);
-          }
-        }
-      } catch (apptErr) {
-        console.warn('[AiPrescriptionUploadTab] Gate 1 appointment booking error:', apptErr);
+      // 2. 🌟 RESTORED AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins (Idempotent Check)
+      // Check if patient already has an active appointment today (e.g. from WhatsApp)
+      const allAppts = BillingService.getAppointments();
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const hasApptToday = allAppts.some(a => 
+        a.patientId === patientData.id && 
+        (a.status !== 'completed' && a.status !== 'cancelled') &&
+        (a.createdAt || '').slice(0, 10) === todayISO
+      );
+      
+      if (!hasApptToday) {
+        // Walk-in Patient -> Generate Appointment to enter Doctor's Queue
+        BillingService.saveAppointment({
+          id: crypto.randomUUID(),
+          patientId: patientData.id,
+          patientName: patientData.name,
+          doctorId: 'doc-ocr',
+          date: todayISO,
+          time: 'Walk-in',
+          status: 'confirmed',
+          createdAt: new Date().toISOString()
+        });
       }
-
       // 3. Create clinical encounter with medications and labs
       const encounterMeds: MedicationRequest[] = meds.map((m: any, idx: number) => ({
         id: `med-${idx}`,
         medicineName: m.medicineName || m.name || 'Prescribed Medicine',
         dosage: m.dosage || '1 Tab',
         frequency: m.frequency || '1-0-1',
-        duration: m.duration || '15 Days'
+        duration: m.duration || '15 Days',
+        quantity: m.quantity || undefined
       }));
 
       EncounterService.createEncounter({
@@ -245,6 +248,19 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       setExtractedMeds(meds);
       setChronicBadges(identifiedBadges);
       setExtractedLabs(labs);
+
+      // 4. Autonomous WhatsApp Digital Dispatch (Rule 1: The 1-Tap Protocol)
+      if (patientData.phone && patientData.phone.length >= 10) {
+        PaperModeService.dispatchPrescriptionWhatsApp({
+          patientPhone: patientData.phone,
+          patientName: patientData.name,
+          doctorName: extractedData?.doctorName || resObj?.doctorName || 'Doctor',
+          clinicName: extractedData?.clinicName || resObj?.clinicName || 'Clinic',
+          medications: encounterMeds,
+          diagnosticTests: labs,
+          prescriptionImageUrl: uploadedImageUrl
+        });
+      }
 
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
       setCurrentStep('done');
@@ -279,7 +295,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   };
 
   return (
-    <div className="flex flex-col min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 overflow-y-auto w-full font-sans">
+    <div className="flex flex-col min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 overflow-y-auto w-full font-sans">
 
       {/* ── CLEAN CLINICAL WORKSTATION HEADER ───────────────────────────────── */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70 dark:border-slate-800/80">
@@ -365,7 +381,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 </div>
 
                 <h3 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight mb-1.5">
-                  Scan Prescription Slip
+                  Clinic OS Auto-Flow
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6 leading-relaxed">
                   Position doctor prescription slip under camera or upload a clear photo / PDF.
@@ -385,6 +401,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                       onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                       onChange={handleFileUpload}
                       className="hidden"
+                      style={{ display: 'none' }}
                     />
                   </label>
 
@@ -399,6 +416,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                       onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                       onChange={handleFileUpload}
                       className="hidden"
+                      style={{ display: 'none' }}
                     />
                   </label>
                 </div>

@@ -1063,7 +1063,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     : '';
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-24 lg:pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT COLUMN: Patient Selection (Today's OPD / All Patients) */}

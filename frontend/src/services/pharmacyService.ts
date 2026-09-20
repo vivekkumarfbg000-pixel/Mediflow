@@ -7,6 +7,7 @@ import { getPodContext, FALLBACK_POD_ID, FALLBACK_PHARM_ENTITY } from './podCont
 import { getIstDateString, getIstDateDisplay } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
 import { BillingService } from './billingService';
+import { ClinicalNotificationService } from './clinicalNotificationService';
 import type { 
   PharmacyInventoryItem, 
   InventoryHold, 
@@ -779,8 +780,24 @@ export class PharmacyService {
         hold_status: 'dispensed',
         dispensed_at: new Date().toISOString()
       }).eq('id', holdId).then(({ error }) => {
-        if (error) console.error('Error dispensing inventory hold in Supabase:', error);
-        else writeAuditLog('pharmacy_inventory_dispensed', { holdId }, holdId);
+        if (error) {
+          console.error('Error dispensing inventory hold in Supabase:', error);
+        } else {
+          writeAuditLog('pharmacy_inventory_dispensed', { holdId }, holdId);
+        }
+
+        // Schedule strategic reminders as per Rule 5 (Day 7, 1 Month, 3 Months)
+        if (holds[idx].patientId && holds[idx].medicineName) {
+          const patient = PatientService.getPatientById(holds[idx].patientId);
+          if (patient) {
+            ClinicalNotificationService.scheduleStrategicReminders(
+              patient.id,
+              patient.phone,
+              patient.name,
+              holds[idx].medicineName
+            );
+          }
+        }
       });
     }
   }
@@ -971,6 +988,18 @@ export class PharmacyService {
       this.savePharmacyInventory(inventory);
       bills[billIndex] = bill;
       save('medicine_bills', bills);
+
+      // Schedule strategic reminders as per Rule 5 (Day 7, 1 Month, 3 Months)
+      if (bill.patientId && bill.patientPhone) {
+        bill.items.forEach(item => {
+          ClinicalNotificationService.scheduleStrategicReminders(
+            bill.patientId,
+            bill.patientPhone,
+            bill.patientName || 'Patient',
+            item.name
+          );
+        });
+      }
 
       // Sync status update to Supabase
       supabase.from('medicine_bills').update({

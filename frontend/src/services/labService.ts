@@ -978,17 +978,29 @@ export class LabService {
     const patient = PatientService.getPatients().find(p => p.id === report.patientId);
     if (patient && patient.phone) {
       const { ClinicalNotificationService } = await import('./clinicalNotificationService');
+      const { AiClinicalBrainService } = await import('./aiClinicalBrainService');
+      
       const testName = report.biomarkerJson?.testName || 'Diagnostic Lab Test';
       const loinc = report.biomarkerJson?.testCode || '';
       const biomarkers = report.biomarkerJson?.biomarkers || report.biomarkerJson || {};
 
+      // 1. Generate Advanced AI Brain Summary based on longitudinal trends & PubMed
+      const aiSummary = await AiClinicalBrainService.analyzeWhatsAppLabReport(
+        patient.id, 
+        report.reportFileUrl || 'uploaded_lab_report.pdf', 
+        JSON.stringify(biomarkers)
+      );
+
+      // 2. Dispatch to patient via WhatsApp with the AI Summary overriding the basic template
       await ClinicalNotificationService.dispatchLabReportWhatsApp({
         patientPhone: patient.phone,
         patientName: patient.name,
         testName,
         loincCode: loinc,
         biomarkers,
-        reportPdfUrl: report.reportFileUrl || undefined
+        reportPdfUrl: report.reportFileUrl || undefined,
+        aiSummaryHinglish: aiSummary,
+        assignedTime: revisitTime
       });
     }
 

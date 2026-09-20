@@ -44,6 +44,7 @@ import { InvoiceCard } from '../InvoiceCard';
 import { PatientsDirectoryTab } from '../doctor/tabs/PatientsDirectoryTab';
 import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
 import { PatientProfileModal } from '../shared/PatientProfileModal';
+import { AbhaLinkModal } from '../shared/AbhaLinkModal';
 import { 
   Smartphone, 
   Upload, 
@@ -174,6 +175,9 @@ export const CompounderDashboard: React.FC = () => {
   const [selectedPatientIdsForPrint, setSelectedPatientIdsForPrint] = useState<string[]>([]);
   const [batchPrintSearchTerm, setBatchPrintSearchTerm] = useState('');
   const [previewPatientId, setPreviewPatientId] = useState<string | null>(null);
+  
+  // ABHA ID Link State
+  const [showAbhaModal, setShowAbhaModal] = useState<Patient | null>(null);
   // Date-wise OPD Register Print States
   const [showOpdRegisterPrintModal, setShowOpdRegisterPrintModal] = useState(false);
   const [registerSelectedDate, setRegisterSelectedDate] = useState(() => getIstDateString());
@@ -1960,6 +1964,78 @@ export const CompounderDashboard: React.FC = () => {
       return nameMatch || idMatch || codeMatch || abhaMatch || tokenMatch || phoneMatch;
     });
   }, [patients, cleanApptQuery, cleanApptDigits]);
+
+  // 1-Click Remove Non-Paying Patient from Queue
+  const handleRemovePatient = useCallback(async (patientId: string) => {
+    try {
+      const dbPat = PatientService.getPatients().find(p => p.id === patientId);
+      if (dbPat) {
+        dbPat.queueStatus = 'skipped';
+        PatientService.savePatient(dbPat);
+      }
+      const appt = appointments.find(a => a.patientId === patientId && a.date === getIstDateString());
+      if (appt) {
+        appt.status = 'cancelled';
+        BillingService.saveAppointment(appt);
+        await supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appt.id);
+      }
+      await api.updatePatientQueueStatus(patientId, 'skipped');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Removed from Queue', message: 'Patient has been manually removed from the active queue.', type: 'info' }
+      }));
+    } catch (err) {
+      console.error('Error removing patient:', err);
+    }
+  }, [appointments]);
+
+  // 1-Click Professional All Appointments CSV Export
+  const handleDownloadAllAppointmentsCsv = useCallback(() => {
+    if (appointments.length === 0) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'No Records', message: 'There are no appointment records available for export.', type: 'info' }
+      }));
+      return;
+    }
+
+    const headers = ['Token #', 'Patient Name', 'Phone', 'Age', 'Gender', 'Appointment Date', 'Time Slot', 'Consult Mode', 'Doctor', 'Status', 'Fee Clearance'];
+    const rows = appointments.map((appt) => {
+      const p = patients.find(pt => pt.id === (appt.patientId || (appt as any).patient_id));
+      const pName = (appt.patientName || p?.name || 'Patient').replace(/"/g, '""');
+      const pPhone = appt.patientPhone || p?.phone || '';
+      const pAge = p?.age || (appt as any).patientAge || '';
+      const pGender = p?.gender || (appt as any).patientGender || '';
+      const apptDate = getEffectiveAppointmentDate(appt) || (appt.createdAt || '').split('T')[0];
+      const slot = appt.virtual_time || (appt as any).virtualTime || 'Standard OPD';
+      const mode = (appt.is_virtual || appt.isVirtual) ? 'Virtual Video' : 'Physical Chamber';
+      const doctor = (activePod?.doctor_name || 'Dr. Attending Physician').replace(/"/g, '""');
+      const status = appt.status;
+      const fee = appt.amount === 0 ? 'Waived / Free' : (appt.amount ? `Cleared (₹${Number(appt.amount).toFixed(2)})` : 'Pending/Unknown');
+      
+      return [
+        `"${appt.tokenNumber || (appt as any).token_number || '#TK-001'}"`,
+        `"${pName}"`,
+        `"${pPhone}"`,
+        `"${pAge}"`,
+        `"${pGender}"`,
+        `"${apptDate}"`,
+        `"${slot}"`,
+        `"${mode}"`,
+        `"${doctor}"`,
+        `"${status}"`,
+        `"${fee}"`
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `VitalSync_All_Appointments_Export_${getIstDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [appointments, patients, activePod]);
 
   // 1-Click Professional Past Appointments CSV Export
   const handleDownloadPastAppointmentsCsv = useCallback(() => {
@@ -4163,6 +4239,7 @@ export const CompounderDashboard: React.FC = () => {
                           disabled={isReportScanning}
                           accept="image/*,application/pdf"
                           className="hidden"
+                          style={{ display: 'none' }}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) handlePreviousReportScan(file);
@@ -4508,6 +4585,17 @@ export const CompounderDashboard: React.FC = () => {
                           <span>🖨️ Print OPD Register (PDF)</span>
                         </button>
 
+                        {/* 📊 Download All Appointments CSV Button */}
+                        <button
+                          type="button"
+                          onClick={handleDownloadAllAppointmentsCsv}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95 hidden sm:flex"
+                          title="Download all appointments as CSV Excel file"
+                        >
+                          <Download className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>Export All (CSV)</span>
+                        </button>
+
                         {/* 1-Tap Switcher: Today's Live Queue vs Scheduled Advance Bookings */}
                         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
                           <button
@@ -4793,6 +4881,16 @@ export const CompounderDashboard: React.FC = () => {
                                       <Smartphone className="h-2.5 w-2.5" />
                                       WhatsApp Chat
                                     </button>
+                                    
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePatient(patient.id)}
+                                      className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/20 rounded text-[8.5px] font-bold cursor-pointer transition-colors whitespace-nowrap shrink-0"
+                                      title="Remove from queue (e.g., unpaid/no-show)"
+                                    >
+                                      <Trash2 className="h-2.5 w-2.5" />
+                                      Remove
+                                    </button>
                                   </div>
                                 </div>
                               );
@@ -4914,7 +5012,7 @@ export const CompounderDashboard: React.FC = () => {
                                   title="Patient returned with doctor handwritten prescription — Scan with Vision AI and bill"
                                 >
                                   <Camera className={!isDigitalEmrEnabled ? "w-3.5 h-3.5" : "w-3 h-3"} />
-                                  <span>📸 Scan Prescription & Bill</span>
+                                  <span>📸 Clinic OS Auto-Flow</span>
                                 </button>
                               </div>
                             ) : isAwaitingConsult ? (
@@ -4942,7 +5040,7 @@ export const CompounderDashboard: React.FC = () => {
                                     title="Scan doctor's handwritten paper prescription with Vision AI"
                                   >
                                     <Camera className={!isDigitalEmrEnabled ? "w-3.5 h-3.5" : "w-3 h-3"} />
-                                    <span>📸 Scan Prescription & Bill</span>
+                                    <span>📸 Clinic OS Auto-Flow</span>
                                   </button>
                                 </div>
 
@@ -4973,7 +5071,7 @@ export const CompounderDashboard: React.FC = () => {
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                   }}
                                   className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700 rounded text-[8px] font-bold cursor-pointer"
-                                  title="View or Re-scan Prescription"
+                                  title="View or Re-scan in Clinic OS Auto-Flow"
                                 >
                                   🧾 View / Bill
                                 </button>
@@ -7975,8 +8073,21 @@ export const CompounderDashboard: React.FC = () => {
           patient={profileModalPatient}
           isOpen={Boolean(profileModalPatient)}
           onClose={() => setProfileModalPatient(null)}
+          onLinkAbha={(pat) => {
+            setProfileModalPatient(null);
+            setShowAbhaModal(pat);
+          }}
         />
       )}
+
+      <AbhaLinkModal
+        isOpen={!!showAbhaModal}
+        patient={showAbhaModal}
+        onClose={() => setShowAbhaModal(null)}
+        onSuccess={() => {
+          setShowAbhaModal(null);
+        }}
+      />
     </div>
   );
 };
