@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { getPodContext, FALLBACK_POD_ID } from './podContext';
+import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from './podContext';
 import { getIstDateString, getIstOffsetDateString } from '../utils/dateUtils';
 import { ClinicalNotificationService } from './clinicalNotificationService';
 import { safeGetStorageJSON } from '../utils/storage';
@@ -429,7 +429,7 @@ export class ChronicCareService {
           patient_id: record.patientId,
           patient_name: record.patientName,
           patient_phone: cleanPhone,
-          doctor_id: record.doctorId || pod?.doctorId || null,
+          doctor_id: record.doctorId || pod?.doctorId || FALLBACK_DOCTOR_ID,
           pod_id: podId,
           condition_code: record.conditionCode || 'DIABETES',
           condition_name: record.conditionName || 'Type-2 Diabetes Mellitus',

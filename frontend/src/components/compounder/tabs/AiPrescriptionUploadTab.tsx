@@ -272,6 +272,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             patientId: patientData.id,
             patientName: patientData.name,
             patientPhone: patientData.phone || '',
+            doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
             clinicalNotes: extractedData?.diagnosis || '',
             chronicConditions: identifiedBadges,
             medications: encounterMeds.map(m => ({
