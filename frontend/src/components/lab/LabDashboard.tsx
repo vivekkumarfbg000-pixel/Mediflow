@@ -268,11 +268,9 @@ export const LabDashboard: React.FC = () => {
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onEncounterChange: () => {
         sync();
-        fetchLiveRequisitions();
       },
       onLabRequisitionChange: () => {
         sync();
-        fetchLiveRequisitions();
       },
       onReagentInventoryChange: () => sync(),
       onPatientChange: () => sync(),
@@ -282,7 +280,6 @@ export const LabDashboard: React.FC = () => {
       onAppointmentChange: () => sync(),
       onLabTestBillChange: () => {
         sync();
-        fetchLiveRequisitions();
       }
     });
 

@@ -210,7 +210,6 @@ export const PharmacyDashboard: React.FC = () => {
     const unsubscribeRealtime = RealtimeSyncService.subscribeToLiveClinicUpdates({
       onMedicineBillChange: (payload) => {
         console.log('[PharmacyDashboard] Realtime Medicine Bill update:', payload);
-        fetchLiveMedicineBills();
         syncLocal();
         window.dispatchEvent(new CustomEvent('mediflow-toast', {
           detail: {
