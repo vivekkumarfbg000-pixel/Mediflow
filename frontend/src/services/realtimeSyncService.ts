@@ -20,6 +20,7 @@ export interface RealtimeSubscriptionHandlers {
   onPoolSettlementChange?: (payload: any) => void;
   onClinicSopChange?: (payload: any) => void;
   onChronicCohortChange?: (payload: any) => void;
+  onChronicSubscriptionChange?: (payload: any) => void;
   onPharmacyInventoryChange?: (payload: any) => void;
   onReagentInventoryChange?: (payload: any) => void;
   onWabaConnectionChange?: (payload: any) => void;
@@ -346,7 +347,9 @@ export class RealtimeSyncService {
         'lab_requisitions',
         'inventory_holds',
         'unified_invoices',
-        'whatsapp_sessions'
+        'reagent_inventory',
+        'whatsapp_sessions',
+        'chronic_care_subscriptions'
       ]);
 
       if (IMMEDIATE_FLUSH_TABLES.has(tableName)) {
@@ -398,6 +401,7 @@ export class RealtimeSyncService {
           'vitalsync_pool_settlements': ['vitalsync_pool_settlements'],
           'clinic_sops': ['clinic_sops'],
           'chronic_care_cohorts': ['chronic_care_cohorts'],
+          'chronic_care_subscriptions': ['vitalsync_chronic_subscriptions'],
           'pharmacy_inventory': ['pharmacy_inventory', 'mediflow_inventory'],
           'reagent_inventory': ['reagents', 'reagent_inventory'],
           'waba_connections': ['waba_connections'],
@@ -542,6 +546,7 @@ export class RealtimeSyncService {
           poolRes,
           sopsRes,
           chronicRes,
+          chronicSubsRes,
           encountersRes,
           rxRes,
           holdsRes,
@@ -560,6 +565,7 @@ export class RealtimeSyncService {
           buildQuery('vitalsync_pool_settlements'),
           buildQuery('clinic_sops'),
           buildQuery('chronic_care_cohorts'),
+          buildQuery('chronic_care_subscriptions'),
           buildQuery('encounters'),
           buildQuery('saas_prescriptions'),
           buildQuery('inventory_holds'),
@@ -593,6 +599,7 @@ export class RealtimeSyncService {
         handleTableSync(poolRes, 'vitalsync_pool_settlements', ['vitalsync_pool_settlements'], 'vitalsync_pool_settlements'); // Bug 3 fix: was incorrectly 'clinic_sops'
         handleTableSync(sopsRes, 'clinic_sops', ['clinic_sops'], 'clinic_sops');
         handleTableSync(chronicRes, 'chronic_care_cohorts', ['chronic_care_cohorts'], 'chronic_care_cohorts');
+        handleTableSync(chronicSubsRes, 'chronic_care_subscriptions', ['vitalsync_chronic_subscriptions'], 'chronic_care_subscriptions');
         handleTableSync(encountersRes, 'encounters', ['encounters'], 'encounters');
         handleTableSync(rxRes, 'saas_prescriptions', ['saas_prescriptions', 'prescriptions'], 'saas_prescriptions');
         handleTableSync(holdsRes, 'inventory_holds', ['inventory_holds'], 'inventory_holds');
@@ -809,6 +816,15 @@ export class RealtimeSyncService {
           console.log('[RealtimeSync] Chronic Care Cohort change detected:', payload);
           this.autoIngestPayload('chronic_care_cohorts', payload);
           this.subscribers.forEach(s => s.onChronicCohortChange?.(payload));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chronic_care_subscriptions' },
+        (payload) => {
+          console.log('[RealtimeSync] Chronic Care Subscription change detected:', payload);
+          this.autoIngestPayload('chronic_care_subscriptions', payload);
+          this.subscribers.forEach(s => s.onChronicSubscriptionChange?.(payload));
         }
       )
       .on(

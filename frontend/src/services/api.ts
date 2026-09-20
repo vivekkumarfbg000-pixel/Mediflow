@@ -704,7 +704,7 @@ class MediflowApiService {
         dbConsents, dbPatients, dbSessions, dbSops,
         dbBills, dbEncounters, dbReqs, dbReagents,
         dbHolds, dbInvoices, dbForecasts, dbStaff, dbLedgers,
-        dbAppointments
+        dbAppointments, dbChronicSubs
       ] = await Promise.all([
         // 1. patient_consents
         supabaseCircuit.execute(async () => {
@@ -792,6 +792,8 @@ class MediflowApiService {
         Promise.resolve(supabase.from('financial_ledgers').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
         // 14. appointments
         Promise.resolve(supabase.from('appointments').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
+        // 15. chronic_care_subscriptions
+        Promise.resolve(supabase.from('chronic_care_subscriptions').select('*').or(`pod_id.eq.${currentPodId || FALLBACK_POD_ID},pod_id.eq.${FALLBACK_POD_ID},pod_id.is.null`).order('created_at', { ascending: false }).limit(100)).then(r => r.data).catch(() => null),
       ]);
 
       // ─── Process consent IDs (needed to filter patients) ─────────────────
@@ -1100,6 +1102,12 @@ class MediflowApiService {
           this.save('financial_ledgers', mergedLedgers);
         }
 
+        // 15. Chronic Care Subscriptions
+        if (dbChronicSubs && dbChronicSubs.length > 0) {
+          this.save('vitalsync_chronic_subscriptions', dbChronicSubs);
+          cloudStore.setAuthoritativeCloudCollection('chronic_care_subscriptions', dbChronicSubs);
+        }
+
         // Appointments
         if (dbAppointments && dbAppointments.length > 0) {
           const existingPats = this.getPatients();
@@ -1175,6 +1183,10 @@ class MediflowApiService {
   // Patient Registry & Queue tracking Delegators
   getPatients(): Patient[] {
     return PatientService.getPatients();
+  }
+
+  getChronicSubscriptions(): any[] {
+    return this.load<any[]>('vitalsync_chronic_subscriptions', []);
   }
 
   updatePatientVitalsAndToken(patientId: string, vitals: PatientVitals, token: string): void {
