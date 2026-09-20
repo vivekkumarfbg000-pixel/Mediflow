@@ -35,6 +35,7 @@ export type CollectionName =
   | 'pharmacy_inventory'
   | 'reagent_inventory'
   | 'vitalsync_pool_settlements'
+  | 'chronic_care_subscriptions'
   | 'encounters';
 
 export interface CloudStoreOptions {

@@ -15,6 +15,7 @@ import { ClinicalNotificationService } from './clinicalNotificationService';
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 import { getPodContext, resolvePodContext, resolveSovereignPodId, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
+import { cloudStore } from './cloudStore';
 
 import type { 
   Patient, 
