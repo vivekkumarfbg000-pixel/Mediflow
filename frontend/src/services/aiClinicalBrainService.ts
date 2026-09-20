@@ -1,7 +1,7 @@
 import { PatientService } from './patientService';
 import { EncounterService } from './encounterService';
 import { LabService } from './labService';
-import { WhatsAppTemplateEngine } from './whatsappTemplateEngine';
+import { WhatsAppTemplateEngine } from './WhatsAppTemplateEngine';
 import { load, save } from './apiHelper';
 
 export interface BiomarkerTrend {
@@ -42,9 +42,9 @@ export class AiClinicalBrainService {
 
     if (pastReports.length > 0 && pastReports[0].biomarkerJson?.biomarkers?.HbA1c) {
       pastHbA1c = pastReports[0].biomarkerJson.biomarkers.HbA1c;
-      if (extractedData.biomarkers.HbA1c < pastHbA1c) {
+      if (pastHbA1c !== null && extractedData.biomarkers.HbA1c < pastHbA1c) {
         trendMsg = `Great progress! Aapka HbA1c pichle report (${pastHbA1c}%) se ghat kar ${extractedData.biomarkers.HbA1c}% ho gaya hai. Keep following the doctor's routine! 📉💪`;
-      } else if (extractedData.biomarkers.HbA1c > pastHbA1c) {
+      } else if (pastHbA1c !== null && extractedData.biomarkers.HbA1c > pastHbA1c) {
         trendMsg = `Attention: Aapka HbA1c pichle report (${pastHbA1c}%) se badh kar ${extractedData.biomarkers.HbA1c}% ho gaya hai. Doctor se milna zaroori hai. 📈⚠️`;
       } else {
         trendMsg = `Aapka HbA1c stable hai (${extractedData.biomarkers.HbA1c}%). Keep it up! ⚖️`;
@@ -65,6 +65,7 @@ export class AiClinicalBrainService {
       id: reportId,
       requisitionId: 'whatsapp-direct',
       patientId: patientId,
+      patientName: patient.name,
       status: 'approved', // Auto-approved by AI
       reportFileUrl: pdfUrl,
       biomarkerJson: extractedData,

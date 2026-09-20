@@ -62,7 +62,7 @@ export const AbhaLinkModal: React.FC<AbhaLinkModalProps> = ({ isOpen, patient, o
         setAbhaId(res.abhaId);
         // Update local patient record
         const updatedPatient = { ...patient, abhaId: res.abhaId, abhaAddress: res.abhaAddress };
-        await PatientService.addPatient(updatedPatient);
+        PatientService.savePatient(updatedPatient);
         setStep(3);
         setTimeout(() => {
           onSuccess();

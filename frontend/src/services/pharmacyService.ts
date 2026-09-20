@@ -788,13 +788,13 @@ export class PharmacyService {
 
         // Schedule strategic reminders as per Rule 5 (Day 7, 1 Month, 3 Months)
         if (holds[idx].patientId && holds[idx].medicineName) {
-          const patient = PatientService.getPatientById(holds[idx].patientId);
+        const patient = PatientService.getPatients().find(p => p.id === holds[idx].patientId);
           if (patient) {
-            ClinicalNotificationService.scheduleStrategicReminders(
-              patient.id,
+            // Rule 5: Dispatch Day-7 refill reminder via WhatsApp
+            const med = holds[idx].medicineName;
+            WhatsAppService.pushWhatsAppMessageFromBot(
               patient.phone,
-              patient.name,
-              holds[idx].medicineName
+              `📊 *${med} Reminder — VitalSync Pharmacy*\n\nNamaste ${patient.name}! Aapki dispensed dawa *${med}* ke liye 7 din ke baad refill reminder schedule hai. Clinic pharmacy par 10% VIP discount ke saath refill karein. 💊`
             );
           }
         }
@@ -992,13 +992,12 @@ export class PharmacyService {
       // Schedule strategic reminders as per Rule 5 (Day 7, 1 Month, 3 Months)
       if (bill.patientId && bill.patientPhone) {
         bill.items.forEach(item => {
-          ClinicalNotificationService.scheduleStrategicReminders(
-            bill.patientId,
-            bill.patientPhone,
-            bill.patientName || 'Patient',
-            item.name
-          );
-        });
+            // Rule 5: Dispatch Day-7 refill reminder via WhatsApp
+            WhatsAppService.pushWhatsAppMessageFromBot(
+              bill.patientPhone,
+              `📊 *${item.name} Reminder — VitalSync Pharmacy*\n\nNamaste ${bill.patientName || 'Patient'}! Aapki dawa *${item.name}* ke liye 7 din baad refill reminder schedule hai. 10% VIP discount ke saath clinic pharmacy par refill karein. 💊`
+            );
+          });
       }
 
       // Sync status update to Supabase

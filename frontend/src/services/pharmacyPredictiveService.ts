@@ -1,5 +1,5 @@
 import { load, save } from './apiHelper';
-import { WhatsAppTemplateEngine } from './whatsappTemplateEngine';
+import { WhatsAppTemplateEngine } from './WhatsAppTemplateEngine';
 import { WhatsAppService } from './whatsappService';
 
 export interface PurchaseOrderDraft {
