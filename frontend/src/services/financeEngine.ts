@@ -181,9 +181,9 @@ export class FinanceEngine {
     const extracted = sop?.extractedConfig || (sop as any)?.extracted_config;
 
     const labDoctorSplit = Number(extracted?.splits?.doctor ?? 40);
-    const labPlatformSplit = Number(extracted?.splits?.platform ?? 5);
+    const labPlatformSplit = Number(extracted?.splits?.platform ?? 2);
     const pharmDoctorSplit = Number((extracted?.splits as any)?.pharmacyDoctor ?? 20);
-    const pharmPlatformSplit = Number((extracted?.splits as any)?.pharmacyPlatform ?? 2);
+    const pharmPlatformSplit = Number((extracted?.splits as any)?.pharmacyPlatform ?? 1);
 
     let doctorShare = 0;
     let labShare = 0;

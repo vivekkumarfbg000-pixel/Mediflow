@@ -826,7 +826,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         doctorFee: billingLedger.consultTotal,
         labFee: billingLedger.labSub,
         pharmacyFee: billingLedger.pharmacySub,
-        platformFee: isPureCounterConsult ? 0 : parseFloat(((billingLedger.labSub * 0.05) + (billingLedger.pharmacySub * 0.02)).toFixed(2)),
+        platformFee: isPureCounterConsult ? 0 : parseFloat(((billingLedger.labSub * 0.02) + (billingLedger.pharmacySub * 0.01)).toFixed(2)),
         totalAmount: billingLedger.finalTotal,
         upiQrPayload: dynamicUpiPayload || PaymentService.generateDirectUpiPayload(billingLedger.finalTotal, unifiedInvoiceId).upiDeepLink,
         referralCode: referralCode ? referralCode.trim().toUpperCase() : undefined,

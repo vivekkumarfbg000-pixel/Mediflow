@@ -54,7 +54,7 @@ export class FounderAICopilotService {
         const totalPlatformCommission = clearedInvoices.reduce((sum, i) => {
           const lab = (i as any).labFee || (i as any).lab_amount || 0;
           const pharm = (i as any).pharmacyFee || (i as any).pharmacy_amount || 0;
-          return sum + (lab * 0.05) + (pharm * 0.02);
+          return sum + (lab * 0.02) + (pharm * 0.01);
         }, 0);
         const pendingCashInvoices = invoices.filter(i => (i.paymentStatus as string) === 'pending_payment' || i.paymentStatus === 'pending');
         const totalPendingCash = pendingCashInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);

@@ -1133,7 +1133,17 @@ Return ONLY this exact JSON object structure:
     { "name": "HbA1c", "loincCode": "4544-3" }
   ],
   "requestedLOINCCodes": ["4544-3"],
-  "refraction": null,
+  "refraction": {
+    "visualAcuityOD": "6/6",
+    "visualAcuityOS": "6/12",
+    "iop": "15 mmHg",
+    "sphOD": "-1.00",
+    "cylOD": "-0.50",
+    "axisOD": "180",
+    "sphOS": "-1.50",
+    "cylOS": "-0.75",
+    "axisOS": "90"
+  },
   "doctorNotes": null
 }`;
 

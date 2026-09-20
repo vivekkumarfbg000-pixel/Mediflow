@@ -661,7 +661,7 @@ export const LabDashboard: React.FC = () => {
 
     const test = testCatalog.find(t => t.loincCode === req.testCode) || { price: 350 };
     const testPrice = test.price || 350;
-    const platformFee = Math.round(testPrice * 0.05);
+    const platformFee = Math.round(testPrice * 0.02);
     const total = testPrice + platformFee;
     const invoiceId = crypto.randomUUID();
 
