@@ -5018,6 +5018,7 @@ CLINICAL GUIDELINES:
               }
             }
           }
+        } // Closes if (groqApiKey)
 
         if (!aiSuccess) {
           // Fallback to static RAG advice if Groq API is unavailable
