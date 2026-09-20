@@ -206,7 +206,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         const createdAppt = todayAppts.find(a => a.patientId === patientData.id || (a as any).patient_id === patientData.id);
         if (createdAppt) {
           createdAppt.status = 'scheduled';
-          createdAppt.paymentStatus = 'pending_counter';
+          (createdAppt as any).paymentStatus = 'pending_counter';
           (createdAppt as any).payment_status = 'pending_counter';
           api.saveAppointment(createdAppt);
           const tok = createdAppt.tokenNumber || (createdAppt as any).token_number;

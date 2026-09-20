@@ -3253,7 +3253,7 @@ export const CompounderDashboard: React.FC = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
-                              detail: p || { id: pid, name: displayName, phone: a.patientPhone, age: p?.age, gender: p?.gender }
+                              detail: p || { id: pid, name: displayName, phone: a.patientPhone, age: (p as any)?.age, gender: (p as any)?.gender }
                             }));
                           }}
                           className="flex items-center gap-3 min-w-0 cursor-pointer group/pat"

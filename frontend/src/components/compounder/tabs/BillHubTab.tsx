@@ -323,7 +323,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
     const todayPaidInvoices = allInvoices.filter(inv => {
       const invDate = getIstDateString(inv.createdAt || (inv as any).created_at || (inv as any).clearedAt);
-      return invDate === todayStr && inv.status === 'paid';
+      return invDate === todayStr && (inv as any).status === 'paid';
     });
 
     const cashTotal = todayPaidInvoices
@@ -1504,7 +1504,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                         <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
                         <span>Doctor Consultation</span>
                         <span className="text-[9px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-mono px-1.5 py-0.2 rounded font-bold">
-                          {billingLedger?.consultFeeType || 'OPD'}
+                          {(billingLedger as any)?.consultFeeType || 'OPD'}
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-400">100% Doctor Direct Account (Rule 58)</span>
@@ -1534,7 +1534,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                       </div>
                     </label>
                     <span className="text-xs font-black text-slate-900 dark:text-white">
-                      ₹{(billingLedger?.otFee || 350).toFixed(2)}
+                      ₹{((billingLedger as any)?.otFee || 350).toFixed(2)}
                     </span>
                   </div>
                 )}
