@@ -3,7 +3,7 @@ import { EncounterService } from './encounterService';
 import { LabService } from './labService';
 import { WhatsAppTemplateEngine } from './WhatsAppTemplateEngine';
 import { load, save } from './apiHelper';
-import { LabReport } from '../types';
+import type { LabReport } from '../types';
 
 export interface BiomarkerTrend {
   biomarker: string;
