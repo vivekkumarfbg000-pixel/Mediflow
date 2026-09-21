@@ -765,7 +765,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 </div>{/* end scrollable middle */}
 
                 {/* ✅ Direct Action Button to Billing — ALWAYS VISIBLE, pinned to bottom */}
-                <div className="pt-3 shrink-0">
+                <div className="pt-3 shrink-0 pb-24 md:pb-4">
                   <button
                     onClick={() => {
                       if (extractedPatient?.id && onSuccess) {
