@@ -112,7 +112,7 @@ export interface DBInvoice {
 
 export interface WALEntry {
   id: string; // client UUID (idempotency key)
-  action: 'CREATE_ENCOUNTER' | 'UPDATE_VITALS' | 'REGISTER_PATIENT' | 'REGISTER_WALKIN_LAB' | 'CREATE_LAB_REQ_FROM_RX' | 'UPDATE_QUEUE_STATUS' | 'SAVE_REFRACTION';
+  action: 'CREATE_ENCOUNTER' | 'UPDATE_VITALS' | 'REGISTER_PATIENT' | 'REGISTER_WALKIN_LAB' | 'CREATE_LAB_REQ_FROM_RX' | 'UPDATE_QUEUE_STATUS' | 'SAVE_REFRACTION' | 'upsert_patient' | 'upsert_appointment';
   payload: any;
   timestamp: string;
   synced: boolean;
@@ -515,6 +515,46 @@ class MediflowApiService {
               token_number: payload.token,
               queue_status: nextStatus
             }).eq('id', payload.patientId);
+            if (error) throw error;
+            break;
+          }
+          case 'upsert_patient': {
+            const { payload } = entry;
+            const dbPatient = {
+              id: payload.id,
+              name: payload.name,
+              phone: payload.phone || '',
+              age: payload.age || null,
+              gender: payload.gender || null,
+              allergies: payload.allergies || [],
+              chronic_conditions: payload.chronicConditions || [],
+              abha_id: payload.abhaId || null,
+              token_number: payload.tokenNumber ? String(payload.tokenNumber) : null,
+              patient_code: payload.patientCode || null,
+              vitals: payload.vitals || null,
+              queue_status: payload.queueStatus || 'registered',
+              pod_id: (payload as any).podId || (payload as any).pod_id || null
+            };
+            const { error } = await supabase.from('patient_registry').upsert(dbPatient, { onConflict: 'id' });
+            if (error) throw error;
+            break;
+          }
+          case 'upsert_appointment': {
+            const { payload } = entry;
+            const dbAppt = {
+              id: payload.id,
+              patient_id: payload.patientId || (payload as any).patient_id,
+              doctor_id: payload.doctorId || (payload as any).doctor_id || null,
+              status: payload.status || 'scheduled',
+              token_number: String(payload.tokenNumber || (payload as any).token_number || ''),
+              patient_name: payload.patientName || (payload as any).patient_name || null,
+              patient_phone: payload.patientPhone || (payload as any).patient_phone || null,
+              is_virtual: Boolean(payload.isVirtual || (payload as any).is_virtual),
+              source: (payload as any).source || ((payload as any).isVirtual ? 'whatsapp' : 'counter'),
+              pod_id: (payload as any).podId || (payload as any).pod_id || null,
+              payment_status: (payload as any).paymentStatus || (payload as any).payment_status || 'cleared'
+            };
+            const { error } = await supabase.from('appointments').upsert(dbAppt, { onConflict: 'id' });
             if (error) throw error;
             break;
           }
@@ -1941,11 +1981,11 @@ class MediflowApiService {
     }
   }
 
-  async ocrScan(file: File): Promise<{ extracted_text: string; structured_data: Record<string, string> }> {
+  async ocrScan(files: File[]): Promise<{ extracted_text: string; structured_data: Record<string, string> }> {
     this.isOcrScanning = true;
     this.notify();
     try {
-      return await ForecastService.ocrScan(file);
+      return await ForecastService.ocrScan(files);
     } finally {
       this.isOcrScanning = false;
       this.notify();

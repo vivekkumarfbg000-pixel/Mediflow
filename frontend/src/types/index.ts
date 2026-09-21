@@ -80,6 +80,7 @@ export interface Patient {
   care_program_id?: string;
   welcomeSentAt?: string;
   welcome_sent_at?: string;
+  source?: 'counter' | 'whatsapp' | 'qr_scan' | 'paper_scan';
 }
 
 export interface ClinicStaff {
@@ -591,6 +592,7 @@ export interface LabReport {
   rejectionReason?: string;
   revisitScheduledAt?: string;     // Set by compounder on approval
   revisitNote?: string;
+  severity?: 'NORMAL' | 'CRITICAL'; // AI Safety Net Escalation Flag
   createdAt: string;
   updatedAt: string;
 }

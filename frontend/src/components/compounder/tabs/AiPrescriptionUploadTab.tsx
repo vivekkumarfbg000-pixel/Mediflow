@@ -32,7 +32,7 @@ interface AiPrescriptionUploadTabProps {
   onSuccess?: (patientId: string) => void;
 }
 
-type AiStep = 'idle' | 'scanning' | 'extracting' | 'done' | 'error';
+type AiStep = 'idle' | 'scanning' | 'extracting' | 'done' | 'committing' | 'error';
 
 
 export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = ({ onSuccess }) => {
@@ -92,11 +92,11 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     }
   };
 
-  const processPrescriptionFile = async (file: File) => {
-    if (!file) return;
+  const processPrescriptionFiles = async (files: File[]) => {
+    if (!files || files.length === 0) return;
 
-    // Display image in scanner HUD
-    const objectUrl = URL.createObjectURL(file);
+    // Display first image in scanner HUD
+    const objectUrl = URL.createObjectURL(files[0]);
     setUploadedImageUrl(objectUrl);
     setErrorMessage(null);
     setExtractedPatient(null);
@@ -120,7 +120,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         setStatusText('Structuring dosages, durations & chronic cohorts...');
       }, 2600);
 
-      const result = await api.ocrScan(file);
+      const result = await api.ocrScan(files);
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -131,7 +131,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       await new Promise(r => setTimeout(r, 600));
 
       // Extract from digitizedPrescription, structured_data, or directly from result
-      let resObj: any = result || {};
+      const resObj: any = result || {};
       let extractedData = resObj.digitizedPrescription || resObj.structured_data || resObj.data || resObj;
       
       // Fix: Handle cases where the LLM returns a stringified JSON instead of an object, often wrapped in markdown
@@ -166,7 +166,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         chronicConditions: extractedData.chronicConditions || resObj.chronicConditions || [],
         createdAt: new Date().toISOString(),
         queueStatus: 'pending_payment',
-        abhaId: `ABHA-91-${Math.floor(1000 + Math.random() * 9000)}`
+        abhaId: undefined
       };
 
       if (cleanPhone.length >= 10) {
@@ -199,102 +199,11 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         identifiedBadges.push('Hypothyroidism');
       }
 
-      // 1. Auto-commit to sovereign clinic registry (Bug 4: Look up first to prevent duplicates)
-      const allSavedPats = PatientService.getPatients();
-      const canonicalPat = allSavedPats.find(p => (patientData.phone && (p.phone || '').replace(/\D/g, '').slice(-10) === patientData.phone)) || patientData;
-      patientData.id = canonicalPat.id;
-
-      // Ensure we don't downgrade queue status if they are already further along
-      if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment') {
-        patientData.queueStatus = 'completed';
-      } else {
-        patientData.queueStatus = canonicalPat.queueStatus;
-      }
-
-      PatientService.savePatient(patientData);
-
-      // 2. 🌟 RESTORED AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins (Idempotent Check)
-      // Check if patient already has an active appointment today (e.g. from WhatsApp)
-      const allAppts = BillingService.getAppointments();
-      const todayISO = new Date().toISOString().slice(0, 10);
-      const hasApptToday = allAppts.some(a => 
-        a.patientId === patientData.id && 
-        (a.status !== 'completed' && a.status !== 'cancelled') &&
-        (a.createdAt || '').slice(0, 10) === todayISO
-      );
-      
-      if (!hasApptToday) {
-        // Walk-in Patient → Generate Appointment to enter Doctor's Queue
-        // Use real resolved doctorId so appointment appears in the active Doctor EMR queue
-        const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
-        BillingService.saveAppointment({
-          id: crypto.randomUUID(),
-          patientId: patientData.id,
-          patientName: patientData.name,
-          doctorId: resolvedDoctorId,
-          date: todayISO,
-          time: 'Walk-in',
-          status: 'confirmed',
-          createdAt: new Date().toISOString()
-        });
-      }
-      // 3. Create clinical encounter with medications and labs
-      const encounterMeds: MedicationRequest[] = meds.map((m: any, idx: number) => ({
-        id: `med-${idx}`,
-        medicineName: m.medicineName || m.name || 'Prescribed Medicine',
-        dosage: m.dosage || '1 Tab',
-        frequency: m.frequency || '1-0-1',
-        duration: m.duration || '15 Days',
-        quantity: m.quantity || undefined
-      }));
-
-      EncounterService.createEncounter({
-        patientId: patientData.id,
-        patientName: patientData.name,
-        patientPhone: patientData.phone,
-        doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
-        clinicalNotes: extractedData.diagnosis || 'Extracted via Scanner.',
-        medications: encounterMeds,
-        diagnosticTests: labs
-      });
-
       api.setActivePatient(patientData);
       setExtractedPatient({ ...patientData });
       setExtractedMeds(meds);
       setChronicBadges(identifiedBadges);
       setExtractedLabs(labs);
-
-      // 4. Autonomous WhatsApp Digital Dispatch (Rule 1: The 1-Tap Protocol)
-      if (patientData.phone && patientData.phone.length >= 10) {
-        PaperModeService.dispatchPrescriptionWhatsApp({
-          patientPhone: patientData.phone,
-          patientName: patientData.name,
-          doctorName: extractedData?.doctorName || resObj?.doctorName || 'Doctor',
-          clinicName: extractedData?.clinicName || resObj?.clinicName || 'Clinic',
-          medications: encounterMeds,
-          diagnosticTests: labs,
-          prescriptionImageUrl: uploadedImageUrl
-        });
-      }
-
-      // 5. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club from OCR scan
-      if (identifiedBadges.length > 0) {
-        import('../../../services/chronicCareService').then(({ ChronicCareService }) => {
-          ChronicCareService.autoIngestFromEncounter({
-            patientId: patientData.id,
-            patientName: patientData.name,
-            patientPhone: patientData.phone || '',
-            doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
-            clinicalNotes: extractedData?.diagnosis || '',
-            chronicConditions: identifiedBadges,
-            medications: encounterMeds.map(m => ({
-              medicineName: m.medicineName,
-              dosage: m.dosage,
-              frequency: m.frequency
-            }))
-          }).catch(_e => console.warn('[OCR] Chronic auto-ingest notice:', _e));
-        }).catch(() => {});
-      }
 
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
       setCurrentStep('done');
@@ -310,9 +219,162 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
+  const commitClinicOsFlow = async () => {
+    if (!extractedPatient) return;
+    if (!inputMobileNumber || inputMobileNumber.length < 10) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Missing Mobile Number', message: 'Please enter a valid 10-digit mobile number before proceeding.', type: 'error' }
+      }));
+      setIsEditingPhone(true);
+      return;
+    }
+
+    setCurrentStep('committing');
+
+    try {
+      const patientData = { ...extractedPatient, phone: inputMobileNumber };
+      
+      // 1. Auto-commit to sovereign clinic registry (Bug 4: Look up first to prevent duplicates)
+      const allSavedPats = PatientService.getPatients();
+      const canonicalPat = allSavedPats.find(p => (patientData.phone && (p.phone || '').replace(/\D/g, '').slice(-10) === patientData.phone)) || patientData;
+      patientData.id = canonicalPat.id;
+
+      if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment') {
+        patientData.queueStatus = 'completed';
+      } else {
+        patientData.queueStatus = canonicalPat.queueStatus;
+      }
+      
+      // Bug 4 Fix: Enforce no fake ABHA for OCR
+      patientData.abhaId = undefined as any; 
+      
+      // Add source for Vitals Queue exclusion
+      (patientData as any).source = 'paper_scan';
+
+      PatientService.savePatient(patientData);
+
+      // 2. 🌟 RESTORED AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins (Idempotent Check)
+      const allAppts = BillingService.getAppointments();
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const hasApptToday = allAppts.some(a => 
+        a.patientId === patientData.id && 
+        (a.status !== 'completed' && a.status !== 'cancelled') &&
+        (a.createdAt || '').slice(0, 10) === todayISO
+      );
+      
+      if (!hasApptToday) {
+        const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
+        BillingService.saveAppointment({
+          id: crypto.randomUUID(),
+          patientId: patientData.id,
+          patientName: patientData.name,
+          doctorId: resolvedDoctorId,
+          date: todayISO,
+          time: 'Walk-in',
+          status: 'confirmed',
+          createdAt: new Date().toISOString(),
+          source: 'paper_scan' as any
+        } as any);
+      }
+
+      // 3. Create clinical encounter with medications and labs
+      const encounterMeds: MedicationRequest[] = extractedMeds.map((m: any, idx: number) => ({
+        id: `med-${idx}`,
+        medicineName: m.medicineName || m.name || 'Prescribed Medicine',
+        dosage: m.dosage || '1 Tab',
+        frequency: m.frequency || '1-0-1',
+        duration: m.duration || '15 Days',
+        quantity: m.quantity || undefined
+      }));
+
+      EncounterService.createEncounter({
+        patientId: patientData.id,
+        patientName: patientData.name,
+        patientPhone: patientData.phone,
+        doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
+        clinicalNotes: 'Extracted via Scanner.',
+        medications: encounterMeds,
+        diagnosticTests: extractedLabs
+      });
+
+      api.setActivePatient(patientData);
+
+      // 4. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club from OCR scan
+      if (chronicBadges.length > 0) {
+        try {
+          const { ChronicCareService } = await import('../../../services/chronicCareService');
+          
+          for (const badge of chronicBadges) {
+            await ChronicCareService.autoIngestFromEncounter({
+              patientId: patientData.id,
+              patientName: patientData.name,
+              patientPhone: patientData.phone || '',
+              doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
+              clinicalNotes: 'Extracted via Scanner.',
+              chronicConditions: [badge],
+              medications: encounterMeds.map(m => ({
+                medicineName: m.medicineName,
+                dosage: m.dosage,
+                frequency: m.frequency
+              })),
+              isChronic: true
+            });
+          }
+        } catch (_e) {
+          console.warn('[OCR] Chronic auto-ingest notice:', _e);
+        }
+      }
+
+      // 5. Autonomous WhatsApp Digital Dispatch (Non-blocking)
+      if (patientData.phone && patientData.phone.length >= 10) {
+        // We assume dispatchWelcomeWhatsApp exists or can be safely called
+        try {
+            (PaperModeService as any).dispatchWelcomeWhatsApp?.({
+              patientPhone: patientData.phone,
+              patientName: patientData.name,
+              patientId: patientData.id
+            });
+        } catch(e) {}
+        
+        setTimeout(() => {
+          PaperModeService.dispatchPrescriptionWhatsApp({
+            patientPhone: patientData.phone,
+            patientName: patientData.name,
+            doctorName: 'Doctor',
+            clinicName: 'Clinic',
+            medications: encounterMeds,
+            diagnosticTests: extractedLabs,
+            prescriptionImageUrl: uploadedImageUrl
+          });
+        }, 3000);
+      }
+
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      
+      if (onSuccess) {
+        onSuccess(patientData.id);
+      } else {
+        window.dispatchEvent(
+          new CustomEvent('mediflow-change-tab', {
+            detail: { tab: 'billing_daycare', patientId: patientData.id }
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('mediflow-compounder-tab-changed', {
+            detail: 'billing_daycare'
+          })
+        );
+      }
+
+    } catch (err: any) {
+      console.error('Commit failed:', err);
+      setCurrentStep('done');
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processPrescriptionFile(file);
+    const files = e.target.files;
+    if (files && files.length > 0) processPrescriptionFiles(Array.from(files));
   };
 
 
@@ -368,8 +430,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             onDrop={(e) => {
               e.preventDefault();
               setIsDragOver(false);
-              const file = e.dataTransfer.files?.[0];
-              if (file) processPrescriptionFile(file);
+              const files = e.dataTransfer.files;
+              if (files && files.length > 0) processPrescriptionFiles(Array.from(files));
             }}
             className={`rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col min-h-[460px] relative ${
               isDragOver
@@ -430,6 +492,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                     <input
                       ref={cameraInputRef}
                       type="file"
+                      multiple
                       accept="image/*"
                       capture="environment"
                       onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
@@ -446,6 +509,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                     <input
                       ref={fileInputRef}
                       type="file"
+                      multiple
                       accept="image/*,.pdf"
                       onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                       onChange={handleFileUpload}
@@ -514,7 +578,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             )}
 
             {/* DONE STATE: Prescription Visualizer */}
-            {currentStep === 'done' && (
+            {(currentStep === 'done' || currentStep === 'committing') && (
               <div className="flex-1 flex flex-col p-6 items-center justify-center text-center relative bg-[#060a14] rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.05)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-50" />
                 
@@ -779,27 +843,16 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 {/* ✅ Direct Action Button to Billing — ALWAYS VISIBLE, pinned to bottom */}
                 <div className="pt-3 shrink-0 pb-24 md:pb-4">
                   <button
-                    onClick={() => {
-                      if (extractedPatient?.id && onSuccess) {
-                        onSuccess(extractedPatient.id);
-                      } else {
-                        window.dispatchEvent(
-                          new CustomEvent('mediflow-change-tab', {
-                            detail: { tab: 'billing_daycare', patientId: extractedPatient?.id }
-                          })
-                        );
-                        window.dispatchEvent(
-                          new CustomEvent('mediflow-compounder-tab-changed', {
-                            detail: 'billing_daycare'
-                          })
-                        );
-                      }
-                    }}
-                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98"
+                    onClick={commitClinicOsFlow}
+                    disabled={(currentStep as string) === 'committing'}
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="flex items-center gap-2">
-                      <Zap className="w-4 h-4" />
-                      Proceed to Billing & Token Issue
+                      {(currentStep as string) === 'committing' ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Committing to Cloud...</>
+                      ) : (
+                        <><Zap className="w-4 h-4" /> Proceed to Billing & Token Issue</>
+                      )}
                     </span>
                     <ChevronRight className="w-4 h-4" />
                   </button>

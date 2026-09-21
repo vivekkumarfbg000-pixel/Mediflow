@@ -183,6 +183,32 @@ export const DoctorDashboard: React.FC = () => {
     };
   }, []);
 
+  // --- Safety Net Logic ---
+  const [criticalDefaulters, setCriticalDefaulters] = useState<any[]>([]);
+  useEffect(() => {
+    const checkSafetyNet = () => {
+      try {
+        const reports = api.getFullLabReports(); // Use full reports to check severity
+        const patients = api.getPatients();
+        const criticals = reports.filter(r => (r as any).severity === 'CRITICAL' && r.status === 'approved');
+        
+        const defaulters = criticals.filter(r => {
+          if (!r.revisitScheduledAt) return true;
+          return new Date(r.revisitScheduledAt).getTime() < Date.now();
+        }).map(r => {
+          const p = patients.find(pat => pat.id === r.patientId);
+          return { report: r, patient: p };
+        });
+        setCriticalDefaulters(defaulters);
+      } catch (e) {
+        console.error('Safety net evaluation error', e);
+      }
+    };
+    checkSafetyNet();
+    window.addEventListener('mediflow-state-change', checkSafetyNet);
+    return () => window.removeEventListener('mediflow-state-change', checkSafetyNet);
+  }, []);
+
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [isTestWhatsAppOpen, setIsTestWhatsAppOpen] = useState(false);
@@ -226,16 +252,18 @@ export const DoctorDashboard: React.FC = () => {
       if (!rawTarget) return;
       const normalizedTarget = DOCTOR_TAB_ALIASES[rawTarget] || rawTarget;
       if (VALID_DOCTOR_TABS.has(normalizedTarget)) {
-        if (normalizedTarget === 'consultation' && !isDigitalEmrEnabled) {
-          setIsDigitalEmrEnabled(true);
-          try {
-            localStorage.setItem('vitalsync_digital_emr_enabled', 'true');
-            localStorage.setItem('mediflow_digital_emr_enabled', 'true');
-            localStorage.setItem('vitalsync_operating_mode', 'digital_emr');
-            localStorage.setItem('mediflow_operating_mode', 'digital_emr');
-          } catch (_err) {}
-        }
-        setActiveTab(normalizedTarget as any);
+        startTransition(() => {
+          if (normalizedTarget === 'consultation' && !isDigitalEmrEnabled) {
+            setIsDigitalEmrEnabled(true);
+            try {
+              localStorage.setItem('vitalsync_digital_emr_enabled', 'true');
+              localStorage.setItem('mediflow_digital_emr_enabled', 'true');
+              localStorage.setItem('vitalsync_operating_mode', 'digital_emr');
+              localStorage.setItem('mediflow_operating_mode', 'digital_emr');
+            } catch (_err) {}
+          }
+          setActiveTab(normalizedTarget as any);
+        });
       }
     };
     window.addEventListener('mediflow-change-tab', handleTabChange);
@@ -2803,11 +2831,64 @@ Keep the tone professional, clinical, objective, and precise.`;
 
   return (
     <div 
-      className="w-full max-w-[1680px] mx-auto p-2 sm:p-4 md:p-6 pb-12 lg:pb-16 space-y-5 min-h-[calc(100vh-8rem)] flex flex-col justify-between text-slate-800" 
+      className="w-full max-w-[1680px] mx-auto p-2 sm:p-4 md:p-6 pb-32 md:pb-16 lg:pb-16 space-y-5 min-h-[calc(100vh-8rem)] flex flex-col justify-between text-slate-800" 
       style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
       onTouchStart={handleTouchStart} 
       onTouchEnd={handleTouchEnd}
     >
+
+      {/* 🚨 AI SAFETY NET WIDGET (CRITICAL ANOMALY ESCALATION) */}
+      {criticalDefaulters.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-[9900] animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl border-2 border-rose-500 overflow-hidden max-w-sm w-full">
+            <div className="bg-rose-500 text-white px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 animate-pulse" />
+                <span className="text-xs font-black uppercase tracking-widest">Defaulter Safety Net</span>
+              </div>
+              <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+                {criticalDefaulters.length} Critical
+              </span>
+            </div>
+            <div className="p-4 max-h-[300px] overflow-y-auto space-y-3">
+              {criticalDefaulters.map((d, i) => (
+                <div key={i} className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-bold text-slate-800 dark:text-white text-xs">{d.patient?.name || 'Unknown'}</h4>
+                      <p className="text-[10px] font-mono text-slate-500">{d.patient?.phone}</p>
+                    </div>
+                    <span className="text-[9px] font-black uppercase text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded">Action Req</span>
+                  </div>
+                  <p className="text-[10px] text-slate-600 dark:text-slate-400 mb-3 leading-tight">
+                    Critical labs detected (Report {d.report.id.slice(0,6)}). Patient has missed or ignored follow-up.
+                  </p>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        window.location.href = `tel:${d.patient?.phone}`;
+                      }}
+                      className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-1.5 rounded-md text-[10px] font-bold"
+                    >
+                      Call Now
+                    </button>
+                    <button 
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                          detail: { message: `SOS Nudge sent to ${d.patient?.name}`, type: 'success', title: 'WhatsApp Sent' }
+                        }));
+                      }}
+                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-1.5 rounded-md text-[10px] font-bold"
+                    >
+                      Send SOS Nudge
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isOnline && (
         <div className="bg-amber-500/10 border border-amber-500/20 text-amber-850 dark:text-amber-400 px-4 py-3 rounded-xl flex items-center justify-between text-xs font-semibold backdrop-blur-md animate-pulse text-left">

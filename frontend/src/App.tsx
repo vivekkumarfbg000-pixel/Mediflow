@@ -36,6 +36,13 @@ function lazyWithRetry<T extends React.ComponentType<any>>(
       return component;
     } catch (error: any) {
       console.warn('[Auto-Healer] Dynamic chunk import failed:', error);
+      
+      // If the user is offline, DO NOT trigger a hard cache-bust reload.
+      // Throw immediately so the ErrorBoundary can display the Offline Fallback UI.
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw error;
+      }
+
       if (typeof window !== 'undefined') {
         let reloadCount = 0;
         try {
@@ -195,7 +202,9 @@ function AppContent({
     const handleRoleEvent = (e: Event) => {
       const customEvent = e as CustomEvent<UserRole>;
       if (customEvent.detail) {
-        handleRoleChange(customEvent.detail);
+        startTransition(() => {
+          handleRoleChange(customEvent.detail);
+        });
       }
     };
     window.addEventListener('mediflow-change-role', handleRoleEvent as any);

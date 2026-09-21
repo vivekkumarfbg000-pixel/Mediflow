@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { safeGetStorageJSON } from '../../utils/storage';
 import { resolveSovereignPodId, FALLBACK_POD_ID } from '../../services/podContext';
+import { PharmacyService } from '../../services/pharmacyService';
 import { useSpecialization } from '../../context/SpecializationContext';
 import type { InventoryHold, PharmacyInventoryItem, MedicineImportRow, WhatsAppDrugOrder } from '../../types';
 import { 
@@ -1294,12 +1295,56 @@ export const PharmacyDashboard: React.FC = () => {
                                         Prescribed Medicines ({medicines.length})
                                       </span>
                                       <div className="space-y-1">
-                                        {medicines.map((m: any, idx: number) => (
-                                          <div key={`presc-med-${idx}-${m.name}-${m.dosage}`} className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
-                                            <span>💊 {m.name} ({m.dosage})</span>
-                                            <span className="text-[9px] bg-slate-200 px-1 rounded">{m.frequency || '1-0-1'}</span>
-                                          </div>
-                                        ))}
+                                        {medicines.map((m: any, idx: number) => {
+                                          const matchInv = inventory.find(i => (i.name || '').toLowerCase() === (m.name || '').toLowerCase());
+                                          let recommendedSub = null;
+                                          if (matchInv) {
+                                            recommendedSub = inventory.find(i => 
+                                              i.genericName === matchInv.genericName && 
+                                              i.id !== matchInv.id && 
+                                              i.stock > 0 && 
+                                              ((matchInv.stock <= 0) || (new Date(i.expiryDate).getTime() < new Date(matchInv.expiryDate).getTime()))
+                                            );
+                                          }
+
+                                          return (
+                                            <div key={`presc-med-${idx}-${m.name}-${m.dosage}`} className="flex flex-col gap-1 border-b border-slate-100 last:border-0 pb-1.5 last:pb-0">
+                                              <div className="text-[10px] text-slate-600 font-mono flex items-center justify-between">
+                                                <span>💊 {m.name} ({m.dosage})</span>
+                                                <span className="text-[9px] bg-slate-200 px-1 rounded">{m.frequency || '1-0-1'}</span>
+                                              </div>
+                                              
+                                              {recommendedSub && (
+                                                <div className="flex items-center justify-between bg-amber-50/80 border border-amber-200/60 p-1.5 rounded shadow-xs text-[9px] font-mono text-amber-800 animate-in fade-in zoom-in duration-300">
+                                                  <div className="flex items-start gap-1.5">
+                                                    <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0 mt-0.5" />
+                                                    <div className="leading-tight">
+                                                      <span className="font-bold text-[8.5px] uppercase tracking-wider block text-amber-600">FEFO Substitution Match</span>
+                                                      <span className="text-slate-700 font-bold">{recommendedSub.name}</span>
+                                                      <br />
+                                                      <span className="text-amber-700/80">Expires: {new Date(recommendedSub.expiryDate).toLocaleDateString()}</span>
+                                                    </div>
+                                                  </div>
+                                                  <button 
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                        detail: { 
+                                                          message: `Please physically dispense [ ${recommendedSub.name} ] instead to optimize FEFO inventory.`, 
+                                                          type: 'success', 
+                                                          title: 'Substitution Approved' 
+                                                        }
+                                                      }));
+                                                    }}
+                                                    className="px-2 py-1 bg-amber-100 hover:bg-amber-200 border border-amber-300/50 text-amber-800 rounded transition-colors font-bold uppercase cursor-pointer"
+                                                  >
+                                                    Suggest
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -1391,6 +1436,11 @@ export const PharmacyDashboard: React.FC = () => {
                                       <div className="space-y-1.5">
                                         {medicines.map((m: any, idx: number) => {
                                           const isSpectacles = (m.name || '').startsWith('Spectacles (');
+                                          // FEFO Generic Substitution Check
+                                          const exactStock = inventory.find(i => i.name.toLowerCase() === (m.name || '').toLowerCase())?.stock || 0;
+                                          const needsSub = exactStock <= 0;
+                                          const subItem = needsSub ? PharmacyService.findGenericEquivalent(m.name) : null;
+                                          
                                           if (isSpectacles) {
                                             // Parse refraction from dosage field!
                                             const odPart = (m.dosage || '').split('|')[0] || '';
@@ -1563,9 +1613,39 @@ export const PharmacyDashboard: React.FC = () => {
                                           }
                                           
                                           return (
-                                            <div key={`presc-item-${idx}-${m.name}-${m.dosage}`} className="text-[10px] text-slate-600 font-mono flex items-center justify-between border-b border-slate-100 pb-1 last:border-0 last:pb-0">
-                                              <span>💊 {m.name} ({m.dosage})</span>
-                                              <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                            <div key={`presc-item-${idx}-${m.name}-${m.dosage}`} className="text-[10px] text-slate-600 font-mono flex flex-col gap-1 border-b border-slate-100 pb-1.5 last:border-0 last:pb-0">
+                                              <div className="flex items-center justify-between">
+                                                <span className={needsSub ? "line-through text-red-400 opacity-60" : ""}>💊 {m.name} ({m.dosage})</span>
+                                                <span className="text-[9px] bg-white/5 px-2 py-0.5 rounded">{m.frequency}</span>
+                                              </div>
+                                              {needsSub && subItem && (
+                                                <div className="flex items-center justify-between bg-emerald-50/50 p-1.5 rounded border border-emerald-100">
+                                                  <span className="text-[9px] font-bold text-emerald-700 flex items-center gap-1">
+                                                    <RefreshCw className="w-2.5 h-2.5" />
+                                                    Auto-Sub: {subItem.name} (Batch: {subItem.batchNumber})
+                                                  </span>
+                                                  <button
+                                                    onClick={() => {
+                                                      // In a real app, this would mutate the invoice in DB. For MVP UI, we simulate it via toast
+                                                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                                        detail: {
+                                                          title: 'FEFO Substitution Applied ✅',
+                                                          message: `Swapped ${m.name} ➔ ${subItem.name} from Batch ${subItem.batchNumber}.`,
+                                                          type: 'success'
+                                                        }
+                                                      }));
+                                                    }}
+                                                    className="px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[8px] font-bold uppercase tracking-wider hover:bg-emerald-500 cursor-pointer"
+                                                  >
+                                                    Accept Generic
+                                                  </button>
+                                                </div>
+                                              )}
+                                              {needsSub && !subItem && (
+                                                <span className="text-[9px] font-bold text-red-500">
+                                                  ⚠️ Out of stock. No generics available.
+                                                </span>
+                                              )}
                                             </div>
                                           );
                                         })}

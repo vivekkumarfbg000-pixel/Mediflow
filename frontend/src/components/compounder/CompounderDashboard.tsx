@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { supabase } from '../../lib/supabaseClient';
@@ -623,22 +623,24 @@ export const CompounderDashboard: React.FC = () => {
       const payload = customEvent.detail;
       const target = typeof payload === 'string' ? payload : payload?.tab;
 
-      if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan') {
-        setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : target);
-      } else if (target === 'tokens' || target === 'patients') {
-        setActiveTab('opd_patients');
-        setOpdSubTab('today_queue');
-      } else if (target === 'labs' || target === 'pharmacy') {
-        setActiveTab('clinical_hub');
-        setClinicalSubTab(target === 'pharmacy' ? 'pharmacy' : 'labs');
-      } else if (target === 'ot_billing' || target === 'invoice_generator' || target === 'billing_daycare') {
-        setActiveTab('billing_daycare');
-        setBillingSubTab('billing');
-        if (payload?.patientId) {
-          setSelectedPatientForBillHub(payload.patientId);
-          setBillHubInitialMode('manual_billing');
+      startTransition(() => {
+        if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan') {
+          setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : target);
+        } else if (target === 'tokens' || target === 'patients') {
+          setActiveTab('opd_patients');
+          setOpdSubTab('today_queue');
+        } else if (target === 'labs' || target === 'pharmacy') {
+          setActiveTab('clinical_hub');
+          setClinicalSubTab(target === 'pharmacy' ? 'pharmacy' : 'labs');
+        } else if (target === 'ot_billing' || target === 'invoice_generator' || target === 'billing_daycare') {
+          setActiveTab('billing_daycare');
+          setBillingSubTab('billing');
+          if (payload?.patientId) {
+            setSelectedPatientForBillHub(payload.patientId);
+            setBillHubInitialMode('manual_billing');
+          }
         }
-      }
+      });
     };
 
     window.addEventListener('mediflow-compounder-tab-changed', handleTabChange);
@@ -1439,7 +1441,9 @@ export const CompounderDashboard: React.FC = () => {
         activeOpdAppointments.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
       const lacksVitals = !p.vitals || !p.vitals.bloodPressure || p.vitals.bloodPressure === '';
       const isPendingQueue = p.queueStatus === 'awaiting_vitals' || p.queueStatus === 'registered' || p.queueStatus === 'awaiting_consultation' || !p.queueStatus;
-      if (isToday && lacksVitals && isPendingQueue) {
+      const isPaperScan = (p as any).source === 'paper_scan';
+      
+      if (isToday && lacksVitals && isPendingQueue && !isPaperScan) {
         seenPatientIds.add(p.id);
         list.push(p);
       }
@@ -1452,7 +1456,8 @@ export const CompounderDashboard: React.FC = () => {
         const existing = patients.find(p => p.id === pid);
         const qStatus = existing?.queueStatus as string | undefined;
         const isExcludedQueueStatus = existing && (qStatus === 'pending_payment' || qStatus === 'completed' || qStatus === 'post_consultation');
-        const isValidExisting = !existing || (!existing.vitals?.bloodPressure && !isExcludedQueueStatus);
+        const isPaperScan = existing && (existing as any).source === 'paper_scan';
+        const isValidExisting = !existing || (!existing.vitals?.bloodPressure && !isExcludedQueueStatus && !isPaperScan);
         
         if (isValidExisting) {
           seenPatientIds.add(pid);
@@ -3117,7 +3122,7 @@ export const CompounderDashboard: React.FC = () => {
 
     try {
       // 1. Run live OCR scan via FastAPI backend
-      const ocrResult = await api.ocrScan(file);
+      const ocrResult = await api.ocrScan([file]);
       setReportScanLogs(prev => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] OCR Success: Document text parsed.`,

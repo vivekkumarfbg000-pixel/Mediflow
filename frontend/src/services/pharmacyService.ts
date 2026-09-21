@@ -722,6 +722,59 @@ export class PharmacyService {
     }).sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
   }
 
+  /**
+   * Option 4: Smart "FEFO" Pharmacy Substitution Engine
+   * Finds a generic equivalent from the current FEFO batch if a specific brand is out of stock.
+   */
+  static findGenericEquivalent(targetName: string): PharmacyInventoryItem | null {
+    if (!targetName) return null;
+    const inventory = this.getPharmacyInventory();
+    
+    // First, check if the exact brand exists and has stock
+    const exactMatch = inventory.find(item => item.name.toLowerCase() === targetName.toLowerCase() && item.stock > 0);
+    if (exactMatch) return null; // No need for substitution
+
+    // If exact doesn't exist, try to find a generic equivalent
+    // In a real DB, we'd query by generic_name or molecule_id. Here we match by some string logic or predefined synonyms.
+    const normalizedTarget = targetName.toLowerCase();
+    
+    // Hardcoded synonyms for demo/MVP
+    const synonyms: Record<string, string[]> = {
+      'augmentin': ['amoxicillin', 'clavulanate'],
+      'crocin': ['paracetamol', 'acetaminophen', 'dolo'],
+      'dolo': ['paracetamol', 'acetaminophen', 'crocin'],
+      'calpol': ['paracetamol', 'acetaminophen', 'crocin', 'dolo'],
+      'prazopress': ['prazosin'],
+      'zithrox': ['azithromycin'],
+      'allegra': ['fexofenadine'],
+      'telma': ['telmisartan'],
+      'amlokind': ['amlodipine'],
+      'metrogyl': ['metronidazole']
+    };
+
+    let searchTerms = [normalizedTarget];
+    Object.keys(synonyms).forEach(key => {
+      if (normalizedTarget.includes(key)) {
+        searchTerms = [...searchTerms, ...synonyms[key]];
+      }
+    });
+
+    const genericMatches = inventory.filter(item => {
+      if (item.stock <= 0) return false;
+      const itemName = item.name.toLowerCase();
+      const itemGen = (item.genericName || '').toLowerCase();
+      return searchTerms.some(term => itemName.includes(term) || itemGen.includes(term));
+    });
+
+    if (genericMatches.length > 0) {
+      // Sort by expiry date ascending (FEFO - First Expire First Out)
+      genericMatches.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+      return genericMatches[0];
+    }
+
+    return null;
+  }
+
   static getInventoryHolds(): InventoryHold[] {
     let isDemoAccount = false;
     if (typeof window !== 'undefined') {
@@ -974,6 +1027,19 @@ export class PharmacyService {
         if (invItem) {
           const oldStock = invItem.stock;
           invItem.stock = Math.max(0, invItem.stock - item.quantity);
+          
+          if (invItem.stock <= invItem.threshold && oldStock > invItem.threshold) {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                detail: {
+                  title: 'Auto-Restock Triggered 🚨',
+                  message: `URGENT: ${invItem.name} has fallen below threshold (${invItem.threshold}). Auto-Restock PO staged.`,
+                  type: 'warning'
+                }
+              }));
+            }
+          }
+          
           writeAuditLog('medicine_dispensed', { 
             billId: id, 
             itemId: invItem.id, 
@@ -1110,8 +1176,22 @@ export class PharmacyService {
     bill.items.forEach(item => {
       const invItem = inventory.find(inv => inv.id === item.inventoryItemId);
       if (invItem) {
+        const oldStock = invItem.stock;
         // Reserve stock (deduct it from inventory)
         invItem.stock = Math.max(0, invItem.stock - item.quantity);
+        
+        if (invItem.stock <= invItem.threshold && oldStock > invItem.threshold) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('mediflow-toast', {
+              detail: {
+                title: 'Auto-Restock Triggered 🚨',
+                message: `URGENT: ${invItem.name} has fallen below threshold (${invItem.threshold}). Auto-Restock PO staged.`,
+                type: 'warning'
+              }
+            }));
+          }
+        }
+        
         inventoryUpdated = true;
 
         // Create hold

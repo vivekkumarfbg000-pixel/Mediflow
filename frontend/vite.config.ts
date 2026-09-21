@@ -74,6 +74,9 @@ export default defineConfig(({ mode }) => {
               }
               return 'vendor';
             }
+            if (id.includes('src/services')) {
+              return 'core-services';
+            }
           },
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',

@@ -259,6 +259,31 @@ export class PaperModeService {
   }
 
   /**
+   * Translates common clinical frequencies to Hinglish for patients
+   */
+  static toHinglishFrequency(freq: string, duration: string, qty?: number): string {
+    const map: Record<string, string> = {
+      '1-0-0': 'Subah 1 Tab (Khane ke baad)',
+      '0-0-1': 'Raat 1 Tab (Sone se pehle)',
+      '1-0-1': 'Subah 1 Tab + Raat 1 Tab',
+      '0-1-1': 'Dopahar 1 Tab + Raat 1 Tab',
+      '1-1-1': 'Subah + Dopahar + Raat — 1-1-1',
+      'OD':    'Roz ek baar (Once Daily)',
+      'BD':    'Din mein 2 baar',
+      'TDS':   'Din mein 3 baar',
+      'SOS':   'Zaroorat par hi lein (Pain/Fever mein)',
+      'HS':    'Raat ko sone se pehle',
+      'AC':    'Khane se pehle',
+      'PC':    'Khane ke baad',
+    };
+    const cleanFreq = (freq || '').trim().toUpperCase();
+    const hinglishFreq = map[cleanFreq] || freq || '';
+    const durStr = duration ? ` | ${duration}` : '';
+    const qtyStr = qty ? ` | ${qty} tabs` : '';
+    return `${hinglishFreq}${durStr}${qtyStr}`;
+  }
+
+  /**
    * STAGE 5 — Dispatch Digital Prescription WhatsApp
    * Sent after welcome, contains medicine list + PDF link
    */
@@ -274,8 +299,8 @@ export class PaperModeService {
     if (!params.patientPhone) return;
 
     const medicineLines = (params.medications || []).map((m, i) =>
-      `${i + 1}. 💊 *${m.medicineName}* — ${m.dosage || ''} | ${m.frequency || ''} | ${m.duration || ''}${m.quantity ? ` | ${m.quantity} tabs` : ''}`
-    ).join('\n');
+      `${i + 1}. 💊 *${m.medicineName}* — ${m.dosage || ''}\n   _${PaperModeService.toHinglishFrequency(m.frequency || '', m.duration || '', m.quantity)}_`
+    ).join('\n\n');
 
     const testLines = (params.diagnosticTests || []).length > 0
       ? `🔬 *Lab Tests Ordered:*\n${(params.diagnosticTests).map((t: any, i: number) => `${i + 1}. ${t.name || t.testName || 'Lab Test'}`).join('\n')}\n\n`

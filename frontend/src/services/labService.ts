@@ -948,6 +948,22 @@ export class LabService {
     reports[idx].approvedAt = new Date().toISOString();
     reports[idx].revisitScheduledAt = revisitAt;
     reports[idx].revisitNote = revisitNote || undefined;
+
+    // Safety Net Anomaly Check
+    let isCritical = false;
+    try {
+      if (reports[idx].biomarkerJson) {
+        const markers = reports[idx].biomarkerJson.biomarkers || reports[idx].biomarkerJson;
+        // Simple critical thresholds
+        if (markers['HbA1c'] && parseFloat(markers['HbA1c']) > 8.5) isCritical = true;
+        if (markers['Fasting Blood Sugar'] && parseFloat(markers['Fasting Blood Sugar']) > 200) isCritical = true;
+        if (markers['Serum Creatinine'] && parseFloat(markers['Serum Creatinine']) > 1.8) isCritical = true;
+      }
+    } catch (e) {
+      console.error('Error parsing biomarkers for safety net check:', e);
+    }
+    
+    reports[idx].severity = isCritical ? 'CRITICAL' : 'NORMAL';
     reports[idx].updatedAt = new Date().toISOString();
 
     save('full_lab_reports', reports);

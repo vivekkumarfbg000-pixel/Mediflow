@@ -230,7 +230,17 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
         rawMeds.forEach((m: any) => {
           const mName = (m.medicineName || m.name || '').toLowerCase();
-          if (mName) initialMeds[mName] = { selected: true, qty: 10 };
+          if (mName) {
+            let computedQty = 15; // default 15 tablets
+            if (m.quantity) {
+              computedQty = Number(m.quantity);
+            } else if (m.frequency && m.duration) {
+              const tabsPerDay = (m.frequency.match(/\d+/g) || []).reduce((sum: number, d: string) => sum + parseInt(d, 10), 0) || 1;
+              const days = parseInt((m.duration.match(/\d+/) || ['15'])[0], 10) || 15;
+              computedQty = tabsPerDay * days;
+            }
+            initialMeds[mName] = { selected: true, qty: computedQty };
+          }
         });
         setSelectedMedicines(initialMeds);
 
@@ -638,7 +648,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       rawMeds.forEach((med: any) => {
         const medName = med.medicineName || med.name || 'Prescribed Medicine';
-        const matched = inventory.find(i => (i.name || '').toLowerCase() === medName.toLowerCase() || (i.genericName || '').toLowerCase() === medName.toLowerCase());
+        const searchWord = medName.split(' ')[0].toLowerCase();
+        const matched = inventory.find(i => 
+          (i.name || '').toLowerCase().includes(searchWord) || 
+          (i.genericName || '').toLowerCase().includes(searchWord)
+        );
         medicinesList.push({
           name: medName,
           mrp: matched?.mrp || 120,

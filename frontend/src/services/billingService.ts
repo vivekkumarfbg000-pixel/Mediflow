@@ -9,6 +9,7 @@ import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { FinanceEngine } from './financeEngine';
 import { cloudStore } from './cloudStore';
+import { walDB } from './api';
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
@@ -140,6 +141,9 @@ export class BillingService {
         }
       } catch (err) {
         console.warn('[BillingService] Bulk remote appointment dual-write notice:', err);
+        for (const appt of appointments) {
+          await walDB.addEntry('upsert_appointment', appt);
+        }
       }
     })();
   }

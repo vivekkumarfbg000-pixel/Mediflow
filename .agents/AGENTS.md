@@ -16,15 +16,13 @@
 
 ### 1. The Autonomous OCR Prescription Engine (Compounder Desk)
 **The UI & System Flow:**
-1. Compounder uploads/scans a physical paper prescription in the dashboard.
-2. **AI Action:** The system prompt securely extracts Name, Age, Phone, Vitals, and Medicines using Groq Llama-3 / Gemini Flash.
-3. **Automated DB Operations:** The system instantly:
-   - Creates a new patient profile (if new) or updates the existing one.
-   - Tags chronic diseases based on extracted medicines.
-   - Books the patient for today's appointment queue.
-   - Saves the original scanned image to the patient's record.
-4. **Digital Generation & Dispatch:** Generates a clean digital PDF prescription with dosages and autonomously sends it to the patient via WhatsApp.
-5. **UI Reaction:** The dashboard UI must immediately display the newly created patient profile widget below the scanner, complete with demographic tags, a link to the digital PDF, and direct access to billing (medicines and lab tests).
+1. **Prescription Start**: Compounder uploads/scans a single or multi-page physical paper prescription in the dashboard.
+2. **AI Extraction Phase**: The system prompt securely extracts Name, Age, Phone (Mandatory fallback to manual input if missing), Vitals, and precisely lists all Indian/Foreign medicines and lab tests using Groq Llama-3 / Gemini Flash without hallucination. (No fake ABHA IDs are ever generated).
+3. **Profile & Chronic Sync**: The system instantly creates a new real-time patient profile on Supabase (or updates existing). It automatically detects and tags chronic diseases (like Diabetes or Hypertension) and dynamically links the profile to the `chronic_care_cohorts` table for Day-25 refill tracking.
+4. **Queue Allocation**: Books the patient for today's appointment queue and issues a sequential token instantly. (No vitals screen is shown during the OCR flow to adhere to the Zero-Data-Entry doctrine).
+5. **Billing & Pharmacy**: Extracted medicines and labs instantly populate the POS grid, ready for 1-Tap Dispensation (FEFO substitution enabled).
+6. **Digital Generation & Dispatch**: Generates a clean digital PDF prescription with dosages and autonomously sends it to the patient via WhatsApp.
+7. **UI Reaction:** The dashboard UI must immediately display the newly created patient profile widget below the scanner, complete with demographic tags, a link to the digital PDF, and direct access to billing (medicines and lab tests).
 
 ### 2. The Post-Consultation Smart Queue (Evening Review)
 **The UI & System Flow:**
@@ -36,6 +34,23 @@
 
 ### 3. System Prompt & LLM Instruction Integrity
 Any future AI agent modifying the source code is **FORBIDDEN** from changing the behavior, tone, or structure of the backend LLM system prompts (e.g., extracting Hinglish, formatting medical terms, OCR logic). The intelligence logic is immutable unless explicitly requested by the user.
+
+---
+
+## 🚫 RULE 1.1: THE ZERO-TOUCH, ZERO-BUG CLINIC OS SHIELD 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: CLINIC OS IS THE MAIN USP OF MEDIFLOW. IT IS STRICTLY OFF-LIMITS FOR AUTONOMOUS MODIFICATION.**
+- **No Working Code Touching:** AI agents are forbidden from touching, refactoring, or modifying any working structural or logical code related to the Clinic OS workflow without explicit, undeniable permission from the user.
+- **Zero Bug Tolerance:** If an AI touches the Clinic OS flow by explicit request, it MUST NOT introduce ANY functional, structural, or logical bugs. If the workflow works and completes the clinical loop, it MUST work every single time without failure.
+- **No Prompt Alterations:** Never autonomously alter the system prompts that power the Clinic OS.
+
+---
+
+## 🚫 RULE 1.2: FRONTEND STABILITY & ANTI-REGRESSION SHIELD 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: DO NOT REVERT OR BYPASS THESE STABILITY FIXES.**
+- **Concurrent UI Transitions:** Heavy role/tab switches MUST use React 18 `startTransition` to prevent UI freezing (e.g., `CompounderDashboard.tsx`, `DoctorDashboard.tsx`).
+- **Auth State Deadlock:** NEVER use manual `onAuthSuccess` callbacks in `AuthGateway.tsx`. Always rely on `onAuthStateChange` central session hydration to prevent React state deadlocks.
+- **Boot Sequence:** `core-services` chunking MUST remain in `vite.config.ts` to ensure instantaneous initial load.
+- **Offline Cache Loop Protection:** `ErrorBoundary` and module loaders must explicitly check `navigator.onLine` to gracefully fall back to cached states instead of infinite white-screen reloading.
 
 ---
 

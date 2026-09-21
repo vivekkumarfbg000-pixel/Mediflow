@@ -43,7 +43,7 @@ const InvoiceGenerator: React.FC = () => {
     if (!file) { showToast('Please select a file first.'); return; }
     setIsScanning(true);
     try {
-      const result = await api.ocrScan(file);
+      const result = await api.ocrScan([file]);
       setExtracted({ raw: result.extracted_text, structured: result.structured_data });
       showToast('✅ OCR scan complete!');
     } catch {

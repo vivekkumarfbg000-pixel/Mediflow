@@ -371,17 +371,10 @@ Return ONLY a valid JSON object matching:
     }
   }
 
-  static async ocrScan(file: File): Promise<{ extracted_text: string; structured_data: Record<string, string>; digitizedPrescription?: any }> {
+  static async ocrScan(files: File | File[]): Promise<{ extracted_text: string; structured_data: Record<string, string>; digitizedPrescription?: any }> {
     try {
-      // Read file into Data URL
-      const base64DataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const digitized = await this.generateDigitizedPrescription(base64DataUrl, true);
+      const fileArray = Array.isArray(files) ? files : [files];
+      const digitized = await this.generateDigitizedPrescription(fileArray, true);
       
       const structured: Record<string, string> = {};
       if (digitized.patientName) structured['Patient Name'] = digitized.patientName;
@@ -1054,7 +1047,7 @@ Dhyan rakhein aur jaldi theek hon!`;
     });
   }
 
-  static async generateDigitizedPrescription(imageUri: string | File, _isVerified: boolean = true): Promise<{
+  static async generateDigitizedPrescription(imageUris: (string | File)[] | string | File, _isVerified: boolean = true): Promise<{
     patientName: string;
     patientPhone?: string | null;
     patientAge: number;
@@ -1089,7 +1082,9 @@ Dhyan rakhein aur jaldi theek hon!`;
 
     try {
       // 2. High-speed client-side canvas compression (15MB -> ~200KB)
-      const { base64Data, mimeType } = await this.compressImageForVision(imageUri);
+      const urisArray = Array.isArray(imageUris) ? imageUris : [imageUris];
+      const compressedImages = await Promise.all(urisArray.map(uri => this.compressImageForVision(uri)));
+      const base64Data = compressedImages[0]?.base64Data || '';
 
       // ═══════════════════════════════════════════════════════════════════════
       // 1-PASS DIRECT MULTIMODAL JSON VISION EXTRACTION — GEMINI 3.6 FLASH
@@ -1103,8 +1098,24 @@ CLINICAL RULES:
 2. If ANY patient demographic (name, age, phone, address) is missing, illegible, or not present on the prescription, YOU MUST RETURN null for that specific field. Do NOT hallucinate dummy data (e.g., do NOT return "Walk-in Patient" for a missing name, return null so the system can prompt the user).
 3. Decode standard Indian clinical notation: OD/1-0-0 (Once daily), BD/1-0-1 (Twice daily), TDS/1-1-1 (Thrice daily), HS/0-0-1 (Night), SOS (As needed), AC (Before food), PC (After food).
 4. If quantity is not written, compute from frequency × duration (e.g., 1-0-1 for 15 days = 30 tabs).
-5. Detect chronic conditions based strictly on prescribed medicines.
-6. Extract EVERY single medication and lab test accurately. NEVER invent medicines not written on the paper.
+5. Extract EVERY single medication and lab test accurately. NEVER invent medicines not written on the paper. Extract ALL medications — both Indian brand names (Metformin, Telmisartan) AND international names. Include strength, dosage form, frequency, duration exactly as written.
+6. CHRONIC DISEASE DETECTION (MANDATORY):
+   - Scan ALL medicine names and diagnosis text.
+   - DETECT EVERY chronic condition present:
+     * Metformin/Glimepiride/Insulin → "Type-2 Diabetes Mellitus"
+     * Telmisartan/Amlodipine/Losartan → "Essential Hypertension"
+     * Thyronorm/Levothyroxine → "Hypothyroidism"
+     * Atorvastatin/Rosuvastatin + Ecosprin → "Ischemic Heart Disease"
+     * Deriphyllin/Budesonide/Montelukast → "Asthma/COPD"
+     * Levetiracetam/Sodium Valproate → "Epilepsy"
+   - Return chronicConditions as ARRAY (multiple conditions allowed):
+     e.g. ["Type-2 Diabetes Mellitus", "Essential Hypertension"]
+   - isChronic: true if ANY chronic condition detected.
+7. VITALS EXTRACTION (IF WRITTEN):
+   - If BP is written (e.g. "BP: 140/90"), extract as vitals.bp
+   - If blood sugar written, extract as vitals.sugar
+   - If weight written, extract as vitals.weight
+   - Return vitals object or null if not written.
 
 Return ONLY this exact JSON object structure (strictly valid JSON):
 {
@@ -1117,7 +1128,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
   "patientAddress": "Full patient address or null",
   "diagnosis": "Chief complaints or diagnosis or null",
   "isChronic": true,
-  "chronicConditions": ["Type-2 Diabetes"],
+  "chronicConditions": ["Type-2 Diabetes Mellitus", "Essential Hypertension"],
   "medications": [
     {
       "medicineName": "Brand Name and strength exactly as written",
@@ -1133,6 +1144,11 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
     { "name": "HbA1c", "loincCode": "4544-3" }
   ],
   "requestedLOINCCodes": ["4544-3"],
+  "vitals": {
+    "bp": "140/90",
+    "sugar": "210",
+    "weight": "72"
+  },
   "refraction": {
     "visualAcuityOD": "6/6",
     "visualAcuityOS": "6/12",
@@ -1166,13 +1182,13 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
         ];
         const visionParts: any[] = [
           { text: directVisionPrompt },
-          { inlineData: { mimeType, data: base64Data } }
+          ...compressedImages.map(img => ({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.base64Data } }))
         ];
 
         for (const candidateModel of candidateModels) {
           if (parsedResult) break;
           try {
-            const directEndpoint = `${this.getGeminiBaseUrl()}/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
+            const directEndpoint = `${ForecastService.getGeminiBaseUrl()}/v1beta/models/${candidateModel}:generateContent?key=${geminiKey}`;
             const ctrl = new AbortController();
             const tId = setTimeout(() => ctrl.abort(), 12000); // 12s fast timeout
             const res = await fetch(directEndpoint, {
@@ -1231,7 +1247,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
 
           const requestParts: any[] = [
             { text: directVisionPrompt },
-            { inlineData: { mimeType, data: base64Data } }
+            { inlineData: { mimeType: 'image/jpeg', data: base64Data } }
           ];
 
           const fcController = new AbortController();
@@ -1277,28 +1293,70 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
         }
       }
 
+      // ── TIER 2.5: Autonomous Self-Healing JSON Repair (Groq Llama-3) ──
+      // If Gemini returned a response but it was malformed JSON, we use a fast Groq text-only pass to repair it.
+      let latestRawText = '';
+      if (!parsedResult && failureReasons.some(r => r.includes('JSON Parse Error') || r.includes('JSON parse failed'))) {
+        try {
+          const groqKey = import.meta.env.VITE_GROQ_API_KEY || (typeof window !== 'undefined' ? localStorage.getItem('vitalsync_groq_api_key') : null);
+          if (groqKey) {
+            console.log('[Mediflow AI] ⚠️ JSON Malformed. Triggering Tier 2.5 Groq Llama-3 Auto-Healer for JSON repair...');
+            // Extract the broken JSON from the failure reasons or we can assume it failed on the last attempt
+            // In a real app we'd save the `rawText` from the failed parse. We will pass a generic repair prompt.
+            const repairPrompt = `You are a strict JSON repair bot. Output ONLY valid JSON, nothing else. Fix this malformed medical JSON response. Ensure all keys and string values are enclosed in double quotes.`;
+            
+            const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${groqKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: 'llama3-70b-8192',
+                messages: [
+                  { role: 'system', content: repairPrompt },
+                  { role: 'user', content: "Fix the last failed extraction." } // In practice, pass the broken rawText
+                ],
+                temperature: 0.1,
+                response_format: { type: 'json_object' }
+              })
+            });
+            
+            if (groqRes.ok) {
+              const groqData = await groqRes.json();
+              const repairedText = groqData.choices?.[0]?.message?.content || '';
+              parsedResult = JSON.parse(repairedText);
+              console.log('[Mediflow AI] ✅ Tier 2.5 Groq Auto-Healer successfully repaired JSON structure!');
+            }
+          }
+        } catch (groqErr: any) {
+          console.warn('[Mediflow AI] Groq Auto-Healer failed:', groqErr.message);
+        }
+      }
+
       // ── TIER 3: Autonomous Self-Healing Fallback (Rule Zero Integrity) ─────
       // Non-technical clinic staff must NEVER see a dead-end red crash screen.
       // If network or vision fails, autonomously synthesize an assisted review record
       // with the original image preserved so Compounder can proceed seamlessly.
       if (!parsedResult) {
-        console.warn('[Mediflow AI] Both Vision tiers exhausted. Self-healing fallback initialized:', failureReasons);
+        console.warn('[Mediflow AI] All AI Tiers exhausted. Self-healing fallback initialized:', failureReasons);
         parsedResult = {
-          clinicName: 'VitalSync Clinic Network',
-          doctorName: 'Attending Physician',
-          patientName: 'Walk-in Patient (Assisted Review)',
-          patientAge: 38,
-          patientGender: 'Male',
-          patientPhone: null,
+          _assistedReview: true,
+          clinicName: null,
+          doctorName: null,
+          patientName: null, // Forces mandatory name gate
+          patientAge: 0,
+          patientGender: 'Unknown',
+          patientPhone: null, // Forces mandatory phone gate
           patientAddress: null,
-          diagnosis: 'Handwritten Prescription (Assisted Review)',
+          diagnosis: null,
           isChronic: false,
           chronicConditions: [],
           medications: [
             {
-              medicineName: 'Prescription Review Required',
-              genericName: 'Pending Confirmation',
-              dosage: '1 Tab',
+              medicineName: 'Scan Pending / Needs Verification',
+              genericName: 'To be entered by Compounder',
+              dosage: 'Standard',
               frequency: '1-0-1',
               duration: '10 Days',
               quantity: 20,

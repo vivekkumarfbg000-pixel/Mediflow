@@ -5,6 +5,7 @@ import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtil
 import { safeGetStorageJSON } from '../utils/storage';
 import type { Patient, PatientVitals, Appointment } from '../types';
 import { cloudStore } from './cloudStore';
+import { walDB } from './api';
 
 export interface PhysicalConsent {
   id: string;
@@ -64,6 +65,10 @@ export class PatientService {
         }
       } catch (err) {
         console.warn('[PatientService] Bulk remote patient dual-write notice:', err);
+        // Fallback to WAL Outbox
+        for (const p of patients) {
+          await walDB.addEntry('upsert_patient', p);
+        }
       }
     })();
   }
@@ -131,6 +136,7 @@ export class PatientService {
         }, { onConflict: 'id' });
       } catch (err) {
         console.warn('[PatientService] Remote patient dual-write notice:', err);
+        await walDB.addEntry('upsert_patient', patient);
       }
     })();
 

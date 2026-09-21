@@ -604,7 +604,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           const isPlatformAdmin = profile?.role === 'platform_admin' || profile?.role === 'admin' || user.app_metadata?.role === 'platform_admin' || user.user_metadata?.role === 'platform_admin';
 
           if (profile && !error) {
-            onAuthSuccess(session, profile);
+            // onAuthSuccess(session, profile);
             return;
           }
 
@@ -619,7 +619,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   .eq('id', user.id)
                   .maybeSingle();
                 if (healedProfile) {
-                  onAuthSuccess(session, healedProfile);
+                  // onAuthSuccess(session, healedProfile);
                   return;
                 }
               } catch (healErr) {
@@ -669,7 +669,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               email: email
             };
 
-            onAuthSuccess(session, synthesizedProfile);
+            // onAuthSuccess(session, synthesizedProfile);
             setLoading(false);
           }
         }
@@ -766,7 +766,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }));
 
-      onAuthSuccess(sessionWithNoProfile, profile);
+      // onAuthSuccess(sessionWithNoProfile, profile);
     } catch (_err) { // Force rebuild of AuthGateway to clear compiler error
       const err = _err as any;
       console.error('[OAuth Onboarding] Register Clinic failed:', err);
@@ -823,7 +823,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }));
 
-      onAuthSuccess(sessionWithNoProfile, profile);
+      // onAuthSuccess(sessionWithNoProfile, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[OAuth Onboarding] Join Clinic failed:', err);
@@ -891,7 +891,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           }
         }));
 
-        onAuthSuccess(demoSession, demoProfile);
+        // onAuthSuccess(demoSession, demoProfile);
       }
     } catch (err) {
       console.error('[Demo Bypass] Failed to initialize demo mode:', err);
@@ -1015,7 +1015,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       recordRateLimitAttempt('login', cleanEmail, true);
       recordAttempt(cleanEmail, true, { user_id: data.user.id });
       
-      onAuthSuccess(data.session, profile);
+      // onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Login failed:', err);
@@ -1139,7 +1139,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       recordRateLimitAttempt('login', cleanEmail, true);
       recordAttempt(cleanEmail, true, { user_id: data.user.id });
       
-      onAuthSuccess(data.session, profile);
+      // onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Partner login failed:', err);
@@ -1349,7 +1349,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
 
     if (activeSess) {
-      onAuthSuccess(activeSess, synthesizedProfile);
+      // onAuthSuccess(activeSess, synthesizedProfile);
     }
   };
 
@@ -1826,7 +1826,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // 5. Notify app of authentication success or show confirmation card!
       if (activeSession) {
-        onAuthSuccess(activeSession, profile);
+        // onAuthSuccess(activeSession, profile);
       } else {
         setPartnerJoinSubmitted(true);
       }
@@ -2147,7 +2147,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   clinic_code: registeredClinicCode,
                   clinicCode: registeredClinicCode
                 };
-                onAuthSuccess(session, finalProf);
+                // onAuthSuccess(session, finalProf);
               }
             }}
             className="w-full py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
