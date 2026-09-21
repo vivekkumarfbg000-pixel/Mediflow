@@ -2374,7 +2374,8 @@ export const CompounderDashboard: React.FC = () => {
 
   // Auto-focus active patient in vitals intake form if they do not have vitals recorded yet
   useEffect(() => {
-    if (activePatient && !activePatient.vitals && !vitalsPatient) {
+    const isCompleted = activePatient?.queueStatus === 'completed' || activePatient?.queueStatus === 'post_consultation';
+    if (activePatient && !activePatient.vitals && !vitalsPatient && !isCompleted) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       document.body.style.overflow = 'hidden';
       setVitalsPatient(activePatient);
@@ -4772,7 +4773,13 @@ export const CompounderDashboard: React.FC = () => {
                               )}
                               <button
                                 type="button"
-                                onClick={() => setVitalsPatient(patient)}
+                                onClick={() => {
+                                  if (patient.queueStatus === 'completed' || patient.queueStatus === 'post_consultation') {
+                                    window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: patient }));
+                                  } else {
+                                    setVitalsPatient(patient);
+                                  }
+                                }}
                                 className="text-left font-bold text-slate-805 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer bg-transparent border-0 p-0 text-xs flex items-center gap-1 group"
                               >
                                 <span className="group-hover:underline">{patient.name}</span>
