@@ -2266,7 +2266,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveTab('pod_view')}
+                      onClick={() => startTransition(() => setActiveTab('pod_view'))}
                       className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer border-0"
                     >
                       Return to Clinic Dashboard
@@ -3016,7 +3016,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => startTransition(() => setActiveTab(tab.id as any))}
                 className={`flex items-center gap-1.5 px-3.5 py-2 text-[11px] font-bold rounded-lg transition-all duration-300 cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 shadow-xs border border-slate-200/50 dark:border-white/5'
@@ -3065,7 +3065,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             <div className="inline-flex items-center p-1 bg-slate-100/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs gap-1 shrink-0">
               <button
                 type="button"
-                onClick={() => setActiveTab('chronic')}
+                onClick={() => startTransition(() => setActiveTab('chronic'))}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer whitespace-nowrap ${
                   activeTab === 'chronic'
                     ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm border border-slate-200/60 dark:border-white/10'
@@ -3077,7 +3077,7 @@ Keep the tone professional, clinical, objective, and precise.`;
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('virtual_schedule')}
+                onClick={() => startTransition(() => setActiveTab('virtual_schedule'))}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors duration-150 cursor-pointer whitespace-nowrap ${
                   activeTab === 'virtual_schedule'
                     ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm border border-slate-200/60 dark:border-white/10'

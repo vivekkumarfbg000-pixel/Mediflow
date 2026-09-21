@@ -1165,6 +1165,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
 
       let parsedResult: any = null;
       const failureReasons: string[] = [];
+      let latestRawText = '';
 
       // ── TIER 1: Direct Google Gemini 3.6 Flash Multimodal Vision ──
       const geminiKey = this.getGeminiApiKey();
@@ -1300,7 +1301,6 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
 
       // ── TIER 2.5: Autonomous Self-Healing JSON Repair (Groq Llama-3) ──
       // If Gemini returned a response but it was malformed JSON, we use a fast Groq text-only pass to repair it.
-      let latestRawText = '';
       if (!parsedResult && failureReasons.some(r => r.includes('JSON Parse Error') || r.includes('JSON parse failed'))) {
         try {
           const groqKey = import.meta.env.VITE_GROQ_API_KEY || (typeof window !== 'undefined' ? localStorage.getItem('vitalsync_groq_api_key') : null);

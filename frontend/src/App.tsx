@@ -191,7 +191,9 @@ function AppContent({
   useEffect(() => {
     const handleSidebarToggle = () => {
       if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-        setIsSidebarCollapsed(prev => !prev);
+        startTransition(() => {
+          setIsSidebarCollapsed(prev => !prev);
+        });
       }
     };
     window.addEventListener('mediflow-toggle-sidebar', handleSidebarToggle);
@@ -293,7 +295,9 @@ function AppContent({
     const handleDoctorTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
       if (customEvent.detail) {
-        setActiveDoctorTab(customEvent.detail);
+        startTransition(() => {
+          setActiveDoctorTab(customEvent.detail);
+        });
       }
     };
     window.addEventListener('mediflow-doctor-tab-changed', handleDoctorTabChange);

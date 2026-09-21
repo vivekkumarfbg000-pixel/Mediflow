@@ -2535,8 +2535,10 @@ export const CompounderDashboard: React.FC = () => {
     api.setActivePatient(registered);
     setBillingPatient(registered);
     setSelectedApptPatient(registered);
-    setActiveTab('opd_patients');
-    setOpdSubTab('today_queue');
+    startTransition(() => {
+      setActiveTab('opd_patients');
+      setOpdSubTab('today_queue');
+    });
     syncData();
     fetchLiveAppointments();
 
@@ -3239,7 +3241,7 @@ export const CompounderDashboard: React.FC = () => {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => startTransition(() => setActiveTab(tab.id as any))}
             className={`px-4 py-2.5 text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all uppercase cursor-pointer rounded-xl ${
               activeTab === tab.id
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25'
@@ -3282,7 +3284,7 @@ export const CompounderDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => { setActiveTab('opd_patients'); setOpdSubTab('today_queue'); }}
+                  onClick={() => startTransition(() => { setActiveTab('opd_patients'); setOpdSubTab('today_queue'); })}
                   className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1.5 cursor-pointer border-0 bg-transparent py-1 transition group shrink-0"
                 >
                   <span>View Full Queue ({activeOpdAppointments.length})</span>
@@ -3506,7 +3508,7 @@ export const CompounderDashboard: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setActiveTab('ai_ocr_upload')}
+                  onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
                   className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-950/40 dark:to-purple-900/20 border border-purple-200/80 dark:border-purple-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
                 >
                   <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-purple-500/20">
