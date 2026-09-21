@@ -1263,7 +1263,11 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
             body: JSON.stringify({
               model: 'gemini-3.8-flash',
               contents: [{ parts: requestParts }],
-              generationConfig: { responseMimeType: 'application/json' }
+              generationConfig: { 
+                responseMimeType: 'application/json',
+                temperature: 0.1,
+                maxOutputTokens: 2500
+              }
             }),
             signal: fcController.signal
           });
@@ -1272,6 +1276,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
           if (response.ok) {
             const result = await response.json();
             const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            latestRawText = rawText;
             if (rawText) {
               const noThoughts = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
               const jsonMatch = noThoughts.match(/\{[\s\S]*\}/);
@@ -1312,10 +1317,10 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                model: 'llama3-70b-8192',
+                model: 'llama-3.3-70b-versatile',
                 messages: [
                   { role: 'system', content: repairPrompt },
-                  { role: 'user', content: "Fix the last failed extraction." } // In practice, pass the broken rawText
+                  { role: 'user', content: `Fix this malformed JSON:\n\n${latestRawText}` }
                 ],
                 temperature: 0.1,
                 response_format: { type: 'json_object' }
