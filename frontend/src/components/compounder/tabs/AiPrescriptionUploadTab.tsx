@@ -134,13 +134,17 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       let resObj: any = result || {};
       let extractedData = resObj.digitizedPrescription || resObj.structured_data || resObj.data || resObj;
       
-      // Fix: Handle cases where the LLM returns a stringified JSON instead of an object
+      // Fix: Handle cases where the LLM returns a stringified JSON instead of an object, often wrapped in markdown
       if (typeof extractedData === 'string') {
-        try { extractedData = JSON.parse(extractedData); } catch (e) { console.warn('Failed to parse extractedData string', e); }
+        try { 
+          const cleanStr = extractedData.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+          extractedData = JSON.parse(cleanStr); 
+        } catch (e) { console.warn('Failed to parse extractedData string', e); }
       }
       if (typeof resObj.structured_data === 'string') {
         try { 
-          resObj.structured_data = JSON.parse(resObj.structured_data); 
+          const cleanStr = resObj.structured_data.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+          resObj.structured_data = JSON.parse(cleanStr); 
           extractedData = resObj.structured_data;
         } catch (e) { console.warn('Failed to parse structured_data string', e); }
       }
@@ -173,7 +177,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         setIsEditingPhone(true);
       }
 
-      const meds = extractedData.medications || resObj.medications || [];
+      const meds = extractedData.medications || resObj.medications || extractedData.medicines || resObj.medicines || [];
       const labs = extractedData.diagnosticTests || resObj.diagnosticTests || extractedData.labTests || resObj.labTests || [];
       const identifiedBadges: string[] = [...(extractedData.chronicConditions || resObj.chronicConditions || [])];
       const rxText = JSON.stringify(meds).toLowerCase() + ' ' + (extractedData.diagnosis || resObj.diagnosis || '');
@@ -199,6 +203,14 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const allSavedPats = PatientService.getPatients();
       const canonicalPat = allSavedPats.find(p => (patientData.phone && (p.phone || '').replace(/\D/g, '').slice(-10) === patientData.phone)) || patientData;
       patientData.id = canonicalPat.id;
+
+      // Ensure we don't downgrade queue status if they are already further along
+      if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment') {
+        patientData.queueStatus = 'completed';
+      } else {
+        patientData.queueStatus = canonicalPat.queueStatus;
+      }
+
       PatientService.savePatient(patientData);
 
       // 2. 🌟 RESTORED AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins (Idempotent Check)
@@ -222,7 +234,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
           doctorId: resolvedDoctorId,
           date: todayISO,
           time: 'Walk-in',
-          status: 'confirmed',
+          status: 'completed',
           createdAt: new Date().toISOString()
         });
       }
