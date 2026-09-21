@@ -127,17 +127,17 @@
         }
       }
 
-      // 1. 7.5-Second Liveness Watchdog Timer: Protects against silent JS deadlocks without false alarms on background tabs
+      // 1. 4.5-Second Liveness Watchdog Timer: Protects against silent JS deadlocks without false alarms on background tabs
       var bootWatchdogTimer = setTimeout(function() {
         if (window.__mediflow_startup_healthy) return;
         if (typeof document !== 'undefined' && document.hidden) return; // Tab was opened in background; do NOT trigger false purge
         var root = document.getElementById('root');
         var hasReactMounted = root && root.children && root.children.length > 0;
         if (!hasReactMounted) {
-          console.warn('[VitalSync Boot Watchdog] Root mount timeout (7.5s) — bundle did not initialize.');
-          handleFatalBootError('Application Boot Timeout (7.5s stall) — bundle did not mount', null);
+          console.warn('[VitalSync Boot Watchdog] Root mount timeout (4.5s) — bundle did not initialize.');
+          handleFatalBootError('Application Boot Timeout (4.5s stall) — bundle did not mount', null);
         }
-      }, 7500);
+      }, 4500);
 
       // 2. Vite Dynamic Chunk Preload Failure Auto-Healer
       window.addEventListener('vite:preloadError', function(event) {

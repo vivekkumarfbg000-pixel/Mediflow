@@ -14,6 +14,9 @@ if (initialLoader) {
   initialLoader.remove();
 }
 
+// Signal to index.html boot watchdog that JS bundle executed successfully
+(window as any).__mediflow_startup_healthy = true;
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
