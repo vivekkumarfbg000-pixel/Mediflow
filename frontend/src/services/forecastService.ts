@@ -1099,22 +1099,22 @@ Dhyan rakhein aur jaldi theek hon!`;
       const directVisionPrompt = `You are an expert Indian clinical pharmacist and medical AI reading a handwritten doctor's prescription slip. Your accuracy is paramount.
 
 CLINICAL RULES:
-1. Extract the EXACT visible spelling of patient name, age, phone (10-digit only, else null), medications, dosages, frequency, and duration.
-2. Decode standard Indian clinical notation: OD/1-0-0 (Once daily), BD/1-0-1 (Twice daily), TDS/1-1-1 (Thrice daily), HS/0-0-1 (Night), SOS (As needed), AC (Before food), PC (After food).
-3. If quantity is not written, compute from frequency × duration (e.g., 1-0-1 for 15 days = 30 tabs).
-4. Detect chronic conditions: Diabetes (Metformin, Glimepiride, HbA1c), Hypertension (Amlodipine, Telmisartan, BP), Thyroid (Thyroxine, TSH), Dyslipidemia (Atorvastatin, Rosuvastatin), Asthma/COPD (Salbutamol, Budesonide), CKD, Arthritis.
-5. If OPHTHALMIC_REFRACTION is written (RE/LE SPH, CYL, AXIS, VA, IOP), extract it into refraction object.
-6. If any field is illegible or not written, return null (or default 0 for age if unknown). NEVER invent medicines not written on the paper.
+1. Extract the EXACT visible spelling of patient name, age, phone (10-digit only, else null), address, medications, dosages, frequency, and duration.
+2. If ANY patient demographic (name, age, phone, address) is missing, illegible, or not present on the prescription, YOU MUST RETURN null for that specific field. Do NOT hallucinate dummy data (e.g., do NOT return "Walk-in Patient" for a missing name, return null so the system can prompt the user).
+3. Decode standard Indian clinical notation: OD/1-0-0 (Once daily), BD/1-0-1 (Twice daily), TDS/1-1-1 (Thrice daily), HS/0-0-1 (Night), SOS (As needed), AC (Before food), PC (After food).
+4. If quantity is not written, compute from frequency × duration (e.g., 1-0-1 for 15 days = 30 tabs).
+5. Detect chronic conditions based strictly on prescribed medicines.
+6. Extract EVERY single medication and lab test accurately. NEVER invent medicines not written on the paper.
 
-Return ONLY this exact JSON object structure:
+Return ONLY this exact JSON object structure (strictly valid JSON):
 {
   "clinicName": "Clinic or hospital name from letterhead or null",
   "doctorName": "Doctor name or null",
-  "patientName": "Full patient name or 'Walk-in Patient'",
+  "patientName": "Full patient name or null",
   "patientAge": 45,
   "patientGender": "Male",
   "patientPhone": "9876543210 or null",
-  "patientAddress": null,
+  "patientAddress": "Full patient address or null",
   "diagnosis": "Chief complaints or diagnosis or null",
   "isChronic": true,
   "chronicConditions": ["Type-2 Diabetes"],

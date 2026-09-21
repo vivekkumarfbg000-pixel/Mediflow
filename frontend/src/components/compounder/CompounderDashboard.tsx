@@ -1450,7 +1450,9 @@ export const CompounderDashboard: React.FC = () => {
       const pid = a.patientId || (a as any).patient_id;
       if (pid && !seenPatientIds.has(pid)) {
         const existing = patients.find(p => p.id === pid);
-        const isValidExisting = !existing || (!existing.vitals?.bloodPressure && existing.queueStatus !== 'pending_payment');
+        const isExcludedQueueStatus = existing && (existing.queueStatus === 'pending_payment' || existing.queueStatus === 'completed' || existing.queueStatus === 'post_consultation');
+        const isValidExisting = !existing || (!existing.vitals?.bloodPressure && !isExcludedQueueStatus);
+        
         if (isValidExisting) {
           seenPatientIds.add(pid);
           list.push(existing || {
@@ -1974,7 +1976,12 @@ export const CompounderDashboard: React.FC = () => {
         dbPat.queueStatus = 'skipped';
         PatientService.savePatient(dbPat);
       }
-      const appt = appointments.find(a => a.patientId === patientId && a.date === getIstDateString());
+      const todayStr = getIstDateString();
+      const appt = appointments.find(a => 
+        (a.patientId === patientId || (a as any).patient_id === patientId) && 
+        (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr) &&
+        (a.status !== 'completed' && a.status !== 'cancelled')
+      );
       if (appt) {
         appt.status = 'cancelled';
         BillingService.saveAppointment(appt);
