@@ -1450,7 +1450,8 @@ export const CompounderDashboard: React.FC = () => {
       const pid = a.patientId || (a as any).patient_id;
       if (pid && !seenPatientIds.has(pid)) {
         const existing = patients.find(p => p.id === pid);
-        const isExcludedQueueStatus = existing && (existing.queueStatus === 'pending_payment' || existing.queueStatus === 'completed' || existing.queueStatus === 'post_consultation');
+        const qStatus = existing?.queueStatus as string | undefined;
+        const isExcludedQueueStatus = existing && (qStatus === 'pending_payment' || qStatus === 'completed' || qStatus === 'post_consultation');
         const isValidExisting = !existing || (!existing.vitals?.bloodPressure && !isExcludedQueueStatus);
         
         if (isValidExisting) {
