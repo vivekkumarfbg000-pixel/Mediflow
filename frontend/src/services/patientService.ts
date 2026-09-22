@@ -89,7 +89,13 @@ export class PatientService {
       const incomingName = patient.name || '';
       const isGenericExisting = existingName.toLowerCase().includes('walk-in') || existingName.toLowerCase().includes('assisted review') || existingName.toLowerCase() === 'patient' || existingName.trim() === '';
       const isRealIncoming = incomingName.trim().length > 0 && !incomingName.toLowerCase().includes('walk-in') && incomingName.toLowerCase() !== 'patient';
-      const resolvedName = (isGenericExisting && isRealIncoming) ? incomingName : (isRealIncoming ? incomingName : (patient.name || patients[idx].name));
+      
+      let resolvedName = existingName;
+      if (isRealIncoming) {
+        resolvedName = incomingName;
+      } else if (!existingName.trim() || isGenericExisting) {
+        resolvedName = incomingName || 'Walk-in Patient';
+      }
 
       patients[idx] = { ...patients[idx], ...patient, name: resolvedName, id: patients[idx].id };
       patient.id = patients[idx].id;

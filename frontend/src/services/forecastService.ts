@@ -1134,7 +1134,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
     {
       "medicineName": "Brand Name and strength exactly as written",
       "genericName": "Salt or generic name",
-      "dosage": "500mg or 1 Tab",
+      "dosage": "extract exactly what is written, do not invent or default",
       "frequency": "1-0-1",
       "duration": "15 Days",
       "quantity": 30,

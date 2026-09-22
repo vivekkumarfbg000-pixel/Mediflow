@@ -976,12 +976,16 @@ export class BillingService {
     const existingIdx = ledgerEntries.findIndex(l => l.invoiceId === invoiceId && (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee')));
     if (existingIdx !== -1) {
       let updated = false;
+      let platformAmt = 0;
       for (let i = 0; i < ledgerEntries.length; i++) {
         if (ledgerEntries[i].invoiceId === invoiceId && ledgerEntries[i].paymentStatus !== 'cleared') {
           ledgerEntries[i].paymentStatus = 'cleared';
           ledgerEntries[i].paymentMethod = paymentMethod;
           ledgerEntries[i].settledAt = new Date().toISOString();
           updated = true;
+        }
+        if (ledgerEntries[i].invoiceId === invoiceId && ledgerEntries[i].transactionType === 'platform_fee') {
+          platformAmt += ledgerEntries[i].netPayout;
         }
       }
       if (updated) {
@@ -992,6 +996,18 @@ export class BillingService {
           settled_at: new Date().toISOString()
         }).eq('invoice_id', invoiceId).then(({ error }) => {
            if (error) console.error('Error updating ledger status in Supabase:', error);
+        });
+
+        const isCash = paymentMethod === 'cash';
+        supabase.from('unified_invoices').update({
+          platform_fee: platformAmt,
+          payment_method: paymentMethod
+        }).eq('id', invoiceId).then(({ error }) => {
+          if (error) console.error('Error updating platform_fee in unified_invoices:', error);
+        });
+
+        supabase.rpc('accumulate_platform_revenue', { p_pod_id: getPodContext().podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
+          if (error) console.error('Error updating pod platform revenue in Supabase:', error);
         });
       }
       return;

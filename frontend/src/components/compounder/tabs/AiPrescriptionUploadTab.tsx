@@ -78,16 +78,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     if (extractedPatient) {
       const updated = { ...extractedPatient, phone: cleanPhone };
       setExtractedPatient(updated);
-      PatientService.savePatient(updated);
       api.setActivePatient(updated);
-      // Update associated appointment
-      const appts = api.getAppointments();
-      const matchAppt = appts.find(a => a.patientId === updated.id || (a as any).patient_id === updated.id);
-      if (matchAppt) {
-        matchAppt.patientPhone = cleanPhone;
-        (matchAppt as any).patient_phone = cleanPhone;
-        BillingService.saveAppointment(matchAppt);
-      }
       setIsEditingPhone(false);
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -249,10 +240,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         ...extractedPatient,
         id: canonicalPat.id || extractedPatient.id,
         phone: rawPhone,
+        podId: canonicalPat.podId || getPodContext().podId || extractedPatient.podId,
+        queueStatus: canonicalPat.queueStatus || extractedPatient.queueStatus || 'pending_payment'
       };
 
-      if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment') {
-        patientData.queueStatus = 'completed';
+      if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment' || canonicalPat.queueStatus === 'completed') {
+        patientData.queueStatus = 'awaiting_consultation';
       } else {
         patientData.queueStatus = canonicalPat.queueStatus;
       }
@@ -321,10 +314,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const encounterMeds: MedicationRequest[] = extractedMeds.map((m: any, idx: number) => ({
         id: `med-${idx}`,
         medicineName: m.medicineName || m.name || 'Prescribed Medicine',
-        dosage: m.dosage || '1 Tab',
-        frequency: m.frequency || '1-0-1',
-        duration: m.duration || '15 Days',
-        quantity: m.quantity || calculateQuantity(m.frequency || '1-0-1', m.duration || '15 Days') || undefined
+        dosage: m.dosage || '',
+        frequency: m.frequency || '',
+        duration: m.duration || '',
+        quantity: m.quantity || calculateQuantity(m.frequency || '', m.duration || '') || undefined
       }));
 
       EncounterService.createEncounter({
@@ -394,16 +387,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       if (onSuccess) {
         onSuccess(patientData.id);
       } else {
-        window.dispatchEvent(
-          new CustomEvent('mediflow-change-tab', {
-            detail: { tab: 'billing_daycare', payload: { patientId: patientData.id } }
-          })
-        );
-        window.dispatchEvent(
-          new CustomEvent('mediflow-compounder-tab-changed', {
-            detail: 'billing_daycare'
-          })
-        );
+        window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'billing_daycare' }));
+        window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: 'billing_daycare' }));
       }
 
     } catch (err: any) {
