@@ -35,9 +35,13 @@ import type {
   CounterTransaction,
   LabReport,
   LabRequisition,
+  EveningSlot,
   Appointment,
-  EveningSlot
+  ClinicSop,
+  UnifiedInvoice,
+  InventoryHold
 } from '../../types';
+import { isAppointmentPaid } from '../../utils/paymentGate';
 import { BillHubTab } from './tabs/BillHubTab';
 import { AiPrescriptionUploadTab } from './tabs/AiPrescriptionUploadTab';
 import { InvoiceCard } from '../InvoiceCard';
@@ -1455,7 +1459,7 @@ export const CompounderDashboard: React.FC = () => {
       if (pid && !seenPatientIds.has(pid)) {
         const existing = patients.find(p => p.id === pid);
         const qStatus = existing?.queueStatus as string | undefined;
-        const isExcludedQueueStatus = existing && (qStatus === 'pending_payment' || qStatus === 'completed' || qStatus === 'post_consultation');
+        const isExcludedQueueStatus = existing && (!isAppointmentPaid(existing.id) || qStatus === 'completed' || qStatus === 'post_consultation');
         const isPaperScan = existing && (existing as any).source === 'paper_scan';
         const isValidExisting = !existing || (!existing.vitals?.bloodPressure && !isExcludedQueueStatus && !isPaperScan);
         
@@ -2049,13 +2053,14 @@ export const CompounderDashboard: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 10000); // GC cleanup
   }, [appointments, patients, activePod]);
 
   // 1-Click Professional Past Appointments CSV Export
   const handleDownloadPastAppointmentsCsv = useCallback(() => {
     const todayStr = getIstDateString();
     const pastAppts = appointments.filter(a => {
-      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+      if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
       const apptDate = getEffectiveAppointmentDate(a);
       return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
     }).sort((a, b) => {
@@ -2571,7 +2576,7 @@ export const CompounderDashboard: React.FC = () => {
     const hasPaidAppt = appts.some(a => 
       (a.patientId === vitalsPatient.id || (a as any).patient_id === vitalsPatient.id) && 
       (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr) &&
-      a.status !== 'pending_payment'
+      isAppointmentPaid(a.patientId || (a as any).patient_id)
     );
 
     if (!isPaidInvoice && !hasPaidAppt) {
@@ -3885,7 +3890,7 @@ export const CompounderDashboard: React.FC = () => {
                   {(() => {
                     const todayStr = getIstDateString();
                     return appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
                       return getEffectiveAppointmentDate(a) === todayStr;
                     }).length;
                   })()}
@@ -3927,7 +3932,7 @@ export const CompounderDashboard: React.FC = () => {
                   {(() => {
                     const todayStr = getIstDateString();
                     return appointments.filter(a => {
-                      if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                      if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
                       const apptDate = getEffectiveAppointmentDate(a);
                       return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
                     }).length;
@@ -4433,7 +4438,7 @@ export const CompounderDashboard: React.FC = () => {
                         {(() => {
                           const todayStr = getIstDateString();
                           return appointments.filter(a => {
-                            if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                            if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
                             const apptDate = getEffectiveAppointmentDate(a);
                             return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
                           }).length;
@@ -4482,7 +4487,7 @@ export const CompounderDashboard: React.FC = () => {
                           const q = (pastHistorySearchQuery || '').trim().toLowerCase();
                           const pastAppts = appointments
                             .filter(a => {
-                              if (a.status === 'pending_payment' || a.status === 'cancelled') return false;
+                              if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
                               const apptDate = getEffectiveAppointmentDate(a);
                               return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
                             })
@@ -4719,7 +4724,7 @@ export const CompounderDashboard: React.FC = () => {
                       (appt as any).paymentStatus !== 'unverified' &&
                       appt.payment_status !== 'pending_verification' &&
                       (appt as any).paymentStatus !== 'pending_verification' &&
-                      appt.status !== 'pending_payment';
+                      isAppointmentPaid(appt.patientId || (appt as any).patient_id);
 
                       const hasVitalsRecorded = Boolean(
                         (patient.vitals && (patient.vitals.bloodPressure || patient.vitals.pulseRate || patient.vitals.temperature || patient.vitals.spO2 || Object.keys(patient.vitals).length > 0)) ||

@@ -280,7 +280,7 @@ export interface UnifiedInvoice {
   upiQrPayload: string;
   paymentStatus: 'pending' | 'cleared' | 'disputed';
   payment_status?: string;
-  paymentMethod?: string;
+  paymentMethod?: PaymentMethod;
   referralCode?: string;
   referralDiscount?: number;
   type?: string;
@@ -311,7 +311,7 @@ export interface FinancialLedgerEntry {
   settledAt: string | null;
   createdAt: string;
   patientName?: string;
-  paymentMethod?: string;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface Pod {
@@ -435,7 +435,7 @@ export interface MedicineBill {
   itemDiscountAmount: number;
   gstAmount: number;
   totalAmount: number;
-  paymentMode: 'cash' | 'upi' | 'card' | 'whatsapp_pay' | 'paytm' | string;
+  paymentMode: PaymentMethod;
   upiQrPayload?: string;
   status: 'draft' | 'confirmed' | 'paid' | 'cancelled';
   source: 'counter' | 'whatsapp';
@@ -575,7 +575,7 @@ export interface Invoice {
   status: 'unpaid' | 'paid';
   createdAt: string;
   patientId?: string;
-  paymentMethod?: 'cash' | 'upi' | 'card' | string;
+  paymentMethod?: PaymentMethod;
   metadata?: any;
 }
 
@@ -615,6 +615,10 @@ export interface ReagentStock {
   stockVolume: number;
   unit: string;
 }
+
+export type ClinicRole = 'doctor' | 'compounder' | 'pharmacy' | 'pathology' | 'admin' | 'saas_admin';
+
+export type PaymentMethod = 'cash' | 'upi' | 'card' | 'whatsapp_pay' | 'paytm' | 'phonepe' | 'razorpay' | 'cashfree' | 'unverified';
 
 /** Synthetic/mock user profile generated for product demonstration purposes */
 export interface SyntheticProfile {
@@ -680,7 +684,7 @@ export interface LabTestBill {
   discountAmount: number;
   gstAmount: number;
   totalAmount: number;
-  paymentMode: 'cash' | 'upi' | 'card' | 'paytm' | string;
+  paymentMode: PaymentMethod;
   status: 'draft' | 'confirmed' | 'paid' | 'cancelled';
   source: 'encounter' | 'walkin';
   createdAt: string;

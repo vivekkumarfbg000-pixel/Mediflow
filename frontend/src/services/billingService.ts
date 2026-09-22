@@ -44,9 +44,7 @@ export class BillingService {
         if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
           return false;
         }
-        if (!pod && effectivePod) {
-          (i as any).podId = effectivePod;
-        }
+
         const id = i.id || '';
         const pName = String(i.patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
@@ -286,9 +284,7 @@ export class BillingService {
         if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
           return false;
         }
-        if (!pod && effectivePod) {
-          (l as any).podId = effectivePod;
-        }
+
         const id = l.id || '';
         const pName = String(l.patientName || '').toLowerCase().trim();
         const pId = String((l as any).patientId || '');
@@ -444,13 +440,11 @@ export class BillingService {
         const pod = (a as any).podId || (a as any).pod_id;
         const src = String(a.source || (a as any).source || '').toLowerCase();
         const isWa = src.includes('whatsapp') || Boolean(a.isVirtual || (a as any).is_virtual);
-        const isPodMatch = !pod || pod === effectivePod || pod === FALLBACK_POD_ID || effectivePod === FALLBACK_POD_ID || pod === 'default-pod';
+        const isPodMatch = !pod || pod === 'undefined' || pod === 'null' || pod === effectivePod || pod === FALLBACK_POD_ID || effectivePod === FALLBACK_POD_ID || pod === 'default-pod';
         if (!isPodMatch && !isWa) {
           return false;
         }
-        if (!pod && effectivePod) {
-          (a as any).podId = effectivePod;
-        }
+
         const id = a.id || '';
         const pName = String((a as any).patient_name || (a as any).patientName || '').toLowerCase().trim();
         const pId = String(a.patientId || (a as any).patient_id || '');
@@ -466,10 +460,7 @@ export class BillingService {
   }
 
   static saveAppointment(appt: Appointment): void {
-    const currentPodId = getPodContext().podId;
-    if (currentPodId && !(appt as any).podId && !(appt as any).pod_id) {
-      (appt as any).podId = currentPodId;
-    }
+    // Removed aggressive podId assignment to respect CDC dual-writes
     cloudStore.applyLocalDiff('appointments', appt);
     const appts = this.getAppointments();
     const idx = appts.findIndex(a => a.id === appt.id);
@@ -488,7 +479,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist appointment mutation to Supabase
     (async () => {
       try {
-        const podId = (appt as any).podId || (appt as any).pod_id || currentPodId || null;
+        const podId = (appt as any).podId || (appt as any).pod_id || getPodContext().podId || null;
         const nowISO = new Date().toISOString();
         const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
         const pId = appt.patientId || (appt as any).patient_id;
@@ -558,9 +549,7 @@ export class BillingService {
         if (pod && effectivePod && pod !== effectivePod && pod !== FALLBACK_POD_ID && effectivePod !== FALLBACK_POD_ID) {
           return false;
         }
-        if (!pod && effectivePod) {
-          (i as any).podId = effectivePod;
-        }
+
         const id = i.id || '';
         const pName = String((i as any).patientName || '').toLowerCase().trim();
         const pId = String(i.patientId || '');
@@ -574,10 +563,7 @@ export class BillingService {
   }
 
   static saveInvoice(invoice: Invoice): void {
-    const currentPodId = getPodContext().podId;
-    if (currentPodId && !(invoice as any).podId && !(invoice as any).pod_id) {
-      (invoice as any).podId = currentPodId;
-    }
+    // Removed aggressive podId assignment to respect CDC dual-writes
     const invoices = this.getInvoices();
     const idx = invoices.findIndex(i => i.id === invoice.id);
     if (idx >= 0) invoices[idx] = invoice;
@@ -593,7 +579,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist invoice mutation to Supabase
     (async () => {
       try {
-        const podId = (invoice as any).podId || (invoice as any).pod_id || currentPodId || null;
+        const podId = (invoice as any).podId || (invoice as any).pod_id || getPodContext().podId || null;
         const nowISO = new Date().toISOString();
         const pId = (invoice as any).patientId || (invoice as any).patient_id || '';
         const apptId = (invoice as any).appointmentId || (invoice as any).appointment_id || null;
@@ -638,10 +624,7 @@ export class BillingService {
   }
 
   static savePrescription(rx: Prescription): void {
-    const currentPodId = getPodContext().podId;
-    if (currentPodId && !(rx as any).podId && !(rx as any).pod_id) {
-      (rx as any).podId = currentPodId;
-    }
+    // Removed aggressive podId assignment to respect CDC dual-writes
     const prescriptions = this.getPrescriptions();
     const idx = prescriptions.findIndex(p => p.id === rx.id);
     if (idx >= 0) prescriptions[idx] = rx;
@@ -656,7 +639,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist prescription mutation to Supabase
     (async () => {
       try {
-        const podId = (rx as any).podId || (rx as any).pod_id || currentPodId || FALLBACK_POD_ID;
+        const podId = (rx as any).podId || (rx as any).pod_id || getPodContext().podId || FALLBACK_POD_ID;
         await supabase.from('saas_prescriptions').upsert({
           id: rx.id,
           encounter_id: (rx as any).encounterId || (rx as any).encounter_id || rx.id,
@@ -990,8 +973,29 @@ export class BillingService {
     
     // Check if splits already exist for this invoiceId and target transaction type
     const targetType = type === 'consult' ? 'appointment_fee' : (type === 'lab' ? 'lab_commission' : 'medicine_commission');
-    const exists = ledgerEntries.some(l => l.invoiceId === invoiceId && (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee')));
-    if (exists) return;
+    const existingIdx = ledgerEntries.findIndex(l => l.invoiceId === invoiceId && (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee')));
+    if (existingIdx !== -1) {
+      let updated = false;
+      for (let i = 0; i < ledgerEntries.length; i++) {
+        if (ledgerEntries[i].invoiceId === invoiceId && ledgerEntries[i].paymentStatus !== 'cleared') {
+          ledgerEntries[i].paymentStatus = 'cleared';
+          ledgerEntries[i].paymentMethod = paymentMethod;
+          ledgerEntries[i].settledAt = new Date().toISOString();
+          updated = true;
+        }
+      }
+      if (updated) {
+        save('financial_ledgers', ledgerEntries);
+        supabase.from('financial_ledgers').update({
+          payment_status: 'cleared',
+          payment_method: paymentMethod,
+          settled_at: new Date().toISOString()
+        }).eq('invoice_id', invoiceId).then(({ error }) => {
+           if (error) console.error('Error updating ledger status in Supabase:', error);
+        });
+      }
+      return;
+    }
 
     // Fetch active SOP or use defaults for doctor/lab splits
     const activeSop = this.getActiveSop();

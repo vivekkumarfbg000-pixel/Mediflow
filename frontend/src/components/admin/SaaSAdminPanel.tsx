@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, clearSupabaseTokens } from '../../lib/supabaseClient';
 import { SystemHealthCockpit } from './SystemHealthCockpit';
 import { api } from '../../services/api';
 import { PatientService } from '../../services/patientService';
@@ -1706,6 +1706,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
       localStorage.removeItem('vitalsync_admin_logged_in');
       setIsAdmin(false);
       await supabase.auth.signOut({ scope: 'local' });
+      clearSupabaseTokens();
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
           title: 'Signed Out Successfully 👋',
@@ -1755,6 +1756,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
           }));
         } else {
           await supabase.auth.signOut();
+          clearSupabaseTokens();
           setIsAdmin(false);
           throw new Error('Access Denied: This account does not possess Platform Owner authorization.');
         }

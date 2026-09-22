@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrandMark } from './BrandMark';
-import { supabase, isMissingEnv } from '../../lib/supabaseClient';
+
+import { supabase, clearSupabaseTokens, isMissingEnv } from '../../lib/supabaseClient';
+import { useClinic } from '../../context/ClinicContext';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
@@ -188,7 +190,7 @@ const getConsecutiveFailures = (email: string): number => {
   const now = new Date().getTime();
   let count = 0;
   for (const attempt of attempts) {
-    if (attempt.email.trim().toLowerCase() === email.trim().toLowerCase()) {
+    if (String(attempt.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase()) {
       if (attempt.success) {
         break;
       }
@@ -206,7 +208,7 @@ const checkLockout = (email: string): { locked: boolean; remainingSeconds: numbe
   const failures = getConsecutiveFailures(email);
   if (failures < 5) return { locked: false, remainingSeconds: 0 };
   
-  const attempts = getLoginAttempts().filter(a => a.email.trim().toLowerCase() === email.trim().toLowerCase());
+  const attempts = getLoginAttempts().filter(a => String(a.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase());
   if (attempts.length === 0) return { locked: false, remainingSeconds: 0 };
   
   const lastFailureTime = new Date(attempts[0]?.timestamp || Date.now()).getTime();
@@ -837,6 +839,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     setLoading(true);
     try {
       await supabase.auth.signOut({ scope: 'local' });
+      clearSupabaseTokens();
       setSessionWithNoProfile(null);
       setOauthOnboardingRole(null);
     } catch (err) {
@@ -1004,6 +1007,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isSingleDomain;
         if (!isAdminSubdomain) {
           await supabase.auth.signOut({ scope: 'local' });
+          clearSupabaseTokens();
           const adminUrl = 'https://admin.vitalsync.in';
           console.log('[Mediflow Auth] Admin account detected on wrong origin. Redirecting to:', adminUrl);
           window.location.href = adminUrl;
@@ -1924,6 +1928,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         // Role verified
       } else {
         await supabase.auth.signOut({ scope: 'local' });
+        clearSupabaseTokens();
         const accessErr = new Error('Access Denied: Restricted to Doctors and Platform Admin.');
         (accessErr as any).code = 'ERR_INVALID_CREDENTIALS';
         throw accessErr;
@@ -1940,6 +1945,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         const isAdminSubdomain = hostname === 'admin.vitalsync.in' || hostname.startsWith('admin.') || isSingleDomain || isLocalDevHost;
         if (!isAdminSubdomain) {
           await supabase.auth.signOut({ scope: 'local' });
+          clearSupabaseTokens();
           const adminUrl = hostname === 'localhost' || hostname === '127.0.0.1'
             ? `http://admin.localhost:${window.location.port || '5173'}`
             : 'https://admin.vitalsync.in';

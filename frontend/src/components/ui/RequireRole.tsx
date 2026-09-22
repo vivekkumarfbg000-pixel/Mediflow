@@ -40,11 +40,11 @@ export const RequireRole: React.FC<RequireRoleProps> = ({
     allowedRoles.includes('*') || 
     allowedRoles.includes(normRole) ||
     allowedRoles.includes(role) ||
-    (doctorFamily.includes(normRole) && allowedRoles.some(r => doctorFamily.includes(r.toLowerCase()))) ||
-    (adminFamily.includes(normRole) && allowedRoles.some(r => adminFamily.includes(r.toLowerCase()))) ||
-    (compounderFamily.includes(normRole) && allowedRoles.some(r => compounderFamily.includes(r.toLowerCase()))) ||
-    (labFamily.includes(normRole) && allowedRoles.some(r => labFamily.includes(r.toLowerCase()))) ||
-    (pharmacyFamily.includes(normRole) && allowedRoles.some(r => pharmacyFamily.includes(r.toLowerCase())));
+    (doctorFamily.includes(normRole) && allowedRoles.some(r => doctorFamily.includes(String(r || '').toLowerCase()))) ||
+    (adminFamily.includes(normRole) && allowedRoles.some(r => adminFamily.includes(String(r || '').toLowerCase()))) ||
+    (compounderFamily.includes(normRole) && allowedRoles.some(r => compounderFamily.includes(String(r || '').toLowerCase()))) ||
+    (labFamily.includes(normRole) && allowedRoles.some(r => labFamily.includes(String(r || '').toLowerCase()))) ||
+    (pharmacyFamily.includes(normRole) && allowedRoles.some(r => pharmacyFamily.includes(String(r || '').toLowerCase())));
 
   if (isAllowed) {
     return <>{children}</>;

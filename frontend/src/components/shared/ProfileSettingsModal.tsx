@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, clearSupabaseTokens } from '../../lib/supabaseClient';
 import { useClinic } from '../../context/ClinicContext';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { 
@@ -265,6 +265,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       localStorage.clear();
       sessionStorage.clear();
       await supabase.auth.signOut({ scope: 'local' });
+      clearSupabaseTokens();
       window.location.replace(window.location.origin);
     } catch (err: any) {
       console.error('[ProfileSettingsModal] Account deletion failed:', err);

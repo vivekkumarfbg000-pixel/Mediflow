@@ -1128,6 +1128,20 @@ export class StateHealingEngine {
 
         const keysToFlush = ['whatsapp_sessions', 'reagents', 'pharmacy_inventory'];
         keysToFlush.forEach(k => localStorage.removeItem(k));
+        
+        // Fix: Dynamic regex-based auth token clearing to prevent session bleeding
+        const authKeysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && /^sb-.*-auth-token$/.test(key)) {
+            authKeysToRemove.push(key);
+          }
+        }
+        authKeysToRemove.forEach(k => localStorage.removeItem(k));
+        if (authKeysToRemove.length > 0) {
+          healingSteps.push(`🧹 Purged ${authKeysToRemove.length} stale Auth Token(s) to prevent session bleeding.`);
+        }
+
         healingSteps.push(`🗑️ Cache flushed for local stores: [${keysToFlush.join(', ')}]`);
 
         // Check if error is role or loading watchdog related to run RPC reconciliation

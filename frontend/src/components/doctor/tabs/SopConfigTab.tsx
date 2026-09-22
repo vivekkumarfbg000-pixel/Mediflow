@@ -734,8 +734,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                         <span className={`text-[10px] font-semibold w-14 ${s.color}`}>{s.label}</span>
                         <input
                           type="number"
-                          value={extractedConfig.splits[s.key] ?? 0}
-                          onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, [s.key]: parseFloat(e.target.value) || 0}})}
+                          value={extractedConfig?.splits?.[s.key] ?? 0}
+                          onChange={e => setExtractedConfig({...extractedConfig, splits: {...(extractedConfig?.splits || {}), [s.key]: parseFloat(e.target.value) || 0}})}
                           className="flex-1 bg-white border border-violet-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                         />
                         <span className="text-[10px] text-slate-600">%</span>
@@ -756,8 +756,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       <span className="text-[10px] font-semibold w-14 text-teal-700">Doctor</span>
                       <input
                         type="number"
-                        value={extractedConfig.splits.pharmacyDoctor ?? 12}
-                        onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, pharmacyDoctor: parseFloat(e.target.value) || 0}})}
+                        value={extractedConfig?.splits?.pharmacyDoctor ?? 12}
+                        onChange={e => setExtractedConfig({...extractedConfig, splits: {...(extractedConfig?.splits || {}), pharmacyDoctor: parseFloat(e.target.value) || 0}})}
                         className="flex-1 bg-white border border-teal-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
                       />
                       <span className="text-[10px] text-slate-600">%</span>
@@ -766,15 +766,15 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       <span className="text-[10px] font-semibold w-14 text-violet-700">Platform</span>
                       <input
                         type="number"
-                        value={extractedConfig.splits.pharmacyPlatform ?? 2}
-                        onChange={e => setExtractedConfig({...extractedConfig, splits: {...extractedConfig.splits, pharmacyPlatform: parseFloat(e.target.value) || 0}})}
+                        value={extractedConfig?.splits?.pharmacyPlatform ?? 2}
+                        onChange={e => setExtractedConfig({...extractedConfig, splits: {...(extractedConfig?.splits || {}), pharmacyPlatform: parseFloat(e.target.value) || 0}})}
                         className="flex-1 bg-white border border-teal-200 rounded-lg px-2 py-0.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-300"
                       />
                       <span className="text-[10px] text-slate-600">%</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-teal-800 font-medium pt-1">
                       <span>Chemist Net Keep:</span>
-                      <span className="font-bold">{Math.max(0, 100 - (extractedConfig.splits.pharmacyDoctor ?? 12) - (extractedConfig.splits.pharmacyPlatform ?? 2))}%</span>
+                      <span className="font-bold">{Math.max(0, 100 - (extractedConfig?.splits?.pharmacyDoctor ?? 12) - (extractedConfig?.splits?.pharmacyPlatform ?? 2))}%</span>
                     </div>
                   </div>
                 </div>
@@ -829,8 +829,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                         <span className="text-xs text-slate-500">₹</span>
                         <input
                           type="number"
-                          value={extractedConfig.test_prices[loinc] ?? 350}
-                          onChange={e => setExtractedConfig({...extractedConfig, test_prices: {...extractedConfig.test_prices, [loinc]: parseFloat(e.target.value) || 0}})}
+                          value={extractedConfig.test_prices?.[loinc] ?? 350}
+                          onChange={e => setExtractedConfig({...extractedConfig, test_prices: {...(extractedConfig.test_prices || {}), [loinc]: parseFloat(e.target.value) || 0}})}
                           className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300"
                         />
                       </div>
@@ -840,14 +840,14 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
               </div>
 
               {/* Guidelines */}
-              {extractedConfig.guidelines.length > 0 && (
+              {(extractedConfig.guidelines || []).length > 0 && (
                 <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 space-y-2">
                   <div className="flex items-center gap-2 text-amber-700 font-bold text-xs uppercase tracking-wider">
                     <ListChecks className="w-4 h-4 shrink-0" />
                     Extracted Workflow Guidelines
                   </div>
                   <ul className="space-y-1.5">
-                    {extractedConfig.guidelines.map((g: string, i: number) => (
+                    {(extractedConfig.guidelines || []).map((g: string, i: number) => (
                       <li key={`guide-extracted-${i}-${String(g).substring(0, 15)}`} className="flex items-start gap-2 text-xs text-amber-800">
                         <ChevronRight className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
                         {g}

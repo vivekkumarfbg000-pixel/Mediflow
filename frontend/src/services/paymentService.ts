@@ -5,7 +5,9 @@
 
 import { supabase } from '../lib/supabaseClient';
 
-export type PaymentGatewayProvider = 'upi' | 'phonepe' | 'paytm' | 'razorpay' | 'cashfree' | 'cash';
+import type { PaymentMethod } from '../types';
+
+export type PaymentGatewayProvider = Extract<PaymentMethod, 'upi' | 'phonepe' | 'paytm' | 'razorpay' | 'cashfree' | 'cash'>;
 
 export interface PaymentOrderParams {
   invoiceId: string;

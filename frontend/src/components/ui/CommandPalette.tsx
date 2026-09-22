@@ -102,7 +102,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   // Filter commands and patients based on search text query
   const filteredItems = useMemo(() => {
-    const cleanQuery = query.toLowerCase().trim();
+    const cleanQuery = String(query || '').toLowerCase().trim();
     if (!cleanQuery) {
       return [
         ...staticCommands.map(cmd => ({ ...cmd, type: 'command' as const })),

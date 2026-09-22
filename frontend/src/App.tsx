@@ -121,7 +121,7 @@ import { WhatsAppPaymentPage } from './pages/WhatsAppPaymentPage';
 import { LegalPoliciesPage } from './pages/LegalPoliciesPage';
 import { DoctorPitchDeckPrintPage } from './pages/DoctorPitchDeckPrintPage';
 import { VisitingCardPrintPage } from './pages/VisitingCardPrintPage';
-import { supabase } from './lib/supabaseClient';
+import { supabase, clearSupabaseTokens } from './lib/supabaseClient';
 import { CheckCircle2, AlertCircle, Info, AlertTriangle, X, Loader2, Shield, Lock, Eye, EyeOff, ArrowRight, Sun, Moon, LogOut, Menu, Settings } from 'lucide-react';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { RequireRole } from './components/ui/RequireRole';
@@ -1530,7 +1530,7 @@ export default function App() {
     // 6. Non-blocking resilient Supabase Auth Revocation with 1000ms safety timeout fallback
     try {
       await Promise.race([
-        supabase.auth.signOut({ scope: 'local' }),
+        supabase.auth.signOut({ scope: 'local' }).then(() => clearSupabaseTokens()),
         new Promise(resolve => setTimeout(resolve, 1000))
       ]);
     } catch (err) {

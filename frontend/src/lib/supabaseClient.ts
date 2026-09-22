@@ -20,3 +20,13 @@ export const supabase = createClient(
   }
 );
 
+export function clearSupabaseTokens() {
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && /^sb-.*-auth-token$/.test(key)) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+}

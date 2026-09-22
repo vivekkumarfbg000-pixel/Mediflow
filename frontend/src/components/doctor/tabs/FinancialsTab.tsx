@@ -254,7 +254,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   const getPaymentModeLabel = useCallback((entry: FinancialLedgerEntry) => {
     const mode = entry.paymentMethod || (invoices.find(i => i.id === entry.invoiceId)?.paymentMethod);
     if (mode === 'cash') return 'Cash Counter 💵';
-    if (mode === 'whatsapp') return 'WhatsApp UPI 💬';
+    if (mode === 'whatsapp_pay') return 'WhatsApp UPI 💬';
     if (mode === 'card') return 'Card POS 💳';
     const inv = invoices.find(i => i.id === entry.invoiceId || i.encounterId === entry.invoiceId);
     const appt = appointments.find(a => a.id === entry.invoiceId || (inv && a.id === inv.encounterId));

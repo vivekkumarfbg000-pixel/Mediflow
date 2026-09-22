@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Camera,
   Upload,
@@ -41,6 +41,14 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   const [telemetryStep, setTelemetryStep] = useState<number>(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (uploadedImageUrl) {
+        URL.revokeObjectURL(uploadedImageUrl);
+      }
+    };
+  }, [uploadedImageUrl]);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
 
   // Extracted Data State
@@ -232,12 +240,16 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     setCurrentStep('committing');
 
     try {
-      const patientData = { ...extractedPatient, phone: inputMobileNumber };
-      
-      // 1. Auto-commit to sovereign clinic registry (Bug 4: Look up first to prevent duplicates)
+      const rawPhone = inputMobileNumber;
       const allSavedPats = PatientService.getPatients();
-      const canonicalPat = allSavedPats.find(p => (patientData.phone && (p.phone || '').replace(/\D/g, '').slice(-10) === patientData.phone)) || patientData;
-      patientData.id = canonicalPat.id;
+      const canonicalPat = allSavedPats.find(p => (rawPhone && (p.phone || '').replace(/\D/g, '').slice(-10) === rawPhone)) || ({} as any);
+
+      const patientData: any = {
+        ...canonicalPat,
+        ...extractedPatient,
+        id: canonicalPat.id || extractedPatient.id,
+        phone: rawPhone,
+      };
 
       if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment') {
         patientData.queueStatus = 'completed';
@@ -246,10 +258,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       }
       
       // Bug 4 Fix: Enforce no fake ABHA for OCR
-      patientData.abhaId = undefined as any; 
+      patientData.abhaId = canonicalPat.abhaId || undefined;
       
       // Add source for Vitals Queue exclusion
-      (patientData as any).source = 'paper_scan';
+      patientData.source = 'paper_scan';
 
       // Ensure chronic flags are set before dual-write to avoid race condition overriding to false
       if (chronicBadges && chronicBadges.length > 0) {
@@ -283,14 +295,36 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         } as any);
       }
 
-      // 3. Create clinical encounter with medications and labs
+      const calculateQuantity = (freq: string, dur: string): number | undefined => {
+        if (!freq || !dur) return undefined;
+        let perDay = 0;
+        const fStr = freq.toLowerCase();
+        if (fStr.includes('1-0-1') || fStr.includes('bd')) perDay = 2;
+        else if (fStr.includes('1-1-1') || fStr.includes('tds')) perDay = 3;
+        else if (fStr.includes('1-0-0') || fStr.includes('0-1-0') || fStr.includes('0-0-1') || fStr.includes('od') || fStr.includes('hs') || fStr.includes('sos')) perDay = 1;
+        else if (fStr.includes('1-1-1-1') || fStr.includes('qid')) perDay = 4;
+        
+        let days = 0;
+        const dStr = dur.toLowerCase();
+        const numMatch = dStr.match(/\d+/);
+        if (numMatch) {
+          const val = parseInt(numMatch[0]);
+          if (dStr.includes('week') || dStr.includes('wk')) days = val * 7;
+          else if (dStr.includes('month') || dStr.includes('mo')) days = val * 30;
+          else days = val; 
+        }
+        
+        if (perDay > 0 && days > 0) return perDay * days;
+        return undefined;
+      };
+
       const encounterMeds: MedicationRequest[] = extractedMeds.map((m: any, idx: number) => ({
         id: `med-${idx}`,
         medicineName: m.medicineName || m.name || 'Prescribed Medicine',
         dosage: m.dosage || '1 Tab',
         frequency: m.frequency || '1-0-1',
         duration: m.duration || '15 Days',
-        quantity: m.quantity || undefined
+        quantity: m.quantity || calculateQuantity(m.frequency || '1-0-1', m.duration || '15 Days') || undefined
       }));
 
       EncounterService.createEncounter({
@@ -362,7 +396,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       } else {
         window.dispatchEvent(
           new CustomEvent('mediflow-change-tab', {
-            detail: { tab: 'billing_daycare', patientId: patientData.id }
+            detail: { tab: 'billing_daycare', payload: { patientId: patientData.id } }
           })
         );
         window.dispatchEvent(

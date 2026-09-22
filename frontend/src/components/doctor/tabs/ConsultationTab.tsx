@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { categorizeAppointments, isVipBooking, compareAppointmentsForQueue } from '../../../services/appointmentPipeline';
+import { isAppointmentPaid } from '../../../utils/paymentGate';
 import { api } from '../../../services/api';
 import { PharmacyService } from '../../../services/pharmacyService';
 import { BillingService } from '../../../services/billingService';
@@ -268,7 +270,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       const paidInvoicePatientIds = clearedInvoices.map((i: any) => i.patientId || (i as any).patient_id);
       const paidInvoicePhones = clearedInvoices.map((i: any) => cleanPhone(i.patientPhone || (i as any).patient_phone)).filter(Boolean);
 
-      const clearedAppts = appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled');
+      const clearedAppts = appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id) && a.status !== 'cancelled');
       const paidPatientIds = new Set([
         ...clearedAppts.map(a => a.patientId || (a as any).patient_id),
         ...paidInvoicePatientIds
@@ -288,7 +290,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       };
 
       const isPatientForToday = (p: Patient) => {
-        const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+        const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && isAppointmentPaid(a.patientId || (a as any).patient_id));
         if (patAppts.length > 0) {
           return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr);
         }
@@ -345,6 +347,14 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
   // Longitudinal AI Trend Intelligence States
   const [showAiTrendPanel, setShowAiTrendPanel] = useState(false);
   const [uploadedLabFile, setUploadedLabFile] = useState<{ fileName: string; fileUrl: string; isAnalyzing: boolean } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (uploadedLabFile?.fileUrl) {
+        URL.revokeObjectURL(uploadedLabFile.fileUrl);
+      }
+    };
+  }, [uploadedLabFile?.fileUrl]);
 
   // Package C States: Follow-up Scheduler & Pediatric Calculator
   const [followUpDays, setFollowUpDays] = useState<number | null>(null);
@@ -1760,7 +1770,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const paidInvoicePatientIds = clearedInvoices.map((i: any) => i.patientId || (i as any).patient_id);
               const paidInvoicePhones = clearedInvoices.map((i: any) => cleanPhone(i.patientPhone || (i as any).patient_phone)).filter(Boolean);
 
-              const clearedAppts = appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled');
+              const clearedAppts = appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id) && a.status !== 'cancelled');
               const paidPatientIds = new Set([
                 ...clearedAppts.map(a => a.patientId || (a as any).patient_id),
                 ...paidInvoicePatientIds
@@ -1780,7 +1790,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               };
 
               const isPatientForToday = (p: Patient) => {
-                const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && isAppointmentPaid(a.patientId || (a as any).patient_id));
                 if (patAppts.length > 0) {
                   return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr);
                 }
@@ -1794,7 +1804,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               const awaitingList = patients.filter(p => {
                 if (!isPatientPaid(p)) return false;
                 if (isCompletedPat(p)) return false;
-                if ((p.queueStatus as any) === 'pending_payment') return false;
+                if (!isAppointmentPaid(p.id)) return false;
                 if (!isPatientForToday(p)) return false;
                 return p.queueStatus !== 'in_consultation';
               });
@@ -1806,7 +1816,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
               });
               const completedList = patients.filter(p => isCompletedPat(p) && isPatientForToday(p));
               const upcomingList = patients.filter(p => {
-                const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && isAppointmentPaid(a.patientId || (a as any).patient_id));
                 return patAppts.some(a => {
                   const d = getEffectiveAppointmentDate(a);
                   return Boolean(d && d > todayStr);
@@ -1917,7 +1927,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const paidInvoicePatientIds = clearedInvoices.map((i: any) => i.patientId || (i as any).patient_id);
                 const paidInvoicePhones = clearedInvoices.map((i: any) => cleanPhone(i.patientPhone || (i as any).patient_phone)).filter(Boolean);
 
-                const clearedAppts = appointments.filter(a => a.status !== 'pending_payment' && a.status !== 'cancelled');
+                const clearedAppts = appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id) && a.status !== 'cancelled');
                 const paidPatientIds = new Set([
                   ...clearedAppts.map(a => a.patientId || (a as any).patient_id),
                   ...paidInvoicePatientIds
@@ -1937,7 +1947,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 };
 
                 const isPatientForToday = (p: Patient) => {
-                  const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                  const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && isAppointmentPaid(a.patientId || (a as any).patient_id));
                   if (patAppts.length > 0) {
                     return patAppts.some(a => getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt || (a as any).created_at) === todayStr);
                   }
@@ -1951,7 +1961,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                 const queuePatients = patients
                   .filter(p => {
                     if (queueFilter === 'upcoming') {
-                      const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && a.status !== 'pending_payment');
+                      const patAppts = appointments.filter(a => matchApptToPatient(a, p) && a.status !== 'cancelled' && isAppointmentPaid(a.patientId || (a as any).patient_id));
                       return patAppts.some(a => {
                         const d = getEffectiveAppointmentDate(a);
                         return Boolean(d && d > todayStr);

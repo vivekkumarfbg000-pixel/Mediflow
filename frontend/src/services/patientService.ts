@@ -97,7 +97,7 @@ export class PatientService {
     } else {
       patients.push(patient);
     }
-    cloudStore.applyLocalDiff('patients', patient);
+    cloudStore.applyLocalDiff('patients', idx >= 0 ? patients[idx] : patient);
     this.savePatients(patients);
 
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist single patient mutation to Supabase

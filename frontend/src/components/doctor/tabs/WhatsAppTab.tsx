@@ -730,7 +730,7 @@ export const WhatsAppTab: React.FC<WhatsAppTabProps> = React.memo(({
 
                   return (
                     // Bug Fix #8: Use stable composite key (timestamp+text snippet) to prevent React reconciliation glitches
-                    <div key={msg.id || msg.timestamp || `msg-${idx}-${(msg.text || '').slice(0, 10)}`} className="flex flex-col w-full max-w-[88%] space-y-0.5 relative">
+                    <div key={`msg-${msg.id || msg.timestamp || 't'}-${msg.sender}-${(msg.text || '').slice(0, 15).replace(/\s+/g, '')}`} className="flex flex-col w-full max-w-[88%] space-y-0.5 relative">
                       <div className={`p-3 text-xs leading-relaxed font-sans shadow-2xs ${bubbleStyle}`}>
                         <p className="whitespace-pre-line">{msg.text}</p>
                         {(msg.text || '').includes('/pay') && (

@@ -98,7 +98,15 @@ export const LabDashboard: React.FC = () => {
   const [walkinTestSearch, setWalkinTestSearch] = useState('');
   const [isWalkinTestDropdownOpen, setIsWalkinTestDropdownOpen] = useState(false);
   const [directFile, setDirectFile] = useState<File | null>(null);
-  const [directFilePreviewUrl, setDirectFilePreviewUrl] = useState('');
+  const [directFilePreviewUrl, setDirectFilePreviewUrl] = useState<string>('');
+
+  useEffect(() => {
+    return () => {
+      if (directFilePreviewUrl) {
+        URL.revokeObjectURL(directFilePreviewUrl);
+      }
+    };
+  }, [directFilePreviewUrl]);
   const [directSearch, setDirectSearch] = useState('');
 
   // ── Rate Card Management States ──────────────────────────────────
