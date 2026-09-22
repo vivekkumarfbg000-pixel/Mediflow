@@ -251,6 +251,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       // Add source for Vitals Queue exclusion
       (patientData as any).source = 'paper_scan';
 
+      // Ensure chronic flags are set before dual-write to avoid race condition overriding to false
+      if (chronicBadges && chronicBadges.length > 0) {
+        patientData.isChronic = true;
+        patientData.chronicConditions = chronicBadges;
+      }
+
       PatientService.savePatient(patientData);
 
       // 2. 🌟 RESTORED AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins (Idempotent Check)

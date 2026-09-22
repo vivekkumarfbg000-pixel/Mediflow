@@ -54,6 +54,14 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 
 ---
 
+## 🚫 RULE 1.3: THE ZERO-DATA-ENTRY OCR & DUAL-WRITE CDC INVARIANTS 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: PREVENTING RACE CONDITIONS AND AUTONOMOUS UI INTRUSIONS.**
+- **No Autonomous Modals (Zero-Data-Entry Enforcement):** During OCR, Walk-in, or automated ingestion flows, NEVER use `useEffect` or component lifecycle methods to forcefully spawn modals or UI interruptions (e.g., the Vitals pop-up). Modals MUST only spawn upon explicit, intentional user click actions.
+- **Dual-Write Supabase Race Condition Prevention:** When saving complex profiles (e.g., `patientData` in `AiPrescriptionUploadTab.tsx`), AI agents MUST ensure that ALL relevant entity flags (e.g., `isChronic`, `chronicConditions`) are explicitly appended to the base object BEFORE firing background `upsert` or dual-write functions (like `PatientService.savePatient()`). Failure to do this causes parallel CDC overwrites where the background upsert instantly erases flags created by parallel auto-ingestion hooks.
+- **MANDATORY PERMISSION GATE:** Any AI agent instructed to modify the OCR flow (`AiPrescriptionUploadTab.tsx`), the Vitals Intake flow (`CompounderDashboard.tsx`), or the Chronic Care ingestion loop (`chronicCareService.ts`) MUST first seek explicit user permission before touching this code to prevent structural regressions.
+
+---
+
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.
 - Always ensure that `.gitignore` lists all environment files and credentials.
