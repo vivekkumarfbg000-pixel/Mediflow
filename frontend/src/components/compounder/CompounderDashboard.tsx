@@ -2377,16 +2377,7 @@ export const CompounderDashboard: React.FC = () => {
     }
   }, [activeSession?.sessionData?.chatHistory, isAtBottom]);
 
-  // Auto-focus active patient in vitals intake form if they do not have vitals recorded yet
-  useEffect(() => {
-    const isCompleted = activePatient?.queueStatus === 'completed' || (activePatient?.queueStatus as string) === 'post_consultation';
-    if (activePatient && !activePatient.vitals && !vitalsPatient && !isCompleted) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      document.body.style.overflow = 'hidden';
-      setVitalsPatient(activePatient);
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [activePatient, vitalsPatient]);
+
 
   // Load existing vitals into form fields & lock body scroll when vitalsPatient changes
   useEffect(() => {
