@@ -90,14 +90,12 @@ serve(async (req) => {
 
     const {
       prompt,
-      model = "gemini-3.8-flash",
+      model = "gemini-3.6-flash",
       maxTokens = 2048,
       temperature = 0.15,
       contents,
       generationConfig
     } = validationResult.data;
-
-    // ── Gemini Multimodal Vision & Text Proxy Mode ────────────────────────
     if (model?.toLowerCase().includes("gemini") || contents || model === "list") {
       const geminiKey = Deno.env.get("GEMINI_API_KEY");
       if (!geminiKey) {
@@ -128,11 +126,10 @@ serve(async (req) => {
         "gemini-pro",
       ]);
       const STABLE_FALLBACK_CHAIN = [
-        "gemini-3.8-flash",        // Primary: active stable 3.8 model
+        "gemini-3.6-flash",        // Primary: stable 3.6 model
         "gemini-3.5-flash-lite",   // High-availability lite model
         "gemini-flash-lite-latest", // Dynamic lite latest alias
         "gemini-3-flash-preview",  // Fast preview model
-        "gemini-3.6-flash",        // Stable 3.6 model
         "gemini-flash-latest",     // Dynamic latest alias
         "gemini-2.5-flash"         // Base fallback
       ];

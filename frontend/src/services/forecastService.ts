@@ -1252,7 +1252,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
           ];
 
           const fcController = new AbortController();
-          const fcTimeoutId = setTimeout(() => fcController.abort(), 18000);
+          const fcTimeout = setTimeout(() => fcController.abort(), 45000); // 45s fallback timeout (Google AI API can take 20-30s + fallback chain time)
 
           const response = await fetch(edgeFnUrl, {
             method: 'POST',
@@ -1262,7 +1262,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
               'apikey': anonKey
             },
             body: JSON.stringify({
-              model: 'gemini-3.8-flash',
+              model: 'gemini-3.6-flash',
               contents: [{ parts: requestParts }],
               generationConfig: { 
                 responseMimeType: 'application/json',
@@ -1272,7 +1272,7 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
             }),
             signal: fcController.signal
           });
-          clearTimeout(fcTimeoutId);
+          clearTimeout(fcTimeout);
 
           if (response.ok) {
             const result = await response.json();
@@ -1280,8 +1280,18 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
             latestRawText = rawText;
             if (rawText) {
               const noThoughts = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-              const jsonMatch = noThoughts.match(/\{[\s\S]*\}/);
-              const clean = jsonMatch ? jsonMatch[0] : noThoughts.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+              
+              // More robust JSON extraction regex: look for the outermost '{' and '}'
+              const firstBrace = noThoughts.indexOf('{');
+              const lastBrace = noThoughts.lastIndexOf('}');
+              
+              let clean = noThoughts;
+              if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                clean = noThoughts.substring(firstBrace, lastBrace + 1);
+              } else {
+                clean = noThoughts.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+              }
+
               try {
                 parsedResult = JSON.parse(clean);
                 if (parsedResult) {
