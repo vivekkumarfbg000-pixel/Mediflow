@@ -1097,7 +1097,7 @@ CLINICAL RULES:
 1. Extract the EXACT visible spelling of patient name, age, phone (10-digit only, else null), address, medications, dosages, frequency, and duration.
 2. If ANY patient demographic (name, age, phone, address) is missing, illegible, or not present on the prescription, YOU MUST RETURN null for that specific field. Do NOT hallucinate dummy data (e.g., do NOT return "Walk-in Patient" for a missing name, return null so the system can prompt the user).
 3. Decode standard Indian clinical notation: OD/1-0-0 (Once daily), BD/1-0-1 (Twice daily), TDS/1-1-1 (Thrice daily), HS/0-0-1 (Night), SOS (As needed), AC (Before food), PC (After food).
-4. If quantity is not written, compute from frequency × duration (e.g., 1-0-1 for 15 days = 30 tabs).
+4. DO NOT compute the quantity yourself. If the exact quantity is not explicitly written on the paper, return null or omit it. The billing system will auto-calculate it from frequency and duration.
 5. Extract EVERY single medication and lab test accurately. NEVER invent medicines not written on the paper. Extract ALL medications — both Indian brand names (Metformin, Telmisartan) AND international names. Include strength, dosage form, frequency, duration exactly as written.
 6. CHRONIC DISEASE DETECTION (MANDATORY):
    - Scan ALL medicine names and diagnosis text.

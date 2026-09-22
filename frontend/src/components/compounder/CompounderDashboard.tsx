@@ -5902,9 +5902,11 @@ export const CompounderDashboard: React.FC = () => {
       {activeTab === 'ai_ocr_upload' && (
         <AiPrescriptionUploadTab 
           onSuccess={(patientId) => {
-            setSelectedPatientForBillHub(patientId);
-            setActiveTab('billing_daycare');
-            setBillingSubTab('billing');
+            startTransition(() => {
+              setSelectedPatientForBillHub(patientId);
+              setActiveTab('billing_daycare');
+              setBillingSubTab('billing');
+            });
           }}
         />
       )}
