@@ -240,7 +240,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         ...extractedPatient,
         id: canonicalPat.id || extractedPatient.id,
         phone: rawPhone,
-        podId: canonicalPat.podId || getPodContext().podId || extractedPatient.podId,
+        podId: canonicalPat.podId || getPodContext().podId || (extractedPatient as any).podId,
         queueStatus: canonicalPat.queueStatus || extractedPatient.queueStatus || 'pending_payment'
       };
 
