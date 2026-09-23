@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   Clock,
   Check,
-  Eye
+  Eye,
+  MapPin
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import type { Patient, MedicationRequest } from '../../../types';
@@ -59,9 +60,29 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   const [isAssistedReview, setIsAssistedReview] = useState<boolean>(false);
   const [inputMobileNumber, setInputMobileNumber] = useState<string>('');
   const [isEditingPhone, setIsEditingPhone] = useState<boolean>(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [inputAddress, setInputAddress] = useState<string>('');
+  const [isEditingAddress, setIsEditingAddress] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSavePatientAddress = (newAddr: string) => {
+    if (extractedPatient) {
+      const updated = { ...extractedPatient, address: newAddr.trim() || undefined };
+      setExtractedPatient(updated);
+      api.setActivePatient(updated);
+      setIsEditingAddress(false);
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Address Updated ✅',
+          message: `Saved address for ${updated.name}.`,
+          type: 'success'
+        }
+      }));
+    }
+  };
 
   const handleSavePatientPhone = (newPhone: string) => {
     const cleanPhone = newPhone.replace(/\D/g, '').slice(-10);
@@ -95,6 +116,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     if (!files || files.length === 0) return;
 
     // Display first image in scanner HUD
+    setUploadedFile(files[0]);
     const objectUrl = URL.createObjectURL(files[0]);
     setUploadedImageUrl(objectUrl);
     setErrorMessage(null);
@@ -154,7 +176,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const isFallback = (extractedPatientName || '').includes('(Assisted Review)');
       setIsAssistedReview(isFallback);
 
-      const mockId = `pat-${Date.now().toString().slice(-6)}`;
+      const mockId = crypto.randomUUID();
+      const generatedToken = PatientService.generateNextTokenNumber();
+      const extractedAddress = extractedData?.patientAddress || resObj?.patientAddress || extractedData?.address || resObj?.address || undefined;
       const patientData: Patient = {
         id: mockId,
         name: extractedPatientName,
@@ -165,7 +189,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         chronicConditions: extractedData.chronicConditions || resObj.chronicConditions || [],
         createdAt: new Date().toISOString(),
         queueStatus: 'pending_payment',
-        abhaId: undefined
+        abhaId: extractedData.abhaId || resObj.abhaId || null,
+        tokenNumber: generatedToken,
+        address: extractedAddress
       };
 
       if (cleanPhone.length >= 10) {
@@ -175,6 +201,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         setInputMobileNumber('');
         setIsEditingPhone(true);
       }
+
+      setInputAddress(extractedAddress || '');
+      setIsEditingAddress(!extractedAddress);
 
       const meds = extractedData.medications || resObj.medications || extractedData.medicines || resObj.medicines || [];
       const labs = extractedData.diagnosticTests || resObj.diagnosticTests || extractedData.labTests || resObj.labTests || [];
@@ -240,6 +269,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         ...extractedPatient,
         id: canonicalPat.id || extractedPatient.id,
         phone: rawPhone,
+        address: inputAddress.trim() || extractedPatient.address || canonicalPat.address || undefined,
         podId: canonicalPat.podId || getPodContext().podId || (extractedPatient as any).podId,
         queueStatus: canonicalPat.queueStatus || extractedPatient.queueStatus || 'pending_payment'
       };
@@ -250,10 +280,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientData.queueStatus = canonicalPat.queueStatus;
       }
       
-      // Bug 4 Fix: Enforce no fake ABHA for OCR
-      patientData.abhaId = canonicalPat.abhaId || undefined;
-      
-      // Add source for Vitals Queue exclusion
+      patientData.tokenNumber = canonicalPat.tokenNumber || patientData.tokenNumber || PatientService.generateNextTokenNumber();
+      patientData.abhaId = canonicalPat.abhaId || extractedPatient.abhaId || null;
       patientData.source = 'paper_scan';
 
       // Ensure chronic flags are set before dual-write to avoid race condition overriding to false
@@ -262,31 +290,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientData.chronicConditions = chronicBadges;
       }
 
-      PatientService.savePatient(patientData);
-
-      // 2. 🌟 RESTORED AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins (Idempotent Check)
-      const allAppts = BillingService.getAppointments();
-      const todayISO = new Date().toISOString().slice(0, 10);
-      const hasApptToday = allAppts.some(a => 
-        a.patientId === patientData.id && 
-        (a.status !== 'completed' && a.status !== 'cancelled') &&
-        (a.createdAt || '').slice(0, 10) === todayISO
-      );
-      
-      if (!hasApptToday) {
-        const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
-        BillingService.saveAppointment({
-          id: crypto.randomUUID(),
-          patientId: patientData.id,
-          patientName: patientData.name,
-          doctorId: resolvedDoctorId,
-          date: todayISO,
-          time: 'Walk-in',
-          status: 'confirmed',
-          createdAt: new Date().toISOString(),
-          source: 'paper_scan' as any
-        } as any);
-      }
+      // 1. 🌟 ATOMIC SYNCHRONOUS PERSISTENCE: Strict await on Supabase DB write to receive canonical UUID
+      const realPatientId = await PatientService.savePatientAsync(patientData);
+      patientData.id = realPatientId;
 
       const calculateQuantity = (freq: string, dur: string): number | undefined => {
         if (!freq || !dur) return undefined;
@@ -320,30 +326,83 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         quantity: m.quantity || calculateQuantity(m.frequency || '', m.duration || '') || undefined
       }));
 
+      // 2. 🌟 PERSIST DIGITIZED PRESCRIPTION & SCAN TO SUPABASE
+      let uploadedPublicUrl = uploadedImageUrl;
+      const rxTemplate = api.getPrescriptionTemplate();
+      const currentDocName = rxTemplate.doctorName || 'Doctor';
+      const currentClinicTitle = rxTemplate.clinicName || 'Clinic';
+
+      try {
+        const persistRes = await PaperModeService.persistPrescriptionToSupabase({
+          patientId: realPatientId,
+          patientName: patientData.name,
+          patientPhone: patientData.phone,
+          patientAddress: patientData.address,
+          doctorName: currentDocName,
+          clinicName: currentClinicTitle,
+          medications: encounterMeds,
+          diagnosticTests: extractedLabs,
+          isChronic: patientData.isChronic,
+          chronicConditions: patientData.chronicConditions,
+          prescriptionImageFile: uploadedFile
+        });
+        if (persistRes?.prescriptionImageUrl) {
+          uploadedPublicUrl = persistRes.prescriptionImageUrl;
+        }
+      } catch (paperErr) {
+        console.warn('[OCR] PaperModeService.persistPrescriptionToSupabase notice:', paperErr);
+      }
+
+      // 3. 🌟 AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins using canonical realPatientId
+      const allAppts = BillingService.getAppointments();
+      const todayISO = new Date().toISOString().slice(0, 10);
+      const hasApptToday = allAppts.some(a => 
+        (a.patientId === realPatientId || (a as any).patient_id === realPatientId) && 
+        (a.status !== 'completed' && a.status !== 'cancelled') &&
+        (a.createdAt || '').slice(0, 10) === todayISO
+      );
+      
+      const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
+      if (!hasApptToday) {
+        await BillingService.saveAppointmentAsync({
+          id: crypto.randomUUID(),
+          patientId: realPatientId,
+          patientName: patientData.name,
+          patientPhone: patientData.phone,
+          doctorId: resolvedDoctorId,
+          date: todayISO,
+          time: 'Walk-in',
+          status: 'confirmed',
+          tokenNumber: patientData.tokenNumber,
+          createdAt: new Date().toISOString(),
+          source: 'paper_scan' as any
+        } as any);
+      }
+
+      // 4. Create Encounter using canonical realPatientId
       EncounterService.createEncounter({
-        patientId: patientData.id,
+        patientId: realPatientId,
         patientName: patientData.name,
         patientPhone: patientData.phone,
-        doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
-        clinicalNotes: 'Extracted via Scanner.',
+        doctorId: resolvedDoctorId,
+        clinicalNotes: 'Extracted via AI Scanner.',
         medications: encounterMeds,
         diagnosticTests: extractedLabs
       });
 
       api.setActivePatient(patientData);
 
-      // 4. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club from OCR scan
+      // 5. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club
       if (chronicBadges.length > 0) {
         try {
           const { ChronicCareService } = await import('../../../services/chronicCareService');
-          
           for (const badge of chronicBadges) {
             await ChronicCareService.autoIngestFromEncounter({
-              patientId: patientData.id,
+              patientId: realPatientId,
               patientName: patientData.name,
               patientPhone: patientData.phone || '',
-              doctorId: getPodContext().doctorId || FALLBACK_DOCTOR_ID,
-              clinicalNotes: 'Extracted via Scanner.',
+              doctorId: resolvedDoctorId,
+              clinicalNotes: 'Extracted via AI Scanner.',
               chronicConditions: [badge],
               medications: encounterMeds.map(m => ({
                 medicineName: m.medicineName,
@@ -358,42 +417,63 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         }
       }
 
-      // 5. Autonomous WhatsApp Digital Dispatch (Non-blocking)
+      // 6. Autonomous WhatsApp Digital Dispatch (Non-blocking)
       if (patientData.phone && patientData.phone.length >= 10) {
-        // We assume dispatchWelcomeWhatsApp exists or can be safely called
         try {
-            (PaperModeService as any).dispatchWelcomeWhatsApp?.({
-              patientPhone: patientData.phone,
-              patientName: patientData.name,
-              patientId: patientData.id
-            });
-        } catch(e) {}
-        
-        setTimeout(() => {
+          PaperModeService.dispatchWelcomeWhatsApp({
+            patientPhone: patientData.phone,
+            patientName: patientData.name,
+            patientId: realPatientId,
+            doctorName: currentDocName || 'Doctor',
+            clinicName: currentClinicTitle || 'Clinic'
+          });
+        } catch (e) {
+          console.warn('[OCR] Welcome WhatsApp dispatch error:', e);
+        }
+
+        try {
           PaperModeService.dispatchPrescriptionWhatsApp({
             patientPhone: patientData.phone,
             patientName: patientData.name,
-            doctorName: 'Doctor',
-            clinicName: 'Clinic',
+            doctorName: currentDocName || 'Doctor',
+            clinicName: currentClinicTitle || 'Clinic',
             medications: encounterMeds,
             diagnosticTests: extractedLabs,
-            prescriptionImageUrl: uploadedImageUrl
+            prescriptionImageUrl: uploadedPublicUrl
           });
-        }, 3000);
+        } catch (e) {
+          console.warn('[OCR] Prescription WhatsApp dispatch error:', e);
+        }
       }
 
+      // Broadcast events
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Prescription Ingested & Synced ✅',
+          message: `Profile created for ${patientData.name}. Token: ${patientData.tokenNumber}. Dispatched to WhatsApp.`,
+          type: 'success'
+        }
+      }));
       
       if (onSuccess) {
-        onSuccess(patientData.id);
+        onSuccess(realPatientId);
       } else {
         window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'billing_daycare' }));
         window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: 'billing_daycare' }));
       }
 
     } catch (err: any) {
-      console.error('Commit failed:', err);
+      console.error('[OCR] Commit failed:', err);
       setCurrentStep('done');
+      setErrorMessage(err?.message || 'Failed to save patient profile. Please try again.');
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: {
+          title: 'Clinic Action Required ⚠️',
+          message: err?.message || 'Could not persist patient profile to database. Please check connection.',
+          type: 'error'
+        }
+      }));
     }
   };
 
@@ -717,8 +797,24 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                       <span>{extractedPatient.gender}</span>
                       <span>•</span>
                       <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold">
-                        {extractedPatient.abhaId || '#TK-001'}
+                        Token: {extractedPatient.tokenNumber || 'T-01'}
                       </span>
+                      {extractedPatient.patientCode && (
+                        <>
+                          <span>•</span>
+                          <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">
+                            PID: {extractedPatient.patientCode}
+                          </span>
+                        </>
+                      )}
+                      {extractedPatient.abhaId && (
+                        <>
+                          <span>•</span>
+                          <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                            ABHA: {extractedPatient.abhaId}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -777,6 +873,57 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                         </span>
                         <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                           Active WhatsApp
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Residential Address Input & Display */}
+                  <div className="py-2 border-b border-slate-100 dark:border-slate-800/80">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-slate-500 font-medium">Residential Address</span>
+                      {extractedPatient.address && !isEditingAddress && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInputAddress(extractedPatient.address || '');
+                            setIsEditingAddress(true);
+                          }}
+                          className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:underline cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      )}
+                    </div>
+                    {(!extractedPatient.address || isEditingAddress) ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            placeholder="Enter patient locality / address (e.g. Line Bazar, Purnea)"
+                            value={inputAddress}
+                            onChange={(e) => setInputAddress(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSavePatientAddress(inputAddress); }}
+                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleSavePatientAddress(inputAddress)}
+                          disabled={!inputAddress.trim()}
+                          className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-300 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs truncate max-w-[220px]">
+                          <MapPin className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
+                          {extractedPatient.address}
+                        </span>
+                        <span className="text-[10px] font-semibold text-cyan-600 bg-cyan-50 dark:bg-cyan-950/50 px-2 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800">
+                          Captured
                         </span>
                       </div>
                     )}

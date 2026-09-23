@@ -20,6 +20,7 @@
   "dependencies": {
     "@sentry/react": "^10.63.0",
     "@supabase/supabase-js": "^2.106.1",
+    "@tanstack/react-virtual": "^3.14.13",
     "lucide-react": "^1.16.0",
     "pdf-lib": "^1.17.1",
     "react": "^19.2.6",

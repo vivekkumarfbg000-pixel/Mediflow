@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback , startTransition, Suspense} from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
@@ -51,7 +51,8 @@ import {
   Activity,
   Truck,
   Upload
-} from 'lucide-react';
+,
+  Loader2} from 'lucide-react';
 
 export type PharmacyTab = 'overview' | 'dispensation_queue' | 'inventory_catalog' | 'financials_ledger';
 import { useClinic } from '../../context/ClinicContext';
@@ -166,24 +167,24 @@ export const PharmacyDashboard: React.FC = () => {
       if (customEvent.detail) {
         const target = customEvent.detail;
         if (target === 'overview' || target === 'dispensation_queue' || target === 'inventory_catalog' || target === 'financials_ledger') {
-          setActiveTab(target as PharmacyTab);
+          startTransition(() => setActiveTab(target as PharmacyTab));
         } else if (target === 'prescription_queue') {
-          setActiveTab('dispensation_queue');
+          startTransition(() => setActiveTab('dispensation_queue'));
           setDispensationSubTab('holds');
         } else if (target === 'stock_alerts' || target === 'expiry_tracker') {
-          setActiveTab('inventory_catalog');
+          startTransition(() => setActiveTab('inventory_catalog'));
           setInventorySubTab('expiry_alerts');
         } else if (target === 'billing_invoices') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('invoices');
         } else if (target === 'settlements') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('settlements');
         } else if (target === 'pod_connect') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('pod_network');
         } else if (target === 'profile_settings') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('profile');
         }
       }
@@ -705,7 +706,7 @@ export const PharmacyDashboard: React.FC = () => {
               {/* Card 1: Active Prescriptions */}
               <div 
                 onClick={() => {
-                  setActiveTab('dispensation_queue');
+                  startTransition(() => setActiveTab('dispensation_queue'));
                   setDispensationSubTab('holds');
                 }}
                 className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-emerald-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
@@ -731,7 +732,7 @@ export const PharmacyDashboard: React.FC = () => {
               {/* Card 2: WhatsApp 1-Click Orders */}
               <div 
                 onClick={() => {
-                  setActiveTab('dispensation_queue');
+                  startTransition(() => setActiveTab('dispensation_queue'));
                   setDispensationSubTab('whatsapp_refills');
                 }}
                 className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-indigo-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
@@ -757,7 +758,7 @@ export const PharmacyDashboard: React.FC = () => {
               {/* Card 3: Today's Revenue */}
               <div 
                 onClick={() => {
-                  setActiveTab('financials_ledger');
+                  startTransition(() => setActiveTab('financials_ledger'));
                   setFinancialsSubTab('invoices');
                 }}
                 className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-teal-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
@@ -783,7 +784,7 @@ export const PharmacyDashboard: React.FC = () => {
               {/* Card 4: FEFO Risk & Low Stock */}
               <div 
                 onClick={() => {
-                  setActiveTab('inventory_catalog');
+                  startTransition(() => setActiveTab('inventory_catalog'));
                   setInventorySubTab('expiry_alerts');
                 }}
                 className="glass-panel p-4 sm:p-5 border-slate-200/60 hover:border-rose-500/50 transition-all duration-200 cursor-pointer group relative overflow-hidden bg-white dark:bg-slate-900/80"
@@ -826,7 +827,7 @@ export const PharmacyDashboard: React.FC = () => {
                     </div>
                     <button
                       onClick={() => {
-                        setActiveTab('dispensation_queue');
+                        startTransition(() => setActiveTab('dispensation_queue'));
                         setDispensationSubTab('holds');
                       }}
                       className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1 transition-all cursor-pointer border-0 bg-transparent"
@@ -884,7 +885,7 @@ export const PharmacyDashboard: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                setActiveTab('dispensation_queue');
+                                startTransition(() => setActiveTab('dispensation_queue'));
                                 setDispensationSubTab('holds');
                               }}
                               className="py-1.5 px-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg transition-all cursor-pointer border-0"

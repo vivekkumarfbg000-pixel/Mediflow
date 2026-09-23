@@ -153,6 +153,10 @@ serve(async (req) => {
       const testName = templateParams?.test_name || "Diagnostic Test";
       const pdfUrl = templateParams?.pdf_url ? `\n\n📄 Download PDF: ${templateParams.pdf_url}` : "";
       plainTextMessage = `🔬 Namaste ${patientDisplayName}! Aapka *${testName}* lab report ready hai aur doctor dwara verify kar diya gaya hai.${pdfUrl}\n\nReview ke liye clinic visit karein ya WhatsApp par consult karein. 🟢`;
+    } else if (templateName === "prescription_ready") {
+      const docName = templateParams?.doctor_name || "Doctor";
+      const pdfUrl = templateParams?.pdf_url ? `\n\n📄 Download Prescription: ${templateParams.pdf_url}` : "";
+      plainTextMessage = `🩺 Namaste ${patientDisplayName}! Aapka consultation *${docName}* ke sath complete ho gaya hai. Aapki e-Prescription (digital parcha) ready hai.${pdfUrl}\n\nPharmacy se medicines collect karne ke liye counter par sampark karein. 🟢`;
     } else if (templateName === "appointment_reminder" || templateName === "dose_reminder") {
       const timeStr = templateParams?.time || "10:00 AM";
       const docName = templateParams?.doctor_name || "Doctor";

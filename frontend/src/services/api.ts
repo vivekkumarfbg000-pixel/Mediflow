@@ -1823,6 +1823,17 @@ class MediflowApiService {
     this.notify();
   }
 
+  savePatient(patient: Patient): void {
+    PatientService.savePatient(patient);
+    this.notify();
+  }
+
+  async savePatientAsync(patient: Patient): Promise<string> {
+    const id = await PatientService.savePatientAsync(patient);
+    this.notify();
+    return id;
+  }
+
   bulkRegisterPatients(patientList: Array<Omit<Patient, 'id' | 'createdAt'> & { id?: string }>): Patient[] {
     const list = PatientService.bulkRegisterPatients(patientList);
     this.notify();
@@ -1841,6 +1852,12 @@ class MediflowApiService {
   saveAppointment(appt: Appointment): void {
     BillingService.saveAppointment(appt);
     this.notify();
+  }
+
+  async saveAppointmentAsync(appt: Appointment): Promise<Appointment> {
+    const saved = await BillingService.saveAppointmentAsync(appt);
+    this.notify();
+    return saved;
   }
 
   getInvoices(): Invoice[] {

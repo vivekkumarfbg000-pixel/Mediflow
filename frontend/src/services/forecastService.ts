@@ -381,6 +381,7 @@ Return ONLY a valid JSON object matching:
       if (digitized.patientAge) structured['Age'] = String(digitized.patientAge);
       if (digitized.patientGender) structured['Gender'] = digitized.patientGender;
       if (digitized.patientPhone) structured['Phone'] = digitized.patientPhone;
+      if (digitized.patientAddress) structured['Address'] = digitized.patientAddress;
       if (digitized.clinicName) structured['Clinic Name'] = digitized.clinicName;
       if (digitized.doctorName) structured['Doctor Name'] = digitized.doctorName;
 
@@ -400,7 +401,7 @@ Return ONLY a valid JSON object matching:
         `Clinic: ${digitized.clinicName || 'Clinic'}`,
         `Doctor: ${digitized.doctorName || 'Doctor'}`,
         `Patient Name: ${digitized.patientName || 'Walkin Patient'}`,
-        `Age: ${digitized.patientAge || '35'} | Gender: ${digitized.patientGender || 'Male'} | Phone: ${digitized.patientPhone || 'N/A'}`,
+        `Age: ${digitized.patientAge || '35'} | Gender: ${digitized.patientGender || 'Male'} | Phone: ${digitized.patientPhone || 'N/A'}${digitized.patientAddress ? ` | Address: ${digitized.patientAddress}` : ''}`,
         '--- Prescribed Medications ---',
         ...(digitized.medications || []).map((m: any) => `• ${m.medicineName}: ${m.dosage || '1 Tab'} | ${m.frequency || '1-0-1'} | ${m.duration || '10 days'}`),
         '--- Requested Diagnostics ---',
@@ -1461,7 +1462,14 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
           'ultrasound': '36575-9'
         };
 
-        for (const entry of testEntries) {
+        for (let i = 0; i < testEntries.length; i++) {
+          const entry = testEntries[i];
+          
+          // Yield to main thread every 3 tests to prevent UI paint locking
+          if (i > 0 && i % 3 === 0) {
+            await new Promise(r => setTimeout(r, 0));
+          }
+
           const rawCode = (entry.code || '').trim();
           const rawName = (entry.name || '').trim();
           const nameLower = rawName.toLowerCase();

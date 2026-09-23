@@ -234,6 +234,7 @@ export class PaperModeService {
     patientId: string;
     doctorName?: string;
     clinicName?: string;
+    podId?: string;
   }): void {
     if (!params.patientPhone) {
       console.warn('[PaperMode] No phone — welcome WhatsApp skipped');
@@ -246,12 +247,25 @@ export class PaperModeService {
       .replace(/\{PatientID\}/g, `VT-${params.patientId.slice(0, 8).toUpperCase()}`)
       .replace(/\{DoctorName\}/g, params.doctorName || 'Doctor');
 
-    // Non-blocking dispatch — UI never waits for this
+    // Non-blocking deterministic edge function dispatch
     Promise.resolve().then(async () => {
       try {
         WhatsAppService.pushWhatsAppMessageFromBot(params.patientPhone, msg);
-        await WhatsAppService.sendWhatsAppMessagePayload(params.patientPhone, 'custom_text', { replyText: msg });
-        console.log('[PaperMode] ✅ Welcome WhatsApp dispatched to', params.patientPhone.slice(-4));
+        
+        const { error } = await supabase.functions.invoke('whatsapp-dispatch', {
+          body: {
+            patientId: params.patientId,
+            templateName: 'custom_text',
+            templateParams: { custom_message: msg },
+            podId: params.podId || 'default_pod'
+          }
+        });
+
+        if (error) {
+          console.warn('[PaperMode] Edge webhook dispatch notice:', error);
+        } else {
+          console.log('[PaperMode] ✅ Welcome WhatsApp dispatched via Edge Webhook');
+        }
       } catch (waErr) {
         console.warn('[PaperMode] Welcome WA dispatch notice:', waErr);
       }
@@ -288,6 +302,8 @@ export class PaperModeService {
    * Sent after welcome, contains medicine list + PDF link
    */
   static dispatchPrescriptionWhatsApp(params: {
+    patientId?: string;
+    podId?: string;
     patientPhone: string;
     patientName: string;
     doctorName: string;
@@ -322,8 +338,21 @@ export class PaperModeService {
         // 3-second delay so welcome message arrives first
         await new Promise(r => setTimeout(r, 3000));
         WhatsAppService.pushWhatsAppMessageFromBot(params.patientPhone, msg);
-        await WhatsAppService.sendWhatsAppMessagePayload(params.patientPhone, 'custom_text', { replyText: msg });
-        console.log('[PaperMode] ✅ Prescription WhatsApp dispatched');
+        
+        if (params.patientId) {
+          const { error } = await supabase.functions.invoke('whatsapp-dispatch', {
+            body: {
+              patientId: params.patientId,
+              templateName: 'custom_text',
+              templateParams: { custom_message: msg },
+              podId: params.podId || 'default_pod'
+            }
+          });
+          if (error) console.warn('[PaperMode] Edge webhook prescription dispatch notice:', error);
+          else console.log('[PaperMode] ✅ Prescription WhatsApp dispatched via Edge Webhook');
+        } else {
+          await WhatsAppService.sendWhatsAppMessagePayload(params.patientPhone, 'custom_text', { replyText: msg });
+        }
       } catch (waErr) {
         console.warn('[PaperMode] Prescription WA dispatch notice:', waErr);
       }

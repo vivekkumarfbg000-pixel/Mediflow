@@ -56,6 +56,8 @@ export class PatientService {
             patient_code: p.patientCode || null,
             vitals: p.vitals || null,
             queue_status: p.queueStatus || 'registered',
+            address: p.address || (p as any).patient_address || null,
+            is_chronic: p.isChronic || (p as any).is_chronic || ((p.chronicConditions || []).length > 0),
             pod_id: (p as any).podId || (p as any).pod_id || currentPodId || null
           });
         }
@@ -120,6 +122,17 @@ export class PatientService {
             .maybeSingle();
           if (existing?.id) {
             targetId = existing.id;
+            
+            // Re-sync local storage immediately to prevent split-brain UUIDs
+            const currentPats = PatientService.getPatients();
+            const pIdx = currentPats.findIndex(p => p.id === patient.id);
+            if (pIdx >= 0) {
+              currentPats[pIdx].id = targetId;
+              patient.id = targetId;
+              save('patients', currentPats);
+              save('patient_registry', currentPats);
+              cloudStore.applyLocalDiff('patients', currentPats[pIdx]);
+            }
           }
         }
         await supabase.from('patient_registry').upsert({
@@ -175,6 +188,152 @@ export class PatientService {
       })();
     }
   }
+
+  static async savePatientAsync(patient: Patient): Promise<string> {
+    const currentPodId = getPodContext().podId;
+    if (currentPodId && !(patient as any).podId && !(patient as any).pod_id) {
+      (patient as any).podId = currentPodId;
+    }
+    const cleanPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
+
+    // 1. Identify canonical patient ID from Supabase patient_registry
+    let targetId = patient.id && !patient.id.startsWith('mock-') ? patient.id : crypto.randomUUID();
+    
+    if (cleanPhone && cleanPhone.length >= 10) {
+      try {
+        const { data: existing } = await supabase
+          .from('patient_registry')
+          .select('id, patient_code, name, address, token_number, queue_status, is_chronic, chronic_conditions')
+          .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone}`)
+          .maybeSingle();
+
+        if (existing?.id) {
+          targetId = existing.id;
+          if (existing.patient_code && !patient.patientCode) {
+            patient.patientCode = existing.patient_code;
+          }
+          if (existing.address && !patient.address) {
+            patient.address = existing.address;
+          }
+        }
+      } catch (checkErr) {
+        console.warn('[PatientService] Patient phone lookup notice:', checkErr);
+      }
+    }
+
+    patient.id = targetId;
+
+    // 2. Ensure patientCode is assigned if missing (e.g. V1, R2, etc.)
+    const patients = this.getPatients();
+    if (!patient.patientCode) {
+      const cleanName = (patient.name || '').trim();
+      const letter = cleanName.length > 0 ? cleanName.substring(0, 1).toUpperCase() : 'P';
+      let maxNum = 0;
+      patients.forEach(p => {
+        if (p.patientCode && typeof p.patientCode === 'string') {
+          const m = p.patientCode.match(/^([A-Z]+)(\d+)$/);
+          if (m && m[1] === letter) {
+            const num = parseInt(m[2], 10);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+      });
+      patient.patientCode = `${letter}${maxNum + 1}`;
+    }
+
+    // 3. Upsert into Supabase patient_registry with strict await
+    const podId = (patient as any).podId || (patient as any).pod_id || currentPodId || null;
+    const isChronic = Boolean(
+      patient.isChronic || 
+      (patient as any).is_chronic || 
+      ((patient.chronicConditions || []).length > 0)
+    );
+
+    const upsertPayload: any = {
+      id: targetId,
+      name: patient.name,
+      phone: patient.phone || '',
+      age: patient.age || null,
+      gender: patient.gender || null,
+      allergies: patient.allergies || [],
+      chronic_conditions: patient.chronicConditions || [],
+      abha_id: patient.abhaId || null,
+      token_number: patient.tokenNumber ? String(patient.tokenNumber) : null,
+      patient_code: patient.patientCode || null,
+      vitals: patient.vitals || null,
+      queue_status: patient.queueStatus || 'registered',
+      address: patient.address || (patient as any).patient_address || null,
+      is_chronic: isChronic,
+      welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,
+      pod_id: podId
+    };
+
+    try {
+      const { data: upsertData, error: upsertErr } = await supabase
+        .from('patient_registry')
+        .upsert(upsertPayload, { onConflict: 'id' })
+        .select('id, patient_code')
+        .maybeSingle();
+
+      if (upsertData?.id) {
+        targetId = upsertData.id;
+        if (upsertData.patient_code && !patient.patientCode) {
+          patient.patientCode = upsertData.patient_code;
+        }
+      }
+
+      if (upsertErr) {
+        console.error('[PatientService] Fatal patient_registry upsert error:', upsertErr);
+        await walDB.addEntry('upsert_patient', upsertPayload);
+      }
+    } catch (dbErr) {
+      console.warn('[PatientService] Network error during patient upsert, queuing to WAL:', dbErr);
+      await walDB.addEntry('upsert_patient', upsertPayload);
+    }
+
+    // 4. Update local caches atomically with targetId
+    const idx = patients.findIndex(p => 
+      p.id === targetId || 
+      (cleanPhone.length >= 10 && (p.phone || '').replace(/\D/g, '').slice(-10) === cleanPhone)
+    );
+    if (idx >= 0) {
+      patients[idx] = { ...patients[idx], ...patient, id: targetId };
+    } else {
+      patients.push({ ...patient, id: targetId });
+    }
+    
+    cloudStore.applyLocalDiff('patients', { ...patient, id: targetId });
+    save('patients', patients);
+    save('patient_registry', patients);
+    notify();
+
+    // 5. Ingest into ChronicCare if applicable
+    if (isChronic && targetId && patient.name) {
+      try {
+        const { ChronicCareService } = await import('./chronicCareService');
+        await ChronicCareService.registerChronicPatient({
+          patientId: targetId,
+          patientName: patient.name,
+          patientPhone: patient.phone || '',
+          conditionCode: 'DIABETES',
+          conditionName: (patient.chronicConditions || [])[0] || 'Type-2 Diabetes Mellitus',
+          medications: [],
+          daysSupply: 30,
+          dispensedAt: new Date().toISOString(),
+          nextRefillDate: new Date(Date.now() + 25 * 86400000).toISOString().slice(0, 10),
+          nextRetestDate: new Date(Date.now() + 75 * 86400000).toISOString().slice(0, 10),
+          adherenceScore: 100,
+          status: 'active',
+          monthlyMedicineSpend: 1500
+        });
+      } catch (_e) {
+        console.warn('[PatientService] Chronic auto-ingest notice:', _e);
+      }
+    }
+
+    return targetId;
+  }
+
   static getPatients(): Patient[] {
     const storePats = cloudStore.getSnapshot<Patient>('patients');
     let rawPatients = (storePats && storePats.length > 0) ? [...storePats] : load<Patient[]>('patients', []);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , startTransition, Suspense} from 'react';
 import { api } from '../../services/api';
 import type { UnifiedInvoice, FinancialLedgerEntry, Patient } from '../../types';
 import { supabase } from '../../lib/supabaseClient';
@@ -19,7 +19,8 @@ import {
   BarChart3,
   Clock,
   ArrowLeftRight
-} from 'lucide-react';
+,
+  Loader2} from 'lucide-react';
 
 export const BillingDashboard: React.FC = () => {
   const [invoices, setInvoices] = useState<UnifiedInvoice[]>([]);
@@ -388,7 +389,7 @@ export const BillingDashboard: React.FC = () => {
               <div className="flex bg-slate-100 border border-slate-200 p-1.5 rounded-xl gap-1">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('invoice')}
+                  onClick={() => startTransition(() => setActiveTab('invoice'))}
                   className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     activeTab === 'invoice'
                       ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-md'
@@ -400,7 +401,7 @@ export const BillingDashboard: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('ledger')}
+                  onClick={() => startTransition(() => setActiveTab('ledger'))}
                   className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     activeTab === 'ledger'
                       ? 'bg-gradient-to-r from-cyan-600 to-rose-500 text-white shadow-md'
@@ -412,7 +413,7 @@ export const BillingDashboard: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('analytics')}
+                  onClick={() => startTransition(() => setActiveTab('analytics'))}
                   className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                     activeTab === 'analytics'
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'

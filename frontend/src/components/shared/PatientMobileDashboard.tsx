@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect , startTransition, Suspense} from 'react';
 import { api } from '../../services/api';
 import type { Patient, UnifiedInvoice, PathologyReport, Encounter, Invoice, Appointment } from '../../types';
 import { BillingService } from '../../services/billingService';
@@ -31,7 +31,8 @@ import {
   QrCode,
   ExternalLink,
   ChevronDown
-} from 'lucide-react';
+,
+  Loader2} from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { MobileNav } from './MobileNav';
 import { MetricCard } from './MetricCard';
@@ -555,7 +556,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                     </div>
                   ) : (
                     <div 
-                      onClick={() => setActiveTab('book_appointment')}
+                      onClick={() => startTransition(() => setActiveTab('book_appointment'))}
                       className="p-3.5 bg-zinc-900 hover:bg-zinc-850 border border-white/10 hover:border-cyan-500/30 rounded-2xl flex items-center justify-between cursor-pointer transition-all shadow-md group"
                     >
                       <div className="flex items-center gap-3">
@@ -574,7 +575,7 @@ export const PatientMobileDashboard: React.FC<PatientMobileDashboardProps> = ({ 
                   {/* Above-the-fold Telehealth Alerts (Datadog Style) */}
                   {pendingInvoice ? (
                     <div 
-                      onClick={() => setActiveTab('wallet')}
+                      onClick={() => startTransition(() => setActiveTab('wallet'))}
                       className="p-3.5 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-rose-500/15 transition-all animate-pulse"
                     >
                       <div className="flex gap-2.5 items-center text-rose-300">

@@ -62,6 +62,14 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 
 ---
 
+## 🚫 RULE 1.4: THE OCR PERSISTENCE AND UI PERFORMANCE INVARIANTS (PHASE 2) 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: THESE ARCHITECTURAL GUARANTEES MUST NEVER BE REVERTED.**
+- **Real UUID Enforcement:** The OCR and paper digitization pipelines MUST generate a real UUID (via `crypto.randomUUID()`) and explicitly save directly to Supabase (`patient_registry`, `saas_prescriptions`). Local storage MUST NOT be used as the primary source of truth for patient hydration or state mapping.
+- **Edge Webhook Dispatch Offloading:** Meta API calls (WhatsApp notifications) MUST NOT be executed synchronously on the client browser. They MUST be offloaded to `supabase.functions.invoke('whatsapp-dispatch')` in the background to prevent main thread blocking and CORS/latency drops.
+- **UI Performance & 60fps Guarantee:** Any list/table exceeding 100 elements (e.g., Patient Directory, Pharmacy Inventory) MUST use `@tanstack/react-virtual`. Any AI data mapping `for` loop exceeding 50 iterations MUST use async chunking (`await new Promise(r => setTimeout(r, 0))`) to yield to the browser paint thread and prevent UI freezing.
+
+---
+
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.
 - Always ensure that `.gitignore` lists all environment files and credentials.

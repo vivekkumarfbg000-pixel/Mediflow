@@ -514,6 +514,47 @@ export class BillingService {
     })();
   }
 
+  static async saveAppointmentAsync(appt: Appointment): Promise<Appointment> {
+    this.saveAppointment(appt);
+    try {
+      const podId = (appt as any).podId || (appt as any).pod_id || getPodContext().podId || null;
+      const nowISO = new Date().toISOString();
+      const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
+      const pId = appt.patientId || (appt as any).patient_id;
+      if (pId) {
+        const { error } = await supabase.from('appointments').upsert({
+          id: appt.id,
+          patient_id: pId,
+          doctor_id: appt.doctorId || (appt as any).doctor_id || null,
+          status: appt.status || 'scheduled',
+          token_number: String(appt.tokenNumber || (appt as any).token_number || ''),
+          patient_name: appt.patientName || (appt as any).patient_name || null,
+          patient_phone: appt.patientPhone || (appt as any).patient_phone || null,
+          is_virtual: Boolean(appt.isVirtual || (appt as any).is_virtual),
+          virtual_date: (appt as any).virtualDate || (appt as any).virtual_date || apptDate,
+          appointment_date: apptDate,
+          virtual_time: (appt as any).virtualTime || (appt as any).virtual_time || '10:00 AM',
+          virtual_meeting_url: (appt as any).virtualMeetingUrl || (appt as any).virtual_meeting_url || null,
+          source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
+          appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
+          created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
+          pod_id: podId,
+          is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
+          is_vip: Boolean(appt.isVip || (appt as any).is_vip),
+          payment_status: (appt as any).paymentStatus || (appt as any).payment_status || 'cleared',
+          problem: (appt as any).problem || (appt as any).chief_complaint || '',
+          chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
+        }, { onConflict: 'id' });
+        if (error) {
+          console.warn('[BillingService] saveAppointmentAsync Supabase upsert error:', error);
+        }
+      }
+    } catch (e) {
+      console.warn('[BillingService] saveAppointmentAsync catch error:', e);
+    }
+    return appt;
+  }
+
   static getPatients(): Patient[] {
     return PatientService.getPatients();
   }

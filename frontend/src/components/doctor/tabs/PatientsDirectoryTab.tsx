@@ -1,4 +1,5 @@
 import React from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '../../../lib/supabaseClient';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../../services/podContext';
 import { api } from '../../../services/api';
@@ -70,6 +71,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleStateChange = () => {
@@ -256,100 +258,133 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
               />
               <Search className="text-slate-400 absolute left-3 top-2.5 w-4 h-4 shrink-0" />
             </div>
+            </div>
 
-            <div className="space-y-2 lg:max-h-[480px] max-h-none lg:overflow-y-auto pr-1">
-              {filteredPatients.map(p => {
-                const isSelected = selectedDirectoryPatient?.id === p.id;
-                
-                // Check if patient has a scheduled virtual consultation
-                const appts = api.getAppointments();
-                const hasVirtual = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
+            <div 
+              ref={parentRef}
+              className="space-y-2 lg:max-h-[480px] max-h-[480px] overflow-y-auto pr-1 relative"
+            >
+              {(() => {
+                const rowVirtualizer = useVirtualizer({
+                  count: filteredPatients.length,
+                  getScrollElement: () => parentRef.current,
+                  estimateSize: () => 90,
+                  overscan: 5,
+                });
 
                 return (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      setSelectedDirectoryPatient(p);
-                      setPatientRAGSummary('');
-                      setVirtualDateInput('');
-                      setVirtualTimeInput('');
+                  <div
+                    style={{
+                      height: `${rowVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
                     }}
-                    className={`w-full text-left p-3.5 rounded-xl border transition-all ${
-                      isSelected
-                        ? 'bg-primary-container/20 border-primary text-slate-800 shadow-sm'
-                        : 'bg-slate-50 border-slate-200/50 hover:bg-slate-100'
-                    }`}
                   >
-                    <div className="font-bold text-xs flex justify-between items-center">
-                      <span className="flex items-center gap-1.5 truncate">
-                        <span className="truncate"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span>
-                        {p.syncStatus === 'pending' && (
-                          <span title="Syncing to Supabase..." className="inline-flex">
-                            <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
-                          </span>
-                        )}
-                        {p.syncStatus === 'failed' && (
-                          <span title="Sync failed. Auto-retrying..." className="inline-flex">
-                            <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse shrink-0" />
-                          </span>
-                        )}
-                        {hasVirtual && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[8px] font-extrabold uppercase tracking-wider animate-pulse">
-                            <Video className="w-2.5 h-2.5 text-emerald-800 shrink-0" />
-                            Virtual
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">ID: {p.patientCode || p.tokenNumber || 'PAT'}</span>
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between flex-wrap gap-1">
-                      <span>{p.gender}, {p.age} years • {p.phone}</span>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {(() => {
-                          const loyalty = BillingService.checkPatientFreeVirtualEligibility(p.id);
-                          const isFreeUnlocked = Boolean(p.isPremiumMember || (p as any).is_premium_member || loyalty.isEligible);
-                          if (isFreeUnlocked) {
-                            return (
-                              <span className="text-[8px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
-                                <Gift className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                                Free Consult Unlocked
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const p = filteredPatients[virtualRow.index];
+                      const isSelected = selectedDirectoryPatient?.id === p.id;
+                      
+                      const appts = api.getAppointments();
+                      const hasVirtual = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
+
+                      return (
+                        <div
+                          key={virtualRow.key}
+                          data-index={virtualRow.index}
+                          ref={rowVirtualizer.measureElement}
+                          className="absolute top-0 left-0 w-full"
+                          style={{
+                            transform: `translateY(${virtualRow.start}px)`,
+                            paddingBottom: '8px'
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDirectoryPatient(p);
+                              setPatientRAGSummary('');
+                              setVirtualDateInput('');
+                              setVirtualTimeInput('');
+                            }}
+                            className={`w-full text-left p-3.5 rounded-xl border transition-all ${
+                              isSelected
+                                ? 'bg-primary-container/20 border-primary text-slate-800 shadow-sm'
+                                : 'bg-slate-50 border-slate-200/50 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div className="font-bold text-xs flex justify-between items-center">
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span className="truncate"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span>
+                                {p.syncStatus === 'pending' && (
+                                  <span title="Syncing to Supabase..." className="inline-flex">
+                                    <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
+                                  </span>
+                                )}
+                                {p.syncStatus === 'failed' && (
+                                  <span title="Sync failed. Auto-retrying..." className="inline-flex">
+                                    <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse shrink-0" />
+                                  </span>
+                                )}
+                                {hasVirtual && (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[8px] font-extrabold uppercase tracking-wider animate-pulse">
+                                    <Video className="w-2.5 h-2.5 text-emerald-800 shrink-0" />
+                                    Virtual
+                                  </span>
+                                )}
                               </span>
-                            );
-                          }
-                          if (loyalty.hasPharmacyBilled && !loyalty.hasLabBilled) {
-                            return (
-                              <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                                💊 Chemist Paid
-                              </span>
-                            );
-                          }
-                          if (!loyalty.hasPharmacyBilled && loyalty.hasLabBilled) {
-                            return (
-                              <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                                🧪 Lab Paid
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
-                        {(() => {
-                          const hasReports = LabService.getFullLabReports().some(r => (r.patientId === p.id || (r as any).patient_id === p.id) && Boolean(r.reportFileUrl || (r as any).fileUrl));
-                          if (!hasReports) return null;
-                          return (
-                            <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                              🔬 Report Ready
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </button>
+                              <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">ID: {p.patientCode || p.tokenNumber || 'PAT'}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between flex-wrap gap-1">
+                              <span>{p.gender}, {p.age} years • {p.phone}</span>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {(() => {
+                                  const loyalty = BillingService.checkPatientFreeVirtualEligibility(p.id);
+                                  const isFreeUnlocked = Boolean(p.isPremiumMember || (p as any).is_premium_member || loyalty.isEligible);
+                                  if (isFreeUnlocked) {
+                                    return (
+                                      <span className="text-[8px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                                        <Gift className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                        Free Consult Unlocked
+                                      </span>
+                                    );
+                                  }
+                                  if (loyalty.hasPharmacyBilled && !loyalty.hasLabBilled) {
+                                    return (
+                                      <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                        💊 Chemist Paid
+                                      </span>
+                                    );
+                                  }
+                                  if (!loyalty.hasPharmacyBilled && loyalty.hasLabBilled) {
+                                    return (
+                                      <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                                        🧪 Lab Paid
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                                {(() => {
+                                  const hasReports = LabService.getFullLabReports().some(r => (r.patientId === p.id || (r as any).patient_id === p.id) && Boolean(r.reportFileUrl || (r as any).fileUrl));
+                                  if (!hasReports) return null;
+                                  return (
+                                    <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                                      🔬 Report Ready
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 );
-              })}
+              })()}
             </div>
           </div>
         </div>
-      </div>
 
       {/* Right Columns: Patient profile, loyalty coupons, AI RAG */}
       <div className="lg:col-span-2 space-y-6">

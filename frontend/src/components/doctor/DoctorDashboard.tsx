@@ -1,4 +1,4 @@
-import React, { useState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect, startTransition, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
@@ -38,7 +38,8 @@ import {
   Send,
   UserPlus,
   Copy,
-  Stethoscope
+  Stethoscope,
+  Loader2
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
@@ -58,12 +59,12 @@ import { DoctorRegistrationModal } from '../auth/DoctorRegistrationModal';
 import { WhatsAppTestDispatcherModal } from '../shared/WhatsAppTestDispatcherModal';
 import { WhatsAppService } from '../../services/whatsappService';
 
-import { ConsultationTab } from './tabs/ConsultationTab';
-import { FinancialsTab } from './tabs/FinancialsTab';
-import { PatientsDirectoryTab } from './tabs/PatientsDirectoryTab';
-import { WhatsAppTab } from './tabs/WhatsAppTab';
-import { SopConfigTab } from './tabs/SopConfigTab';
-import { ChronicCareTab } from './tabs/ChronicCareTab';
+const ConsultationTab = lazy(() => import('./tabs/ConsultationTab').then(m => ({ default: m.ConsultationTab })));
+const FinancialsTab = lazy(() => import('./tabs/FinancialsTab').then(m => ({ default: m.FinancialsTab })));
+const PatientsDirectoryTab = lazy(() => import('./tabs/PatientsDirectoryTab').then(m => ({ default: m.PatientsDirectoryTab })));
+const WhatsAppTab = lazy(() => import('./tabs/WhatsAppTab').then(m => ({ default: m.WhatsAppTab })));
+const SopConfigTab = lazy(() => import('./tabs/SopConfigTab').then(m => ({ default: m.SopConfigTab })));
+const ChronicCareTab = lazy(() => import('./tabs/ChronicCareTab').then(m => ({ default: m.ChronicCareTab })));
 
 
 export const DoctorDashboard: React.FC = () => {
@@ -95,13 +96,13 @@ export const DoctorDashboard: React.FC = () => {
       if (e.detail && typeof e.detail.enabled === 'boolean') {
         setIsDigitalEmrEnabled(e.detail.enabled);
         if (!e.detail.enabled && activeTab === 'consultation') {
-          setActiveTab('pod_view');
+          startTransition(() => setActiveTab('pod_view'));
         }
       } else if (e.detail && typeof e.detail.mode === 'string') {
         const enabled = e.detail.mode === 'digital_emr';
         setIsDigitalEmrEnabled(enabled);
         if (!enabled && activeTab === 'consultation') {
-          setActiveTab('pod_view');
+          startTransition(() => setActiveTab('pod_view'));
         }
       }
     };
@@ -110,13 +111,13 @@ export const DoctorDashboard: React.FC = () => {
         const enabled = e.newValue === 'true';
         setIsDigitalEmrEnabled(enabled);
         if (!enabled && activeTab === 'consultation') {
-          setActiveTab('pod_view');
+          startTransition(() => setActiveTab('pod_view'));
         }
       } else if (e.key === 'vitalsync_operating_mode' || e.key === 'mediflow_operating_mode') {
         const enabled = e.newValue === 'digital_emr';
         setIsDigitalEmrEnabled(enabled);
         if (!enabled && activeTab === 'consultation') {
-          setActiveTab('pod_view');
+          startTransition(() => setActiveTab('pod_view'));
         }
       }
     };
@@ -134,7 +135,7 @@ export const DoctorDashboard: React.FC = () => {
   const handleToggleDigitalEmr = (newVal: boolean) => {
     setIsDigitalEmrEnabled(newVal);
     if (!newVal && activeTab === 'consultation') {
-      setActiveTab('pod_view');
+      startTransition(() => setActiveTab('pod_view'));
     }
     try {
       localStorage.setItem('vitalsync_digital_emr_enabled', String(newVal));
@@ -262,7 +263,7 @@ export const DoctorDashboard: React.FC = () => {
               localStorage.setItem('mediflow_operating_mode', 'digital_emr');
             } catch (_err) {}
           }
-          setActiveTab(normalizedTarget as any);
+          startTransition(() => setActiveTab(normalizedTarget as any));
         });
       }
     };
@@ -494,12 +495,12 @@ export const DoctorDashboard: React.FC = () => {
       if (deltaX > 0) {
         // Swipe Right -> Previous Tab
         if (currentIdx > 0) {
-          setActiveTab(tabs[currentIdx - 1]);
+          startTransition(() => setActiveTab(tabs[currentIdx - 1]));
         }
       } else {
         // Swipe Left -> Next Tab
         if (currentIdx < tabs.length - 1) {
-          setActiveTab(tabs[currentIdx + 1]);
+          startTransition(() => setActiveTab(tabs[currentIdx + 1]));
         }
       }
     }
@@ -1692,7 +1693,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       }));
     } else {
       setSelectedPatient(null);
-      setActiveTab('pod_view');
+      startTransition(() => setActiveTab('pod_view'));
     }
   };
 
@@ -2120,7 +2121,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                                       setSelectedTests([]);
                                       setRefractionRx(EMPTY_REFRACTION_RX);
                                       setSelectedPatient(patient);
-                                      setActiveTab('consultation');
+                                      startTransition(() => setActiveTab('consultation'));
                                       api.updatePatientQueueStatus(patient.id, 'in_consultation');
                                       window.dispatchEvent(new CustomEvent('mediflow-toast', {
                                         detail: {
@@ -2195,6 +2196,7 @@ Keep the tone professional, clinical, objective, and precise.`;
   // ROUTER CONTROLLER: Render Active Tab Contents with Persistent Keep-Alive Shell
   const renderTabContent = () => {
     return (
+      <Suspense fallback={<div className="flex justify-center items-center p-12 text-slate-500"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
       <div className="w-full relative pb-20">
         {/* 1. Clinic Dashboard / Pod View */}
           {visitedTabs.has('pod_view') && (
@@ -2206,7 +2208,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                 appointments={appointments}
                 patients={patients}
                 isPaperMode={!isDigitalEmrEnabled}
-                onOpenChronicCare={() => setActiveTab('chronic')}
+                onOpenChronicCare={() => startTransition(() => setActiveTab('chronic'))}
                 onStartConsultation={(patient: Patient) => {
                   setNotes('');
                   setHinglishSummary('');
@@ -2215,7 +2217,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   setRefractionRx(EMPTY_REFRACTION_RX);
 
                   setSelectedPatient(patient);
-                  setActiveTab('consultation');
+                  startTransition(() => setActiveTab('consultation'));
                   api.updatePatientQueueStatus(patient.id, 'in_consultation');
                   window.dispatchEvent(new CustomEvent('mediflow-toast', {
                     detail: {
@@ -2340,7 +2342,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                   const pat = patients.find(p => p.id === patientId);
                   if (pat) {
                     setSelectedPatient(pat);
-                    setActiveTab('consultation');
+                    startTransition(() => setActiveTab('consultation'));
                   }
                 }}
               />
@@ -2436,6 +2438,7 @@ Keep the tone professional, clinical, objective, and precise.`;
             </div>
           )}
       </div>
+      </Suspense>
     );
   };
 
@@ -3132,7 +3135,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         setActiveTab={setActiveTab}
         onStartConsultation={(patient) => {
           setSelectedPatient(patient);
-          setActiveTab('consultation');
+          startTransition(() => setActiveTab('consultation'));
         }}
       />
 

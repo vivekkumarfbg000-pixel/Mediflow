@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef , startTransition, Suspense} from 'react';
 import { createPortal } from 'react-dom';
 import {
   FlaskConical, Receipt, UserPlus, Upload, BarChart3, Landmark, Network, X, Check,
@@ -7,7 +7,8 @@ import {
   CloudUpload, Microscope, Calendar, Coins, Activity, Sparkles, Eye, Camera,
   FileCheck, ArrowRight, Clock, Smartphone, CheckCheck, QrCode, AlertTriangle, Trash2,
   LayoutDashboard, UploadCloud, CreditCard, TrendingUp, Zap, AlertCircle, ArrowUpRight
-} from 'lucide-react';
+,
+  Loader2} from 'lucide-react';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { LabService } from '../../services/labService';
 import { PaymentService } from '../../services/paymentService';
@@ -190,23 +191,23 @@ export const LabDashboard: React.FC = () => {
       if (customEvent.detail) {
         const d = customEvent.detail;
         if (d === 'overview' || d === 'worklist' || d === 'intake_upload' || d === 'financials_ledger') {
-          setActiveTab(d);
+          startTransition(() => setActiveTab(d));
         } else if (d === 'queue') {
-          setActiveTab('worklist');
+          startTransition(() => setActiveTab('worklist'));
         } else if (d === 'upload_report') {
-          setActiveTab('intake_upload');
+          startTransition(() => setActiveTab('intake_upload'));
           setIntakeSubTab('upload');
         } else if (d === 'walkin') {
-          setActiveTab('intake_upload');
+          startTransition(() => setActiveTab('intake_upload'));
           setIntakeSubTab('walkin');
         } else if (d === 'settlements') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('settlements');
         } else if (d === 'billing_invoices') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('invoices');
         } else if (d === 'analytics') {
-          setActiveTab('financials_ledger');
+          startTransition(() => setActiveTab('financials_ledger'));
           setFinancialsSubTab('analytics');
         }
       }
@@ -659,7 +660,7 @@ export const LabDashboard: React.FC = () => {
           title: 'Walk-in Registered'
         }
       }));
-      setActiveTab('worklist');
+      startTransition(() => setActiveTab('worklist'));
     }, 700);
   };
 
@@ -1088,7 +1089,7 @@ export const LabDashboard: React.FC = () => {
         {tabItems.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => startTransition(() => setActiveTab(tab.id))}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer relative whitespace-nowrap ${
               activeTab === tab.id
                 ? 'premium-nav-pill-active'
@@ -1114,7 +1115,7 @@ export const LabDashboard: React.FC = () => {
           {/* 4 Bento KPI Metric Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <div 
-              onClick={() => setActiveTab('worklist')}
+              onClick={() => startTransition(() => setActiveTab('worklist'))}
               className="glass-panel p-4 sm:p-5 border-amber-200/80 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/70 to-amber-100/30 dark:from-amber-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
             >
               <div className="flex items-center justify-between text-amber-700 dark:text-amber-300 mb-2">
@@ -1131,7 +1132,7 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             <div 
-              onClick={() => setActiveTab('worklist')}
+              onClick={() => startTransition(() => setActiveTab('worklist'))}
               className="glass-panel p-4 sm:p-5 border-blue-200/80 dark:border-blue-900/40 bg-gradient-to-br from-blue-50/70 to-blue-100/30 dark:from-blue-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
             >
               <div className="flex items-center justify-between text-blue-700 dark:text-blue-300 mb-2">
@@ -1147,7 +1148,7 @@ export const LabDashboard: React.FC = () => {
             </div>
 
             <div 
-              onClick={() => setActiveTab('worklist')}
+              onClick={() => startTransition(() => setActiveTab('worklist'))}
               className="glass-panel p-4 sm:p-5 border-emerald-200/80 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50/70 to-emerald-100/30 dark:from-emerald-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
             >
               <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-300 mb-2">
@@ -1164,7 +1165,7 @@ export const LabDashboard: React.FC = () => {
 
             <div 
               onClick={() => {
-                setActiveTab('financials_ledger');
+                startTransition(() => setActiveTab('financials_ledger'));
                 setFinancialsSubTab('invoices');
               }}
               className="glass-panel p-4 sm:p-5 border-indigo-200/80 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/70 to-indigo-100/30 dark:from-indigo-950/20 dark:to-slate-900/60 rounded-3xl cursor-pointer hover:scale-[1.01] transition-transform shadow-sm"
@@ -1252,7 +1253,7 @@ export const LabDashboard: React.FC = () => {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('worklist')}
+                    onClick={() => startTransition(() => setActiveTab('worklist'))}
                     className="text-[10px] font-bold text-teal-600 dark:text-teal-400 hover:underline cursor-pointer bg-transparent border-0"
                   >
                     View All →
