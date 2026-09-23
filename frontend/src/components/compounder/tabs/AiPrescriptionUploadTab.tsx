@@ -250,27 +250,21 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
   const commitClinicOsFlow = async () => {
     if (!extractedPatient) return;
-    if (!inputMobileNumber || inputMobileNumber.length < 10) {
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'Missing Mobile Number', message: 'Please enter a valid 10-digit mobile number before proceeding.', type: 'error' }
-      }));
-      setIsEditingPhone(true);
-      setIsEditingAll(true);
-      return;
+    
+    // Auto-fallback for paper walk-in scans missing phone numbers (Under-pocket 999 protocol)
+    let effectivePhone = (inputMobileNumber || '').replace(/\D/g, '').slice(-10);
+    if (!effectivePhone || effectivePhone.length < 10) {
+      effectivePhone = `99999${Math.floor(10000 + Math.random() * 90000)}`;
+      setInputMobileNumber(effectivePhone);
     }
     
-    if (!extractedPatient.name || extractedPatient.name.trim() === '') {
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'Missing Name', message: 'Please enter the patient name before proceeding.', type: 'error' }
-      }));
-      setIsEditingAll(true);
-      return;
-    }
+    const effectiveName = (extractedPatient.name || '').trim() || 'Walk-in Patient';
+    extractedPatient.name = effectiveName;
 
     setCurrentStep('committing');
 
     try {
-      const rawPhone = inputMobileNumber;
+      const rawPhone = effectivePhone;
       const allSavedPats = PatientService.getPatients();
       const canonicalPat = allSavedPats.find(p => (rawPhone && (p.phone || '').replace(/\D/g, '').slice(-10) === rawPhone)) || ({} as any);
 
