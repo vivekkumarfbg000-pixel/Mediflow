@@ -3001,7 +3001,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         </div>
 
         {/* Desktop tab nav — integrated into header */}
-        <div className="hidden md:flex items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px overflow-x-auto">
+        <div className="flex overflow-x-auto no-scrollbar items-center gap-1.5 p-1 bg-slate-100/80 dark:bg-slate-950/40 backdrop-blur-md rounded-xl border border-slate-200/50 dark:border-white/5 shrink-0 -mb-px">
           {(() => {
             const vBadge = appointments.filter((a: any) => Boolean(a.is_virtual || a.isVirtual) && a.status !== 'completed' && a.status !== 'cancelled' && a.status !== 'pending_payment').length;
             return [

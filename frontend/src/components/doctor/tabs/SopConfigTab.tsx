@@ -30,7 +30,8 @@ import {
   Pill,
   Laptop,
   FileText,
-  HeartPulse
+  HeartPulse,
+  Star
 } from 'lucide-react';
 
 interface SopConfigTabProps {
@@ -227,6 +228,9 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const upiMatch = text.match(/(?:upi|vpa|gpay|phonepe|paytm)\s*[:\-]?\s*([a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64})/i);
     const doctorUpiVpa = upiMatch ? upiMatch[1] : (activeSop?.extractedConfig?.doctor_upi_vpa || PaymentService.getSafeClinicUpiVpa('vitalsync@axl'));
 
+    const googleReviewMatch = text.match(/https?:\/\/(?:g\.page\/r\/|maps\.app\.goo\.gl\/|www\.google\.com\/maps\?cid=)[^\s]+/i);
+    const googleReviewLink = googleReviewMatch ? googleReviewMatch[0] : (activeSop?.extractedConfig?.google_review_link || '');
+
     // Parse test prices
     const testPrices: Record<string, number> = { ...activeSop?.extractedConfig?.test_prices };
     const hba1cMatch = text.match(/(?:hba1c|glycated hemoglobin|a1c)[^0-9]*(?:rs\.?|inr|₹)?\s*(\d+(?:\.\d+)?)/i);
@@ -262,6 +266,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       care_program_3m_fee: careProgram3mFee,
       care_program_6m_fee: careProgram6mFee,
       care_program_name: careProgramName,
+      google_review_link: googleReviewLink,
       test_prices: testPrices,
       splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab, pharmacyDoctor: splitPharmaDoc, pharmacyPlatform: 2 },
       guidelines: guidelineLines.length > 0 ? guidelineLines : activeSop?.extractedConfig?.guidelines ?? []
@@ -696,6 +701,25 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2 text-sm font-bold text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
                     />
                   </div>
+                </div>
+
+                {/* Google Review Link */}
+                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-blue-700 font-bold text-xs uppercase tracking-wider">
+                      <Star className="w-4 h-4 shrink-0" />
+                      Smart Google Review Engine
+                    </div>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">Auto 8 PM</span>
+                  </div>
+                  <input
+                    type="url"
+                    placeholder="https://g.page/r/.../review"
+                    value={extractedConfig.google_review_link || ''}
+                    onChange={e => setExtractedConfig({...extractedConfig, google_review_link: e.target.value})}
+                    className="w-full bg-white border border-blue-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <p className="text-[9px] text-blue-600">Dispatched automatically to 5-Star rated patients after consult.</p>
                 </div>
 
                 {/* Doctor Direct UPI VPA */}

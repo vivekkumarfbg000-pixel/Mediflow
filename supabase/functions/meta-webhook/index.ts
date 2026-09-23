@@ -970,6 +970,12 @@ if (!isManualRelay) {
         else if (btnPayload === "btn_date_2") messageText = "2";
         else if (btnPayload === "btn_date_3") messageText = "3";
         else if (btnPayload === "btn_date_4") messageText = "4";
+        else if (btnText === "🌟 Excellent (5/5)" || btnText === "👍 Good (4/5)" || btnText === "⭐ Great Experience" || btnPayload === "btn_review_great") messageText = "google_review_great";
+        else if (btnText === "📝 Needs Improvement" || btnPayload === "btn_review_improve") messageText = "google_review_improve";
+        else if (btnText === "🕒 Long Waiting Time" || btnPayload === "btn_review_cat_wait") messageText = "google_review_cat_wait";
+        else if (btnText === "🩺 Doctor Consult" || btnPayload === "btn_review_cat_doc") messageText = "google_review_cat_doc";
+        else if (btnText === "👥 Staff Behavior" || btnPayload === "btn_review_cat_staff") messageText = "google_review_cat_staff";
+        else if (btnText === "💊 Pharmacy/Billing" || btnPayload === "btn_review_cat_pharm") messageText = "google_review_cat_pharm";
         else messageText = btnText || btnPayload || "";
       } else if (message.type === "image") {
         messageText = "[Image Uploaded]";
@@ -4747,6 +4753,34 @@ Rules:
       } else if (cleaned === "more" || cleaned === "list" || cleaned === "menu_reset") {
         nextState = "COMPLETED";
         replyText = "Full VitalSync Services Catalog:\nNiche menu se service select kijiye:";
+      } else if (cleaned === "google_review_great") {
+        nextState = "COMPLETED";
+        let googleLink = "https://g.page/r/review";
+        try {
+          const { data: sop } = await supabase.from("clinic_sops").select("extractedConfig").eq("entityId", connection.entity_id || DEFAULT_ENTITY_UUID).limit(1).maybeSingle();
+          if (sop?.extractedConfig?.google_review_link) googleLink = sop.extractedConfig.google_review_link;
+        } catch (e) { /* ignore */ }
+        replyText = `Thank you! We're glad you had a great experience. Please share a 5-star review to help others find us: ${googleLink}`;
+      } else if (cleaned === "google_review_improve") {
+        nextState = "COMPLETED";
+        replyText = `We sincerely apologize for the inconvenience. Please help us improve by selecting the area you faced an issue with:`;
+      } else if (cleaned === "google_review_cat_wait" || cleaned === "google_review_cat_doc" || cleaned === "google_review_cat_staff" || cleaned === "google_review_cat_pharm") {
+        nextState = "COMPLETED";
+        const issueMap: any = {
+          "google_review_cat_wait": "Long Waiting Time",
+          "google_review_cat_doc": "Doctor Consultation",
+          "google_review_cat_staff": "Staff Behavior",
+          "google_review_cat_pharm": "Pharmacy/Billing"
+        };
+        const issue = issueMap[cleaned];
+        supabase.from("system_health_telemetry").insert({
+          subsystem: "patient_feedback",
+          severity: "high",
+          error_code: "NEGATIVE_REVIEW",
+          error_stack: `Patient ${patientPhone} reported issue: ${issue}`,
+          status: "active"
+        }).then().catch();
+        replyText = `Thank you. Our management has been instantly notified regarding the issue with ${issue}. We will ensure better service on your next visit. 🙏`;
       } else if (cleaned === "physical review") {
         nextState = "COMPLETED";
         replyText = `🏥 *${resolvedClinicName.toUpperCase()} EVENING REPORT REVIEW LOCKED!* 🟢\n\nAapki Lab Report review ke liye ${resolvedDoctorName} ne aaj sham **04:00 PM - 06:00 PM** ka slot lock kar diya hai.\n\n• Location: ${resolvedClinicName}, Central Desk\n• Pharmacy Reservation: Active at Ground Floor Counter 💊\n\nPlease evening time par clinic pahuchein aur counter se medicines collect karein! Dhanyawad! 😊`;
@@ -5297,6 +5331,28 @@ CLINICAL GUIDELINES:
             { type: "reply", reply: { id: "btn_slot_1", title: "Morning (10-12) 🌅" } },
             { type: "reply", reply: { id: "btn_slot_2", title: "Afternoon (2-4) ☀️" } },
             { type: "reply", reply: { id: "btn_slot_3", title: "Evening (6-8) 🌙" } }
+          ]
+        }
+      };
+    } else if (replyText.includes("Please help us improve by selecting the area you faced an issue with:")) {
+      payloadBody.type = "interactive";
+      payloadBody.interactive = {
+        type: "list",
+        header: { type: "text", text: "Feedback Categories" },
+        body: { text: replyText },
+        footer: { text: `${resolvedClinicName} Management` },
+        action: {
+          button: "Select Issue 📝",
+          sections: [
+            {
+              title: "What went wrong?",
+              rows: [
+                { id: "btn_review_cat_wait", title: "🕒 Long Waiting Time", description: "Wait was too long" },
+                { id: "btn_review_cat_doc", title: "🩺 Doctor Consult", description: "Issue with consultation" },
+                { id: "btn_review_cat_staff", title: "👥 Staff Behavior", description: "Unprofessional staff" },
+                { id: "btn_review_cat_pharm", title: "💊 Pharmacy/Billing", description: "Medicines or billing issue" }
+              ]
+            }
           ]
         }
       };

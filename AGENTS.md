@@ -76,6 +76,7 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 - **Real UUID Enforcement:** The OCR and paper digitization pipelines MUST generate a real UUID (via `crypto.randomUUID()`) and explicitly save directly to Supabase (`patient_registry`, `saas_prescriptions`). Local storage MUST NOT be used as the primary source of truth for patient hydration or state mapping.
 - **Edge Webhook Dispatch Offloading:** Meta API calls (WhatsApp notifications) MUST NOT be executed synchronously on the client browser. They MUST be offloaded to `supabase.functions.invoke('whatsapp-dispatch')` in the background to prevent main thread blocking and CORS/latency drops.
 - **UI Performance & 60fps Guarantee:** Any list/table exceeding 100 elements (e.g., Patient Directory, Pharmacy Inventory) MUST use `@tanstack/react-virtual`. Any AI data mapping `for` loop exceeding 50 iterations MUST use async chunking (`await new Promise(r => setTimeout(r, 0))`) to yield to the browser paint thread and prevent UI freezing.
+- **OCR-to-POS Auto-Navigation Invariant:** On completion of OCR extraction in Compounder Desk, the dashboard MUST explicitly execute `setBillHubInitialMode('manual_billing')` in addition to setting the patient ID and switching to `billing_daycare`, ensuring the UI immediately lands on the active Billing POS grid rather than looping back to the scanner.
 
 ---
 

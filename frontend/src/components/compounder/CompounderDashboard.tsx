@@ -5359,6 +5359,7 @@ export const CompounderDashboard: React.FC = () => {
             onSuccess={(patientId) => {
               startTransition(() => {
                 setSelectedPatientForBillHub(patientId);
+                setBillHubInitialMode('manual_billing');
                 startTransition(() => setActiveTab('billing_daycare'));
                 setBillingSubTab('billing');
               });

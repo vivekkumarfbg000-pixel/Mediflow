@@ -1094,14 +1094,19 @@ Dhyan rakhein aur jaldi theek hon!`;
 
       const directVisionPrompt = `You are an expert Indian clinical pharmacist and medical AI reading a handwritten doctor's prescription slip. Your accuracy is paramount.
 
+CRITICAL RULES FOR DEMOGRAPHICS (ZERO HALLUCINATION):
+1. You MUST extract exactly what is visibly written on the paper for name, age, gender, phone, address.
+2. If the patient name is NOT written, you MUST set "patientName" to null.
+3. If the age is NOT written, you MUST set "patientAge" to null.
+4. If the phone is NOT written, you MUST set "patientPhone" to null.
+5. NEVER invent data or use placeholders (like "Walk-in Patient", "Unknown", or "John Doe"). If it's missing, it is null.
+
 CLINICAL RULES:
-1. Extract the EXACT visible spelling of patient name, age, phone (10-digit only, else null), address, medications, dosages, frequency, and duration.
-2. If ANY patient demographic (name, age, phone, address) is missing, illegible, or not present on the prescription, YOU MUST RETURN null for that specific field. Do NOT hallucinate dummy data (e.g., do NOT return "Walk-in Patient" for a missing name, return null so the system can prompt the user).
-3. Decode standard Indian clinical notation: OD/1-0-0 (Once daily), BD/1-0-1 (Twice daily), TDS/1-1-1 (Thrice daily), HS/0-0-1 (Night), SOS (As needed), AC (Before food), PC (After food).
-4. EXACT DOSAGE EXTRACTION: For 'dosage', extract exactly what the doctor wrote for the dose amount (e.g., '500mg', '1 Tab', '5ml'). Do NOT invent random dosages or default to '1 Tab' if the actual dose is clearly written.
-5. DO NOT compute the total 'quantity' yourself unless explicitly written on the paper. The billing system will auto-calculate it. Return null or omit it if not written.
-6. Extract EVERY single medication and lab test accurately. NEVER invent medicines not written on the paper. Include strength, dosage form, frequency, duration exactly as written.
-6. CHRONIC DISEASE DETECTION (MANDATORY):
+1. Decode standard Indian clinical notation: OD/1-0-0 (Once daily), BD/1-0-1 (Twice daily), TDS/1-1-1 (Thrice daily), HS/0-0-1 (Night), SOS (As needed), AC (Before food), PC (After food).
+2. EXACT DOSAGE EXTRACTION: Extract exactly what the doctor wrote for the dose amount (e.g., '500mg', '1 Tab'). Do NOT default to '1 Tab'.
+3. DO NOT compute the total 'quantity' yourself unless explicitly written on the paper. Return null if not written.
+4. Extract EVERY single medication and lab test accurately. NEVER invent medicines not written on the paper. Include strength, dosage form, frequency, duration exactly as written.
+5. CHRONIC DISEASE DETECTION (MANDATORY):
    - Scan ALL medicine names and diagnosis text.
    - DETECT EVERY chronic condition present:
      * Metformin/Glimepiride/Insulin → "Type-2 Diabetes Mellitus"

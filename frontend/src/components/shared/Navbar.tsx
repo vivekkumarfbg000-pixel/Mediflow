@@ -385,13 +385,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   const getActiveRoleTabs = () => {
     if (currentRole === 'doctor') {
       return [
-        { id: 'pod_view', label: 'Pod Workspace', icon: LayoutDashboard },
-        { id: 'consultation', label: 'Patient Consultation', icon: ClipboardList },
-        { id: 'patients', label: 'Patients Directory', icon: Users },
-        { id: 'financials', label: 'Revenue & Ledgers', icon: CreditCard },
-        { id: 'whatsapp', label: 'WhatsApp Patient Care', icon: MessageSquare },
+        { id: 'pod_view', label: 'Clinic Dashboard', icon: LayoutDashboard },
+        { id: 'consultation', label: 'Consultation Queue', icon: ClipboardList },
         { id: 'chronic', label: 'Care Club 💊', icon: HeartPulse },
-        { id: 'sop', label: 'Clinic SOP Config', icon: FileText }
+        { id: 'financials', label: 'Finances', icon: CreditCard },
+        { id: 'patients', label: 'Patient Directory', icon: Users },
+        { id: 'whatsapp', label: 'WhatsApp Inbox', icon: MessageSquare },
+        { id: 'sop', label: 'Clinic SOPs', icon: Settings }
       ];
     }
     if (currentRole === 'compounder') {

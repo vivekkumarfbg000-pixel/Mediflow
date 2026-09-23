@@ -464,6 +464,17 @@ export class RealtimeSyncService {
             const record = this.normalizeRecord(rawRecord);
 
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              // Deduplicate optimistic ledger entries generated locally
+              if (storageKey === 'financial_ledgers' && record.invoiceId) {
+                const optIdx = currentData.findIndex((item: any) => 
+                  String(item.id).startsWith('tx-auto-') && 
+                  String(item.invoiceId) === String(record.invoiceId)
+                );
+                if (optIdx >= 0) {
+                  currentData.splice(optIdx, 1);
+                }
+              }
+
               const idx = currentData.findIndex((item: any) => item.id === record.id);
               if (idx >= 0) {
                 currentData[idx] = { ...currentData[idx], ...record };

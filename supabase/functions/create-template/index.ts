@@ -260,6 +260,29 @@ export const CANONICAL_TEMPLATES = [
         ]
       }
     ]
+  },
+  {
+    name: "patient_review_request_template",
+    category: "UTILITY",
+    allow_category_change: true,
+    language: "en_US",
+    components: [
+      {
+        type: "BODY",
+        text: "Namaste {{1}}! 🙏 Aaj {{2}} par aapka experience kaisa raha?\n\nAapki feedback humein behtar care provide karne mein madad karti hai.",
+        example: {
+          body_text: [["Aarav Sharma", "Life Line Clinic"]]
+        }
+      },
+      {
+        type: "BUTTONS",
+        buttons: [
+          { type: "QUICK_REPLY", text: "🌟 Excellent (5/5)" },
+          { type: "QUICK_REPLY", text: "👍 Good (4/5)" },
+          { type: "QUICK_REPLY", text: "📝 Needs Improvement" }
+        ]
+      }
+    ]
   }
 ];
 

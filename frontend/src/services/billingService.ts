@@ -227,6 +227,36 @@ export class BillingService {
     // Core Invoice Settlement & Financial Ledger Splits
     this.recordInvoicePayment(invoiceId, paymentMethod);
 
+    // Inject optimistic ledger entry to bypass Supabase CDC latency
+    try {
+      const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+      const optimisticLedger = {
+        id: `tx-auto-${(invoiceId || 'N/A').substring(0, 8)}`,
+        invoiceId: invoiceId,
+        sourceEntityId: getPodContext().entityId || 'clinic-admin-entity',
+        destinationEntityId: getPodContext().entityId || 'clinic-admin-entity',
+        transactionType: 'appointment_fee' as const,
+        grossAmount: invoiceAmount,
+        commissionRate: 0,
+        netPayout: invoiceAmount,
+        paymentStatus: 'cleared' as const,
+        settledAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        patientName: targetPatientId ? PatientService.getPatients().find(p => p.id === targetPatientId)?.name || 'Patient Customer' : 'Patient Customer',
+        paymentMethod: paymentMethod
+      };
+      
+      const existingIdx = ledgers.findIndex(l => l.id === optimisticLedger.id);
+      if (existingIdx >= 0) {
+        ledgers[existingIdx] = optimisticLedger;
+      } else {
+        ledgers.unshift(optimisticLedger);
+      }
+      this.saveFinancialLedgers(ledgers);
+    } catch (e) {
+      console.warn('[BillingService] Failed to inject optimistic ledger:', e);
+    }
+
     // Atomic Backend Settlement via Postgres RPC v2
     supabase.rpc('process_invoice_settlement_v2', {
       p_invoice_id: invoiceId,

@@ -63,6 +63,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [inputAddress, setInputAddress] = useState<string>('');
   const [isEditingAddress, setIsEditingAddress] = useState<boolean>(false);
+  const [isEditingAll, setIsEditingAll] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -254,6 +255,15 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         detail: { title: 'Missing Mobile Number', message: 'Please enter a valid 10-digit mobile number before proceeding.', type: 'error' }
       }));
       setIsEditingPhone(true);
+      setIsEditingAll(true);
+      return;
+    }
+    
+    if (!extractedPatient.name || extractedPatient.name.trim() === '') {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', {
+        detail: { title: 'Missing Name', message: 'Please enter the patient name before proceeding.', type: 'error' }
+      }));
+      setIsEditingAll(true);
       return;
     }
 
@@ -743,10 +753,18 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 <span>Extracted Patient & Medications</span>
               </div>
               {currentStep === 'done' && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
-                  <Check className="w-3 h-3" />
-                  Auto-Enrolled
-                </span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setIsEditingAll(!isEditingAll)}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${isEditingAll ? 'bg-cyan-500 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                  >
+                    {isEditingAll ? 'Done Editing' : 'Edit All'}
+                  </button>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
+                    <Check className="w-3 h-3" />
+                    Auto-Enrolled
+                  </span>
+                </div>
               )}
             </div>
 
@@ -772,29 +790,71 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 {/* Patient Demographic Card */}
                 <div 
                   onClick={() => {
-                    window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
-                      detail: extractedPatient
-                    }));
+                    if (!isEditingAll) {
+                      window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                        detail: extractedPatient
+                      }));
+                    }
                   }}
-                  className="shrink-0 flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/20 cursor-pointer transition-all group"
-                  title="Click to view full 360° patient profile"
+                  className={`shrink-0 flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 ${!isEditingAll ? 'hover:border-cyan-500/50 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/20 cursor-pointer group' : ''} transition-all`}
+                  title={!isEditingAll ? "Click to view full 360° patient profile" : ""}
                 >
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform">
                     {extractedPatient.name?.charAt(0) || 'P'}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                        {extractedPatient.name}
-                      </h4>
-                      <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                        View Profile →
-                      </span>
+                      {isEditingAll ? (
+                        <input
+                          type="text"
+                          value={extractedPatient.name || ''}
+                          onChange={(e) => setExtractedPatient({ ...extractedPatient, name: e.target.value })}
+                          className="text-sm font-black text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 w-full max-w-[200px]"
+                          placeholder="Patient Name"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white truncate group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                          {extractedPatient.name || 'Unknown Patient'}
+                        </h4>
+                      )}
+                      {!isEditingAll && (
+                        <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                          View Profile →
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      <span>{extractedPatient.age} Yrs</span>
-                      <span>•</span>
-                      <span>{extractedPatient.gender}</span>
+                      {isEditingAll ? (
+                        <>
+                          <input
+                            type="number"
+                            value={extractedPatient.age || ''}
+                            onChange={(e) => setExtractedPatient({ ...extractedPatient, age: parseInt(e.target.value) || 0 })}
+                            className="w-12 px-1 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-center"
+                            placeholder="Age"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span>Yrs</span>
+                          <span>•</span>
+                          <select
+                            value={extractedPatient.gender || 'Male'}
+                            onChange={(e) => setExtractedPatient({ ...extractedPatient, gender: e.target.value as any })}
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </>
+                      ) : (
+                        <>
+                          <span>{extractedPatient.age} Yrs</span>
+                          <span>•</span>
+                          <span>{extractedPatient.gender}</span>
+                        </>
+                      )}
                       <span>•</span>
                       <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold">
                         Token: {extractedPatient.tokenNumber || 'T-01'}
@@ -828,7 +888,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   <div className="py-2 border-b border-slate-100 dark:border-slate-800/80">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-slate-500 font-medium">WhatsApp / Mobile</span>
-                      {extractedPatient.phone && !isEditingPhone && (
+                      {extractedPatient.phone && !isEditingPhone && !isEditingAll && (
                         <button
                           type="button"
                           onClick={() => {
@@ -841,7 +901,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                         </button>
                       )}
                     </div>
-                    {(!extractedPatient.phone || isEditingPhone) ? (
+                    {(!extractedPatient.phone || isEditingPhone || isEditingAll) ? (
                       <div className="flex items-center gap-2 mt-1">
                         <div className="relative flex-1">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">+91</span>
@@ -850,20 +910,27 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                             maxLength={10}
                             placeholder="Enter 10-digit mobile"
                             value={inputMobileNumber}
-                            onChange={(e) => setInputMobileNumber(e.target.value.replace(/\D/g, ''))}
+                            onChange={(e) => {
+                              setInputMobileNumber(e.target.value.replace(/\D/g, ''));
+                              if (isEditingAll) {
+                                setExtractedPatient({ ...extractedPatient, phone: e.target.value.replace(/\D/g, '') });
+                              }
+                            }}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleSavePatientPhone(inputMobileNumber); }}
                             className="w-full pl-9 pr-2 py-1.5 rounded-xl border border-amber-300 dark:border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            autoFocus
+                            autoFocus={isEditingPhone && !isEditingAll}
                           />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSavePatientPhone(inputMobileNumber)}
-                          disabled={inputMobileNumber.length < 10}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-                        >
-                          Save
-                        </button>
+                        {!isEditingAll && (
+                          <button
+                            type="button"
+                            onClick={() => handleSavePatientPhone(inputMobileNumber)}
+                            disabled={inputMobileNumber.length < 10}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                          >
+                            Save
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
@@ -882,7 +949,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   <div className="py-2 border-b border-slate-100 dark:border-slate-800/80">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-slate-500 font-medium">Residential Address</span>
-                      {extractedPatient.address && !isEditingAddress && (
+                      {extractedPatient.address && !isEditingAddress && !isEditingAll && (
                         <button
                           type="button"
                           onClick={() => {
@@ -895,26 +962,33 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                         </button>
                       )}
                     </div>
-                    {(!extractedPatient.address || isEditingAddress) ? (
+                    {(!extractedPatient.address || isEditingAddress || isEditingAll) ? (
                       <div className="flex items-center gap-2 mt-1">
                         <div className="relative flex-1">
                           <input
                             type="text"
                             placeholder="Enter patient locality / address (e.g. Line Bazar, Purnea)"
                             value={inputAddress}
-                            onChange={(e) => setInputAddress(e.target.value)}
+                            onChange={(e) => {
+                              setInputAddress(e.target.value);
+                              if (isEditingAll) {
+                                setExtractedPatient({ ...extractedPatient, address: e.target.value });
+                              }
+                            }}
                             onKeyDown={(e) => { if (e.key === 'Enter') handleSavePatientAddress(inputAddress); }}
                             className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                           />
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSavePatientAddress(inputAddress)}
-                          disabled={!inputAddress.trim()}
-                          className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-300 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-                        >
-                          Save
-                        </button>
+                        {!isEditingAll && (
+                          <button
+                            type="button"
+                            onClick={() => handleSavePatientAddress(inputAddress)}
+                            disabled={!inputAddress.trim()}
+                            className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-300 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                          >
+                            Save
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
@@ -963,12 +1037,48 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                     </span>
                   </div>
                   <div className="space-y-1.5">
+                    {isEditingAll && (
+                      <button 
+                        type="button" 
+                        onClick={() => setExtractedMeds([...extractedMeds, { medicineName: '', dosage: '1 Tab', frequency: '1-0-1', duration: '15 Days' }])}
+                        className="w-full text-center py-1.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:bg-slate-200 mb-2"
+                      >
+                        + Add Medicine
+                      </button>
+                    )}
                     {extractedMeds.length > 0 ? (
                       extractedMeds.map((m: any, idx: number) => (
                         <div
                           key={idx}
-                          className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-between text-xs"
+                          className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex flex-col gap-2 text-xs"
                         >
+                          {isEditingAll ? (
+                            <div className="flex flex-col gap-1 w-full">
+                              <input type="text" value={m.medicineName || m.name || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].medicineName = e.target.value; nm[idx].name = e.target.value; setExtractedMeds(nm); }} className="w-full text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5" placeholder="Medicine Name" />
+                              <div className="flex items-center gap-1">
+                                <input type="text" value={m.dosage || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].dosage = e.target.value; setExtractedMeds(nm); }} className="w-16 text-[11px] border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1 py-0.5" placeholder="Dosage" />
+                                <span className="text-slate-400">•</span>
+                                <input type="text" value={m.frequency || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].frequency = e.target.value; setExtractedMeds(nm); }} className="w-16 text-[11px] border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1 py-0.5" placeholder="Freq" />
+                                <input type="text" value={m.duration || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].duration = e.target.value; setExtractedMeds(nm); }} className="w-16 text-[11px] border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1 py-0.5" placeholder="Duration" />
+                                <button type="button" onClick={() => { const nm = [...extractedMeds]; nm.splice(idx, 1); setExtractedMeds(nm); }} className="ml-auto text-rose-500 hover:text-rose-600 font-bold text-xs p-1">X</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between w-full">
+                              <div className="min-w-0 pr-2">
+                                <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                                  {m.medicineName || m.name || 'Prescription Medicine'}
+                                </p>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                  {m.dosage || '1 Tab'} • {m.frequency || '1-0-1'}
+                                </p>
+                              </div>
+                              <span className="shrink-0 font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md text-[11px]">
+                                {m.duration || '15 Days'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                           <div className="min-w-0 pr-2">
                             <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
                               {m.medicineName || m.name || 'Prescription Medicine'}
@@ -990,12 +1100,21 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   </div>
                 </div>
 
-                {/* Prescribed Lab Tests (if any) */}
-                {extractedLabs.length > 0 && (
+                {/* Prescribed Lab Tests */}
+                {(extractedLabs.length > 0 || isEditingAll) && (
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
                       Requested Diagnostics ({extractedLabs.length})
                     </span>
+                    {isEditingAll && (
+                      <button 
+                        type="button" 
+                        onClick={() => setExtractedLabs([...extractedLabs, { name: '' }])}
+                        className="w-full text-center py-1.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-slate-200 mb-2"
+                      >
+                        + Add Lab Test
+                      </button>
+                    )}
                     <div className="flex flex-wrap gap-1.5">
                       {extractedLabs.map((lab: any, lIdx: number) => (
                         <span
@@ -1003,7 +1122,20 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                           className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 text-[11px] font-semibold"
                         >
                           <Stethoscope className="w-3 h-3" />
-                          {lab.name || 'Diagnostic Panel'}
+                          {isEditingAll ? (
+                            <>
+                              <input 
+                                type="text" 
+                                value={lab.name || ''} 
+                                onChange={(e) => { const nl = [...extractedLabs]; nl[lIdx].name = e.target.value; setExtractedLabs(nl); }} 
+                                className="bg-transparent border-b border-indigo-300 dark:border-indigo-700 outline-none w-24" 
+                                placeholder="Test Name" 
+                              />
+                              <button type="button" onClick={() => { const nl = [...extractedLabs]; nl.splice(lIdx, 1); setExtractedLabs(nl); }} className="text-rose-500 hover:text-rose-600 ml-1">X</button>
+                            </>
+                          ) : (
+                            lab.name || 'Diagnostic Panel'
+                          )}
                         </span>
                       ))}
                     </div>
