@@ -181,29 +181,39 @@ const getIsSingleDomain = (hostname: string): boolean => {
   return true;
 };
 
-const SectionAccordion: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-2 relative z-20">
+const AccordionWrapper: React.FC<{
+  title: string;
+  subtitle: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  icon: any;
+  children: React.ReactNode;
+}> = ({ title, subtitle, isExpanded, onToggle, icon: Icon, children }) => (
+  <div className="w-full mb-6">
+    <div className="max-w-4xl mx-auto px-6 relative z-20">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full py-4 px-6 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-between transition-all shadow-sm cursor-pointer group"
+        onClick={onToggle}
+        className="w-full relative overflow-hidden group py-4 px-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between cursor-pointer"
       >
-        <span className="text-base md:text-lg font-bold text-slate-800 group-hover:text-teal-700 transition-colors">
-          {title}
-        </span>
-        <div className={"p-1.5 rounded-full bg-white border border-slate-200 group-hover:border-teal-200 transition-transform duration-300 " + (isOpen ? "rotate-180" : "")}>
-          <ChevronDown className="h-5 w-5 text-slate-500 group-hover:text-teal-600" />
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-50/0 via-teal-50/50 to-teal-50/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="flex items-center gap-4 relative z-10">
+          <div className={`p-2.5 rounded-xl transition-colors duration-300 ${isExpanded ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600 group-hover:bg-teal-50 group-hover:text-teal-600'}`}>
+            <Icon className="w-6 h-6" />
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="font-bold text-slate-800 text-lg md:text-xl">{title}</span>
+            <span className="text-xs md:text-sm font-semibold text-slate-500 mt-0.5">{subtitle}</span>
+          </div>
         </div>
+        <ChevronDown className={`w-7 h-7 text-slate-400 transition-transform duration-500 relative z-10 ${isExpanded ? 'rotate-180 text-teal-600' : 'group-hover:text-teal-500'}`} />
       </button>
-      <div className={"transition-all duration-500 overflow-hidden w-full " + (isOpen ? "opacity-100 max-h-[25000px] mt-4" : "opacity-0 max-h-0")}>
-        <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm bg-white -mx-4 sm:mx-0">
-          {children}
-        </div>
-      </div>
     </div>
-  );
-};
+    <div className={`transition-all duration-1000 ease-in-out overflow-hidden relative ${isExpanded ? 'max-h-[50000px] opacity-100 mt-10' : 'max-h-0 opacity-0 pointer-events-none mt-0'}`}>
+      {children}
+    </div>
+  </div>
+);
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   // Satisfy ESLint prop-types and unused-vars checks
   useEffect(() => {
@@ -216,6 +226,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  const [isWorkflowExpanded, setIsWorkflowExpanded] = useState(false);
+  const [isChronicExpanded, setIsChronicExpanded] = useState(false);
+  const [isEmrExpanded, setIsEmrExpanded] = useState(false);
+  const [isOnboardingExpanded, setIsOnboardingExpanded] = useState(false);
+  const [isGoogleReviewExpanded, setIsGoogleReviewExpanded] = useState(false);
+
+  const handleFeatureLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    setIsMobileMenuOpen(false);
+    if (href === '#how-it-works') setIsWorkflowExpanded(true);
+    if (href === '#chronic-care') setIsChronicExpanded(true);
+    if (href === '#optional-emr' || href === '#emr-comparison') setIsEmrExpanded(true);
+    if (href === '#faq' || href === '#onboarding') setIsOnboardingExpanded(true);
+    if (href === '#google-reviews') setIsGoogleReviewExpanded(true);
+    setTimeout(() => {
+      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
   const [calcPatients, setCalcPatients] = useState(25);
   const [calcFee, setCalcFee] = useState(500);
   const [calcLabFee, setCalcLabFee] = useState(800);
@@ -402,21 +432,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
           {/* Desktop Navigation Links — Linear / Stripe Style */}
           <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
-            <a href="#how-it-works" className="hover:text-teal-700 transition-colors font-bold text-teal-800">How It Works</a>
-            <a href="#triad-architecture" className="hover:text-teal-700 transition-colors">Why VitalSync</a>
-            <a href="#optional-emr" className="hover:text-teal-700 transition-colors flex items-center gap-1">
+            <a href="#how-it-works" onClick={(e) => handleFeatureLinkClick(e, '#how-it-works')} className="hover:text-teal-700 transition-colors font-bold text-teal-800 cursor-pointer">How It Works</a>
+            <a href="#triad-architecture"  className="hover:text-teal-700 transition-colors cursor-pointer">Why VitalSync</a>
+            <a href="#optional-emr" onClick={(e) => handleFeatureLinkClick(e, '#optional-emr')} className="hover:text-teal-700 transition-colors flex items-center gap-1 cursor-pointer">
               Cloud EMR
               <span className="text-[9px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded font-bold">Optional</span>
             </a>
-            <a href="#emr-comparison" className="hover:text-teal-700 transition-colors flex items-center gap-1">
+            <a href="#emr-comparison" onClick={(e) => handleFeatureLinkClick(e, '#emr-comparison')} className="hover:text-teal-700 transition-colors flex items-center gap-1 cursor-pointer">
               vs Practo Ray
               <span className="text-[9px] font-mono text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">New</span>
             </a>
-            <a href="#chronic-care" className="hover:text-teal-700 transition-colors">Chronic Care</a>
-            <a href="#google-reviews" className="hover:text-teal-700 transition-colors flex items-center gap-1">
+            <a href="#chronic-care" onClick={(e) => handleFeatureLinkClick(e, '#chronic-care')} className="hover:text-teal-700 transition-colors cursor-pointer">Chronic Care</a>
+            <a href="#google-reviews" onClick={(e) => handleFeatureLinkClick(e, '#google-reviews')} className="hover:text-teal-700 transition-colors cursor-pointer flex items-center gap-1">
               Growth <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
             </a>
-            <a href="#pricing" className="hover:text-teal-700 transition-colors">Pricing</a>
           </nav>
 
           {/* Header Action Suite */}
@@ -449,20 +478,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           <div className="md:hidden border-t border-slate-200 bg-white/98 backdrop-blur-xl px-6 py-4 flex flex-col gap-4 shadow-lg">
             <nav className="flex flex-col gap-1">
               {[
-                { href: '#how-it-works', label: 'How It Works' },
-                { href: '#triad-architecture', label: 'Why VitalSync' },
-                { href: '#optional-emr', label: 'Cloud EMR (Optional)' },
-                { href: '#emr-comparison', label: 'vs Practo Ray' },
-                { href: '#chronic-care', label: 'Chronic Care Engine' },
-                { href: '#google-reviews', label: 'Smart Google Reviews' },
-                { href: '#pricing', label: 'Pricing' },
-                { href: '#faq', label: 'FAQs' },
-              ].map(({ href, label }) => (
+                { href: '#how-it-works', label: 'How It Works', isFeature: true },
+                { href: '#triad-architecture', label: 'Why VitalSync', isFeature: false },
+                { href: '#optional-emr', label: 'Cloud EMR (Optional)', isFeature: true },
+                { href: '#emr-comparison', label: 'vs Practo Ray', isFeature: true },
+                { href: '#chronic-care', label: 'Chronic Care Engine', isFeature: true },
+                { href: '#google-reviews', label: 'Smart Google Reviews', isFeature: true },
+                { href: '#faq', label: 'FAQs', isFeature: false },
+              ].map(({ href, label, isFeature }) => (
                 <a
                   key={href}
                   href={href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:text-teal-700 hover:bg-teal-50 transition-all"
+                  onClick={(e) => {
+                    if (isFeature) {
+                      handleFeatureLinkClick(e, href);
+                    } else {
+                      setIsMobileMenuOpen(false);
+                      /* removed */
+                    }
+                  }}
+                  className="py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:text-teal-700 hover:bg-teal-50 transition-all cursor-pointer"
                 >
                   {label}
                 </a>
@@ -621,12 +656,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="p-3.5 rounded-2xl bg-white/90 border border-slate-200/90 shadow-xs hover:border-indigo-400/70 hover:bg-white transition-all text-left">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                  <Video className="h-3.5 w-3.5" />
+                  <Building2 className="h-3.5 w-3.5" />
                 </div>
-                <span className="text-xs font-bold text-slate-900">100–200km Care Loop</span>
+                <span className="text-xs font-bold text-slate-900">Interconnected Platform</span>
               </div>
               <p className="text-[11px] text-slate-500 leading-snug font-medium">
-                Distant chronic patients consult via video and get 1-click home medicine delivery, keeping them loyal forever.
+                Unites your Doctor EMR, Pharmacy POS, and Pathology Lab on a single real-time dashboard.
               </p>
             </div>
           </div>
@@ -1120,6 +1155,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
       </section>
+
       <section id="triad-architecture" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-14 text-center space-y-3">
@@ -1130,7 +1166,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               The Connected Triad Architecture
             </h2>
             <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
-              Why build an expensive multi-specialty hospital when the infrastructure already exists in your neighborhood? VitalSync unites independent doctors, local chemists, and pathology labs through interconnected dashboards.
+              Why build an expensive multi-specialty hospital when the infrastructure already exists in your neighborhood? VitalSync unites independent doctors, local chemists, and pathology labs on WhatsApp.
             </p>
           </div>
 
@@ -1351,170 +1387,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
       </section>
-      <section id="patient-journey" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-12 text-center space-y-3">
-            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-bold uppercase tracking-widest font-mono">
-              <Calendar className="h-3.5 w-3.5 text-cyan-600" /> Longitudinal Care Flow
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
-              The 360° Chronic Patient Journey
-            </h2>
-            <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
-              See what happens to a chronic diabetic patient across 90 days. Click each milestone below to inspect the automated clinical events.
-            </p>
-          </div>
 
-          {/* Interactive Step Selector */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-            {[
-              { step: 0, label: 'Day 1: OPD Consult', icon: Stethoscope },
-              { step: 1, label: 'Day 7: Adherence Pulse', icon: MessageSquare },
-              { step: 2, label: 'Day 25: 1-Tap Refill', icon: Package },
-              { step: 3, label: 'Day 85: Lab Re-test', icon: Microscope },
-              { step: 4, label: 'Day 90: Outcome Review', icon: Award },
-            ].map(({ step, label, icon: StepIcon }) => (
-              <button
-                key={step}
-                type="button"
-                onClick={() => setActiveTimelineStep(step)}
-                className={`py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  activeTimelineStep === step
-                    ? 'bg-white text-teal-900 shadow-md border border-teal-300 font-black'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                }`}
-              >
-                <StepIcon className={`h-4 w-4 ${activeTimelineStep === step ? 'text-teal-600' : 'text-slate-400'}`} />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Timeline Detail Card Display */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 p-8 rounded-3xl text-white border border-teal-500/30 shadow-2xl text-left">
-            {activeTimelineStep === 0 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 border border-emerald-500/40 px-3 py-1 rounded-full uppercase">
-                    Milestone 01 · Day 1
-                  </span>
-                  <span className="text-xs text-slate-400">Doctor Chamber Consultation</span>
-                </div>
-                <h3 className="text-2xl font-black text-white">Chamber Intake &amp; Compounder AI Scan</h3>
-                <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Ramesh Ji (Age 52, Type-2 Diabetes) visits Dr. Verma. Doctor writes on paper as usual. The compounder scans the slip at the front desk ➡️ Clinic OS instantly builds a digital patient profile and extracts the structured dosage (<code className="text-cyan-300 font-mono">Glycomet-GP2 1-0-1</code>).
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">1. CONSULTATION FEE</span>
-                    <strong className="text-emerald-400 text-sm">₹500.00 (100% Doctor)</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">2. CONNECTED PHARMACY</span>
-                    <strong className="text-teal-300 text-sm">₹720 (30 Days Dispensed)</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">3. PATIENT PRIVILEGE</span>
-                    <strong className="text-cyan-300 text-sm">1 Free Follow-up Pass</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTimelineStep === 1 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-950 border border-cyan-500/40 px-3 py-1 rounded-full uppercase">
-                    Milestone 02 · Day 7
-                  </span>
-                  <span className="text-xs text-slate-400">Autonomous WhatsApp Care Touchpoint</span>
-                </div>
-                <h3 className="text-2xl font-black text-white">Adherence Pulse &amp; Fasting Vitals Logging</h3>
-                <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  VitalSync AI sends an automated morning WhatsApp checkup in friendly Hinglish: <em>"Namaste Ramesh Ji! Nayi dawa shuru kiye hue 7 din ho gaye hain. Sugar level kaisa hai?"</em> Ramesh replies with <strong>138 mg/dL</strong>, which logs directly to Dr. Verma's EMR chart.
-                </p>
-                <div className="p-4 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-xs text-cyan-200">
-                  💡 <strong>Zero Doctor Effort:</strong> The AI agent manages communication, triaging alerts only if vitals breach doctor-configured safe thresholds (&gt;250 mg/dL or &lt;70 mg/dL).
-                </div>
-              </div>
-            )}
-
-            {activeTimelineStep === 2 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 border border-emerald-500/40 px-3 py-1 rounded-full uppercase">
-                    Milestone 03 · Day 25
-                  </span>
-                  <span className="text-xs text-slate-400">The 1-Tap Refill Engine</span>
-                </div>
-                <h3 className="text-2xl font-black text-white">Day-25 WhatsApp 1-Tap Refill (10% VIP Discount)</h3>
-                <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Exactly 5 days before Glycomet-GP2 runs out, WhatsApp dispatches: <em>"Aapki Glycomet-GP2 dawa agle 5 dino mein khatam hone wali hai. Verma Clinic Pharmacy ne 1 Month Refill Pack (10% VIP Discount) ready rakha hai."</em> Ramesh taps <strong>[ 📦 Confirm 1-Click Refill ]</strong>.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-xs font-mono">
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">PATIENT PRICE (10% OFF)</span>
-                    <strong className="text-emerald-400 text-sm">₹648.00 (vs MRP ₹720)</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">FULFILLMENT DISPATCH</span>
-                    <strong className="text-teal-300 text-sm">Chemist POS Queue Auto-Provisioned</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTimelineStep === 3 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-950 border border-indigo-500/40 px-3 py-1 rounded-full uppercase">
-                    Milestone 04 · Day 85
-                  </span>
-                  <span className="text-xs text-slate-400">Proactive Diagnostic Loop</span>
-                </div>
-                <h3 className="text-2xl font-black text-white">Automated Interconnected Virtual Lab Re-test</h3>
-                <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Before the quarterly checkup, the Clinic OS prompts a repeat HbA1c test. Your interconnected Partner Lab sends a phlebotomist. The report is automatically synced to the doctor's EMR and delivered to the patient via WhatsApp, fully integrating the virtual hospital loop.
-                </p>
-                <div className="p-4 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-indigo-200">
-                  🔬 <strong>Closed-Loop Diagnostics:</strong> Dr. Verma's EMR receives the HbA1c result before Ramesh even arrives at the clinic chamber.
-                </div>
-              </div>
-            )}
-
-            {activeTimelineStep === 4 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950 border border-teal-500/40 px-3 py-1 rounded-full uppercase">
-                    Milestone 05 · Day 90
-                  </span>
-                  <span className="text-xs text-slate-400">Quarterly Clinical Review</span>
-                </div>
-                <h3 className="text-2xl font-black text-white">VIP Booking, Outcomes &amp; Financial Dashboard</h3>
-                <p className="text-sm text-slate-300 leading-relaxed font-normal">
-                  Ramesh books a VIP slot via WhatsApp for his 90-day consult. Dr. Verma reviews the clean HbA1c trajectory. Simultaneously, your centralized Financial Dashboard records the consultation and automated B2B technology facilitation fees, capturing complete infrastructure revenue.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">HbA1c TRAJECTORY</span>
-                    <strong className="text-emerald-400 text-sm">9.2% ➡️ 6.8% (Target Met)</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">PATIENT RETENTION</span>
-                    <strong className="text-cyan-300 text-sm">100% Loyal to Clinic</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
-                    <span className="text-slate-400 block text-[10px]">PRACTICE RECURRING GMV</span>
-                    <strong className="text-teal-300 text-sm">₹2,840 / Quarter Captured</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-<SectionAccordion title="How It Works: 5-Step Clinic Operating Highway">
-      <section id="how-it-works" className="scroll-mt-20 py-20 relative z-10 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/70 border-t border-slate-200 text-slate-800">
+      <AccordionWrapper 
+        title="Clinic OS Workflow & AI Engine" 
+        subtitle="5-Step Operating Highway & Auto-Scribe" 
+        isExpanded={isWorkflowExpanded} 
+        onToggle={() => setIsWorkflowExpanded(!isWorkflowExpanded)} 
+        icon={Activity}
+      >
+        <section id="how-it-works" className="scroll-mt-20 py-20 relative z-10 bg-gradient-to-b from-slate-50/50 via-white to-slate-50/70 border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           
           {/* Header */}
@@ -1926,159 +1807,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
         </div>
       </section>
-</SectionAccordion>
-<SectionAccordion title="Multi-Chronic Disease Care Engine">
-      <section id="chronic-care" className="scroll-mt-20 py-20 relative z-10 bg-slate-50/70 border-t border-slate-200 text-slate-800">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-14 text-center space-y-3">
-            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-widest font-mono">
-              <HeartPulse className="h-3.5 w-3.5 text-emerald-600" /> Multi-Chronic Disease Care Engine
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
-              Turn One-Off OPD Visits Into 10-Year Recurring Care
-            </h2>
-            <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
-              Over 70% of outpatient consultations in India are chronic patients who forget doses, lapse on medicine refills, or drop out of care. VitalSync automates adherence, refills, and diagnostic follow-ups on WhatsApp.
-            </p>
-          </div>
-
-          {/* 8 Chronic Disease Protocol Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
-            {[
-              {
-                condition: 'Type-2 Diabetes',
-                code: 'ICD-10 E11',
-                drugs: 'Metformin, Glimepiride, Sitagliptin',
-                lab: 'HbA1c & Fasting Sugar (90-Day)',
-                color: 'border-emerald-250 bg-emerald-50/60 text-emerald-900',
-                icon: HeartPulse
-              },
-              {
-                condition: 'Essential Hypertension',
-                code: 'ICD-10 I10',
-                drugs: 'Telmisartan, Amlodipine, Metoprolol',
-                lab: 'Lipid Profile & Serum Electrolytes',
-                color: 'border-teal-250 bg-teal-50/60 text-teal-900',
-                icon: Activity
-              },
-              {
-                condition: 'Hypothyroidism',
-                code: 'ICD-10 E03.9',
-                drugs: 'Levothyroxine (25/50/100 mcg)',
-                lab: 'Free T3, Free T4, TSH Panel',
-                color: 'border-cyan-250 bg-cyan-50/60 text-cyan-900',
-                icon: Zap
-              },
-              {
-                condition: 'CAD & Dyslipidemia',
-                code: 'ICD-10 I25.1',
-                drugs: 'Atorvastatin, Rosuvastatin, Aspirin',
-                lab: 'Lipid Profile & ECG Re-check',
-                color: 'border-indigo-250 bg-indigo-50/60 text-indigo-900',
-                icon: Shield
-              },
-              {
-                condition: 'Asthma & COPD',
-                code: 'ICD-10 J44.9',
-                drugs: 'Formoterol + Budesonide Inhaler',
-                lab: 'Spirometry & Peak Expiratory Flow',
-                color: 'border-purple-250 bg-purple-50/60 text-purple-900',
-                icon: Pill
-              },
-              {
-                condition: 'Osteoarthritis & RA',
-                code: 'ICD-10 M19.9',
-                drugs: 'Glucosamine, Calcium, Vit D3',
-                lab: 'Serum Uric Acid & ESR / CRP',
-                color: 'border-amber-250 bg-amber-50/60 text-amber-900',
-                icon: Award
-              },
-              {
-                condition: 'CKD Stage 1–3',
-                code: 'ICD-10 N18.3',
-                drugs: 'Torsemide, Sodium Bicarbonate',
-                lab: 'Serum Creatinine & eGFR (60-Day)',
-                color: 'border-rose-250 bg-rose-50/60 text-rose-900',
-                icon: Microscope
-              },
-              {
-                condition: 'Epilepsy / Neuro',
-                code: 'ICD-10 G40',
-                drugs: 'Levetiracetam, Valproate, Clobazam',
-                lab: 'Serum Drug Levels & LFT Panels',
-                color: 'border-blue-250 bg-blue-50/60 text-blue-900',
-                icon: Clock
-              }
-            ].map((proto, idx) => {
-              const IconComp = proto.icon;
-              return (
-                <div key={`chronic-proto-${idx}-${proto.code}`} className={`p-4 rounded-2xl border ${proto.color} hover:shadow-md transition-all text-left flex flex-col justify-between`}>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <IconComp className="h-4 w-4 text-slate-700" />
-                      <span className="text-[9px] font-mono font-bold bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
-                        {proto.code}
-                      </span>
-                    </div>
-                    <h4 className="font-extrabold text-xs text-slate-900 leading-snug">{proto.condition}</h4>
-                    <p className="text-[10px] text-slate-600 mt-1 font-medium leading-tight">Rx: {proto.drugs}</p>
-                  </div>
-                  <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[9.5px] font-bold text-slate-700">
-                    🔬 {proto.lab}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 3 Engines of the Recurring Refill Goldmine */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            {/* Engine 1 */}
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:border-teal-400 transition-all space-y-3">
-              <div className="h-10 w-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold">
-                <Clock className="h-5 w-5" />
-              </div>
-              <h3 className="font-extrabold text-base text-slate-900">Automated Days-Supply Calculation</h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Our AI parses dosage strings (<code className="text-[10px] bg-slate-100 px-1 rounded font-bold">1-0-1</code> = 2 tabs/day; 30 tabs = 15-day supply). Exactly 5 days before medicines run out, the system triggers the fulfillment cycle.
-              </p>
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-[10px] text-slate-700">
-                Formula: <span className="text-teal-700 font-bold">PackQty / DailyDose - 5 Days = RefillTrigger</span>
-              </div>
-            </div>
-
-            {/* Engine 2 */}
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:border-emerald-400 transition-all space-y-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold">
-                <RefreshCw className="h-5 w-5" />
-              </div>
-              <h3 className="font-extrabold text-base text-slate-900">Day-25 1-Tap WhatsApp Refills</h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Autonomous morning cron workers send interactive WhatsApp messages with native single-tap reply buttons (<code className="text-[10px] bg-emerald-50 text-emerald-800 px-1 rounded font-bold">[ 📦 Confirm 1-Click Refill (10% OFF) ]</code>).
-              </p>
-              <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-250 font-sans text-[10px] text-emerald-900 font-semibold">
-                ✓ 10% VIP Chronic Discount unlocks 98.4% patient retention.
-              </div>
-            </div>
-
-            {/* Engine 3 */}
-            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:border-indigo-400 transition-all space-y-3">
-              <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold">
-                <Microscope className="h-5 w-5" />
-              </div>
-              <h3 className="font-extrabold text-base text-slate-900">90-Day Diagnostic Re-test Loops</h3>
-              <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                Proactively schedules Day-75/Day-85 WhatsApp Home Blood Sample Collection for repeat biomarker panels (HbA1c, Lipid Profile, TSH, Serum Creatinine) before quarterly doctor reviews.
-              </p>
-              <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-250 font-sans text-[10px] text-indigo-900 font-semibold">
-                ✓ Continuous clinical monitoring + practice diagnostic revenue.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-</SectionAccordion>
-<SectionAccordion title="Interactive Consoles Simulator">
+      </AccordionWrapper>
+      {/* ── SECTION 4: INTERACTIVE SILICON VALLEY 5-CONSOLE SWITCHER & WHATSAPP SIMULATOR ── */}
       <section id="consoles-simulator" className="scroll-mt-20 py-20 relative z-10 bg-slate-50 border-t border-slate-200 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center space-y-3">
@@ -2169,10 +1899,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                         <span>Consult Fee:</span> <strong className="text-slate-900">₹500 (100% Doctor)</strong>
                       </div>
                       <div className="flex justify-between text-teal-700">
-                        <span>Pharmacy Tech Fee (15%):</span> <strong>₹108.00</strong>
+                        <span>Chemist Split (15%):</span> <strong>₹108.00</strong>
                       </div>
                       <div className="flex justify-between text-indigo-700">
-                        <span>Lab Infrastructure Fee (35%):</span> <strong>₹280.00</strong>
+                        <span>Lab Split (35%):</span> <strong>₹280.00</strong>
                       </div>
                     </div>
                   </div>
@@ -2558,6 +2288,442 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
         </div>
       </section>
 
+      </AccordionWrapper>
+      <AccordionWrapper 
+        title="Smart Google Review Engine" 
+        subtitle="Automated Patient Acquisition & 5-Star Growth" 
+        isExpanded={isGoogleReviewExpanded} 
+        onToggle={() => setIsGoogleReviewExpanded(!isGoogleReviewExpanded)} 
+        icon={Star}
+      >
+        <section id="google-reviews" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
+          <div className="max-w-6xl mx-auto px-6">
+            <div className="mb-14 text-center space-y-3">
+              <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-widest font-mono">
+                <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Clinic Growth Automation
+              </div>
+              <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
+                Turn Happy Patients into 5-Star Reviews
+              </h2>
+              <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
+                The moment a patient's consultation finishes, VitalSync's Smart Google Review Engine automatically sends a personalized WhatsApp message asking them to rate their experience. Build a dominant online reputation effortlessly.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              {/* Left Side: Features */}
+              <div className="space-y-6">
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                  1-Tap Google Reviews via WhatsApp
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed font-normal">
+                  Patients don't need to search for your clinic on Google. We send them a direct link on WhatsApp right after their appointment when satisfaction is highest.
+                </p>
+                <ul className="space-y-4 pt-2">
+                  <li className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg shrink-0 mt-0.5">
+                      <Clock className="h-4 w-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <strong className="text-slate-800 text-sm block">Perfect Timing</strong>
+                      <span className="text-slate-600 text-xs">Automated dispatch exactly 1 hour post-consultation.</span>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="p-2 bg-teal-100 rounded-lg shrink-0 mt-0.5">
+                      <ThumbsUp className="h-4 w-4 text-teal-700" />
+                    </div>
+                    <div>
+                      <strong className="text-slate-800 text-sm block">Frictionless 1-Click Link</strong>
+                      <span className="text-slate-600 text-xs">The WhatsApp button links directly to your Google Business Profile review page.</span>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="p-2 bg-indigo-100 rounded-lg shrink-0 mt-0.5">
+                      <TrendingUp className="h-4 w-4 text-indigo-700" />
+                    </div>
+                    <div>
+                      <strong className="text-slate-800 text-sm block">Zero Effort Growth</strong>
+                      <span className="text-slate-600 text-xs">Compounders never have to ask manually. The system drives 10x more reviews autonomously.</span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Right Side: WhatsApp Mockup */}
+              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden flex justify-center">
+                {/* Decorative Elements */}
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
+                
+                {/* WhatsApp Chat UI */}
+                <div className="w-full max-w-sm bg-white rounded-3xl border-8 border-slate-800 shadow-2xl relative z-10 overflow-hidden flex flex-col">
+                  {/* WhatsApp Header */}
+                  <div className="bg-[#075E54] px-4 py-3 flex items-center gap-3 text-white">
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
+                      <BrandMark size={20} title="Clinic Logo" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-[13px] font-bold">Sharma Clinic</div>
+                      <div className="text-[10px] text-emerald-100">Official Business Account</div>
+                    </div>
+                  </div>
+                  
+                  {/* Chat Area */}
+                  <div className="bg-[#E5DDD5] p-4 flex-1 space-y-4 pb-8" style={{ backgroundImage: 'url("https://web.whatsapp.com/img/bg-chat-tile-light_04fcacde539c58cca6745483d4858c52.png")', backgroundSize: 'contain', backgroundRepeat: 'repeat' }}>
+                    <div className="bg-white rounded-2xl rounded-tl-sm p-3 shadow-sm max-w-[90%] text-slate-800 space-y-2 relative">
+                      <p className="font-semibold text-slate-900 text-[13px]">
+                        Namaste Ramesh ji 🙏
+                      </p>
+                      <p className="text-[12px] text-slate-700 leading-relaxed">
+                        Aapka Dr. Verma ke sath consultation kaisa raha? Humari team hamesha aapki behtar care ke liye tatpar hai.
+                      </p>
+                      <p className="text-[12px] text-slate-700 leading-relaxed">
+                        Kripya Google par apna review dekar hamara hosla badhayein! ⭐⭐⭐⭐⭐
+                      </p>
+                      <span className="text-[9px] text-slate-400 block text-right font-mono mt-1">11:45 AM</span>
+                    </div>
+
+                    {/* Interactive Button */}
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 max-w-[90%] overflow-hidden">
+                      <button type="button" className="w-full py-3 px-4 text-[13px] font-bold text-[#00A884] flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer">
+                        <Star className="h-4 w-4 fill-[#00A884]" /> Rate Us on Google
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </AccordionWrapper>
+      <AccordionWrapper 
+        title="Chronic Care Engine" 
+        subtitle="Automated WhatsApp Refills & Diagnostics" 
+        isExpanded={isChronicExpanded} 
+        onToggle={() => setIsChronicExpanded(!isChronicExpanded)} 
+        icon={HeartPulse}
+      >
+        <section id="chronic-care" className="scroll-mt-20 py-20 relative z-10 bg-slate-50/70 border-t border-slate-200 text-slate-800">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="mb-14 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold uppercase tracking-widest font-mono">
+              <HeartPulse className="h-3.5 w-3.5 text-emerald-600" /> Multi-Chronic Disease Care Engine
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
+              Turn One-Off OPD Visits Into 10-Year Recurring Care
+            </h2>
+            <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
+              Over 70% of outpatient consultations in India are chronic patients who forget doses, lapse on medicine refills, or drop out of care. VitalSync automates adherence, refills, and diagnostic follow-ups on WhatsApp.
+            </p>
+          </div>
+
+          {/* 8 Chronic Disease Protocol Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
+            {[
+              {
+                condition: 'Type-2 Diabetes',
+                code: 'ICD-10 E11',
+                drugs: 'Metformin, Glimepiride, Sitagliptin',
+                lab: 'HbA1c & Fasting Sugar (90-Day)',
+                color: 'border-emerald-250 bg-emerald-50/60 text-emerald-900',
+                icon: HeartPulse
+              },
+              {
+                condition: 'Essential Hypertension',
+                code: 'ICD-10 I10',
+                drugs: 'Telmisartan, Amlodipine, Metoprolol',
+                lab: 'Lipid Profile & Serum Electrolytes',
+                color: 'border-teal-250 bg-teal-50/60 text-teal-900',
+                icon: Activity
+              },
+              {
+                condition: 'Hypothyroidism',
+                code: 'ICD-10 E03.9',
+                drugs: 'Levothyroxine (25/50/100 mcg)',
+                lab: 'Free T3, Free T4, TSH Panel',
+                color: 'border-cyan-250 bg-cyan-50/60 text-cyan-900',
+                icon: Zap
+              },
+              {
+                condition: 'CAD & Dyslipidemia',
+                code: 'ICD-10 I25.1',
+                drugs: 'Atorvastatin, Rosuvastatin, Aspirin',
+                lab: 'Lipid Profile & ECG Re-check',
+                color: 'border-indigo-250 bg-indigo-50/60 text-indigo-900',
+                icon: Shield
+              },
+              {
+                condition: 'Asthma & COPD',
+                code: 'ICD-10 J44.9',
+                drugs: 'Formoterol + Budesonide Inhaler',
+                lab: 'Spirometry & Peak Expiratory Flow',
+                color: 'border-purple-250 bg-purple-50/60 text-purple-900',
+                icon: Pill
+              },
+              {
+                condition: 'Osteoarthritis & RA',
+                code: 'ICD-10 M19.9',
+                drugs: 'Glucosamine, Calcium, Vit D3',
+                lab: 'Serum Uric Acid & ESR / CRP',
+                color: 'border-amber-250 bg-amber-50/60 text-amber-900',
+                icon: Award
+              },
+              {
+                condition: 'CKD Stage 1–3',
+                code: 'ICD-10 N18.3',
+                drugs: 'Torsemide, Sodium Bicarbonate',
+                lab: 'Serum Creatinine & eGFR (60-Day)',
+                color: 'border-rose-250 bg-rose-50/60 text-rose-900',
+                icon: Microscope
+              },
+              {
+                condition: 'Epilepsy / Neuro',
+                code: 'ICD-10 G40',
+                drugs: 'Levetiracetam, Valproate, Clobazam',
+                lab: 'Serum Drug Levels & LFT Panels',
+                color: 'border-blue-250 bg-blue-50/60 text-blue-900',
+                icon: Clock
+              }
+            ].map((proto, idx) => {
+              const IconComp = proto.icon;
+              return (
+                <div key={`chronic-proto-${idx}-${proto.code}`} className={`p-4 rounded-2xl border ${proto.color} hover:shadow-md transition-all text-left flex flex-col justify-between`}>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <IconComp className="h-4 w-4 text-slate-700" />
+                      <span className="text-[9px] font-mono font-bold bg-white/80 px-1.5 py-0.5 rounded border border-slate-200">
+                        {proto.code}
+                      </span>
+                    </div>
+                    <h4 className="font-extrabold text-xs text-slate-900 leading-snug">{proto.condition}</h4>
+                    <p className="text-[10px] text-slate-600 mt-1 font-medium leading-tight">Rx: {proto.drugs}</p>
+                  </div>
+                  <div className="mt-2.5 pt-2 border-t border-slate-200/60 text-[9.5px] font-bold text-slate-700">
+                    🔬 {proto.lab}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 3 Engines of the Recurring Refill Goldmine */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            {/* Engine 1 */}
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:border-teal-400 transition-all space-y-3">
+              <div className="h-10 w-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold">
+                <Clock className="h-5 w-5" />
+              </div>
+              <h3 className="font-extrabold text-base text-slate-900">Automated Days-Supply Calculation</h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Our AI parses dosage strings (<code className="text-[10px] bg-slate-100 px-1 rounded font-bold">1-0-1</code> = 2 tabs/day; 30 tabs = 15-day supply). Exactly 5 days before medicines run out, the system triggers the fulfillment cycle.
+              </p>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-[10px] text-slate-700">
+                Formula: <span className="text-teal-700 font-bold">PackQty / DailyDose - 5 Days = RefillTrigger</span>
+              </div>
+            </div>
+
+            {/* Engine 2 */}
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:border-emerald-400 transition-all space-y-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center font-bold">
+                <RefreshCw className="h-5 w-5" />
+              </div>
+              <h3 className="font-extrabold text-base text-slate-900">Day-25 1-Tap WhatsApp Refills</h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Autonomous morning cron workers send interactive WhatsApp messages with native single-tap reply buttons (<code className="text-[10px] bg-emerald-50 text-emerald-800 px-1 rounded font-bold">[ 📦 Confirm 1-Click Refill (10% OFF) ]</code>).
+              </p>
+              <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-250 font-sans text-[10px] text-emerald-900 font-semibold">
+                ✓ 10% VIP Chronic Discount unlocks 98.4% patient retention.
+              </div>
+            </div>
+
+            {/* Engine 3 */}
+            <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm hover:border-indigo-400 transition-all space-y-3">
+              <div className="h-10 w-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold">
+                <Microscope className="h-5 w-5" />
+              </div>
+              <h3 className="font-extrabold text-base text-slate-900">90-Day Diagnostic Re-test Loops</h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Proactively schedules Day-75/Day-85 WhatsApp Home Blood Sample Collection for repeat biomarker panels (HbA1c, Lipid Profile, TSH, Serum Creatinine) before quarterly doctor reviews.
+              </p>
+              <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-250 font-sans text-[10px] text-indigo-900 font-semibold">
+                ✓ Continuous clinical monitoring + practice diagnostic revenue.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      </AccordionWrapper>
+      {/* ── SECTION 1: THE CONNECTED TRIAD ARCHITECTURE ── */}
+      
+
+      {/* ── SECTION 2: THE CHRONIC DISEASE CARE MODEL & RECURRING REFILL GOLDMINE ── */}
+      
+
+      {/* ── SECTION 3: THE 360° CHRONIC PATIENT JOURNEY (INTERACTIVE TIMELINE) ── */}
+      <section id="patient-journey" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="mb-12 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-bold uppercase tracking-widest font-mono">
+              <Calendar className="h-3.5 w-3.5 text-cyan-600" /> Longitudinal Care Flow
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
+              The 360° Chronic Patient Journey
+            </h2>
+            <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
+              See what happens to a chronic diabetic patient across 90 days. Click each milestone below to inspect the automated clinical events.
+            </p>
+          </div>
+
+          {/* Interactive Step Selector */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            {[
+              { step: 0, label: 'Day 1: OPD Consult', icon: Stethoscope },
+              { step: 1, label: 'Day 7: Adherence Pulse', icon: MessageSquare },
+              { step: 2, label: 'Day 25: 1-Tap Refill', icon: Package },
+              { step: 3, label: 'Day 85: Lab Re-test', icon: Microscope },
+              { step: 4, label: 'Day 90: Outcome Review', icon: Award },
+            ].map(({ step, label, icon: StepIcon }) => (
+              <button
+                key={step}
+                type="button"
+                onClick={() => setActiveTimelineStep(step)}
+                className={`py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  activeTimelineStep === step
+                    ? 'bg-white text-teal-900 shadow-md border border-teal-300 font-black'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                }`}
+              >
+                <StepIcon className={`h-4 w-4 ${activeTimelineStep === step ? 'text-teal-600' : 'text-slate-400'}`} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Timeline Detail Card Display */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 p-8 rounded-3xl text-white border border-teal-500/30 shadow-2xl text-left">
+            {activeTimelineStep === 0 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 border border-emerald-500/40 px-3 py-1 rounded-full uppercase">
+                    Milestone 01 · Day 1
+                  </span>
+                  <span className="text-xs text-slate-400">Doctor Chamber Consultation</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">Chamber Intake &amp; Compounder AI Scan</h3>
+                <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                  Ramesh Ji (Age 52, Type-2 Diabetes) visits Dr. Verma. Doctor writes on paper as usual. The compounder scans the slip at the front desk ➡️ Clinic OS instantly builds a digital patient profile and extracts the structured dosage (<code className="text-cyan-300 font-mono">Glycomet-GP2 1-0-1</code>).
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">1. CONSULTATION FEE</span>
+                    <strong className="text-emerald-400 text-sm">₹500.00 (100% Doctor)</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">2. CONNECTED PHARMACY</span>
+                    <strong className="text-teal-300 text-sm">₹720 (30 Days Dispensed)</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">3. PATIENT PRIVILEGE</span>
+                    <strong className="text-cyan-300 text-sm">1 Free Follow-up Pass</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTimelineStep === 1 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-950 border border-cyan-500/40 px-3 py-1 rounded-full uppercase">
+                    Milestone 02 · Day 7
+                  </span>
+                  <span className="text-xs text-slate-400">Autonomous WhatsApp Care Touchpoint</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">Adherence Pulse &amp; Fasting Vitals Logging</h3>
+                <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                  VitalSync AI sends an automated morning WhatsApp checkup in friendly Hinglish: <em>"Namaste Ramesh Ji! Nayi dawa shuru kiye hue 7 din ho gaye hain. Sugar level kaisa hai?"</em> Ramesh replies with <strong>138 mg/dL</strong>, which logs directly to Dr. Verma's EMR chart.
+                </p>
+                <div className="p-4 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-xs text-cyan-200">
+                  💡 <strong>Zero Doctor Effort:</strong> The AI agent manages communication, triaging alerts only if vitals breach doctor-configured safe thresholds (&gt;250 mg/dL or &lt;70 mg/dL).
+                </div>
+              </div>
+            )}
+
+            {activeTimelineStep === 2 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 border border-emerald-500/40 px-3 py-1 rounded-full uppercase">
+                    Milestone 03 · Day 25
+                  </span>
+                  <span className="text-xs text-slate-400">The 1-Tap Refill Engine</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">Day-25 WhatsApp 1-Tap Refill (10% VIP Discount)</h3>
+                <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                  Exactly 5 days before Glycomet-GP2 runs out, WhatsApp dispatches: <em>"Aapki Glycomet-GP2 dawa agle 5 dino mein khatam hone wali hai. Verma Clinic Pharmacy ne 1 Month Refill Pack (10% VIP Discount) ready rakha hai."</em> Ramesh taps <strong>[ 📦 Confirm 1-Click Refill ]</strong>.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 text-xs font-mono">
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">PATIENT PRICE (10% OFF)</span>
+                    <strong className="text-emerald-400 text-sm">₹648.00 (vs MRP ₹720)</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">FULFILLMENT DISPATCH</span>
+                    <strong className="text-teal-300 text-sm">Chemist POS Queue Auto-Provisioned</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTimelineStep === 3 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-950 border border-indigo-500/40 px-3 py-1 rounded-full uppercase">
+                    Milestone 04 · Day 85
+                  </span>
+                  <span className="text-xs text-slate-400">Proactive Diagnostic Loop</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">Automated Interconnected Virtual Lab Re-test</h3>
+                <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                  Before the quarterly checkup, the Clinic OS prompts a repeat HbA1c test. Your interconnected Partner Lab sends a phlebotomist. The report is automatically synced to the doctor's EMR and delivered to the patient via WhatsApp, fully integrating the virtual hospital loop.
+                </p>
+                <div className="p-4 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs text-indigo-200">
+                  🔬 <strong>Closed-Loop Diagnostics:</strong> Dr. Verma's EMR receives the HbA1c result before Ramesh even arrives at the clinic chamber.
+                </div>
+              </div>
+            )}
+
+            {activeTimelineStep === 4 && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-teal-400 bg-teal-950 border border-teal-500/40 px-3 py-1 rounded-full uppercase">
+                    Milestone 05 · Day 90
+                  </span>
+                  <span className="text-xs text-slate-400">Quarterly Clinical Review</span>
+                </div>
+                <h3 className="text-2xl font-black text-white">VIP Booking, Outcomes &amp; Financial Dashboard</h3>
+                <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                  Ramesh books a VIP slot via WhatsApp for his 90-day consult. Dr. Verma reviews the clean HbA1c trajectory. Simultaneously, your centralized Financial Dashboard records the consultation and automated lab/pharmacy splits, capturing complete practice revenue.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs font-mono">
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">HbA1c TRAJECTORY</span>
+                    <strong className="text-emerald-400 text-sm">9.2% ➡️ 6.8% (Target Met)</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">PATIENT RETENTION</span>
+                    <strong className="text-cyan-300 text-sm">100% Loyal to Clinic</strong>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/10 border border-white/10">
+                    <span className="text-slate-400 block text-[10px]">PRACTICE RECURRING GMV</span>
+                    <strong className="text-teal-300 text-sm">₹2,840 / Quarter Captured</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* 4 Premium Patient Member Benefits Section */}
       <section className="py-16 relative z-10 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white border-y border-emerald-700/40">
         <div className="max-w-6xl mx-auto px-6 text-center space-y-8">
@@ -2732,10 +2898,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               const directOpdEarnings = monthlyOPD * calcFee;
               const chronicPatients = Math.round(monthlyOPD * (calcChronicRatio / 100));
               const refillGMV = chronicPatients * calcMedSale;
-              const pharmacyDoctorSplit = refillGMV * 0.15; // 15% Tech Fee
+              const pharmacyDoctorSplit = refillGMV * 0.15; // 15% SOP split
               // Assume 35% of chronic patients do a diagnostic test in any given month (approx every 90 days)
               const labMonthlyGMV = Math.round(chronicPatients * 0.35 * calcLabFee);
-              const labDoctorSplit = labMonthlyGMV * 0.35; // 35% Infrastructure Fee
+              const labDoctorSplit = labMonthlyGMV * 0.35; // 35% SOP split
               const netPracticeOutput = directOpdEarnings + pharmacyDoctorSplit + labDoctorSplit;
               const additionalCareValue = pharmacyDoctorSplit + labDoctorSplit;
 
@@ -2780,111 +2946,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
       </section>
-</SectionAccordion>
-<SectionAccordion title="Smart Google Review Engine">
-      <section id="google-reviews" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200 text-slate-800">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="mb-14 text-center space-y-3">
-            <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold uppercase tracking-widest font-mono">
-              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" /> Clinic Growth Automation
-            </div>
-            <h2 className="text-3xl lg:text-5xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600">
-              Turn Happy Patients into 5-Star Reviews
-            </h2>
-            <p className="text-slate-600 text-sm lg:text-base max-w-3xl mx-auto leading-relaxed font-medium">
-              The moment a patient's consultation finishes, VitalSync's Smart Google Review Engine automatically sends a personalized WhatsApp message asking them to rate their experience. Build a dominant online reputation effortlessly.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left Side: Features */}
-            <div className="space-y-6">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                1-Tap Google Reviews via WhatsApp
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed font-normal">
-                Patients don't need to search for your clinic on Google. We send them a direct link on WhatsApp right after their appointment when satisfaction is highest.
-              </p>
-              <ul className="space-y-4 pt-2">
-                <li className="flex items-start gap-3">
-                  <div className="p-2 bg-amber-100 rounded-lg shrink-0 mt-0.5">
-                    <Clock className="h-4 w-4 text-amber-700" />
-                  </div>
-                  <div>
-                    <strong className="text-slate-800 text-sm block">Perfect Timing</strong>
-                    <span className="text-slate-600 text-xs">Automated dispatch exactly 1 hour post-consultation.</span>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="p-2 bg-teal-100 rounded-lg shrink-0 mt-0.5">
-                    <ThumbsUp className="h-4 w-4 text-teal-700" />
-                  </div>
-                  <div>
-                    <strong className="text-slate-800 text-sm block">Frictionless 1-Click Link</strong>
-                    <span className="text-slate-600 text-xs">The WhatsApp button links directly to your Google Business Profile review page.</span>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="p-2 bg-indigo-100 rounded-lg shrink-0 mt-0.5">
-                    <TrendingUp className="h-4 w-4 text-indigo-700" />
-                  </div>
-                  <div>
-                    <strong className="text-slate-800 text-sm block">Zero Effort Growth</strong>
-                    <span className="text-slate-600 text-xs">Compounders never have to ask manually. The system drives 10x more reviews autonomously.</span>
-                  </div>
-                </li>
-              </ul>
-            </div>
 
-            {/* Right Side: WhatsApp Mockup */}
-            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 shadow-xl relative overflow-hidden flex justify-center">
-              {/* Decorative Elements */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
-              
-              {/* WhatsApp Chat UI */}
-              <div className="w-full max-w-sm bg-white rounded-3xl border-8 border-slate-800 shadow-2xl relative z-10 overflow-hidden flex flex-col">
-                {/* WhatsApp Header */}
-                <div className="bg-[#075E54] px-4 py-3 flex items-center gap-3 text-white">
-                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
-                    <BrandMark size={20} title="Clinic Logo" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-[13px] font-bold">Sharma Clinic</div>
-                    <div className="text-[10px] text-emerald-100">Official Business Account</div>
-                  </div>
-                </div>
-                
-                {/* Chat Area */}
-                <div className="bg-[#E5DDD5] p-4 flex-1 space-y-4 pb-8" style={{ backgroundImage: 'url("https://web.whatsapp.com/img/bg-chat-tile-light_04fcacde539c58cca6745483d4858c52.png")', backgroundSize: 'contain', backgroundRepeat: 'repeat' }}>
-                  <div className="bg-white rounded-2xl rounded-tl-sm p-3 shadow-sm max-w-[90%] text-slate-800 space-y-2 relative">
-                    <p className="font-semibold text-slate-900 text-[13px]">
-                      Namaste Ramesh ji 🙏
-                    </p>
-                    <p className="text-[12px] text-slate-700 leading-relaxed">
-                      Aapka Dr. Verma ke sath consultation kaisa raha? Humari team hamesha aapki behtar care ke liye tatpar hai.
-                    </p>
-                    <p className="text-[12px] text-slate-700 leading-relaxed">
-                      Kripya Google par apna review dekar hamara hosla badhayein! ⭐⭐⭐⭐⭐
-                    </p>
-                    <span className="text-[9px] text-slate-400 block text-right font-mono mt-1">11:45 AM</span>
-                  </div>
-
-                  {/* Interactive Button */}
-                  <div className="bg-white rounded-xl shadow-sm border border-slate-200 max-w-[90%] overflow-hidden">
-                    <button type="button" className="w-full py-3 px-4 text-[13px] font-bold text-[#00A884] flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer">
-                      <Star className="h-4 w-4 fill-[#00A884]" /> Rate Us on Google
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-</SectionAccordion>
-<SectionAccordion title="Cloud EMR (Optional)">
-      <section id="optional-emr" className="scroll-mt-20 py-20 relative z-10 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 text-slate-800">
+      </AccordionWrapper>
+      <AccordionWrapper 
+        title="Cloud EMR & Comparison" 
+        subtitle="Optional EMR Power Module vs Legacy Systems" 
+        isExpanded={isEmrExpanded} 
+        onToggle={() => setIsEmrExpanded(!isEmrExpanded)} 
+        icon={Cloud}
+      >
+        <section id="optional-emr" className="scroll-mt-20 py-20 relative z-10 border-t border-slate-200 bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40 text-slate-800">
         <div className="max-w-6xl mx-auto px-6">
           
           {/* Section Header */}
@@ -3090,9 +3161,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
         </div>
       </section>
-</SectionAccordion>
-<SectionAccordion title="Practo Ray Comparison">
-      <section id="emr-comparison" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200">
+        <section id="emr-comparison" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center space-y-3">
             <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
@@ -3283,9 +3352,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
       </section>
-</SectionAccordion>
-<SectionAccordion title="Onboarding & Launch">
-      <section id="onboarding" className="scroll-mt-20 py-20 relative z-10 bg-[#F8F9FA] border-t border-slate-200/60">
+      </AccordionWrapper>
+      </AccordionWrapper>
+      <AccordionWrapper 
+        title="Onboarding & FAQs" 
+        subtitle="15-Minute Live Pod Setup & Common Questions" 
+        isExpanded={isOnboardingExpanded} 
+        onToggle={() => setIsOnboardingExpanded(!isOnboardingExpanded)} 
+        icon={HelpCircle}
+      >
+        <section id="onboarding" className="scroll-mt-20 py-20 relative z-10 bg-[#F8F9FA] border-t border-slate-200/60">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-12 text-center">
             <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest mb-3">
@@ -3312,7 +3388,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               {
                 step: '02',
                 title: 'Connect Chemist & Pathology Lab',
-                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners with custom technology fee agreements (e.g., 10%-15% pharmacy tech fee, 30%-40% lab infrastructure fee).",
+                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners with custom SOP split parameters (10%-15% pharmacy, 30%-40% lab).",
                 color: 'text-indigo-700',
                 bg: 'bg-indigo-50',
                 border: 'border-indigo-200'
@@ -3340,434 +3416,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
 
         </div>
       </section>
-</SectionAccordion>
-<SectionAccordion title="Pricing">
-      <section id="pricing" className="scroll-mt-20 py-20 relative z-10 bg-white border-t border-slate-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-12 text-center">
-            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-700 font-mono text-[10px] font-extrabold uppercase tracking-widest mb-3">
-              <Shield className="h-3.5 w-3.5 text-teal-600" />
-              100% Transparent Platform Pricing
-            </div>
-            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 tracking-tight uppercase">Platform Fee Schedule</h2>
-            <p className="text-slate-500 text-sm font-semibold mt-2 max-w-2xl mx-auto">
-              VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. We maintain 0% commission on Doctor OPD consultations, alongside ultra-low platform software usage fees on partner Pathology Lab (2%) and Pharmacy Counter (1%).
-            </p>
-          </div>
+        
+      </AccordionWrapper>
 
-          {/* 90-Day Free Pilot & ₹999 Operations Infrastructure Banner */}
-          <div className="mb-12 p-8 rounded-3xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 border border-emerald-500/30 text-white shadow-xl relative overflow-hidden text-left">
-            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-              <Zap className="w-56 h-56 text-teal-400" />
-            </div>
-            
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-7 space-y-3">
-                <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 font-mono text-[11px] font-bold uppercase tracking-widest">
-                  <Sparkles className="h-3.5 w-3.5" /> 90-Day Risk-Free Clinical Pilot
-                </div>
-                <h3 className="text-2xl lg:text-3xl font-black tracking-tight text-white">
-                  First 90 Days 100% Free · Then Flat ₹999/mo Operations Fee
-                </h3>
-                <p className="text-slate-300 text-xs sm:text-sm font-medium leading-relaxed max-w-xl">
-                  Test the complete WhatsApp agentic care loop, AI scribe, and automated chronic refill engine for 90 days with zero financial commitment. Experience 10x ROI before paying a single rupee.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-xs text-slate-200">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong>100% Doctor Fee Immunity</strong> (0% OPD Commission)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong>Sub-250ms Outbound WhatsApp</strong> Business Engine</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong>Automated Chronic Care Loop</strong> &amp; 1-Tap Refills</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span><strong>Zero Hardware Required</strong> · Runs on Mobile / PC</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:col-span-5 bg-white/10 backdrop-blur-md p-6 rounded-2xl border border-white/15 text-center flex flex-col justify-between space-y-4">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 font-mono block">Clinical Operations Plan</span>
-                  <div className="mt-2 flex items-baseline justify-center gap-1.5">
-                    <span className="text-4xl font-extrabold text-white">₹999</span>
-                    <span className="text-xs text-slate-300 font-medium">/ month / clinic</span>
-                  </div>
-                  <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold font-mono">
-                    First 90 Days: ₹0 (Free Trial)
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                  Covers 24/7 official WhatsApp Business messaging, real-time cloud data sync, AI clinical triage, and automated 5-console clinic networking.
-                </p>
-
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
-            {/* Card 1: Online WhatsApp Bookings */}
-            <div className="p-6 rounded-3xl bg-gradient-to-b from-teal-50/50 to-white border border-teal-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-teal-700 bg-teal-100 border border-teal-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    0% OPD Platform Fee (100% Doctor Payout)
-                  </span>
-                  <Sparkles className="h-4 w-4 text-teal-600" />
-                </div>
-                <h3 className="text-base font-extrabold text-slate-900">Online WhatsApp Appointments</h3>
-                <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  Direct patient bookings via WhatsApp Chatbot. 100% of consultation fees go straight to the Doctor's UPI account with zero platform deductions.
-                </p>
-                <div className="p-4 rounded-2xl bg-white border border-teal-100 text-xs space-y-2 font-mono">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Consultation Fee:</span>
-                    <span>₹500.00</span>
-                  </div>
-                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Total Patient Invoice:</span>
-                    <span>₹500.00</span>
-                  </div>
-                  <div className="text-[10px] text-teal-700 font-bold font-sans pt-1">
-                    ✓ 100% Direct to Doctor UPI • ₹0 Deductions
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Counter Physical Consultations */}
-            <div className="p-6 rounded-3xl bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    0% OPD Platform Fee (100% Doctor Payout)
-                  </span>
-                  <Award className="h-4 w-4 text-emerald-600" />
-                </div>
-                <h3 className="text-base font-extrabold text-slate-900">Counter Physical Consultations</h3>
-                <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  Direct walk-in checkups booked at the Compounder desk carry 0% platform fee. 100% of the consultation fee goes to the Doctor.
-                </p>
-                <div className="p-4 rounded-2xl bg-white border border-emerald-100 text-xs space-y-2 font-mono">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Counter Consultation Fee:</span>
-                    <span>₹500.00</span>
-                  </div>
-                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Doctor Earnings:</span>
-                    <span>₹500.00 (100%)</span>
-                  </div>
-                  <div className="text-[10px] text-emerald-700 font-bold font-sans pt-1">
-                    ✓ 90 Days Free • Flat ₹999/mo • Zero OPD Commission
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Pathology Lab Diagnostic Requisitions */}
-            <div className="p-6 rounded-3xl bg-gradient-to-b from-indigo-50/50 to-white border border-indigo-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    2% Platform Fee
-                  </span>
-                  <Building2 className="h-4 w-4 text-indigo-600" />
-                </div>
-                <h3 className="text-base font-extrabold text-slate-900">Pathology Lab Requisitions</h3>
-                <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  Digital diagnostic orders and electronic LOINC lab requisitions fulfilled through the clinic's connected partner lab.
-                </p>
-                <div className="p-4 rounded-2xl bg-white border border-indigo-100 text-xs space-y-2 font-mono">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Digital Lab Order:</span>
-                    <span>₹1,000.00</span>
-                  </div>
-                  <div className="flex justify-between text-indigo-700 font-bold">
-                    <span>Platform Tech Fee (2%):</span>
-                    <span>₹20.00</span>
-                  </div>
-                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Net Lab Vendor Credit:</span>
-                    <span>₹980.00</span>
-                  </div>
-                  <div className="text-[10px] text-indigo-700 font-bold font-sans pt-1">
-                    ✓ Automated B2B Ledger Settlement
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Pharmacy Counter Dispensary */}
-            <div className="p-6 rounded-3xl bg-gradient-to-b from-sky-50/50 to-white border border-sky-200/80 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-sky-800 bg-sky-100 border border-sky-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    1% Platform Fee
-                  </span>
-                  <Pill className="h-4 w-4 text-sky-600" />
-                </div>
-                <h3 className="text-base font-extrabold text-slate-900">Pharmacy Counter POS</h3>
-                <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  FEFO batch inventory dispensing and digital Paytm/UPI medicine sales at the clinic pharmacy counter.
-                </p>
-                <div className="p-4 rounded-2xl bg-white border border-sky-100 text-xs space-y-2 font-mono">
-                  <div className="flex justify-between text-slate-500">
-                    <span>Medicine Order:</span>
-                    <span>₹1,000.00</span>
-                  </div>
-                  <div className="flex justify-between text-sky-700 font-bold">
-                    <span>Platform Tech Fee (1%):</span>
-                    <span>₹10.00</span>
-                  </div>
-                  <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Net Pharmacy Credit:</span>
-                    <span>₹990.00</span>
-                  </div>
-                  <div className="text-[10px] text-sky-700 font-bold font-sans pt-1">
-                    ✓ Realtime Retail Stock Depletion
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-</SectionAccordion>
-      <section id="faq" className="scroll-mt-20 py-20 relative z-10 bg-slate-50/70 border-t border-slate-200">
-        <div id="emr-architecture" className="max-w-4xl mx-auto px-6">
-          <div className="mb-12 text-center space-y-3">
-            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
-              <HelpCircle className="h-3.5 w-3.5 text-teal-600" />
-              Clinical &amp; Architecture FAQ
-            </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-              Frequently Asked Questions
-            </h2>
-            <p className="text-slate-650 text-sm font-semibold max-w-2xl mx-auto">
-              Everything doctors and clinic administrators need to know about VitalSync's standalone EMR capabilities, WhatsApp data sync, ABDM compliance, and security.
-            </p>
-          </div>
-
-          <div className="space-y-4 text-left">
-            {[
-              {
-                id: 0,
-                question: "Do I need a separate or standalone EMR software (like Practo, HealthPlix, or MocDoc) to use VitalSync?",
-                badge: "EMR Architecture",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">No, absolutely not.</strong> VitalSync is a complete, standalone Electronic Medical Record (EMR) system. It natively provides the full <strong>Doctor EMR Console</strong> (with CDSS AI Scribe, Ophthalmic Refraction Grid, and 1-Click Digital Prescriptions), <strong>Compounder OPD Desk</strong>, <strong>Pharmacy POS</strong>, and <strong>Pathology Lab LIS</strong>.
-                    </p>
-                    <p>
-                      Clinics do not need to buy, maintain, or pay subscriptions for any third-party EMR software. VitalSync is your entire clinical operating system.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 1,
-                question: "Do doctors or clinic staff have to manually copy-paste or parallel-enter data between WhatsApp and the EMR?",
-                badge: "Zero Double-Entry",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">Zero manual entry or copy-pasting is required.</strong> WhatsApp functions purely as the friction-free patient interface (for booking, receiving prescriptions, and ordering refills).
-                    </p>
-                    <p>
-                      All interactions synchronize instantly across all clinic devices at <strong>sub-250ms speed</strong>. When a patient books an appointment or a doctor issues a digital prescription, tokens and clinical records are automatically populated inside the Doctor EMR, Compounder Desk, and Pharmacy POS in real time.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 2,
-                question: "How does VitalSync comply with the Ayushman Bharat Digital Mission (ABDM) and ABHA IDs?",
-                badge: "ABDM & ABHA Compliant",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">VitalSync is built from the ground up for ABDM compliance.</strong> It features native ABHA ID creation, verification, and Milestone 1, 2, and 3 consent-driven healthcare data exchange.
-                    </p>
-                    <p>
-                      Patient consent is cryptographically verified before any longitudinal record access is authorized, strictly meeting all National Health Authority (NHA) and ABDM standards.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 3,
-                question: "Who owns the clinical patient records, and how is medical data privacy protected?",
-                badge: "DPDP Act & HIPAA",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">You and your clinic retain 100% ownership of your patient records.</strong> In strict compliance with India's <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and HIPAA privacy guidelines, your clinic's patient records are isolated in dedicated private encrypted storage.
-                    </p>
-                    <p>
-                      All payloads are encrypted in transit using <strong>TLS 1.3</strong> and at rest using <strong>AES-256</strong>. VitalSync never aggregates, sells, or monetizes patient data.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 4,
-                question: "How is VitalSync fundamentally different from generic third-party WhatsApp chatbot plugins?",
-                badge: "Full Ecosystem",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      Third-party WhatsApp bots (like WATI or Interakt) are generic marketing tools that require complex custom API coding or manual copy-pasting into disconnected EMRs.
-                    </p>
-                    <p>
-                      <strong>VitalSync is a unified clinical ecosystem:</strong> the Doctor EMR, Compounder OPD Desk, Pharmacy POS, Pathology Lab LIS, and WhatsApp interact seamlessly on a single shared database with zero integration hassle and zero custom developer fees.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 5,
-                question: "How does VitalSync pricing and the 90-Day Free Pilot work?",
-                badge: "90-Day Free Pilot + ₹999/mo",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">Every clinic begins with a 100% Free 90-Day Full-Access Clinical Pilot.</strong> There are zero setup fees, zero hardware costs, and zero credit card requirements.
-                    </p>
-                    <p>
-                      After 90 days of proven clinical ROI and patient retention, clinics continue on our standard <strong className="text-emerald-800">Clinical Operations Fee of flat ₹999/month</strong>. This covers secure cloud database hosting, Meta WhatsApp Business API relays, AI triage inference, and continuous 24/7 autonomous agents.
-                    </p>
-                    <p>
-                      Crucially, under our <strong>Doctor Consultation Fee Immunity Guarantee</strong>, VitalSync NEVER takes a single rupee from your patient consultation fees — 100% of your OPD earnings remain 100% yours.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 6,
-                question: "How does the Day-25 Chronic Refill Engine work without spamming patients?",
-                badge: "Chronic Refill Engine",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">It is 100% consent-driven and clinically timed.</strong> When a doctor prescribes chronic medicines (for Diabetes, BP, Thyroid, etc.), our system parses the dosage (<code className="text-teal-800 font-mono bg-teal-50 px-1 rounded">1-0-1</code> = 2/day) to calculate the exact days-supply.
-                    </p>
-                    <p>
-                      Exactly 5 days before the pack is depleted (Day 25 for a 30-day supply), the patient receives an interactive WhatsApp message with a permanent <strong>10% VIP Chronic Discount</strong>. With a single tap on <strong>[ 📦 Confirm 1-Click Refill ]</strong>, the order is packed by the partner chemist for free home delivery or express pickup.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 7,
-                question: "Can I use VitalSync if I prefer writing paper prescriptions and don't want to type on a screen?",
-                badge: "Zero Screen Habit",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">Yes! VitalSync supports a Zero-Doctor-Screen workflow.</strong> You can continue writing on your standard printed clinic prescription pad with a ballpoint pen as you have always done.
-                    </p>
-                    <p>
-                      When the patient steps to the compounder desk, your assistant snaps a single photo with a smartphone or webcam. VitalSync's specialized clinical AI model instantly digitizes the handwriting into structured digital records, dispatches the WhatsApp e-Rx, and queues the medicines at the pharmacy.
-                    </p>
-                  </div>
-                )
-              },
-              {
-                id: 8,
-                question: "How does the Connected Triad settlement between Doctor, Chemist, and Lab operate?",
-                badge: "Triad Settlements",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">Settlements are automated, transparent, and governed by clinic SOPs.</strong> The doctor sets custom coordination splits (e.g. 20%–30% on medicines, 30%–40% on diagnostics) in the Doctor EMR SOP Config Tab.
-                    </p>
-                    <p>
-                      When a patient pays for medicines or blood tests at the counter or via UPI, the platform's multi-tenant ledger calculates and deposits each party's share directly into their bank account via automated gateway settlement, maintaining a ₹1,000 safety buffer with zero manual bookkeeping.
-                    </p>
-                  </div>
-                )
-              }
-            ].map((faq) => {
-              const isOpen = expandedFaq === faq.id;
-              return (
-                <div
-                  key={faq.id}
-                  className={`rounded-2xl border transition-all duration-300 overflow-hidden bg-white ${
-                    isOpen ? 'border-teal-400/80 shadow-md ring-1 ring-teal-400/20' : 'border-slate-200 hover:border-slate-300 shadow-sm'
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedFaq(isOpen ? null : faq.id)}
-                    className="w-full p-5 text-left flex items-center justify-between gap-4 cursor-pointer focus:outline-none"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full shrink-0">
-                        {faq.badge}
-                      </span>
-                      <span className="text-sm font-bold text-slate-900">{faq.question}</span>
-                    </div>
-                    <ChevronDown
-                      className={`h-4 w-4 text-slate-400 transition-transform duration-300 shrink-0 ${
-                        isOpen ? 'rotate-180 text-teal-600' : ''
-                      }`}
-                    />
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-5 pt-1 border-t border-slate-100 bg-slate-50/40 animate-fade-in">
-                      {faq.answer}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRE-FOOTER ENTERPRISE CTA ── */}
-      <section className="py-20 relative z-10 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-0 w-[600px] h-[400px] bg-teal-500/10 rounded-full filter blur-[120px]" />
-          <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-emerald-500/10 rounded-full filter blur-[120px]" />
-        </div>
-        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center space-y-8">
-          <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold uppercase tracking-widest font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" /> VitalSync — 100% Free for Doctors
-          </div>
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-            Your Clinic.<br />
-            <span className="bg-gradient-to-r from-teal-300 via-emerald-300 to-cyan-300 bg-clip-text text-transparent">Now a Hospital-Grade Smart Network.</span>
-          </h2>
-          <p className="text-slate-300 text-sm font-medium max-w-2xl mx-auto leading-relaxed">
-            Join independent doctors across Patna, Bihar who have digitised their OPD, automated WhatsApp care loops, and unlocked recurring refill revenue — all at zero SaaS cost.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
-              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl shadow-teal-500/25 transition-all cursor-pointer flex items-center gap-2.5 group"
-            >
-              <Calendar className="h-4 w-4" /> Book Your 1-on-1 Clinic Demo
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-400 font-medium pt-2">
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />0% Doctor Fee Cut</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />WhatsApp Care Loop Included</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />No Credit Card Required</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />DPDP &amp; NMC Ethics Compliant</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
+{/* Footer */}
       <footer className="py-12 px-6 relative z-10 bg-slate-950 border-t border-slate-800 text-slate-400">
         <div className="max-w-6xl mx-auto">
           {/* Top Row */}
@@ -3806,7 +3458,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <div className="space-y-2">
                 <p className="text-white font-bold uppercase tracking-wider text-[10px] font-mono mb-3">For Partners</p>
-                <a href="#pricing" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">Pricing</a>
                 <a href="#faq" className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5">FAQs</a>
                 <button onClick={handleSignUpClick} className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5 cursor-pointer text-left">Clinic Sign Up</button>
                 <button onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }} className="block text-slate-400 hover:text-teal-400 transition-colors py-0.5 cursor-pointer text-left">Book Demo</button>
@@ -4067,7 +3718,250 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
           </div>
         </div>
       )}
+      {/* ── SECTION 0.5: THE 5-STEP CLINIC OPERATING HIGHWAY ── */}
+      
 
+      {/* ── SECTION: BUILT-IN CLOUD DOCTOR EMR SUITE (OPTIONAL POWER MODULE) ── */}
+      
+
+      {/* Comprehensive EMR Architecture Comparison Section: VitalSync vs Practo Ray */}
+      
+
+      
+
+      {/* Onboarding Steps Section — Exactly Matching Slide 13 of the Doctor Booklet */}
+      
+
+      <section id="faq" className="scroll-mt-20 py-20 relative z-10 bg-slate-50/70 border-t border-slate-200">
+        <div id="emr-architecture" className="max-w-4xl mx-auto px-6">
+          <div className="mb-12 text-center space-y-3">
+            <div className="inline-flex items-center gap-2 py-1 px-3.5 rounded-full border border-teal-200 bg-teal-50 text-teal-800 font-mono text-[10px] font-extrabold uppercase tracking-widest">
+              <HelpCircle className="h-3.5 w-3.5 text-teal-600" />
+              Clinical &amp; Architecture FAQ
+            </div>
+            <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-slate-650 text-sm font-semibold max-w-2xl mx-auto">
+              Everything doctors and clinic administrators need to know about VitalSync's standalone EMR capabilities, WhatsApp data sync, ABDM compliance, and security.
+            </p>
+          </div>
+
+          <div className="space-y-4 text-left">
+            {[
+              {
+                id: 0,
+                question: "Do I need a separate or standalone EMR software (like Practo, HealthPlix, or MocDoc) to use VitalSync?",
+                badge: "EMR Architecture",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">No, absolutely not.</strong> VitalSync is a complete, standalone Electronic Medical Record (EMR) system. It natively provides the full <strong>Doctor EMR Console</strong> (with CDSS AI Scribe, Ophthalmic Refraction Grid, and 1-Click Digital Prescriptions), <strong>Compounder OPD Desk</strong>, <strong>Pharmacy POS</strong>, and <strong>Pathology Lab LIS</strong>.
+                    </p>
+                    <p>
+                      Clinics do not need to buy, maintain, or pay subscriptions for any third-party EMR software. VitalSync is your entire clinical operating system.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 1,
+                question: "Do doctors or clinic staff have to manually copy-paste or parallel-enter data between WhatsApp and the EMR?",
+                badge: "Zero Double-Entry",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">Zero manual entry or copy-pasting is required.</strong> WhatsApp functions purely as the friction-free patient interface (for booking, receiving prescriptions, and ordering refills).
+                    </p>
+                    <p>
+                      All interactions synchronize instantly across all clinic devices at <strong>sub-250ms speed</strong>. When a patient books an appointment or a doctor issues a digital prescription, tokens and clinical records are automatically populated inside the Doctor EMR, Compounder Desk, and Pharmacy POS in real time.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 2,
+                question: "How does VitalSync comply with the Ayushman Bharat Digital Mission (ABDM) and ABHA IDs?",
+                badge: "ABDM & ABHA Compliant",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">VitalSync is built from the ground up for ABDM compliance.</strong> It features native ABHA ID creation, verification, and Milestone 1, 2, and 3 consent-driven healthcare data exchange.
+                    </p>
+                    <p>
+                      Patient consent is cryptographically verified before any longitudinal record access is authorized, strictly meeting all National Health Authority (NHA) and ABDM standards.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 3,
+                question: "Who owns the clinical patient records, and how is medical data privacy protected?",
+                badge: "DPDP Act & HIPAA",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">You and your clinic retain 100% ownership of your patient records.</strong> In strict compliance with India's <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and HIPAA privacy guidelines, your clinic's patient records are isolated in dedicated private encrypted storage.
+                    </p>
+                    <p>
+                      All payloads are encrypted in transit using <strong>TLS 1.3</strong> and at rest using <strong>AES-256</strong>. VitalSync never aggregates, sells, or monetizes patient data.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 4,
+                question: "How is VitalSync fundamentally different from generic third-party WhatsApp chatbot plugins?",
+                badge: "Full Ecosystem",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      Third-party WhatsApp bots (like WATI or Interakt) are generic marketing tools that require complex custom API coding or manual copy-pasting into disconnected EMRs.
+                    </p>
+                    <p>
+                      <strong>VitalSync is a unified clinical ecosystem:</strong> the Doctor EMR, Compounder OPD Desk, Pharmacy POS, Pathology Lab LIS, and WhatsApp interact seamlessly on a single shared database with zero integration hassle and zero custom developer fees.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 5,
+                question: "How does VitalSync pricing and the 90-Day Free Pilot work?",
+                badge: "90-Day Free Pilot + ₹999/mo",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">Every clinic begins with a 100% Free 90-Day Full-Access Clinical Pilot.</strong> There are zero setup fees, zero hardware costs, and zero credit card requirements.
+                    </p>
+                    <p>
+                      After 90 days of proven clinical ROI and patient retention, clinics continue on our standard <strong className="text-emerald-800">Clinical Operations Fee of flat ₹999/month</strong>. This covers secure cloud database hosting, Meta WhatsApp Business API relays, AI triage inference, and continuous 24/7 autonomous agents.
+                    </p>
+                    <p>
+                      Crucially, under our <strong>Doctor Consultation Fee Immunity Guarantee</strong>, VitalSync NEVER takes a single rupee from your patient consultation fees — 100% of your OPD earnings remain 100% yours.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 6,
+                question: "How does the Day-25 Chronic Refill Engine work without spamming patients?",
+                badge: "Chronic Refill Engine",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">It is 100% consent-driven and clinically timed.</strong> When a doctor prescribes chronic medicines (for Diabetes, BP, Thyroid, etc.), our system parses the dosage (<code className="text-teal-800 font-mono bg-teal-50 px-1 rounded">1-0-1</code> = 2/day) to calculate the exact days-supply.
+                    </p>
+                    <p>
+                      Exactly 5 days before the pack is depleted (Day 25 for a 30-day supply), the patient receives an interactive WhatsApp message with a permanent <strong>10% VIP Chronic Discount</strong>. With a single tap on <strong>[ 📦 Confirm 1-Click Refill ]</strong>, the order is packed by the partner chemist for free home delivery or express pickup.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 7,
+                question: "Can I use VitalSync if I prefer writing paper prescriptions and don't want to type on a screen?",
+                badge: "Zero Screen Habit",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">Yes! VitalSync supports a Zero-Doctor-Screen workflow.</strong> You can continue writing on your standard printed clinic prescription pad with a ballpoint pen as you have always done.
+                    </p>
+                    <p>
+                      When the patient steps to the compounder desk, your assistant snaps a single photo with a smartphone or webcam. VitalSync's specialized clinical AI model instantly digitizes the handwriting into structured digital records, dispatches the WhatsApp e-Rx, and queues the medicines at the pharmacy.
+                    </p>
+                  </div>
+                )
+              },
+              {
+                id: 8,
+                question: "How does the Connected Triad settlement between Doctor, Chemist, and Lab operate?",
+                badge: "Triad Settlements",
+                answer: (
+                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
+                    <p>
+                      <strong className="text-slate-900">Settlements are automated, transparent, and governed by clinic SOPs.</strong> The doctor sets custom coordination splits (e.g. 20%–30% on medicines, 30%–40% on diagnostics) in the Doctor EMR SOP Config Tab.
+                    </p>
+                    <p>
+                      When a patient pays for medicines or blood tests at the counter or via UPI, the platform's multi-tenant ledger calculates and deposits each party's share directly into their bank account via automated gateway settlement, maintaining a ₹1,000 safety buffer with zero manual bookkeeping.
+                    </p>
+                  </div>
+                )
+              }
+            ].map((faq) => {
+              const isOpen = expandedFaq === faq.id;
+              return (
+                <div
+                  key={faq.id}
+                  className={`rounded-2xl border transition-all duration-300 overflow-hidden bg-white ${
+                    isOpen ? 'border-teal-400/80 shadow-md ring-1 ring-teal-400/20' : 'border-slate-200 hover:border-slate-300 shadow-sm'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setExpandedFaq(isOpen ? null : faq.id)}
+                    className="w-full p-5 text-left flex items-center justify-between gap-4 cursor-pointer focus:outline-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full shrink-0">
+                        {faq.badge}
+                      </span>
+                      <span className="text-sm font-bold text-slate-900">{faq.question}</span>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 text-slate-400 transition-transform duration-300 shrink-0 ${
+                        isOpen ? 'rotate-180 text-teal-600' : ''
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 pt-1 border-t border-slate-100 bg-slate-50/40 animate-fade-in">
+                      {faq.answer}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRE-FOOTER ENTERPRISE CTA ── */}
+      <section className="py-20 relative z-10 bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-0 w-[600px] h-[400px] bg-teal-500/10 rounded-full filter blur-[120px]" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-emerald-500/10 rounded-full filter blur-[120px]" />
+        </div>
+        <div className="relative z-10 max-w-4xl mx-auto px-6 text-center space-y-8">
+          <div className="inline-flex items-center gap-2 py-1 px-4 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold uppercase tracking-widest font-mono">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" /> VitalSync — 100% Free for Doctors
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+            Your Clinic.<br />
+            <span className="bg-gradient-to-r from-teal-300 via-emerald-300 to-cyan-300 bg-clip-text text-transparent">Now a Hospital-Grade Smart Network.</span>
+          </h2>
+          <p className="text-slate-300 text-sm font-medium max-w-2xl mx-auto leading-relaxed">
+            Join independent doctors across Patna, Bihar who have digitised their OPD, automated WhatsApp care loops, and unlocked recurring refill revenue — all at zero SaaS cost.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              onClick={() => { setShowDemoModal(true); setDemoSuccess(false); setDemoError(null); }}
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm uppercase tracking-wider shadow-xl shadow-teal-500/25 transition-all cursor-pointer flex items-center gap-2.5 group"
+            >
+              <Calendar className="h-4 w-4" /> Book Your 1-on-1 Clinic Demo
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-[11px] text-slate-400 font-medium pt-2">
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />0% Doctor Fee Cut</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />WhatsApp Care Loop Included</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />No Credit Card Required</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />DPDP &amp; NMC Ethics Compliant</span>
+          </div>
+        </div>
+      </section>
+
+      
+      </AccordionWrapper>
       {/* Floating App Install Banner (PWA Install Prompt) */}
       <AppInstallBanner />
     </div>

@@ -383,7 +383,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                 <div className="text-[10px] font-black uppercase tracking-wider text-teal-900 mb-2 text-center">
                   ⚡ The VitalSync Connected Outpatient Loop (Zero App Downloads)
                 </div>
-                <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="grid grid-cols-5 gap-2 text-center">
                   <div className="p-2.5 bg-white rounded-xl border-2 border-teal-300 shadow-sm">
                     <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-900 mx-auto flex items-center justify-center font-bold text-base mb-1">
                       👨‍⚕️
@@ -400,6 +400,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                     <div className="text-[10px] text-emerald-800 font-bold">24/7 Patient Care</div>
                   </div>
 
+                  <div className="p-2.5 bg-white rounded-xl border-2 border-amber-300 shadow-sm">
+                    <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-900 mx-auto flex items-center justify-center font-bold text-base mb-1">
+                      ⭐
+                    </div>
+                    <div className="text-xs font-black text-slate-900">Reputation</div>
+                    <div className="text-[10px] text-amber-800 font-bold">Auto 5-Star Reviews</div>
+                  </div>
+
                   <div className="p-2.5 bg-white rounded-xl border-2 border-purple-300 shadow-sm">
                     <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-900 mx-auto flex items-center justify-center font-bold text-base mb-1">
                       🔬
@@ -413,7 +421,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                       💊
                     </div>
                     <div className="text-xs font-black text-slate-900">Local Chemist</div>
-                    <div className="text-[10px] text-blue-800 font-bold">1-Click Refills (10% OFF)</div>
+                    <div className="text-[10px] text-blue-800 font-bold">1-Click Refills (10%)</div>
                   </div>
                 </div>
               </div>
