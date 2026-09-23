@@ -1079,18 +1079,6 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                             </div>
                           )}
                         </div>
-                          <div className="min-w-0 pr-2">
-                            <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                              {m.medicineName || m.name || 'Prescription Medicine'}
-                            </p>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                              {m.dosage || '1 Tab'} • {m.frequency || '1-0-1'}
-                            </p>
-                          </div>
-                          <span className="shrink-0 font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-md text-[11px]">
-                            {m.duration || '15 Days'}
-                          </span>
-                        </div>
                       ))
                     ) : (
                       <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs text-slate-500 text-center italic">

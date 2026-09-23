@@ -496,6 +496,7 @@ export interface ClinicSop {
     doctor_fee: number;
     emergency_sos_fee?: number;
     doctor_upi_vpa?: string;
+    google_review_link?: string;
     care_program_3m_fee?: number;
     care_program_6m_fee?: number;
     care_program_name?: string;
