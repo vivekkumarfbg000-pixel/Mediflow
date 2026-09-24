@@ -206,9 +206,13 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       setInputAddress(extractedAddress || '');
       setIsEditingAddress(!extractedAddress);
 
-      const meds = extractedData.medications || resObj.medications || extractedData.medicines || resObj.medicines || [];
-      const labs = extractedData.diagnosticTests || resObj.diagnosticTests || extractedData.labTests || resObj.labTests || [];
-      const identifiedBadges: string[] = [...(extractedData.chronicConditions || resObj.chronicConditions || [])];
+      const rawMeds = extractedData.medications || resObj.medications || extractedData.medicines || resObj.medicines || [];
+      const meds = Array.isArray(rawMeds) ? rawMeds : [rawMeds].filter(Boolean);
+      const rawLabs = extractedData.diagnosticTests || resObj.diagnosticTests || extractedData.labTests || resObj.labTests || [];
+      const labs = Array.isArray(rawLabs) ? rawLabs : [rawLabs].filter(Boolean);
+      
+      const rawBadges = extractedData.chronicConditions || resObj.chronicConditions || [];
+      const identifiedBadges: string[] = (Array.isArray(rawBadges) ? rawBadges : [rawBadges].filter(Boolean)).map(String);
       const rxText = JSON.stringify(meds).toLowerCase() + ' ' + (extractedData.diagnosis || resObj.diagnosis || '');
 
       if (!identifiedBadges.some(b => b.toLowerCase().includes('diabetes')) &&
@@ -240,6 +244,35 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     } catch (err: any) {
       console.warn('AI OCR Workflow gracefully handled:', err);
       // Under Rule Zero, never crash the UI; fallback to assisted review
+      
+      const mockId = crypto.randomUUID();
+      const generatedToken = PatientService.generateNextTokenNumber();
+      const fallbackPatient: Patient = {
+        id: mockId,
+        name: 'Walk-in Patient (Assisted Review)',
+        phone: '',
+        age: 35,
+        gender: 'Male',
+        allergies: [],
+        chronicConditions: [],
+        createdAt: new Date().toISOString(),
+        queueStatus: 'pending_payment',
+        abhaId: null,
+        tokenNumber: generatedToken,
+        address: ''
+      };
+      
+      api.setActivePatient(fallbackPatient);
+      setExtractedPatient(fallbackPatient);
+      setExtractedMeds([{ medicineName: 'Prescription Review Required', dosage: '1 Tab', frequency: '1-0-1', duration: '10 Days' }]);
+      setChronicBadges([]);
+      setExtractedLabs([]);
+      
+      setInputMobileNumber('');
+      setIsEditingPhone(true);
+      setInputAddress('');
+      setIsEditingAddress(true);
+
       setIsAssistedReview(true);
       setCurrentStep('done');
     }
