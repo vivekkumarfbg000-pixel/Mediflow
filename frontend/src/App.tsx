@@ -1652,7 +1652,10 @@ export default function App() {
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as any).standalone === true
   );
-  const isLandingPageDomain = !isPwaLaunch && !isDashboardSubdomain && !isAdminSubdomain && (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in' || hostname === 'localhost' || hostname === '127.0.0.1');
+  // localhost/127.0.0.1 intentionally excluded — they fall through to isSingleDomain which renders
+  // the dashboard console directly when authenticated or when ?console=true is present.
+  // isLandingPageDomain is only for the production marketing site (vitalsync.in).
+  const isLandingPageDomain = !isPwaLaunch && !isDashboardSubdomain && !isAdminSubdomain && (hostname === 'vitalsync.in' || hostname === 'www.vitalsync.in');
 
   // Render public pages without running the rest of the app logic
   if (publicPage === 'payment') {
@@ -1818,31 +1821,30 @@ export default function App() {
       return <FullPageLoader message="Initializing clinical session..." />;
     }
     if (!session || !activeProfile || isRegistering) {
-      if (isConsoleRequested || isRegistering || (session && !activeProfile)) {
-        return (
-          <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
-            
-            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
-              <div className="flex flex-col items-center space-y-2 text-center">
-                <BrandMark size={52} title="VitalSync" />
-                <div>
-                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">Enterprise Care Connected Console</p>
-                </div>
+      // Always show the dashboard login panel on single-domain (localhost, Vercel previews, direct IPs).
+      // The marketing LandingPage is only served on vitalsync.in / www.vitalsync.in.
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+          
+          <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
+            <div className="flex flex-col items-center space-y-2 text-center">
+              <BrandMark size={52} title="VitalSync" />
+              <div>
+                <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">VitalSync Dashboard</h3>
+                <p className="text-xs text-slate-500 font-medium mt-1">Enterprise Care Connected Console</p>
               </div>
-              
-              <AuthGateway 
-                onAuthSuccess={handleAuthSuccess} 
-                allowSignup={true} 
-                initialSignupTab={initialSignupTab}
-              />
             </div>
+            
+            <AuthGateway 
+              onAuthSuccess={handleAuthSuccess} 
+              allowSignup={true} 
+              initialSignupTab={initialSignupTab}
+            />
           </div>
-        );
-      }
-      return <LandingPage onAuthSuccess={handleAuthSuccess} />;
+        </div>
+      );
     }
   }
 
