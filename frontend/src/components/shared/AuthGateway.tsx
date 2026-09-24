@@ -606,7 +606,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           const isPlatformAdmin = profile?.role === 'platform_admin' || profile?.role === 'admin' || user.app_metadata?.role === 'platform_admin' || user.user_metadata?.role === 'platform_admin';
 
           if (profile && !error) {
-            // onAuthSuccess(session, profile);
+            onAuthSuccess(session, profile);
             return;
           }
 
@@ -894,7 +894,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           }
         }));
 
-        // onAuthSuccess(demoSession, demoProfile);
+        // Trigger App.tsx boot useEffect to re-read mediflow_dev_bypass from localStorage
+        window.location.reload();
       }
     } catch (err) {
       console.error('[Demo Bypass] Failed to initialize demo mode:', err);
