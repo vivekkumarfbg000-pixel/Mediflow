@@ -257,7 +257,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         chronicConditions: [],
         createdAt: new Date().toISOString(),
         queueStatus: 'pending_payment',
-        abhaId: null,
+        abhaId: undefined,
         tokenNumber: generatedToken,
         address: ''
       };
