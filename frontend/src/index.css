@@ -924,7 +924,73 @@ svg line, svg path.domain {
   );
   background-size: 1200px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
+  will-change: background-position;
 }
+
+/* ─── ⚡ VitalSync GPU Performance Layer ─────────────────────────────────────
+   Eliminates layout/paint passes during tab switching and hover interactions.
+   These rules promote key elements to compositor layers for 60fps operations.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Tab content area: scope repaints to this subtree only (no full-page layout) */
+.vs-tab-content {
+  contain: layout style paint;
+  will-change: auto;
+}
+
+/* Tab content entering view — instant, no janky transition */
+.vs-tab-content-active {
+  contain: layout style paint;
+  backface-visibility: hidden;
+}
+
+/* Nav items and sidebar tabs: promote to compositor layer for instant hover */
+.vs-nav-item,
+.vs-tab-btn {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Buttons: fast active feedback, hardware-accelerated scale */
+.vs-btn-fast {
+  transform: translateZ(0);
+  transition: transform 80ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 80ms ease,
+              background-color 80ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.vs-btn-fast:active {
+  transform: scale(0.97) translateZ(0);
+}
+
+/* Main dashboard scroll container: GPU-composited scroll */
+.vs-main-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: auto; /* instant, never smooth-scroll the data table */
+}
+
+/* Patient list rows: contain layout for virtual list perf */
+.vs-patient-row {
+  contain: layout style;
+  transform: translateZ(0);
+}
+
+/* Modals/overlays: always on compositor layer to avoid paint during open/close */
+.vs-overlay {
+  will-change: opacity, transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+
 
 /* ─── Toast Slide-in Animation ───────────────────────────────────────────────── */
 @keyframes slide-in {

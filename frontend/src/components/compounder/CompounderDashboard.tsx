@@ -18,6 +18,7 @@ import { load } from '../../services/apiHelper';
 import { cloudStore } from '../../services/cloudStore';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
+import { DashboardSkeleton } from '../shared/LoadingSkeleton';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
 import { categorizeAppointments, isVipBooking, compareAppointmentsForQueue } from '../../services/appointmentPipeline';
 import type {
@@ -2321,30 +2322,38 @@ export const CompounderDashboard: React.FC = () => {
   const [isUploadingReport, setIsUploadingReport] = useState(false);
 
   const syncData = useCallback(() => {
-    setDataRevision(prev => prev + 1);
+    // PERF FIX (RC-1): Priority split — urgent state first, non-urgent in startTransition.
+    // Prevents 10 sequential re-renders; React batches urgent + defers non-urgent.
     setPatients(api.getPatients());
-    setSessions(api.getWhatsAppSessions());
-    setStaffList(api.getClinicStaff());
-    setActiveStaffId(api.getActiveStaffId());
-    setReports(api.getPathologyReports());
-    setActiveInventory(api.getPharmacyInventory());
-    setFullLabReports(api.getFullLabReports());
     setAppointments(api.getAppointments());
+    setDataRevision(prev => prev + 1);
 
     const activePat = api.getActivePatient();
     setActivePatientState(activePat);
     if (activePat) {
-      setActivePatientStage(api.getActivePatientCareStage(activePat.id));
       setBillingPatient(activePat);
     } else {
-      setActivePatientStage('registered');
       setBillingPatient(null);
     }
 
-    setActiveSession((prev: WhatsAppSession | null) => {
-      if (!prev) return null;
-      const fresh = api.getWhatsAppSessions().find(s => s.patientPhone === prev.patientPhone);
-      return fresh || null;
+    // Non-urgent deferred state — paint patient queue first, then refresh aux data
+    startTransition(() => {
+      setSessions(api.getWhatsAppSessions());
+      setStaffList(api.getClinicStaff());
+      setActiveStaffId(api.getActiveStaffId());
+      setReports(api.getPathologyReports());
+      setActiveInventory(api.getPharmacyInventory());
+      setFullLabReports(api.getFullLabReports());
+      if (activePat) {
+        setActivePatientStage(api.getActivePatientCareStage(activePat.id));
+      } else {
+        setActivePatientStage('registered');
+      }
+      setActiveSession((prev: WhatsAppSession | null) => {
+        if (!prev) return null;
+        const fresh = api.getWhatsAppSessions().find(s => s.patientPhone === prev.patientPhone);
+        return fresh || null;
+      });
     });
   }, []);
   syncDataRef.current = syncData;
@@ -2352,12 +2361,13 @@ export const CompounderDashboard: React.FC = () => {
   useEffect(() => {
     syncData();
     window.addEventListener('mediflow-state-change', syncData);
-    window.addEventListener('storage', syncData);
+    // PERF FIX (RC-3): Removed 'storage' listener — every localStorage write was
+    // triggering syncData (feedback loop: save → sync → re-render → save → …).
+    // Cross-tab sync is already handled by CloudStore BroadcastChannel meshBus.
     const unsubscribeApi = api.subscribe(syncData);
 
     return () => {
       window.removeEventListener('mediflow-state-change', syncData);
-      window.removeEventListener('storage', syncData);
       unsubscribeApi();
     };
   }, [syncData]);
@@ -3245,7 +3255,7 @@ export const CompounderDashboard: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => startTransition(() => setActiveTab(tab.id as any))}
-            className={`px-4 py-2.5 text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all uppercase cursor-pointer rounded-xl ${
+            className={`vs-tab-btn px-4 py-2.5 text-xs font-black flex items-center gap-2 whitespace-nowrap transition-all uppercase cursor-pointer rounded-xl ${
               activeTab === tab.id
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/25'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/5'
@@ -3257,8 +3267,8 @@ export const CompounderDashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* TAB CONTENT SPACES */}
-      <div className="space-y-6">
+      {/* TAB CONTENT SPACES — vs-tab-content scopes repaints to this area only */}
+      <div className="vs-tab-content vs-main-scroll space-y-6">
         {/* ══════════════════════════════════════════════════════════
             TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}
@@ -5330,7 +5340,7 @@ export const CompounderDashboard: React.FC = () => {
             TAB: CLINICAL HUB (LABS & PHARMACY CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'clinical_hub' && (
-          <Suspense fallback={<div className="flex justify-center items-center p-12 text-slate-500"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+          <Suspense fallback={<DashboardSkeleton />}>
             <ClinicalHubTab 
               clinicalSubTab={clinicalSubTab}
               setClinicalSubTab={setClinicalSubTab}
@@ -5349,7 +5359,7 @@ export const CompounderDashboard: React.FC = () => {
             TAB: BILLING & MINOR OT (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'billing_daycare' && (
-          <Suspense fallback={<div className="flex justify-center items-center p-12 text-slate-500"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+          <Suspense fallback={<DashboardSkeleton />}>
             <BillHubTab 
               initialMode={billHubInitialMode}
               initialPatientId={selectedPatientForBillHub}
@@ -5360,7 +5370,7 @@ export const CompounderDashboard: React.FC = () => {
             TAB: PRESCRIPTION SCAN (AUTONOMOUS OCR & VISION ENGINE)
         ══════════════════════════════════════════════════════════ */}
       {activeTab === 'ai_ocr_upload' && (
-        <Suspense fallback={<div className="flex justify-center items-center p-12 text-slate-500"><Loader2 className="w-8 h-8 animate-spin" /></div>}>
+        <Suspense fallback={<DashboardSkeleton />}>
           <AiPrescriptionUploadTab 
             onSuccess={(patientId) => {
               startTransition(() => {

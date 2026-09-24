@@ -331,6 +331,7 @@ export class SovereignCloudStore {
   }
 
   private notifySubscribers(collection: CollectionName): void {
+    // React subscribers (useSyncExternalStore) get notified immediately — zero latency
     const subs = this.listeners.get(collection);
     if (subs) {
       subs.forEach(cb => {
@@ -341,15 +342,33 @@ export class SovereignCloudStore {
       try { cb(); } catch (_e) {}
     });
 
+    // PERF FIX (RC-2): Debounce global window events at 150ms per collection.
+    // Rapid CDC bursts (multi-row inserts, sync storms) used to fire one window event
+    // per row, cascading syncData 10x per event. Now batched to 1 event per 150ms window.
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: collection } }));
-      if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'lab_test_bills', 'vitalsync_pool_settlements'].includes(collection)) {
-        window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { table: collection } }));
-      }
+      this.debouncedWindowNotify(collection);
     }
   }
 
+  // Debounce timer map — one timer slot per collection
+  private notifyTimers: Map<CollectionName, ReturnType<typeof setTimeout>> = new Map();
+
+  private debouncedWindowNotify(collection: CollectionName): void {
+    const existing = this.notifyTimers.get(collection);
+    if (existing) clearTimeout(existing);
+
+    this.notifyTimers.set(collection, setTimeout(() => {
+      try {
+        window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: collection } }));
+        if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'lab_test_bills', 'vitalsync_pool_settlements'].includes(collection)) {
+          window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { table: collection } }));
+        }
+      } catch (_e) {}
+    }, 150));
+  }
+
   // ── Non-Blocking L1 Cold-Cache Async Persistence ────────────────────────────
+
   private l1Timers: Map<CollectionName, ReturnType<typeof setTimeout>> = new Map();
   private asyncPersistL1(collection: CollectionName): void {
     const existingTimer = this.l1Timers.get(collection);
