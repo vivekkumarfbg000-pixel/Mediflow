@@ -621,7 +621,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   .eq('id', user.id)
                   .maybeSingle();
                 if (healedProfile) {
-                  // onAuthSuccess(session, healedProfile);
+                  onAuthSuccess(session, healedProfile);
                   return;
                 }
               } catch (healErr) {
@@ -671,7 +671,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               email: email
             };
 
-            // onAuthSuccess(session, synthesizedProfile);
+            onAuthSuccess(session, synthesizedProfile);
             setLoading(false);
           }
         }
@@ -706,10 +706,13 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }));
       }
 
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const redirectUrl = isLocal ? `${window.location.origin}/?console=true` : `${window.location.origin}`;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: redirectUrl,
         },
       });
       if (error) throw error;
