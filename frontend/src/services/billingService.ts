@@ -571,7 +571,10 @@ export class BillingService {
           pod_id: podId,
           is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
           is_vip: Boolean(appt.isVip || (appt as any).is_vip),
-          payment_status: (appt as any).paymentStatus || (appt as any).payment_status || 'cleared',
+          // FIX: Enforce Smart Queue Inviolability — paper_scan appointments MUST default
+          // to 'pending' (not 'cleared') so they go through the payment counter first.
+          payment_status: (appt as any).paymentStatus || (appt as any).payment_status ||
+            ((appt as any).source === 'paper_scan' ? 'pending' : 'cleared'),
           problem: (appt as any).problem || (appt as any).chief_complaint || '',
           chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
         }, { onConflict: 'id' });

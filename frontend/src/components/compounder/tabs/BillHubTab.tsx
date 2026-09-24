@@ -39,6 +39,13 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const { activePod, activeProfile } = useClinic();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // App States — MUST be declared before any useEffect that references these setters
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [patientFilterTab, setPatientFilterTab] = useState<'today_queue' | 'all'>('today_queue');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [billingMode, setBillingMode] = useState<'digital' | 'manual'>('digital');
+
   // Dual Master Header Tabs (Default: 1. OCR Scan & Auto-Save)
   const [invoiceSectionTab, setInvoiceSectionTab] = useState<'ocr_scan' | 'manual_billing'>(initialMode);
 
@@ -48,12 +55,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
   }, [initialMode]);
 
+  // FIX: State declarations moved above — stale-closure bug on selectedPatient resolved.
+  // The active patient fallback now unconditionally runs when no ID match is found.
   useEffect(() => {
     const resolvePatient = () => {
       const allPats = PatientService.getPatients();
       if (initialPatientId) {
-        const target = allPats.find(p => 
-          p.id === initialPatientId || 
+        const target = allPats.find(p =>
+          p.id === initialPatientId ||
           (p as any).patient_code === initialPatientId ||
           (p.tokenNumber != null && String(p.tokenNumber) === String(initialPatientId))
         );
@@ -64,8 +73,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         }
       }
 
+      // Always fall back to the active patient (no stale-closure guard needed here)
       const activePat = api.getActivePatient();
-      if (activePat && (!selectedPatient || (initialPatientId && activePat.id === initialPatientId))) {
+      if (activePat) {
         setSelectedPatient(activePat);
         setBillingMode('digital');
         return true;
@@ -78,13 +88,6 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       return () => clearTimeout(t);
     }
   }, [initialPatientId]);
-  
-  // App States
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [patientFilterTab, setPatientFilterTab] = useState<'today_queue' | 'all'>('today_queue');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [billingMode, setBillingMode] = useState<'digital' | 'manual'>('digital');
   
   // Manual Upload / OCR States
   const [fileName, setFileName] = useState<string | null>(null);

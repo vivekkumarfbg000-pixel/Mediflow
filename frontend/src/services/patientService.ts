@@ -285,6 +285,12 @@ export class PatientService {
       if (upsertErr) {
         console.error('[PatientService] Fatal patient_registry upsert error:', upsertErr);
         await walDB.addEntry('upsert_patient', upsertPayload);
+      } else if (!upsertData) {
+        // FIX: Silent-fail detection — RLS may block write without returning an error.
+        // upsertData=null + upsertErr=null means the row was rejected by a Supabase policy.
+        // Queue to WAL for deferred retry and log clearly for debugging.
+        console.warn('[PatientService] Silent Supabase write block detected for patient_registry (upsertData=null, upsertErr=null). Possible RLS policy issue. Queuing to WAL for retry. Patient ID:', targetId);
+        await walDB.addEntry('upsert_patient', upsertPayload);
       }
     } catch (dbErr) {
       console.warn('[PatientService] Network error during patient upsert, queuing to WAL:', dbErr);

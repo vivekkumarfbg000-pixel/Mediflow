@@ -463,8 +463,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       if (onSuccess) {
         onSuccess(realPatientId);
       } else {
-        window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: 'billing_daycare' }));
-        window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: 'billing_daycare' }));
+        // FIX: Carry patientId in event detail so CompounderDashboard can call
+        // setSelectedPatientForBillHub before rendering BillHubTab
+        window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: { tab: 'billing_daycare', patientId: realPatientId } }));
+        window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: { tab: 'billing_daycare', patientId: realPatientId } }));
       }
 
     } catch (err: any) {

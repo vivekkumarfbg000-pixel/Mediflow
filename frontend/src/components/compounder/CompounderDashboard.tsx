@@ -630,19 +630,25 @@ export const CompounderDashboard: React.FC = () => {
 
       startTransition(() => {
         if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan') {
-          startTransition(() => setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : target));
+          startTransition(() => setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : target as any));
         } else if (target === 'tokens' || target === 'patients') {
           startTransition(() => setActiveTab('opd_patients'));
           setOpdSubTab('today_queue');
         } else if (target === 'labs' || target === 'pharmacy') {
           startTransition(() => setActiveTab('clinical_hub'));
           setClinicalSubTab(target === 'pharmacy' ? 'pharmacy' : 'labs');
-        } else if (target === 'ot_billing' || target === 'invoice_generator' || target === 'billing_daycare') {
+        } else if (target === 'ot_billing' || target === 'invoice_generator') {
           startTransition(() => setActiveTab('billing_daycare'));
+        }
+        // FIX: Always apply patientId + manual_billing mode for any billing-related
+        // navigation. Previously 'billing_daycare' was caught in the first if-branch
+        // (correct tab switch) but never reached the else-if that set patientId.
+        if (target === 'billing_daycare' || target === 'ot_billing' || target === 'invoice_generator') {
           setBillingSubTab('billing');
-          if (payload?.patientId) {
-            setSelectedPatientForBillHub(payload.patientId);
-            setBillHubInitialMode('manual_billing');
+          setBillHubInitialMode('manual_billing');
+          const resolvedPatientId = payload?.patientId || null;
+          if (resolvedPatientId) {
+            setSelectedPatientForBillHub(resolvedPatientId);
           }
         }
       });
