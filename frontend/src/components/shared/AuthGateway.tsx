@@ -124,6 +124,7 @@ const DEMO_ACCOUNTS = [
     role: 'doctor',
     label: 'Doctor EMR',
     name: 'Dr. Vivek Kumar',
+    phone: '8986426029',
     email: 'doctor@mediflow.com',
     id: FALLBACK_DOCTOR_ID,
     entityId: FALLBACK_ENTITY_ID,
@@ -865,6 +866,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           role: account.role,
           display_name: account.name,
           email: account.email,
+          phone: (account as any).phone || undefined,
           consultation_fee: 500
         };
         
@@ -897,8 +899,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           }
         }));
 
-        // Trigger App.tsx boot useEffect to re-read mediflow_dev_bypass from localStorage
-        window.location.reload();
+        // Call onAuthSuccess directly — NO window.location.reload().
+        // A page reload is racy: any pending Service Worker skipWaiting can fire a second
+        // reload immediately after, wiping the in-memory session before App.tsx can read it.
+        onAuthSuccess(demoSession as any, demoProfile);
       }
     } catch (err) {
       console.error('[Demo Bypass] Failed to initialize demo mode:', err);

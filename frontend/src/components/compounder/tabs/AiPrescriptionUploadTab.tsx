@@ -535,7 +535,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   };
 
   return (
-    <div className="flex flex-col min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 overflow-y-auto w-full font-sans">
+    <div className="flex flex-col h-full min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 overflow-y-auto w-full font-sans">
 
       {/* ── CLEAN CLINICAL WORKSTATION HEADER ───────────────────────────────── */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70 dark:border-slate-800/80">
@@ -772,8 +772,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         </div>
 
         {/* ── RIGHT: EXTRACTED CLINICAL PROFILE & DISPENSING QUEUE (5 COLS) ─ */}
-        <div className="lg:col-span-5 flex flex-col">
-          <div className="bg-white dark:bg-[#0b1120] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl p-5 sm:p-6 flex flex-col min-h-[460px]">
+        <div className="lg:col-span-5 flex flex-col h-full min-h-[460px]">
+          <div className="bg-white dark:bg-[#0b1120] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl p-5 sm:p-6 flex flex-col flex-1 h-full max-h-full">
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">

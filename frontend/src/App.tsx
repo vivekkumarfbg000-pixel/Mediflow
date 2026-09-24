@@ -136,6 +136,7 @@ import { resolvePodContext, clearPodContext } from './services/podContext';
 import { RealtimeSyncService } from './services/realtimeSyncService';
 import { PatientService } from './services/patientService';
 import { PatientProfileModal } from './components/shared/PatientProfileModal';
+import { PromptGuardDashboard } from './components/promptguard/PromptGuardDashboard';
 import {
   DashboardSkeleton,
   DoctorDashboardSkeleton,
@@ -1239,7 +1240,8 @@ export default function App() {
             user_metadata: {
               display_name: 'Dr. Vivek Kumar (Mock)',
               role: 'doctor',
-              specialization: 'General Medicine'
+              specialization: 'General Medicine',
+              phone: '8986426029'
             }
           }
         } as any;
@@ -1294,7 +1296,7 @@ export default function App() {
         console.log('[Mediflow Auth] PASSWORD_RECOVERY event triggered. Entering recovery mode.');
         setIsRecoveryMode(true);
       }
-      setSession(session);
+      
       if (!session) {
         // Guard 1: Do NOT wipe session on INITIAL_SESSION if cached profile exists
         if (event === 'INITIAL_SESSION') {
@@ -1309,12 +1311,16 @@ export default function App() {
           setIsLoadingSession(false);
           return;
         }
+        
+        // If guards fail, we actually clear the session
+        setSession(null);
         setCrossDomainCookie(false);
         setActiveProfile(null);
         setIsLoadingSession(false);
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
       } else {
+        setSession(session);
         if (getIsRegisteringActive(activeProfile)) {
           console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
           return;
@@ -1714,6 +1720,11 @@ export default function App() {
         </div>
       </div>
     );
+  }
+
+  // 0. PromptGuard / Bug Command Center Route (Developer Only)
+  if (window.location.pathname === '/promptguard') {
+    return <PromptGuardDashboard />;
   }
 
   // 1. Session Loading Gate & Active Profile Resolution Hold

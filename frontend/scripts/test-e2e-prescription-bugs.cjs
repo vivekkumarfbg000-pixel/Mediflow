@@ -25,10 +25,7 @@ async function testPrescriptionWorkflow() {
 
     // Catch console logs (filter spam)
     page.on('console', msg => {
-      const txt = msg.text();
-      if ((txt.includes('OCR') || txt.includes('Encounter') || txt.includes('Appointment') || txt.includes('Billing') || txt.includes('Asha')) && !txt.includes('RealtimeSync') && !txt.includes('Realtime Appointment update')) {
-        console.log('[Browser]', txt);
-      }
+      console.log('[Browser]', msg.text());
     });
 
     console.log('1. Navigating to Mediflow dev server...');
