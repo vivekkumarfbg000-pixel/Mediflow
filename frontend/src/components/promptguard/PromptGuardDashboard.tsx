@@ -45,7 +45,7 @@ export const PromptGuardDashboard: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [diagnosticsMeta, setDiagnosticsMeta] = useState<DiagnosticsMeta | null>(null);
   const [confidence, setConfidence] = useState<Confidence | null>(null);
-  const [activeTab, setActiveTab] = useState<'triage' | 'console' | 'compile' | 'memory' | 'gitops' | 'e2e'>('triage');
+  const [activeTab, setActiveTab] = useState<'triage' | 'console' | 'compile' | 'memory' | 'gitops' | 'e2e' | 'network' | 'queue'>('triage');
   const [compileResult, setCompileResult] = useState<ShadowCompile | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [memoryFixes, setMemoryFixes] = useState<MemoryFix[]>([]);
@@ -175,6 +175,11 @@ export const PromptGuardDashboard: React.FC = () => {
       setGeneratedPrompt(data.prompt);
       setDiagnosticsMeta(data.metadata);
       setConfidence(data.confidence);
+      // ENGINE 16: Auto-clipboard
+      navigator.clipboard.writeText(data.prompt).then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      });
     } catch (err) {
       setGeneratedPrompt(`⚠️ Could not reach J.A.R.V.I.S. Daemon Bridge.\n\nStart it with:\n  node frontend/scripts/daemon-bridge.cjs\n\nError: ${err}`);
     } finally {

@@ -1,3 +1,4 @@
+const puppeteer = require('puppeteer');
 /**
  * 🧠 VitalSync J.A.R.V.I.S. Daemon Bridge — Enterprise v3.0 (JARVIS Protocol)
  * Port: 9000
@@ -679,6 +680,22 @@ const server = http.createServer((req, res) => {
         const recentErrors = consoleErrorStream.slice(-10);
 
         // Build sections
+        
+        // 10. Network Errors (Gap 2)
+        const recentNetworkErrors = networkErrorStream.slice(-5);
+        const networkErrorsStr = recentNetworkErrors.length > 0
+          ? recentNetworkErrors.map(e => `  [${(e.receivedAt||'').slice(11,19)}] ${e.method} ${e.url} — Status: ${e.status}\n     Hint: ${e.hint}`).join('\n')
+          : '  No failed network requests captured.';
+
+        // 11. React State Snapshot (Gap 4)
+        const reactStateStr = latestReactState?.available && latestReactState.components?.length > 0
+          ? latestReactState.components.map(c => `  ⚛️ <${c.component}> State:\\n\\\`\\\`\\\`json\\n${c.statePreview}\\n\\\`\\\`\\\``).join('\\n')
+          : '  No React state snapshot available.';
+
+        // 12. Bug Severity (Gap 5)
+        const bugSeverity = classifyBugSeverity(bugDescription, recentErrors);
+        const edgeLogs = pullEdgeLogs(bugDescription);
+
         const ragFilesStr = relevantFiles.length > 0
           ? relevantFiles.map(rf =>
               `  📂 ${rf.feature}\n` + rf.files.map(f => `     • ${f.path} → ${f.symbol} [L${f.lines}]`).join('\n')
@@ -716,24 +733,33 @@ const server = http.createServer((req, res) => {
 
         const prompt = `<USER_REQUEST_TRIAGE>
 ╔═══════════════════════════════════════════════════════════════════╗
-║  🧠 J.A.R.V.I.S. v4.0 — VitalSync Bug Command Center            ║
-║  9-Engine Anti-Hallucination Supercomputer Protocol              ║
+║  🧠 J.A.R.V.I.S. v5.0 — VitalSync Bug Command Center            ║
+║  17-Engine Anti-Hallucination Supercomputer Protocol              ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 🚨 BUG DESCRIPTION:
-${bugDescription || 'UI/UX anomaly detected.'}
+🚨 BUG SEVERITY: ${bugSeverity.label}\n   Urgency: ${bugSeverity.urgency}\n\n🚨 BUG DESCRIPTION:\n${bugDescription || 'UI/UX anomaly detected.'}
 
 📸 VISUAL EVIDENCE:
   [${payload.hasImage ? 'Screenshot provided ✅ — Analyze with Vision AI' : 'No screenshot ⚠️ — Consider adding one for higher confidence'}]
 
 📊 LIVE ENVIRONMENT:
   • Viewport: ${windowSize || 'Unknown'}
-  • J.A.R.V.I.S. Version: v4.0 (9 Engines Active)
+  • J.A.R.V.I.S. Version: v4.0 (17 Engines Active)
   • DOM State: ${domStats}
   • Fix Confidence: [${confidenceBar}] ${confidence.score}/100 — ${confidence.grade}
 
 🧫 ENGINE 8 — BROWSER CONSOLE ERROR STREAM (Last 10):
 ${consoleErrorsStr}
+
+☁️ ENGINE 17 — SUPABASE EDGE FUNCTION LOGS:
+${edgeLogs}
+
+🌐 ENGINE 10 — NETWORK & SUPABASE FAILURES:
+${networkErrorsStr}
+
+⚛️ ENGINE 14 — REACT COMPONENT STATE SNAPSHOT:
+${reactStateStr}
 
 🔍 ENGINE 1 — RAG CODEBASE LOCALIZATION (Target Files):
 ${ragFilesStr}
