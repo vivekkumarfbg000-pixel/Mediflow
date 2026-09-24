@@ -1296,13 +1296,18 @@ export default function App() {
       }
       setSession(session);
       if (!session) {
-        // Prevent auto-logout on page refresh: Do NOT wipe session on INITIAL_SESSION if cached profile exists
+        // Guard 1: Do NOT wipe session on INITIAL_SESSION if cached profile exists
         if (event === 'INITIAL_SESSION') {
           const cached = typeof window !== 'undefined' ? localStorage.getItem('vitalsync_cached_profile') : null;
           if (cached) {
             setIsLoadingSession(false);
             return;
           }
+        }
+        // Guard 2: Do NOT wipe session in DEV if mediflow_dev_bypass is active (mock session has no real Supabase token)
+        if (import.meta.env.DEV && typeof window !== 'undefined' && localStorage.getItem('mediflow_dev_bypass') === 'true') {
+          setIsLoadingSession(false);
+          return;
         }
         setCrossDomainCookie(false);
         setActiveProfile(null);
@@ -1331,15 +1336,29 @@ export default function App() {
         }
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
-          if (finalProfile) {
-            setActiveProfile(finalProfile);
+          // Use resolved profile, or fall back to cached profile if DB lookup returned null (cold start / missing profile race)
+          let resolvedProfile = finalProfile;
+          if (!resolvedProfile && typeof window !== 'undefined') {
+            try {
+              const cached = localStorage.getItem('vitalsync_cached_profile');
+              if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed && parsed.id === session.user.id) {
+                  console.log('[Auth CDC] DB profile returned null. Using optimistically cached profile to prevent logout flash.');
+                  resolvedProfile = parsed;
+                }
+              }
+            } catch (_e) { /* ignore */ }
+          }
+          if (resolvedProfile) {
+            setActiveProfile(resolvedProfile);
             let defaultRole: UserRole = 'doctor';
-            if (finalProfile.role === 'doctor') defaultRole = 'doctor';
-            else if (finalProfile.role === 'compounder') defaultRole = 'compounder';
-            else if (finalProfile.role === 'lab_technician') defaultRole = 'lab';
-            else if (finalProfile.role === 'pharmacist') defaultRole = 'pharmacy';
-            else if (finalProfile.role === 'patient') defaultRole = 'patient';
-            else if (finalProfile.role === 'admin' || finalProfile.role === 'platform_admin') defaultRole = 'saas_admin';
+            if (resolvedProfile.role === 'doctor') defaultRole = 'doctor';
+            else if (resolvedProfile.role === 'compounder') defaultRole = 'compounder';
+            else if (resolvedProfile.role === 'lab_technician') defaultRole = 'lab';
+            else if (resolvedProfile.role === 'pharmacist') defaultRole = 'pharmacy';
+            else if (resolvedProfile.role === 'patient') defaultRole = 'patient';
+            else if (resolvedProfile.role === 'admin' || resolvedProfile.role === 'platform_admin') defaultRole = 'saas_admin';
             setCurrentRole(defaultRole);
             localStorage.setItem('vitalsync_active_role', defaultRole);
           }
