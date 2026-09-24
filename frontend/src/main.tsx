@@ -4,9 +4,13 @@ import './index.css'
 import App from './App.tsx'
 import { initSentry } from './lib/sentry.config'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
+import { initJarvisConsoleHook } from './lib/jarvisConsoleHook'
 
 // Initialize Sentry continuous crash diagnostics
 initSentry();
+
+// Initialize J.A.R.V.I.S. console error stream (DEV only — no-op in production)
+initJarvisConsoleHook();
 
 // Remove initial HTML/SVG loader so body only contains the mounted React root
 const initialLoader = document.getElementById('vitalsync-initial-loader');

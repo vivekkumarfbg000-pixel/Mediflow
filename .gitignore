@@ -39,3 +39,7 @@ scratch/
 
 .agent/skills/cashfree-skills/
 supabase/.temp/
+
+# J.A.R.V.I.S. Daemon Bridge runtime data (local-only, never commit)
+frontend/scripts/jarvis_memory_vault.json
+frontend/scripts/.jarvis_safe_hash

@@ -113,6 +113,15 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null, isOfflineChunkMiss: false });
   };
 
+  private handleTriagePromptGuard = () => {
+    if (typeof window !== 'undefined') {
+      const errorMsg = this.state.error?.message || 'Unknown runtime error';
+      const stack = this.state.error?.stack || '';
+      localStorage.setItem('promptguard_auto_bug', `Auto-Healer caught crash: ${errorMsg}\n\nStack:\n${stack}`);
+      window.open('/promptguard', '_blank');
+    }
+  };
+
   public render() {
     if (this.state.hasError) {
       if (this.state.isOfflineChunkMiss) {
@@ -174,13 +183,21 @@ export class ErrorBoundary extends Component<Props, State> {
             <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest font-mono">
               Auto-Healer Telemetry Dispatched
             </span>
-            <button
-              onClick={this.handleReset}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer border-0"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Restore View
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={this.handleTriagePromptGuard}
+                className="px-3 py-2 bg-indigo-900/40 hover:bg-indigo-900/60 text-indigo-300 text-[11px] font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer border border-indigo-500/30"
+              >
+                🛡️ Triage Bug
+              </button>
+              <button
+                onClick={this.handleReset}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer border-0"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Restore View
+              </button>
+            </div>
           </div>
         </div>
       );
