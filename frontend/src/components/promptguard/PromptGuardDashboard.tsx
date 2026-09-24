@@ -46,6 +46,9 @@ export const PromptGuardDashboard: React.FC = () => {
   const [diagnosticsMeta, setDiagnosticsMeta] = useState<DiagnosticsMeta | null>(null);
   const [confidence, setConfidence] = useState<Confidence | null>(null);
   const [activeTab, setActiveTab] = useState<'triage' | 'console' | 'compile' | 'memory' | 'gitops' | 'e2e' | 'network' | 'queue'>('triage');
+  const [bugQueue, setBugQueue] = useState<{id: string, desc: string, severity: string}[]>([]);
+  const [queueInput, setQueueInput] = useState('');
+  const [queueSeverity, setQueueSeverity] = useState('P2');
   const [compileResult, setCompileResult] = useState<ShadowCompile | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [memoryFixes, setMemoryFixes] = useState<MemoryFix[]>([]);
@@ -68,6 +71,26 @@ export const PromptGuardDashboard: React.FC = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // ─── Daemon Health Ping ───
+
+  const addToQueue = () => {
+    if (!queueInput.trim()) return;
+    setBugQueue(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), desc: queueInput.trim(), severity: queueSeverity }]);
+    setQueueInput('');
+  };
+  
+  const generateBatchPrompt = async () => {
+    if (bugQueue.length === 0) return;
+    setIsGenerating(true);
+    setGeneratedPrompt('');
+    
+    // Simple batch format
+    const batchDesc = "BATCH FIX SESSIONS:\n" + bugQueue.map(b => `[${b.severity}] ${b.desc}`).join("\n");
+    setBugDescription(batchDesc);
+    setActiveTab('triage');
+    setIsGenerating(false);
+    // Note: For full effect, the user would then click "Generate Surgical Prompt" in Triage tab.
+  };
+
   const pingDaemon = useCallback(async () => {
     try {
       const r = await fetch(`${DAEMON}/health`);
@@ -300,6 +323,7 @@ export const PromptGuardDashboard: React.FC = () => {
 
   const TABS = [
     { id: 'triage', label: 'Bug Triage', icon: <Bug className="w-4 h-4" /> },
+    { id: 'queue', label: 'Multi-Bug Queue', icon: <Database className="w-4 h-4" /> },
     { id: 'console', label: 'Console Stream', icon: <Radio className="w-4 h-4" />, badge: consoleErrors.filter(e => e.level === 'error').length || undefined },
     { id: 'compile', label: 'Shadow Compile', icon: <Shield className="w-4 h-4" /> },
     { id: 'e2e', label: 'E2E Tests', icon: <FlaskConical className="w-4 h-4" /> },
@@ -327,9 +351,9 @@ export const PromptGuardDashboard: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">J.A.R.V.I.S.</h1>
-                <span className="text-[9px] font-black bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full tracking-widest">v4.0</span>
+                <span className="text-[9px] font-black bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full tracking-widest">v5.0</span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">9-Engine Anti-Hallucination Supercomputer</p>
+              <p className="text-[11px] text-slate-500 font-medium">17-Engine Anti-Hallucination Supercomputer</p>
             </div>
           </div>
 
@@ -360,7 +384,7 @@ export const PromptGuardDashboard: React.FC = () => {
               : 'bg-rose-500/10 border border-rose-500/30 text-rose-400 animate-pulse'
           }`}>
             <span className={`w-2 h-2 rounded-full ${daemonStatus === 'online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
-            {daemonStatus === 'online' ? '9 ENGINES ONLINE' : 'START DAEMON BRIDGE'}
+            {daemonStatus === 'online' ? '17 ENGINES ONLINE' : 'START DAEMON BRIDGE'}
           </div>
         </div>
 
@@ -756,6 +780,59 @@ export const PromptGuardDashboard: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        
+        {/* ═══ TAB 7: BUG QUEUE ═══ */}
+        {activeTab === 'queue' && (
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                  <Database className="w-5 h-5 text-indigo-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white">Engine 13: Multi-Bug Queue (Gap 8)</h2>
+                  <p className="text-xs text-slate-500">Log multiple bugs during a testing session and generate a single batch prompt.</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mb-6">
+                <select value={queueSeverity} onChange={e => setQueueSeverity(e.target.value)} className="bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none">
+                  <option value="P0">P0 - Critical</option>
+                  <option value="P1">P1 - High</option>
+                  <option value="P2">P2 - Medium</option>
+                  <option value="P3">P3 - Low</option>
+                </select>
+                <input value={queueInput} onChange={e => setQueueInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addToQueue()} placeholder="Describe the bug..." className="flex-1 bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none" />
+                <button onClick={addToQueue} className="px-5 py-3 bg-indigo-600/15 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-600/25 font-bold rounded-xl cursor-pointer">Add</button>
+              </div>
+
+              {bugQueue.length > 0 ? (
+                <div className="space-y-3 mb-6">
+                  {bugQueue.map(bug => (
+                    <div key={bug.id} className="flex items-center justify-between bg-slate-950/60 border border-slate-800 rounded-xl p-4">
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${bug.severity === 'P0' ? 'bg-rose-500/10 text-rose-400' : bug.severity === 'P1' ? 'bg-amber-500/10 text-amber-400' : 'bg-slate-800 text-slate-300'}`}>
+                          {bug.severity}
+                        </span>
+                        <span className="text-sm text-slate-300">{bug.desc}</span>
+                      </div>
+                      <button onClick={() => setBugQueue(q => q.filter(b => b.id !== bug.id))} className="text-slate-500 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl mb-6">
+                  <p className="text-slate-500">Queue is empty. Find some bugs!</p>
+                </div>
+              )}
+
+              <button onClick={generateBatchPrompt} disabled={bugQueue.length === 0} className="w-full py-4 bg-gradient-to-r from-indigo-700 to-purple-700 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-40 text-white font-black rounded-2xl flex items-center justify-center gap-3 cursor-pointer transition-all">
+                <Brain className="w-5 h-5" /> Load Batch into Triage Engine
+              </button>
             </div>
           </div>
         )}
