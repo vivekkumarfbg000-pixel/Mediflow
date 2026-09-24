@@ -5373,12 +5373,10 @@ export const CompounderDashboard: React.FC = () => {
         <Suspense fallback={<DashboardSkeleton />}>
           <AiPrescriptionUploadTab 
             onSuccess={(patientId) => {
-              startTransition(() => {
-                setSelectedPatientForBillHub(patientId);
-                setBillHubInitialMode('manual_billing');
-                setActiveTab('billing_daycare');
-                setBillingSubTab('billing');
-              });
+              setSelectedPatientForBillHub(patientId);
+              setBillHubInitialMode('manual_billing');
+              setActiveTab('billing_daycare');
+              setBillingSubTab('billing');
             }}
           />
         </Suspense>
