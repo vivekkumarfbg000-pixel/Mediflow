@@ -178,39 +178,3 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION public.on_walkin_lab_completed()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-DECLARE
-  v_pod_id UUID;
-
-CREATE OR REPLACE FUNCTION public.process_clinical_care_loop(
-    p_encounter_id UUID,
-    p_patient_id UUID,
-    p_doctor_id UUID,
-    p_pod_id UUID,
-    p_lab_entity_id UUID,
-    p_pharmacy_entity_id UUID,
-    p_medications JSONB,
-    p_diagnostics JSONB,
-    p_patient_phone TEXT
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_lab_fee NUMERIC := 0;
-
-CREATE OR REPLACE FUNCTION public.process_invoice_settlement(
-    p_invoice_id TEXT,
-    p_payment_method TEXT,
-    p_amount_paid NUMERIC DEFAULT NULL,
-    p_gateway_reference_id TEXT DEFAULT NULL
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-    v_invoice RECORD;
-

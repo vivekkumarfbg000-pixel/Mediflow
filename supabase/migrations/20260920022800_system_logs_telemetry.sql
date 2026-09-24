@@ -18,14 +18,22 @@ CREATE TABLE IF NOT EXISTS public.system_logs (
 ALTER TABLE public.system_logs ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated doctors/admins to read logs for their clinic
-CREATE POLICY "Users can view their own clinic logs" ON public.system_logs
-    FOR SELECT
-    USING (auth.uid() = user_id OR clinic_id IS NOT NULL);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'system_logs' AND policyname = 'Users can view their own clinic logs') THEN
+    CREATE POLICY "Users can view their own clinic logs" ON public.system_logs
+        FOR SELECT
+        USING (auth.uid() = user_id OR clinic_id IS NOT NULL);
+  END IF;
+END $$;
 
 -- Allow authenticated users (and edge functions) to insert logs
-CREATE POLICY "Users can insert logs" ON public.system_logs
-    FOR INSERT
-    WITH CHECK (true);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'system_logs' AND policyname = 'Users can insert logs') THEN
+    CREATE POLICY "Users can insert logs" ON public.system_logs
+        FOR INSERT
+        WITH CHECK (true);
+  END IF;
+END $$;
 
 -- Create index for faster querying by the AI agent
 CREATE INDEX IF NOT EXISTS idx_system_logs_level ON public.system_logs(level);
