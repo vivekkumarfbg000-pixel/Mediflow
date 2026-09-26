@@ -22,6 +22,39 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const { execSync, exec } = require('child_process');
+const { createClient } = require('@supabase/supabase-js');
+
+// --- Global Brain Integrations ---
+const ENV_PATH = path.resolve(__dirname, '../.env.local');
+let GEMINI_API_KEY = '';
+if (fs.existsSync(ENV_PATH)) {
+  const envContent = fs.readFileSync(ENV_PATH, 'utf-8');
+  const match = envContent.match(/VITE_GEMINI_API_KEY="?([^"\n]+)"?/);
+  if (match) GEMINI_API_KEY = match[1];
+}
+
+const SUPABASE_URL = 'https://kguupaybvbngyzyofjun.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_zKni8xDa4b_N4qPcjlgRAA_leFfwIEm'; 
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function getGeminiEmbedding(text) {
+  if (!GEMINI_API_KEY) return null;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: "models/embedding-001",
+        content: { parts: [{ text }] }
+      })
+    });
+    const data = await res.json();
+    return data?.embedding?.values || null;
+  } catch(e) {
+    return null;
+  }
+}
+
 
 const PORT = 9000;
 const SRC_DIR = path.resolve(__dirname, '../src');
@@ -314,7 +347,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && pathname === '/push-console-image') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const payload = JSON.parse(body);
         latestVisualSnapshot = payload.imageBase64;
@@ -636,13 +669,38 @@ const server = http.createServer((req, res) => {
         const payload = JSON.parse(body);
         const { bugDescription, windowSize } = payload;
 
-        // 1. RAG — Search Component Index
+               // 1. RAG — Search Component Index
         const keywords = bugDescription.toLowerCase().split(/\s+/).filter(w => w.length > 3);
         let relevantFiles = [];
         for (const [key, val] of Object.entries(COMPONENT_FEATURE_INDEX)) {
           if (keywords.some(k => key.includes(k) || val.feature.toLowerCase().includes(k))) {
             relevantFiles.push(val);
           }
+        }
+
+        // 1b. ADVANCED RAG — Query Global Brain pgvector table
+        let vectorSnippetsStr = '  No vector matches (or Global Brain not indexed).';
+        try {
+          const bugEmbedding = await getGeminiEmbedding(bugDescription);
+          if (bugEmbedding) {
+             const { data: matches } = await supabase.rpc('match_jarvis_code', {
+               query_embedding: bugEmbedding,
+               match_threshold: 0.5,
+               match_count: 5
+             });
+             if (matches && matches.length > 0) {
+                vectorSnippetsStr = matches.map(m => `  ── ${m.file_path} (Global Brain Match: ${(m.similarity * 100).toFixed(1)}%) ──\n\`\`\`\n${m.code_content}\n\`\`\``).join('\n\n');
+                
+                // Add to blast radius
+                const pgFiles = Array.from(new Set(matches.map(m => m.file_path)));
+                relevantFiles.push({
+                   feature: 'pgvector Semantic Matches',
+                   files: pgFiles.map(pf => ({ path: pf, symbol: 'Whole Component', lines: '1-end' }))
+                });
+             }
+          }
+        } catch(e) {
+          console.error("Vector search failed:", e.message);
         }
 
         // 2. Memory Vault — Query past fixes
@@ -734,9 +792,8 @@ const server = http.createServer((req, res) => {
           ? validationResults.map(r => `  ${r.status}\n     File: ${r.file} (${r.lineCount} lines)`).join('\n')
           : '  No files to validate.';
 
-        const snippetsStr = snippets.length > 0
-          ? snippets.map(s => `\n  ── ${s.file} [L${s.lineRange}] ──\n\`\`\`\n${s.snippet}\n\`\`\``).join('\n')
-          : '  No source code snippets extracted.';
+        const snippetsStr = snippets.length > 0 ? snippets.map(s => `\n  ── ${s.file} [L${s.lineRange}] ──\n\`\`\`\n${s.snippet}\n\`\`\``).join('\n') : '  No traditional source code snippets extracted.';
+        const combinedSnippetsStr = snippetsStr + '\n\n' + '  🌍 ENGINE 18 — GLOBAL BRAIN VECTOR MATCHES:\n' + vectorSnippetsStr;
 
         const consoleErrorsStr = recentErrors.length > 0
           ? recentErrors.map(e => `  [${(e.receivedAt||'').slice(11,19)}] ${e.level?.toUpperCase()||'ERROR'}: ${e.message}`).join('\n')
@@ -787,7 +844,7 @@ ${blastStr}
 ${validationStr}
 
 💾 ENGINE 7 — ACTUAL SOURCE CODE AT TARGET LINES:
-${snippetsStr}
+${combinedSnippetsStr}
 
 🧠 ENGINE 3 — SEMANTIC MEMORY VAULT (Past Similar Fixes):
 ${pastFixesStr}
@@ -869,10 +926,15 @@ ${rulebookSnippets}
         fs.writeFileSync(filePath, JSON.stringify(crashReport, null, 2), 'utf-8');
         
         console.log(`🤖 [JARVIS AI] Crash payload saved to .jarvis-alerts/latest_crash.json`);
-        console.log(`🤖 [JARVIS AI] Awaiting IDE AI execution...`);
+        console.log(`🤖 [JARVIS AI] Escalating to GitHub Actions (Phantom PR Auto-Healer)...`);
+        
+        exec(`gh api -X POST /repos/vivekkumarfbg000-pixel/Mediflow/dispatches -f event_type=phantom-pr-escalation -F client_payload[telemetry_id]=${Date.now()} -F client_payload[error_prompt]="${(payload.message || '').replace(/"/g, '\\"')}" -F client_payload[subsystem]="frontend" -F client_payload[error_code]="CRASH_500"`, (err) => {
+          if (err) console.error(`🚨 [JARVIS AI] Failed to trigger GitHub Action:`, err.message);
+          else console.log(`✅ [JARVIS AI] GitHub Action Triggered Successfully!`);
+        });
         
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'success', message: 'Crash logged for HITL AI review.', file: filePath }));
+        res.end(JSON.stringify({ status: 'success', message: 'Crash logged and escalated to Auto-Healer.', file: filePath }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid JSON payload' }));

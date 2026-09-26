@@ -1,0 +1,9 @@
+{
+  "id": "crash-1790407438194",
+  "timestamp": "2026-09-26T07:23:58.194Z",
+  "level": "error",
+  "url": "http://localhost:5173/",
+  "message": "Uncaught Error: Payment Gateway Timeout: PhonePe webhook failed to resolve inside BillHubTab",
+  "stack": "Error: Payment Gateway Timeout: PhonePe webhook failed to resolve inside BillHubTab\n    at http://localhost:5173/src/main.tsx?t=1790407422985:16:8",
+  "suggestedAction": "Awaiting IDE AI (Antigravity) Review for safe patch generation."
+}

@@ -414,205 +414,139 @@ export const PromptGuardDashboard: React.FC = () => {
 
       <div className="max-w-[1600px] mx-auto px-6 py-8">
 
-        {/* ═══ TAB 1: BUG TRIAGE ═══ */}
+        {/* ═══ TAB 1: BUG TRIAGE (SIMPLIFIED & ADVANCED) ═══ */}
         {activeTab === 'triage' && (
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-            {/* LEFT COLUMN */}
-            <div className="xl:col-span-2 space-y-5 flex flex-col">
-              
-              {/* Pre-flight Checklist */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-sky-400" />
-                    <span className="text-sm font-bold text-white">Pre-flight Checklist</span>
-                  </div>
-                  <span className={`text-xs font-black px-2.5 py-1 rounded-full ${preflightScore >= preflightTotal ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}`}>
-                    {preflightScore}/{preflightTotal} Ready
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {PREFLIGHT_CHECKS.map(c => (
-                    <label key={c.id} className="flex items-center gap-2.5 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={!!preflight[c.id]}
-                        onChange={e => setPreflight(prev => ({ ...prev, [c.id]: e.target.checked }))}
-                        className="w-3.5 h-3.5 accent-indigo-500 cursor-pointer"
-                      />
-                      <span className={`text-xs ${preflight[c.id] ? 'text-emerald-400 line-through opacity-60' : c.required ? 'text-slate-300' : 'text-slate-500'} group-hover:text-slate-200 transition-colors`}>
-                        {c.required && <span className="text-rose-500 mr-1">*</span>}{c.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bug Templates */}
-              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-bold text-white">Quick Bug Templates</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {BUG_TEMPLATES.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => applyTemplate(t)}
-                      className={`p-3 rounded-xl text-left transition-all cursor-pointer border ${
-                        selectedTemplate === t.id
-                          ? 'bg-indigo-500/15 border-indigo-500/40 text-white'
-                          : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-600 hover:text-slate-300'
-                      }`}
-                    >
-                      <span className="text-base">{t.icon}</span>
-                      <p className="text-xs font-bold mt-1">{t.label}</p>
-                      <p className="text-[10px] opacity-60 mt-0.5 leading-tight">{t.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Image Upload */}
-              <label className="border-2 border-dashed border-slate-700 hover:border-violet-500/60 bg-slate-900/40 rounded-2xl min-h-[130px] flex flex-col items-center justify-center cursor-pointer transition-all relative overflow-hidden group">
-                <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} />
-                {imagePreview ? (
-                  <>
-                    <img src={imagePreview} alt="Bug Evidence" className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-25 transition-opacity" />
-                    <div className="relative z-10 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold text-white border border-slate-700">
-                      <Camera className="w-3.5 h-3.5 inline mr-1.5" />Change Evidence
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center p-4">
-                    <Camera className="w-6 h-6 text-slate-600 mx-auto mb-2" />
-                    <p className="text-xs font-semibold text-slate-500">Drop screenshot</p>
-                    <p className="text-[10px] text-slate-600">Vision AI analyzes the bug visually</p>
-                  </div>
-                )}
-              </label>
-
-              {/* Bug Description */}
-              <div className="flex-1">
-                <textarea
-                  value={bugDescription}
-                  onChange={e => { setBugDescription(e.target.value); setPreflight(prev => ({ ...prev, description: e.target.value.length > 20 })); }}
-                  placeholder="Describe the bug clearly... Or choose a template above."
-                  className="w-full min-h-[160px] bg-slate-950/70 border border-slate-700 focus:border-indigo-500 rounded-2xl p-4 text-sm text-slate-200 placeholder-slate-600 leading-relaxed outline-none resize-none transition-colors"
-                />
-              </div>
-
-              <button
-                onClick={generateDiagnosticReport}
-                disabled={isGenerating || !bugDescription.trim()}
-                className="w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-indigo-500/20 transition-all active:scale-[0.98] cursor-pointer text-sm"
-              >
-                {isGenerating ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" />Running All 9 Engines...</>
-                ) : (
-                  <><Zap className="w-5 h-5" />Generate Surgical Strike Prompt</>
-                )}
-              </button>
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Quick Templates Pills */}
+            <div className="flex flex-wrap gap-2">
+              {BUG_TEMPLATES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => applyTemplate(t)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                    selectedTemplate === t.id
+                      ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.15)]'
+                      : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <span className="text-sm">{t.icon}</span>
+                  {t.label}
+                </button>
+              ))}
             </div>
 
-            {/* RIGHT COLUMN */}
-            <div className="xl:col-span-3 flex flex-col gap-5">
-              {/* Confidence Meter */}
-              {confidence && (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-sky-400" />
-                      <span className="text-sm font-bold text-white">Fix Confidence Score</span>
-                    </div>
-                    <span className={`text-2xl font-black ${confColor}`}>{confidence.score}<span className="text-base">/100</span></span>
+            {/* Main Input Box (Unified Chat Style) */}
+            <div className={`bg-slate-900/40 border transition-all duration-300 rounded-3xl overflow-hidden shadow-2xl focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 ${imagePreview ? 'border-indigo-500/30 shadow-indigo-500/10' : 'border-slate-800 shadow-black/40'}`}>
+              
+              {/* Image Preview Area */}
+              {imagePreview && (
+                <div className="relative h-40 bg-[#03050a] border-b border-slate-800">
+                  <img src={imagePreview} alt="Evidence" className="w-full h-full object-contain p-2 opacity-80" />
+                  <button onClick={() => setImagePreview(null)} className="absolute top-3 right-3 bg-rose-500/20 border border-rose-500/50 text-rose-400 p-1.5 rounded-full hover:bg-rose-500/40 transition-colors cursor-pointer">
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <textarea
+                value={bugDescription}
+                onChange={e => setBugDescription(e.target.value)}
+                placeholder="Describe the bug clearly, paste a console error, or explain what went wrong..."
+                className="w-full min-h-[220px] bg-transparent p-6 text-sm text-slate-200 placeholder-slate-600 leading-relaxed outline-none resize-none"
+              />
+
+              {/* Action Footer */}
+              <div className="flex items-center justify-between px-5 py-4 bg-slate-950/60 border-t border-slate-800/80">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer transition-colors border border-transparent hover:border-slate-700">
+                    <Camera className="w-4 h-4" />
+                    <span className="hidden sm:inline">{imagePreview ? 'Change Evidence' : 'Attach Screenshot'}</span>
+                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                  <div className="h-5 w-px bg-slate-800" />
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${daemonStatus === 'online' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {daemonStatus === 'online' ? 'Daemon Ready' : 'Daemon Offline'}
                   </div>
-                  <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden mb-3">
-                    <div className={`h-full ${confBg} rounded-full transition-all duration-700`} style={{ width: `${confidence.score}%` }} />
-                  </div>
-                  <p className={`text-xs font-black mb-3 ${confColor}`}>{confidence.grade}</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {confidence.breakdown.map((b, i) => (
-                      <div key={i} className={`flex items-center gap-2 text-[10px] ${b.points > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>
-                        {b.points > 0 ? <CheckCircle2 className="w-3 h-3 shrink-0" /> : <XCircle className="w-3 h-3 shrink-0" />}
-                        <span>{b.label}</span>
-                        {b.points > 0 && <span className="ml-auto font-bold">+{b.points}</span>}
+                </div>
+
+                <button
+                  onClick={generateDiagnosticReport}
+                  disabled={isGenerating || !bugDescription.trim()}
+                  className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-all active:scale-[0.97] cursor-pointer text-sm"
+                >
+                  {isGenerating ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing 17 Engines...</>
+                  ) : (
+                    <><Zap className="w-4 h-4 text-amber-300" /> Generate Prompt</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Generated Prompt Output */}
+            {generatedPrompt && (
+              <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out pt-6">
+                <div className="bg-[#050810] border border-emerald-500/30 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(16,185,129,0.08)]">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                        <Terminal className="w-4 h-4 text-emerald-400" />
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Meta badges */}
-              {diagnosticsMeta && (
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { label: `🔍 ${diagnosticsMeta.ragFilesCount} RAG domains`, ok: diagnosticsMeta.ragFilesCount > 0 },
-                    { label: `🕸️ ${diagnosticsMeta.blastRadiusCount} blast files`, ok: true },
-                    { label: `🧠 ${diagnosticsMeta.pastFixesCount} memory hits`, ok: diagnosticsMeta.pastFixesCount > 0 },
-                    { label: `🔬 ${diagnosticsMeta.hallucinationRisk === 0 ? '✅ Zero hallucination risk' : `🚨 ${diagnosticsMeta.hallucinationRisk} file(s) missing!`}`, ok: diagnosticsMeta.hallucinationRisk === 0 },
-                    { label: `💾 ${diagnosticsMeta.snippetsExtracted} snippets`, ok: diagnosticsMeta.snippetsExtracted > 0 },
-                    { label: `🧫 ${diagnosticsMeta.consoleErrorsCaptured} console errors`, ok: true },
-                  ].map((b, i) => (
-                    <span key={i} className={`text-[11px] px-3 py-1 rounded-full font-bold border ${b.ok ? 'bg-emerald-500/8 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/8 border-rose-500/20 text-rose-400'}`}>
-                      {b.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Generated Prompt */}
-              <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl p-5 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Terminal className="w-4 h-4 text-indigo-400" />
-                    <span className="text-sm font-bold text-white">Surgical Strike Prompt</span>
-                  </div>
-                  {generatedPrompt && (
-                    <button onClick={copyToClipboard} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/20 transition-colors cursor-pointer">
-                      {isCopied ? <><Check className="w-3.5 h-3.5" />Copied!</> : <><Copy className="w-3.5 h-3.5" />Copy Prompt</>}
+                      <span className="text-sm font-black text-white tracking-wide">SURGICAL STRIKE PROMPT GENERATED</span>
+                    </div>
+                    <button onClick={copyToClipboard} className="flex items-center gap-2 px-5 py-2 bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/25 transition-all cursor-pointer shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20">
+                      {isCopied ? <><Check className="w-4 h-4" /> Copied to Clipboard</> : <><Copy className="w-4 h-4" /> Copy Prompt</>}
                     </button>
+                  </div>
+
+                  <div className="p-6 relative group">
+                    <textarea
+                      readOnly
+                      value={generatedPrompt}
+                      className="w-full min-h-[350px] bg-transparent text-[13px] font-mono text-emerald-400/90 leading-relaxed outline-none resize-none selection:bg-emerald-500/30 custom-scrollbar"
+                    />
+                  </div>
+
+                  {/* Sleek Diagnostics Footer */}
+                  {diagnosticsMeta && (
+                    <div className="px-6 py-4 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center gap-6 text-xs font-mono text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <Activity className={`w-4 h-4 ${confidence?.score && confidence.score >= 85 ? 'text-emerald-400' : 'text-amber-400'}`} />
+                        Confidence: <span className="text-slate-300 font-bold">{confidence?.score}%</span>
+                      </div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                      <div className="flex items-center gap-2">
+                        <Search className="w-4 h-4 text-sky-400" />
+                        RAG Hits: <span className="text-slate-300 font-bold">{diagnosticsMeta.ragFilesCount}</span>
+                      </div>
+                      <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                      <div className="flex items-center gap-2">
+                        <GitBranch className="w-4 h-4 text-rose-400" />
+                        Blast Radius: <span className="text-slate-300 font-bold">{diagnosticsMeta.blastRadiusCount} files</span>
+                      </div>
+                    </div>
                   )}
                 </div>
-                {generatedPrompt ? (
-                  <textarea
-                    readOnly value={generatedPrompt}
-                    className="w-full flex-1 min-h-[440px] bg-[#050810] border border-slate-800/60 rounded-xl p-4 text-xs font-mono text-emerald-400/90 leading-relaxed outline-none resize-none"
-                  />
-                ) : (
-                  <div className="flex-1 min-h-[440px] bg-[#050810] border border-slate-800/60 rounded-xl flex flex-col items-center justify-center text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 rounded-3xl flex items-center justify-center mb-4">
-                      <Cpu className="w-10 h-10 text-indigo-400/40" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-500">J.A.R.V.I.S. standing by</p>
-                    <p className="text-xs text-slate-600 mt-2 max-w-xs">Complete the pre-flight checklist, choose a bug template, upload a screenshot, then generate.</p>
-                  </div>
-                )}
-              </div>
 
-              {/* Save to Memory */}
-              {generatedPrompt && (
-                <div className="bg-violet-950/20 border border-violet-500/20 rounded-2xl p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Save className="w-4 h-4 text-violet-400" />
-                    <span className="text-sm font-bold text-white">Save Fix to Memory Vault</span>
-                    <span className="text-[10px] text-slate-500">After you've fixed it, document the solution here</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <input value={saveFixForm.rootCause} onChange={e => setSaveFixForm(p => ({ ...p, rootCause: e.target.value }))} placeholder="Root cause..." className="bg-slate-950 border border-slate-700 focus:border-violet-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none" />
-                    <input value={saveFixForm.solution} onChange={e => setSaveFixForm(p => ({ ...p, solution: e.target.value }))} placeholder="Solution summary..." className="bg-slate-950 border border-slate-700 focus:border-violet-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none" />
-                    <input value={saveFixForm.filesModified} onChange={e => setSaveFixForm(p => ({ ...p, filesModified: e.target.value }))} placeholder="Files modified (comma-sep)" className="bg-slate-950 border border-slate-700 focus:border-violet-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none" />
-                    <input value={saveFixForm.tags} onChange={e => setSaveFixForm(p => ({ ...p, tags: e.target.value }))} placeholder="Tags: auth, billing, ocr..." className="bg-slate-950 border border-slate-700 focus:border-violet-500 rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={saveFixToMemory} disabled={isSavingFix || !saveFixForm.rootCause.trim()} className="px-5 py-2 bg-violet-600/20 border border-violet-500/30 text-violet-400 hover:bg-violet-600/30 font-bold text-xs rounded-xl cursor-pointer disabled:opacity-40">
-                      {isSavingFix ? <Loader2 className="w-3.5 h-3.5 animate-spin inline mr-1" /> : <Save className="w-3.5 h-3.5 inline mr-1" />}Save to Memory
-                    </button>
-                    {saveFixMsg && <p className={`text-xs font-bold ${saveFixMsg.includes('✅') ? 'text-emerald-400' : 'text-rose-400'}`}>{saveFixMsg}</p>}
-                  </div>
+                {/* Optional Save to Memory */}
+                <div className="mt-6 p-5 bg-violet-950/20 border border-violet-500/20 rounded-2xl flex items-center justify-between shadow-lg shadow-violet-500/5 hover:border-violet-500/40 transition-colors">
+                   <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
+                       <Brain className="w-5 h-5 text-violet-400" />
+                     </div>
+                     <div>
+                       <p className="text-sm font-bold text-white">Save this fix to the Memory Vault?</p>
+                       <p className="text-[11px] text-slate-500 mt-0.5">Document the root cause so J.A.R.V.I.S never hallucinates this bug again.</p>
+                     </div>
+                   </div>
+                   <button onClick={() => setActiveTab('memory')} className="px-5 py-2.5 bg-violet-600/15 border border-violet-500/30 text-violet-300 rounded-xl text-xs font-bold hover:bg-violet-600/30 transition-colors cursor-pointer">
+                     Open Vault &rarr;
+                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
