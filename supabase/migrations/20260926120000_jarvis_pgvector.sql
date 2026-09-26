@@ -26,4 +26,4 @@ ALTER TABLE public.jarvis_code_embeddings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow Jarvis Daemon Full Access" 
 ON public.jarvis_code_embeddings 
 FOR ALL USING (true);
--- Trigger CI
+-- Trigger CI again for password test
