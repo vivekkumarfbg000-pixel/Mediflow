@@ -581,6 +581,21 @@ const server = http.createServer((req, res) => {
   // ──────────────────────────────────────────────
   // ENGINE 2: SHADOW COMPILER (Background TypeScript Check)
   // ──────────────────────────────────────────────
+  // ─── ENGINE 12: Playwright E2E Runner (Phase 2) ───
+  if (req.method === 'POST' && pathname === '/api/run-tests') {
+    let output = '';
+    try {
+      output = execSync('npx playwright test tests/clinic-os-loop.spec.ts', { encoding: 'utf8', stdio: 'pipe' });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ passed: true, output, passCount: 1, failCount: 0, summary: 'Playwright test passed successfully.' }));
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ passed: false, output: (e.stdout || '') + '\n' + (e.stderr || ''), passCount: 0, failCount: 1, summary: 'Playwright test failed.' }));
+    }
+    return;
+  }
+
+  // ─── ENGINE 2: Shadow Compiler ───
   if (req.method === 'POST' && pathname === '/api/shadow-compile') {
     const frontendDir = path.resolve(__dirname, '..');
     res.writeHead(200, { 'Content-Type': 'application/json' });

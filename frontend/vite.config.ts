@@ -1,11 +1,11 @@
-import { defineConfig, Plugin } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
 
 const daemonStarterPlugin = (): Plugin => ({
   name: 'jarvis-daemon-starter',
   configureServer(server: any) {
-    server.middlewares.use('/api/start-daemon', (req: any, res: any) => {
+    server.middlewares.use('/api/start-daemon', (_req: any, res: any) => {
       try {
         const { exec } = require('child_process');
         // Force Windows to launch the daemon in a dedicated background shell
