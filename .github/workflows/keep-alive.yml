@@ -43,4 +43,20 @@ jobs:
             echo "⚠️ Ping received status FN:$FN_STATUS / AUTH:$AUTH_STATUS"
           fi
 
+          echo "=========================================="
+          echo "⚡ Pinging Hugging Face Cloud Spaces to prevent Sleep Mode..."
+          echo "=========================================="
+          
+          # Ping the DIRECT app URL for backend (Not the huggingface.co wrapper)
+          HF_BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "https://vivek1916-mediflow-backend.hf.space/health")
+          echo "HF Backend Space Status: $HF_BACKEND_STATUS"
+          
+          # Ping the DIRECT app URL for Auto-Healer/Jarvis
+          HF_MONITOR_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" "https://vivek1916-mediflow-proactive-monitor.hf.space/")
+          echo "HF Auto-Healer Space Status: $HF_MONITOR_STATUS"
 
+          if [ "$HF_BACKEND_STATUS" -eq 200 ] && [ "$HF_MONITOR_STATUS" -eq 200 ]; then
+            echo "🟢 All Hugging Face Spaces are fully awake!"
+          else
+            echo "⚠️ Hugging Face Ping Status - Backend:$HF_BACKEND_STATUS / Monitor:$HF_MONITOR_STATUS"
+          fi
