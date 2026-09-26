@@ -345,5 +345,47 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Mediflow SaaS Operations Center") 
     gr.Markdown("---")
     gr.Markdown("Mediflow Operations Center • Managed Autonomously via Hugging Face Spaces & Teach Team Pipeline")
 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post("/push-console-error")
+async def push_console_error(request: Request):
+    data = await request.json()
+    level = data.get("level")
+    message = data.get("message", "Unknown Error")
+    stack = data.get("stack", "")
+    url = data.get("url", "")
+    timestamp = data.get("timestamp")
+
+    log_event(f"🚨 Crash Received from {url}: {message}")
+
+    if supabase_client:
+        try:
+            supabase_client.table("system_health_telemetry").insert([{
+                "subsystem": "frontend",
+                "severity": "critical" if level == "unhandledrejection" else "warning",
+                "error_code": message[:50],
+                "error_stack": stack,
+                "status": "unresolved",
+                "created_at": timestamp or datetime.now().isoformat()
+            }]).execute()
+        except Exception as e:
+            log_event(f"Error saving to supabase: {e}")
+            
+    return {"success": True, "message": "Crash logged by Cloud Jarvis"}
+
+app = gr.mount_gradio_app(app, demo, path="/")
+
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    uvicorn.run(app, host="0.0.0.0", port=7860)
