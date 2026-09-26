@@ -8,10 +8,15 @@
  */
 
 const DAEMON = 'http://localhost:9000';
+const CLOUD_JARVIS = 'https://vivek1916-mediflow-proactive-monitor.hf.space';
 
 function safePush(endpoint: string, payload: object) {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-  fetch(`${DAEMON}${endpoint}`, {
+  
+  // Route core crashes to the 24/7 Cloud Jarvis on Hugging Face
+  const baseUrl = endpoint === '/push-console-error' ? CLOUD_JARVIS : DAEMON;
+  
+  fetch(`${baseUrl}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -35,12 +40,29 @@ function initConsoleHook() {
     safePush('/push-console-error', { level: 'warn', message: msg.slice(0, 1000), url: window.location.href, timestamp: new Date().toISOString() });
   };
 
+  function showJarvisRedAlert(message: string) {
+    if (document.getElementById('jarvis-red-alert')) return;
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'jarvis-red-alert';
+    alertDiv.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#ef4444;color:white;padding:16px;border-radius:8px;z-index:99999;font-weight:bold;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);max-width:400px;font-family:sans-serif;animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;';
+    alertDiv.innerHTML = `🚨 <b>JARVIS BUG DETECTED</b><br/><span style="font-size:0.875rem;font-weight:normal;opacity:0.9">${message.substring(0, 100)}...</span><br/><br/><span style="font-size:0.75rem;opacity:0.8">Crash Payload saved. Open Antigravity AI to auto-fix.</span>`;
+    document.body.appendChild(alertDiv);
+  }
+
   window.addEventListener('unhandledrejection', (e) => {
-    safePush('/push-console-error', { level: 'unhandledrejection', message: String(e.reason?.message || e.reason || 'Unknown').slice(0, 1000), stack: (e.reason?.stack || '').slice(0, 2000), url: window.location.href, timestamp: new Date().toISOString() });
+    const errorMsg = String(e.reason?.message || e.reason || 'Unknown');
+    const payload = { level: 'unhandledrejection', message: errorMsg.slice(0, 1000), stack: (e.reason?.stack || '').slice(0, 2000), url: window.location.href, timestamp: new Date().toISOString() };
+    safePush('/push-console-error', payload);
+    safePush('/api/agent-debug', payload); // Autonomous Agentic Debug Hook
+    showJarvisRedAlert(errorMsg);
   });
 
   window.addEventListener('error', (e) => {
-    safePush('/push-console-error', { level: 'error', message: (e.message || 'Unknown JS error').slice(0, 1000), stack: (e.error?.stack || '').slice(0, 2000), url: window.location.href, timestamp: new Date().toISOString() });
+    const errorMsg = (e.message || 'Unknown JS error');
+    const payload = { level: 'error', message: errorMsg.slice(0, 1000), stack: (e.error?.stack || '').slice(0, 2000), url: window.location.href, timestamp: new Date().toISOString() };
+    safePush('/push-console-error', payload);
+    safePush('/api/agent-debug', payload); // Autonomous Agentic Debug Hook
+    showJarvisRedAlert(errorMsg);
   });
 }
 
