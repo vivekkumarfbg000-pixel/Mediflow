@@ -4,7 +4,7 @@ import {
   GitBranch, Database, Network, AlertTriangle, RotateCcw,
   ChevronRight, Terminal, BookOpen, Search, Brain,
   Activity, FlaskConical, CheckCircle2, XCircle, Radio,
-  Save, Trash2, Eye
+  Save, Trash2, Eye, Power
 } from 'lucide-react';
 
 const DAEMON = 'http://localhost:9000';
@@ -169,6 +169,16 @@ export const PromptGuardDashboard: React.FC = () => {
         setPreflight(prev => ({ ...prev, screenshot: true }));
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const startDaemon = async () => {
+    try {
+      setDaemonStatus('online');
+      await fetch('/api/start-daemon');
+    } catch (err) {
+      console.error('Failed to start daemon', err);
+      setDaemonStatus('offline');
     }
   };
 
@@ -465,10 +475,17 @@ export const PromptGuardDashboard: React.FC = () => {
                     <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} />
                   </label>
                   <div className="h-5 w-px bg-slate-800" />
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${daemonStatus === 'online' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {daemonStatus === 'online' ? 'Daemon Ready' : 'Daemon Offline'}
-                  </div>
+                  {daemonStatus === 'online' ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Daemon Ready
+                    </div>
+                  ) : (
+                    <button onClick={startDaemon} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20 transition-colors cursor-pointer shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+                      <Power className="w-3.5 h-3.5" />
+                      Start Daemon
+                    </button>
+                  )}
                 </div>
 
                 <button

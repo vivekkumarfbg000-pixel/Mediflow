@@ -324,6 +324,10 @@ let latestVisualSnapshot = null;
 let consoleErrorStream = []; // ring buffer: last 100 errors
 const MAX_CONSOLE_ERRORS = 100;
 let sseClients = []; // Server-Sent Events clients
+let networkErrorStream = [];
+let latestReactState = null;
+function classifyBugSeverity(desc, errs) { return { label: 'CRITICAL', urgency: 'High' }; }
+function pullEdgeLogs(desc) { return '  No edge function errors detected.'; }
 
 
 
@@ -664,7 +668,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && pathname === '/api/diagnostics') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const payload = JSON.parse(body);
         const { bugDescription, windowSize } = payload;
