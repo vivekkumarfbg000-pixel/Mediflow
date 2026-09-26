@@ -28,7 +28,7 @@ jobs:
           SUPABASE_PROJECT_ID: "kguupaybvbngyzyofjun" # Extracted from your URL
         run: |
           echo "Linking to Supabase Project: $SUPABASE_PROJECT_ID"
-          supabase link --project-ref $SUPABASE_PROJECT_ID --password $SUPABASE_DB_PASSWORD
+          supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
           
           echo "Pushing new SQL migrations to production..."
-          supabase db push --password $SUPABASE_DB_PASSWORD
+          supabase db push --password "$SUPABASE_DB_PASSWORD"
