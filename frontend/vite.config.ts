@@ -1,20 +1,18 @@
-import { defineConfig } from 'vite'
+import { defineConfig, Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { visualizer } from 'rollup-plugin-visualizer'
-import { spawn } from 'child_process'
-import path from 'path'
 
-const daemonStarterPlugin = () => ({
+const daemonStarterPlugin = (): Plugin => ({
   name: 'jarvis-daemon-starter',
-  configureServer(server) {
-    server.middlewares.use('/api/start-daemon', (req, res) => {
+  configureServer(server: any) {
+    server.middlewares.use('/api/start-daemon', (req: any, res: any) => {
       try {
         const { exec } = require('child_process');
         // Force Windows to launch the daemon in a dedicated background shell
         exec('start /b node scripts/daemon-bridge.cjs', { cwd: __dirname });
         res.statusCode = 200;
         res.end(JSON.stringify({ status: 'ok', message: 'Daemon spawned' }));
-      } catch (err) {
+      } catch (err: any) {
         res.statusCode = 500;
         res.end(JSON.stringify({ status: 'error', message: err.message }));
       }
@@ -24,7 +22,7 @@ const daemonStarterPlugin = () => ({
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const plugins = [react()]
+  const plugins: any[] = [react()]
 
   if (mode === 'analyze') {
     plugins.push(visualizer({
