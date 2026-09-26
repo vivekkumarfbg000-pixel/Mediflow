@@ -591,6 +591,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
 
   // Check if session exists and resolve profile gracefully (Google OAuth landing / page refreshes)
+  /* 
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -607,7 +608,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
           const isPlatformAdmin = profile?.role === 'platform_admin' || profile?.role === 'admin' || user.app_metadata?.role === 'platform_admin' || user.user_metadata?.role === 'platform_admin';
 
           if (profile && !error) {
-            onAuthSuccess(session, profile);
+            // onAuthSuccess(session, profile);
             return;
           }
 
@@ -622,7 +623,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   .eq('id', user.id)
                   .maybeSingle();
                 if (healedProfile) {
-                  onAuthSuccess(session, healedProfile);
+                  // onAuthSuccess(session, healedProfile);
                   return;
                 }
               } catch (healErr) {
@@ -672,7 +673,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               email: email
             };
 
-            onAuthSuccess(session, synthesizedProfile);
+            // onAuthSuccess(session, synthesizedProfile);
             setLoading(false);
           }
         }
@@ -682,6 +683,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     };
     checkSession();
   }, [onAuthSuccess]);
+  */
 
   const handleGoogleSignIn = async () => {
     setLoading(true);

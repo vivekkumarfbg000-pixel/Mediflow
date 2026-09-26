@@ -5,6 +5,7 @@ import App from './App.tsx'
 import { initSentry } from './lib/sentry.config'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { initJarvisConsoleHook } from './lib/jarvisConsoleHook'
+import { JarvisBugReporter } from './components/shared/JarvisBugReporter'
 
 // Initialize Sentry continuous crash diagnostics
 initSentry();
@@ -25,6 +26,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <App />
+      <JarvisBugReporter />
     </ErrorBoundary>
   </StrictMode>,
 )

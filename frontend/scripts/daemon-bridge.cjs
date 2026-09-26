@@ -345,6 +345,31 @@ const server = http.createServer((req, res) => {
   const pathname = parsedUrl.pathname || '/';
 
   // ──────────────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // PLAYWRIGHT E2E EXECUTION (Engine 12)
+  // ──────────────────────────────────────────────
+  if (req.method === 'POST' && pathname === '/api/run-tests') {
+    const { spawn } = require('child_process');
+    const e2e = spawn('npx', ['playwright', 'test', '--reporter=list'], { cwd: __dirname + '/../' });
+    
+    let output = '';
+    e2e.stdout.on('data', d => output += d.toString());
+    e2e.stderr.on('data', d => output += d.toString());
+    
+    e2e.on('close', (code) => {
+      const passed = code === 0;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        passed,
+        passCount: passed ? 1 : 0,
+        failCount: passed ? 0 : 1,
+        summary: passed ? '✅ Clinic OS Core Loop is stable.' : '🚨 Core Loop Invariants Failed!',
+        output
+      }));
+    });
+    return;
+  }
+
   // DOM PUSH (from browser agent hook)
   // ──────────────────────────────────────────────
   // VISUAL DOM PUSH
