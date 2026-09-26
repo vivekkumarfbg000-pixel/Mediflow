@@ -29,8 +29,8 @@ RUN adduser --disabled-password --gecos "" mediflow
 RUN mkdir -p /app/tmp && chown -R mediflow:mediflow /app && chmod -R 777 /app/tmp
 
 # Expose the API port
-EXPOSE 8000
+EXPOSE 7860
 
 USER mediflow
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
