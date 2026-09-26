@@ -1084,6 +1084,83 @@ ${rulebookSnippets}
     return;
   }
 
+  // ──────────────────────────────────────────────
+  // ENGINE 11: AST Code Surgery (The Precision Scalpel)
+  // ──────────────────────────────────────────────
+  if (pathname === '/api/ast-extract') {
+    const targetFile = parsedUrl.query.file;
+    const targetSymbol = parsedUrl.query.symbol;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    
+    if (!targetFile || !targetSymbol) {
+      res.end(JSON.stringify({ error: 'Missing ?file= or ?symbol=' }));
+      return;
+    }
+
+    try {
+      const ts = require('typescript');
+      const absolutePath = path.resolve(__dirname, '..', targetFile);
+      if (!fs.existsSync(absolutePath)) {
+        res.end(JSON.stringify({ error: 'File not found', absolutePath }));
+        return;
+      }
+      
+      const sourceCode = fs.readFileSync(absolutePath, 'utf8');
+      const sourceFile = ts.createSourceFile(absolutePath, sourceCode, ts.ScriptTarget.Latest, true);
+      
+      let foundNode = null;
+      
+      function visit(node) {
+        if (foundNode) return;
+        
+        // 1. function foo() {}
+        if (ts.isFunctionDeclaration(node) && node.name && node.name.text === targetSymbol) {
+          foundNode = node; return;
+        }
+        // 2. class Foo {}
+        if (ts.isClassDeclaration(node) && node.name && node.name.text === targetSymbol) {
+          foundNode = node; return;
+        }
+        // 3. const foo = ...
+        if (ts.isVariableDeclaration(node) && node.name && ts.isIdentifier(node.name) && node.name.text === targetSymbol) {
+          foundNode = node.parent.parent; // get the whole 'const' statement
+          return;
+        }
+        // 4. export const foo = ...
+        if (ts.isExportAssignment(node) && node.expression && ts.isIdentifier(node.expression) && node.expression.text === targetSymbol) {
+          foundNode = node; return;
+        }
+
+        ts.forEachChild(node, visit);
+      }
+      
+      visit(sourceFile);
+      
+      if (foundNode) {
+        const start = foundNode.getStart(sourceFile);
+        const end = foundNode.getEnd();
+        
+        const startLoc = sourceFile.getLineAndCharacterOfPosition(start);
+        const endLoc = sourceFile.getLineAndCharacterOfPosition(end);
+        
+        const snippet = sourceCode.substring(start, end);
+        
+        res.end(JSON.stringify({
+          symbol: targetSymbol,
+          file: targetFile,
+          startLine: startLoc.line + 1,
+          endLine: endLoc.line + 1,
+          snippet
+        }));
+      } else {
+        res.end(JSON.stringify({ error: 'Symbol not found in AST', symbol: targetSymbol }));
+      }
+    } catch (e) {
+      res.end(JSON.stringify({ error: 'AST Parsing failed', details: e.message }));
+    }
+    return;
+  }
+
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Endpoint not found', availableEndpoints: ['/context', '/health', '/locate?q=token', '/schema', '/api/blast-radius?file=', '/api/shadow-compile', '/api/memory', '/api/safe-state', '/api/diagnostics'] }));
 });
