@@ -49,20 +49,44 @@ function initConsoleHook() {
     document.body.appendChild(alertDiv);
   }
 
-  window.addEventListener('unhandledrejection', (e) => {
+  window.addEventListener('unhandledrejection', async (e) => {
     const errorMsg = String(e.reason?.message || e.reason || 'Unknown');
     const payload = { level: 'unhandledrejection', message: errorMsg.slice(0, 1000), stack: (e.reason?.stack || '').slice(0, 2000), url: window.location.href, timestamp: new Date().toISOString() };
     safePush('/push-console-error', payload);
     safePush('/api/agent-debug', payload); // Autonomous Agentic Debug Hook
     showJarvisRedAlert(errorMsg);
+
+    // Phase 1: Multimodal "Vision" Engine
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(document.body, { logging: false, scale: 1 });
+      const imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
+      fetch(`${DAEMON}/push-console-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, timestamp: new Date().toISOString() })
+      }).catch(() => {});
+    } catch(err) { /* ignore */ }
   });
 
-  window.addEventListener('error', (e) => {
+  window.addEventListener('error', async (e) => {
     const errorMsg = (e.message || 'Unknown JS error');
     const payload = { level: 'error', message: errorMsg.slice(0, 1000), stack: (e.error?.stack || '').slice(0, 2000), url: window.location.href, timestamp: new Date().toISOString() };
     safePush('/push-console-error', payload);
     safePush('/api/agent-debug', payload); // Autonomous Agentic Debug Hook
     showJarvisRedAlert(errorMsg);
+
+    // Phase 1: Multimodal "Vision" Engine
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(document.body, { logging: false, scale: 1 });
+      const imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
+      fetch(`${DAEMON}/push-console-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, timestamp: new Date().toISOString() })
+      }).catch(() => {});
+    } catch(err) { /* ignore */ }
   });
 }
 

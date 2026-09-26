@@ -1,0 +1,47 @@
+name: 👻 J.A.R.V.I.S. Phantom PR Auto-Healer
+
+on:
+  repository_dispatch:
+    types: [phantom-pr-escalation]
+
+jobs:
+  auto-heal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install google-generativeai requests
+        
+      - name: Create Auto-Fix Branch
+        run: |
+          git config --global user.name "J.A.R.V.I.S. Auto-Healer"
+          git config --global user.email "jarvis@mediflow.local"
+          git checkout -b jarvis-fix-${{ github.event.client_payload.telemetry_id }}
+          
+      - name: Run Phantom Healer AI (Gemini Flash)
+        env:
+          GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          ERROR_PROMPT: ${{ github.event.client_payload.error_prompt }}
+        run: |
+          python .github/scripts/phantom_healer.py
+          
+      - name: Commit and Push Fix
+        run: |
+          git add .
+          git commit -m "🔧 JARVIS Auto-Fix for Incident ${{ github.event.client_payload.telemetry_id }}"
+          git push -u origin jarvis-fix-${{ github.event.client_payload.telemetry_id }}
+          
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create --title "🚨 JARVIS Auto-Healer: Incident ${{ github.event.client_payload.telemetry_id }}" \
+            --body "J.A.R.V.I.S. detected a critical crash in the \`${{ github.event.client_payload.subsystem }}\` layer. \n\n### Error Code:\n\`${{ github.event.client_payload.error_code }}\`\n\nI have autonomously generated this fix. Please review and merge." \
+            --base main --head jarvis-fix-${{ github.event.client_payload.telemetry_id }}

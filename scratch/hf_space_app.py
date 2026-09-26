@@ -93,7 +93,7 @@ def dispatch_github_teach_team(telemetry_id, subsystem, error_code, error_prompt
             "X-GitHub-Api-Version": "2022-11-28"
         }
         payload = {
-            "event_type": "teach-team-escalation",
+            "event_type": "phantom-pr-escalation",
             "client_payload": {
                 "telemetry_id": str(telemetry_id),
                 "subsystem": subsystem,

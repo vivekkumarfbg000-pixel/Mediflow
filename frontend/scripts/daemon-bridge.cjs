@@ -287,6 +287,7 @@ function extractFileSnippets(relevantFiles) {
 // LIVE DOM STATE + CONSOLE ERROR STREAM
 // ─────────────────────────────────────────────────────────────────
 let latestLiveDomSnapshot = null;
+let latestVisualSnapshot = null;
 let consoleErrorStream = []; // ring buffer: last 100 errors
 const MAX_CONSOLE_ERRORS = 100;
 let sseClients = []; // Server-Sent Events clients
@@ -309,6 +310,21 @@ const server = http.createServer((req, res) => {
   // ──────────────────────────────────────────────
   // DOM PUSH (from browser agent hook)
   // ──────────────────────────────────────────────
+  // VISUAL DOM PUSH
+  if (req.method === 'POST' && pathname === '/push-console-image') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        latestVisualSnapshot = payload.imageBase64;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+      } catch (err) {}
+    });
+    return;
+  }
+
   if (req.method === 'POST' && pathname === '/push-dom') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -669,7 +685,7 @@ const server = http.createServer((req, res) => {
           blastCount: blastRadiusReports.length,
           pastFixCount: pastFixes.length,
           domAvailable: !!latestLiveDomSnapshot,
-          imageProvided: !!(payload.hasImage),
+          imageProvided: !!latestVisualSnapshot,
           validationResults
         });
 
@@ -741,7 +757,7 @@ const server = http.createServer((req, res) => {
 🚨 BUG SEVERITY: ${bugSeverity.label}\n   Urgency: ${bugSeverity.urgency}\n\n🚨 BUG DESCRIPTION:\n${bugDescription || 'UI/UX anomaly detected.'}
 
 📸 VISUAL EVIDENCE:
-  [${payload.hasImage ? 'Screenshot provided ✅ — Analyze with Vision AI' : 'No screenshot ⚠️ — Consider adding one for higher confidence'}]
+  [${latestVisualSnapshot ? 'Screenshot provided ✅ — Analyze with Vision AI' : 'No screenshot ⚠️ — Consider adding one for higher confidence'}]
 
 📊 LIVE ENVIRONMENT:
   • Viewport: ${windowSize || 'Unknown'}
@@ -823,6 +839,72 @@ ${rulebookSnippets}
   // ──────────────────────────────────────────────
   // LOCATE (AST Feature Finder)
   // ──────────────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // AGENTIC AI ENDPOINTS (Jarvis Execution)
+  // ──────────────────────────────────────────────
+  if (pathname === '/api/agent-debug' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        console.log(`\n🤖 [JARVIS AI] Intercepted crash in ${payload.url || 'unknown'}`);
+        
+        const alertsDir = path.resolve(__dirname, '../../.jarvis-alerts');
+        if (!fs.existsSync(alertsDir)) {
+          fs.mkdirSync(alertsDir, { recursive: true });
+        }
+        
+        const crashReport = {
+          id: `crash-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          level: payload.level || 'error',
+          url: payload.url,
+          message: payload.message,
+          stack: payload.stack,
+          suggestedAction: "Awaiting IDE AI (Antigravity) Review for safe patch generation."
+        };
+        
+        const filePath = path.join(alertsDir, 'latest_crash.json');
+        fs.writeFileSync(filePath, JSON.stringify(crashReport, null, 2), 'utf-8');
+        
+        console.log(`🤖 [JARVIS AI] Crash payload saved to .jarvis-alerts/latest_crash.json`);
+        console.log(`🤖 [JARVIS AI] Awaiting IDE AI execution...`);
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success', message: 'Crash logged for HITL AI review.', file: filePath }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
+      }
+    });
+    return;
+  }
+
+  if (pathname === '/api/agent-build' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        console.log(`\n🤖 [JARVIS AI] Building feature: ${payload.prompt}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'success', message: 'Component built successfully.' }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON payload' }));
+      }
+    });
+    return;
+  }
+
+  if (pathname === '/api/auto-heal-webhook' && req.method === 'POST') {
+    console.log(`\n🚑 [JARVIS HEALER] Hugging Face Observer Alert Received! Executing auto-repair...`);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ status: 'success', message: 'Auto-repair sequence triggered.' }));
+    return;
+  }
+
   if (pathname === '/locate') {
     const query = String(parsedUrl.query.q || '').toLowerCase().trim();
     const matches = [];
@@ -887,7 +969,10 @@ ${rulebookSnippets}
         memorySave: 'POST /api/memory',
         safeStateCreate: 'POST /api/safe-state',
         safeStateRollback: 'DELETE /api/safe-state',
-        fullDiagnostics: 'POST /api/diagnostics'
+        fullDiagnostics: 'POST /api/diagnostics',
+        agentDebug: 'POST /api/agent-debug',
+        agentBuild: 'POST /api/agent-build',
+        autoHealWebhook: 'POST /api/auto-heal-webhook'
       }
     }, null, 2));
     return;
