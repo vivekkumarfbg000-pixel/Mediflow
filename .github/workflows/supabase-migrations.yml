@@ -1,0 +1,34 @@
+name: Deploy Supabase Migrations (CI/CD)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+jobs:
+  deploy-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy Migrations to Live Supabase
+        env:
+          # These two secrets MUST be added to GitHub Settings -> Secrets and variables -> Actions
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_PROJECT_ID: "kguupaybvbngyzyofjun" # Extracted from your URL
+        run: |
+          echo "Linking to Supabase Project: $SUPABASE_PROJECT_ID"
+          supabase link --project-ref $SUPABASE_PROJECT_ID --password $SUPABASE_DB_PASSWORD
+          
+          echo "Pushing new SQL migrations to production..."
+          supabase db push --password $SUPABASE_DB_PASSWORD
