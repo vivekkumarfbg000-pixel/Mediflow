@@ -201,8 +201,34 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       // Check if consultation fee was ALREADY paid at Gate 1 booking time
       const saasInvoices = BillingService.getInvoices();
       const uInvoices = BillingService.getUnifiedInvoices();
-      const alreadyPaidConsult = saasInvoices.some((i: any) => (i.patientId === selectedPatient.id || (selectedPatient.patientCode && i.patientId === selectedPatient.patientCode)) && i.type === 'consult' && i.status === 'paid') ||
-                                 uInvoices.some((i: any) => isEncounterMatchingPatient(i, selectedPatient) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
+
+      // 🌟 PERMANENT FIX (Bug #4): For paper-scan patients, the consultation was completed
+      // during the physical clinic visit. The prescription scan IS the consultation record.
+      // Never charge an additional OPD consult fee at the billing counter for OCR patients.
+      const cleanSelPhone = (selectedPatient.phone || '').replace(/\D/g, '').slice(-10);
+      const isPaperScanPatient = (selectedPatient as any)?.source === 'paper_scan' ||
+        selectedPatient.queueStatus === 'completed' ||
+        (selectedPatient as any)?.queue_status === 'completed' ||
+        (() => {
+          try {
+            const ocr = localStorage.getItem('vitalsync_active_ocr_rx');
+            if (ocr) {
+              const parsed = JSON.parse(ocr);
+              const cleanOcrPhone = (parsed?.patientPhone || parsed?.phone || '').replace(/\D/g, '').slice(-10);
+              return (
+                parsed?.patientId === selectedPatient.id ||
+                parsed?.patientId === (selectedPatient as any).patient_code ||
+                (parsed?.patientCode && parsed.patientCode === (selectedPatient as any).patient_code) ||
+                (cleanSelPhone.length >= 6 && cleanOcrPhone.length >= 6 && cleanSelPhone === cleanOcrPhone)
+              );
+            }
+          } catch (_) {}
+          return false;
+        })();
+
+      const alreadyPaidConsult = isPaperScanPatient ||
+        saasInvoices.some((i: any) => (i.patientId === selectedPatient.id || (selectedPatient.patientCode && i.patientId === selectedPatient.patientCode)) && i.type === 'consult' && i.status === 'paid') ||
+        uInvoices.some((i: any) => isEncounterMatchingPatient(i, selectedPatient) && (i.paymentStatus === 'cleared' || i.payment_status === 'cleared') && ((i.doctorFee || i.doctor_fee || 0) > 0 || i.type === 'consult'));
 
       setIncludeConsult(!alreadyPaidConsult);
       setIncludeOT(true);
@@ -230,7 +256,15 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         const rawOcr = localStorage.getItem('vitalsync_active_ocr_rx');
         if (rawOcr) {
           const parsed = JSON.parse(rawOcr);
-          if (parsed && (isEncounterMatchingPatient(parsed, selectedPatient) || Date.now() - (parsed.timestamp || 0) < 900000)) {
+          const cleanOcrPhone = (parsed?.patientPhone || parsed?.phone || '').replace(/\D/g, '').slice(-10);
+          const matchesById = parsed && selectedPatient && (
+            parsed.patientId === selectedPatient.id ||
+            parsed.patientId === (selectedPatient as any).patient_code ||
+            (parsed.patientCode && parsed.patientCode === (selectedPatient as any).patient_code) ||
+            (cleanSelPhone.length >= 6 && cleanOcrPhone.length >= 6 && cleanSelPhone === cleanOcrPhone) ||
+            (parsed.tokenNumber != null && selectedPatient.tokenNumber != null && String(parsed.tokenNumber) === String(selectedPatient.tokenNumber))
+          );
+          if (parsed && (matchesById || isEncounterMatchingPatient(parsed, selectedPatient))) {
             activeOcrBundle = parsed;
           }
         }

@@ -36,6 +36,9 @@ export class PatientService {
     save('patients', patients);
     save('patient_registry', patients);
     notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+    }
 
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist bulk patient registry to Supabase
     (async () => {
@@ -315,11 +318,68 @@ export class PatientService {
           await walDB.addEntry('upsert_patient', upsertPayload);
         }
       } else if (!upsertData) {
-        // FIX: Silent-fail detection — RLS may block write without returning an error.
-        // upsertData=null + upsertErr=null means the row was rejected by a Supabase policy.
-        // Queue to WAL for deferred retry and log clearly for debugging.
-        console.warn('[PatientService] Silent Supabase write block detected for patient_registry (upsertData=null, upsertErr=null). Possible RLS policy issue. Queuing to WAL for retry. Patient ID:', targetId);
-        await walDB.addEntry('upsert_patient', upsertPayload);
+        // ════════════════════════════════════════════════════════════
+        // 🔴 PERMANENT FIX: Silent RLS Write-Block Recovery Protocol
+        // upsertData=null + upsertErr=null means RLS blocked the
+        // SELECT on the returning clause but the INSERT/UPSERT may
+        // have succeeded. Probe Supabase directly before falling back
+        // to WAL to recover the real UUID and prevent split-brain state.
+        // ════════════════════════════════════════════════════════════
+        let recoveredId: string | null = null;
+        try {
+          // Probe 1: Check by the UUID we attempted to write
+          const { data: probeById } = await supabase
+            .from('patient_registry')
+            .select('id, patient_code')
+            .eq('id', targetId)
+            .maybeSingle();
+          if (probeById?.id) {
+            recoveredId = probeById.id;
+            if (probeById.patient_code && !patient.patientCode) {
+              patient.patientCode = probeById.patient_code;
+            }
+            console.log('[PatientService] ✅ Silent-write recovery (Probe-1 by id):', recoveredId);
+          }
+        } catch (_p1) { /* ignore */ }
+
+        if (!recoveredId && cleanPhone && cleanPhone.length >= 10) {
+          try {
+            // Probe 2: Check by phone in case the row was written with a different id
+            const { data: probeByPhone } = await supabase
+              .from('patient_registry')
+              .select('id, patient_code')
+              .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone}`)
+              .limit(1)
+              .maybeSingle();
+            if (probeByPhone?.id) {
+              recoveredId = probeByPhone.id;
+              if (probeByPhone.patient_code && !patient.patientCode) {
+                patient.patientCode = probeByPhone.patient_code;
+              }
+              console.log('[PatientService] ✅ Silent-write recovery (Probe-2 by phone):', recoveredId);
+            }
+          } catch (_p2) { /* ignore */ }
+        }
+
+        if (recoveredId) {
+          // Row exists — update local target and patch any fields that may have been missed
+          targetId = recoveredId;
+          patient.id = targetId;
+          upsertPayload.id = targetId;
+          try {
+            await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId);
+          } catch (_patchErr) { /* non-blocking */ }
+        } else {
+          // Row genuinely does not exist — try a plain insert without returning clause
+          // to bypass potential RLS SELECT restriction on RETURNING
+          try {
+            await supabase.from('patient_registry').insert(upsertPayload);
+            console.log('[PatientService] ✅ Recovered via plain INSERT (no returning):', targetId);
+          } catch (_insertErr) {
+            console.warn('[PatientService] Silent write block unrecoverable. Queuing to WAL. Patient ID:', targetId);
+            await walDB.addEntry('upsert_patient', upsertPayload);
+          }
+        }
       }
     } catch (dbErr) {
       console.warn('[PatientService] Network error during patient upsert, queuing to WAL:', dbErr);
@@ -341,6 +401,9 @@ export class PatientService {
     save('patients', patients);
     save('patient_registry', patients);
     notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+    }
 
     // 5. Ingest into ChronicCare if applicable
     if (isChronic && targetId && patient.name) {

@@ -99,7 +99,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       setSavedPatientId(null);
       setCloudSyncSuccess(false);
     }
-    if (currentStep === 'done' && !isAssistedReview && !hasAutoCommitted.current) {
+    if (currentStep === 'done' && !hasAutoCommitted.current) {
       hasAutoCommitted.current = true;
       persistClinicOsPipeline();
     }
@@ -394,14 +394,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         phone: (inputMobileNumber && inputMobileNumber.length >= 10) ? inputMobileNumber : (patientBase.phone || effectivePhone),
         address: inputAddress.trim() || patientBase.address || canonicalPat.address || undefined,
         podId: canonicalPat.podId || getPodContext().podId || (patientBase as any).podId,
-        queueStatus: canonicalPat.queueStatus || patientBase.queueStatus || 'pending_payment'
-      };
-
-      if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment' || canonicalPat.queueStatus === 'completed') {
-        patientData.queueStatus = 'awaiting_consultation';
-      } else {
-        patientData.queueStatus = canonicalPat.queueStatus;
-      }
+      // Paper scan prescription implies consultation has already been completed physically by doctor
+      patientData.queueStatus = 'completed';
       
       patientData.tokenNumber = canonicalPat.tokenNumber || patientData.tokenNumber || PatientService.generateNextTokenNumber();
       patientData.abhaId = canonicalPat.abhaId || patientBase.abhaId || null;
@@ -462,6 +456,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientName: patientData.name,
         patientPhone: patientData.phone,
         patientAddress: patientData.address,
+        patientCode: patientData.patientCode || (patientData as any).patient_code,
         tokenNumber: patientData.tokenNumber,
         medications: encounterMeds,
         diagnosticTests: activeLabs,
@@ -517,6 +512,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
       const apptPayload = existingAppt ? {
         ...existingAppt,
+        status: 'completed',
         paymentStatus: 'cleared',
         payment_status: 'cleared',
         fee_status: 'cleared'
@@ -528,7 +524,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         doctorId: resolvedDoctorId,
         date: todayISO,
         time: 'Walk-in',
-        status: 'confirmed',
+        status: 'completed',
         paymentStatus: 'cleared',
         payment_status: 'cleared',
         fee_status: 'cleared',
@@ -659,6 +655,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       patientName: extractedPatient?.name || 'Walk-in Patient',
       patientPhone: extractedPatient?.phone || inputMobileNumber,
       patientAddress: extractedPatient?.address || inputAddress,
+      patientCode: extractedPatient?.patientCode || (extractedPatient as any)?.patient_code,
       tokenNumber: extractedPatient?.tokenNumber,
       medications: extractedMeds,
       diagnosticTests: extractedLabs,

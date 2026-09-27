@@ -622,6 +622,25 @@ export const CompounderDashboard: React.FC = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // 🌟 PERMANENT FIX: Refresh patient list whenever AiPrescriptionUploadTab or any OCR/walk-in
+  // pipeline dispatches 'mediflow-state-change'. Without this listener the CompounderDashboard
+  // never knows a new patient was created and the queue/overview stay stale until a full reload.
+  useEffect(() => {
+    const handlePatientStateChange = () => {
+      startTransition(() => {
+        setPatients(api.getPatients());
+        setAppointments(api.getAppointments());
+        setDataRevision(r => r + 1);
+      });
+    };
+    window.addEventListener('mediflow-state-change', handlePatientStateChange);
+    window.addEventListener('storage', handlePatientStateChange);
+    return () => {
+      window.removeEventListener('mediflow-state-change', handlePatientStateChange);
+      window.removeEventListener('storage', handlePatientStateChange);
+    };
+  }, []);
+
   // Synchronize tabs from mobile footer dock & ecosystem events
   useEffect(() => {
     const handleTabChange = (e: Event) => {
@@ -5411,10 +5430,16 @@ export const CompounderDashboard: React.FC = () => {
         <Suspense fallback={<DashboardSkeleton />}>
           <AiPrescriptionUploadTab 
             onSuccess={(patientId) => {
+              // 🌟 PERMANENT FIX (Bug #2): Commit patient + mode state BEFORE switching tab.
+              // React batches these setters but the tab-mount reads initialMode at mount time.
+              // By deferring setActiveTab one microtask we guarantee billHubInitialMode and
+              // selectedPatientForBillHub are flushed BEFORE BillHubTab mounts.
               setSelectedPatientForBillHub(patientId);
               setBillHubInitialMode('manual_billing');
-              setActiveTab('billing_daycare');
               setBillingSubTab('billing');
+              queueMicrotask(() => {
+                startTransition(() => setActiveTab('billing_daycare'));
+              });
             }}
           />
         </Suspense>
