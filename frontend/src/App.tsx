@@ -1821,6 +1821,11 @@ export default function App() {
               allowSignup={true} 
               initialSignupTab={initialSignupTab}
             />
+            <div className="pt-2 text-center pb-2">
+              <a href="/landing-page" className="text-[11px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-wider">
+                &larr; Return to Public Site
+              </a>
+            </div>
           </div>
         </div>
       );
@@ -1865,6 +1870,11 @@ export default function App() {
               allowSignup={true} 
               initialSignupTab={initialSignupTab}
             />
+            <div className="pt-2 text-center pb-2">
+              <a href="/landing-page" className="text-[11px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-wider">
+                &larr; Return to Public Site
+              </a>
+            </div>
           </div>
         </div>
       );
