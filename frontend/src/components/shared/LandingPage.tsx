@@ -1222,7 +1222,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
-                    <span><strong>NMC Anti-Kickback Safe-Harbor:</strong> Earn 10%–15% for Pharmacotherapy Review &amp; 30%–40% for Lab Clinical Correlation — 100% NMC Ethics compliant.</span>
+                    <span><strong>Unified Operations:</strong> Integrated billing and real-time synchronization across pharmacy and lab.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0 mt-0.5" />
@@ -1237,7 +1237,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                 </div>
                 <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                  Zero Commission · Professional Medical Review Honorarium
+                  Zero Commission
                 </div>
               </div>
             </div>
@@ -1278,12 +1278,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <div className="mt-6 pt-4 border-t border-emerald-100 space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-slate-500">Clinical MTM &amp; Drug Review:</span>
-                  <span className="font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">10% – 15% Standard</span>
+                  <span className="text-slate-500">Pharmacy Billing:</span>
+                  <span className="font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">Integrated</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                  NMC Safe-Harbor · Anti-Kickback Protected (Medication Therapy Management)
+                  Unified Checkout Experience
                 </div>
               </div>
             </div>
@@ -1324,12 +1324,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               </div>
               <div className="mt-6 pt-4 border-t border-indigo-100 space-y-2">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-slate-500">Diagnostic Tele-Interpretation:</span>
-                  <span className="font-black text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded">30% – 40% Dynamic</span>
+                  <span className="text-slate-500">Pathology Billing:</span>
+                  <span className="font-black text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded">Integrated</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-                  Tele-Reporting Honorarium · NMC Ethics Compliant
+                  Unified Checkout Experience
                 </div>
               </div>
             </div>
