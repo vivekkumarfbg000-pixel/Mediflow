@@ -405,14 +405,21 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       // 3. 🌟 AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins using canonical realPatientId
       const allAppts = BillingService.getAppointments();
       const todayISO = new Date().toISOString().slice(0, 10);
-      const hasApptToday = allAppts.some(a => 
+      const existingAppt = allAppts.find(a => 
         (a.patientId === realPatientId || (a as any).patient_id === realPatientId) && 
         (a.status !== 'completed' && a.status !== 'cancelled') &&
         (a.createdAt || '').slice(0, 10) === todayISO
       );
       
       const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
-      if (!hasApptToday) {
+      if (existingAppt) {
+        await BillingService.saveAppointmentAsync({
+          ...existingAppt,
+          paymentStatus: 'cleared',
+          payment_status: 'cleared',
+          fee_status: 'cleared'
+        } as any);
+      } else {
         await BillingService.saveAppointmentAsync({
           id: crypto.randomUUID(),
           patientId: realPatientId,
@@ -422,6 +429,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
           date: todayISO,
           time: 'Walk-in',
           status: 'confirmed',
+          paymentStatus: 'cleared',
+          payment_status: 'cleared',
+          fee_status: 'cleared',
           tokenNumber: patientData.tokenNumber,
           createdAt: new Date().toISOString(),
           source: 'paper_scan' as any
@@ -545,7 +555,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 overflow-y-auto w-full font-sans">
+    <div className="flex flex-col lg:h-full lg:min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 lg:overflow-y-auto w-full font-sans">
 
       {/* ── CLEAN CLINICAL WORKSTATION HEADER ───────────────────────────────── */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70 dark:border-slate-800/80">
@@ -794,8 +804,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         </div>
 
         {/* ── RIGHT: EXTRACTED CLINICAL PROFILE & DISPENSING QUEUE (5 COLS) ─ */}
-        <div className="lg:col-span-5 flex flex-col h-full min-h-[460px]">
-          <div className="bg-white dark:bg-[#0b1120] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl p-5 sm:p-6 flex flex-col flex-1 h-full max-h-full">
+        <div className="lg:col-span-5 flex flex-col lg:h-full min-h-[460px]">
+          <div className="bg-white dark:bg-[#0b1120] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl p-5 sm:p-6 flex flex-col flex-1 lg:h-full lg:max-h-full">
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
@@ -933,7 +943,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 </div>
 
                 {/* Scrollable middle section: contact, tags, meds, labs */}
-                <div className="flex-1 min-h-0 overflow-y-auto pr-0.5 space-y-3 mt-3">
+                <div className="flex-1 lg:min-h-0 lg:overflow-y-auto pr-0.5 space-y-3 mt-3">
 
                 {/* Contact & Chronic Tags */}
                 <div className="space-y-2 text-xs">
