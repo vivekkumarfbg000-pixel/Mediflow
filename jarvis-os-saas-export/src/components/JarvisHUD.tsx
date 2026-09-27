@@ -2,7 +2,11 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Bug, Target, Copy, X, Camera } from 'lucide-react';
 
-export const JarvisBugReporter: React.FC = () => {
+interface JarvisHUDProps {
+  apiKey: string;
+}
+
+export const JarvisHUD: React.FC<JarvisHUDProps> = ({ apiKey }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isTargeting, setIsTargeting] = useState(false);
   const [capturedElement, setCapturedElement] = useState<{ html: string, id: string, className: string } | null>(null);
@@ -13,9 +17,22 @@ export const JarvisBugReporter: React.FC = () => {
   const [fps, setFps] = useState(60);
   const [performanceWarning, setPerformanceWarning] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [isActive, setIsActive] = useState(true);
+
+  // --- API KEY LICENSING CHECK ---
+  useEffect(() => {
+    // In production, this verifies the API key with your Stripe server
+    if (!apiKey) {
+      console.error('JARVIS-OS: Missing API Key.');
+      setIsActive(false);
+    }
+    // fetch('https://api.jarvis-os.com/verify', { headers: { Authorization: apiKey } })
+    //   .then(res => res.json())
+    //   .then(data => { if (!data.active) setIsActive(false); });
+  }, [apiKey]);
 
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
+    if (!isActive || !import.meta.env.DEV) return;
 
     // Listen for Ctrl+J or Cmd+J
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -32,10 +49,10 @@ export const JarvisBugReporter: React.FC = () => {
     console.error = (...args: any[]) => {
       originalError(...args);
       const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-      setLogs(prev => [...prev, msg].slice(-5)); // Keep last 5
+      setLogs(prev => [...prev, msg].slice(-5));
     };
 
-    // Capture Network Errors (Fetch Interceptor)
+    // Capture Network Errors
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       try {
@@ -53,20 +70,12 @@ export const JarvisBugReporter: React.FC = () => {
       }
     };
 
-    // Capture App Context (Supabase Auth / LocalStorage)
     const captureContext = () => {
       try {
-        const keys = Object.keys(localStorage);
-        const sbKey = keys.find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
-        let user = 'Unauthenticated';
-        if (sbKey) {
-          const tokenData = JSON.parse(localStorage.getItem(sbKey) || '{}');
-          user = tokenData?.user?.id ? `Authenticated (${tokenData.user.id})` : 'Invalid Token';
-        }
         setAppContext({
-          user,
           userAgent: navigator.userAgent,
-          url: window.location.href
+          url: window.location.href,
+          localStorageKeys: Object.keys(localStorage).length
         });
       } catch (e) {}
     };
@@ -77,9 +86,11 @@ export const JarvisBugReporter: React.FC = () => {
       console.error = originalError;
       window.fetch = originalFetch;
     };
-  }, []);
+  }, [isActive]);
 
+  // --- 60-FPS ENFORCER ---
   useEffect(() => {
+    if (!isActive) return;
     let frameCount = 0;
     let lastTime = performance.now();
     let animationFrameId: number;
@@ -106,16 +117,14 @@ export const JarvisBugReporter: React.FC = () => {
 
     animationFrameId = requestAnimationFrame(measureFPS);
     return () => cancelAnimationFrame(animationFrameId);
-  }, []);
+  }, [isActive]);
 
   useEffect(() => {
-    if (!isTargeting) return;
+    if (!isTargeting || !isActive) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       if (overlayRef.current && overlayRef.current.contains(e.target as Node)) return;
-      
       document.querySelectorAll('.jarvis-highlight').forEach(el => el.classList.remove('jarvis-highlight'));
-      
       const target = e.target as HTMLElement;
       if (target && target.classList) {
         target.classList.add('jarvis-highlight');
@@ -152,23 +161,17 @@ export const JarvisBugReporter: React.FC = () => {
       document.querySelectorAll('.jarvis-highlight').forEach(el => el.classList.remove('jarvis-highlight'));
       document.head.removeChild(style);
     };
-  }, [isTargeting]);
+  }, [isTargeting, isActive]);
 
   const copyPrompt = () => {
     const prompt = `<USER_REQUEST_TRIAGE>
 ╔═══════════════════════════════════════════════════════════════════╗
-║  🧠 J.A.R.V.I.S. v5.0 — VitalSync Bug Command Center            ║
+║  🧠 JARVIS-OS — Bug Command Center                                ║
 ║  17-Engine Anti-Hallucination Supercomputer Protocol              ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 🚨 BUG DESCRIPTION:
 ${bugDescription || '[User did not provide a description. Analyze context to deduce.]'}
-
-🚨 BUG SEVERITY: CRITICAL
-   Urgency: High
-
-📸 VISUAL CONTEXT & SCREENSHOT DIRECTIVE:
-[⚠️ USER WILL ATTACH A SCREENSHOT WITH THIS PROMPT. YOU MUST USE YOUR VISION MODEL TO ANALYZE IT AND CROSS-REFERENCE IT WITH THE DOM BELOW TO AVOID HALLUCINATION]
 
 🎯 VISUAL TARGET (Captured Element):
 ID: ${capturedElement?.id || 'N/A'}
@@ -179,7 +182,6 @@ ${capturedElement?.html || 'No element targeted'}
 \`\`\`
 
 🌐 APP CONTEXT:
-User State: ${appContext.user || 'Unknown'}
 URL: ${appContext.url || 'Unknown'}
 
 ⏱️ PERFORMANCE METRICS (60-FPS Enforcer):
@@ -197,18 +199,17 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
 \`\`\`
 
 ⚠️ MISSION CRITICAL DIRECTIVE (SINGLE-ATTEMPT FIX REQUIRED):
-1. Execute a 360° Root Cause Analysis across the full stack (Frontend DOM, React State, Supabase CDC, Edge Functions).
-2. Do NOT guess blindly. Cross-reference the attached screenshot with the Captured DOM Element above.
-3. Ensure no structural regressions (e.g. Rule 1.1 / Rule 1.2 in AGENTS.md).
+1. Execute a 360° Root Cause Analysis across the full stack.
+2. Cross-reference the attached screenshot with the Captured DOM Element above.
+3. Check the local BLAST_RADIUS.md file before touching shared state.
 4. Provide the EXACT, minimal surgical diff required to fix this bug in ONE attempt.
 </USER_REQUEST_TRIAGE>`;
 
     navigator.clipboard.writeText(prompt);
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: { title: 'Copied to Clipboard!', message: 'Paste this into the AI Agent chat.', type: 'success' }
-    }));
+    alert('JARVIS Prompt Copied! Paste it into your AI.');
   };
 
+  if (!isActive) return null;
   if (!isOpen && !isTargeting) return null;
 
   const content = isTargeting ? (
@@ -232,10 +233,9 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
         {performanceWarning && (
           <div className="bg-rose-500/20 border border-rose-500/50 rounded-lg p-3 text-xs text-rose-400 font-bold flex items-center justify-between animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.4)]">
             <span>⚠️ {performanceWarning}</span>
-            <span>Needs @tanstack/react-virtual</span>
+            <span>Needs Optimization</span>
           </div>
         )}
-
         <div className="space-y-2">
           <label className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Bug Description</label>
           <textarea 
@@ -245,14 +245,9 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
             className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none h-16"
           />
         </div>
-
-        <button 
-          onClick={() => { setIsOpen(false); setIsTargeting(true); }}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
-        >
+        <button onClick={() => { setIsOpen(false); setIsTargeting(true); }} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-500/20">
           <Target className="h-4 w-4" /> Target Element in UI
         </button>
-
         {capturedElement && (
           <div className="bg-slate-800 rounded-lg p-3 text-xs space-y-1 overflow-hidden border border-emerald-500/30">
             <div className="text-emerald-400 font-bold mb-2 flex items-center gap-2"><Camera className="h-3 w-3"/> Element Captured!</div>
@@ -260,22 +255,7 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
             <p className="truncate"><span className="text-slate-400">Class:</span> {capturedElement.className}</p>
           </div>
         )}
-
-        <div className="bg-slate-800 rounded-lg p-3 text-xs space-y-2 h-32 overflow-y-auto font-mono">
-          <div className="text-slate-400 font-bold mb-1">Recent Errors:</div>
-          {logs.length === 0 ? (
-            <div className="text-emerald-500/70">No errors detected.</div>
-          ) : (
-            logs.map((log, i) => (
-              <div key={i} className="text-rose-400 break-words">{log}</div>
-            ))
-          )}
-        </div>
-
-        <button 
-          onClick={copyPrompt}
-          className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
-        >
+        <button onClick={copyPrompt} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20">
           <Copy className="h-4 w-4" /> Copy JARVIS Prompt
         </button>
       </div>

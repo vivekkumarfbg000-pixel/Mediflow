@@ -4031,7 +4031,7 @@ export const CompounderDashboard: React.FC = () => {
                         No matching patient found in registry.
                       </div>
                     ) : (
-                      filteredPatients.map(p => {
+                      filteredPatients.slice(0, 100).map(p => {
                         const sess = sessions.find(s => s.patientPhone === p.phone);
                         const stage = api.getActivePatientCareStage(p.id);
                         const isSelected = activePatient?.id === p.id;
@@ -4534,7 +4534,7 @@ export const CompounderDashboard: React.FC = () => {
                             );
                           }
 
-                          return pastAppts.map((appt, idx) => {
+                          return pastAppts.slice(0, 100).map((appt, idx) => {
                             const pat = patients.find(p => p.id === (appt.patientId || (appt as any).patient_id));
                             const apptDate = getEffectiveAppointmentDate(appt) || (appt.createdAt || '').split('T')[0];
                             const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
@@ -4700,7 +4700,7 @@ export const CompounderDashboard: React.FC = () => {
                         </div>
                       );
                     }
-                    return confirmedAppts.map((appt, idx) => {
+                    return confirmedAppts.slice(0, 100).map((appt, idx) => {
                       const patId = appt.patientId || (appt as any).patient_id;
                       const apptPhone = appt.patientPhone || (appt as any).patient_phone || '';
                       const matchedPatient = patients.find(p => 
@@ -6262,7 +6262,7 @@ export const CompounderDashboard: React.FC = () => {
                   defaultValue=""
                 >
                   <option value="" disabled>Choose Patient ({filteredPendingVitalsList.length} in view)...</option>
-                  {filteredPendingVitalsList.map(p => {
+                  {filteredPendingVitalsList.slice(0, 100).map(p => {
                     const srcTag = getPatientSourceTag(p);
                     const srcLabel = srcTag === 'whatsapp' ? 'WhatsApp Bot 🟢' : srcTag === 'qr_scan' ? 'QR Scan 📲' : 'Walk-In 🏥';
                     return (
@@ -6279,7 +6279,7 @@ export const CompounderDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                {filteredPendingVitalsList.map((p) => {
+                {filteredPendingVitalsList.slice(0, 100).map((p) => {
                   const srcTag = getPatientSourceTag(p);
                   const isWhatsApp = srcTag === 'whatsapp';
                   const isQr = srcTag === 'qr_scan';
@@ -6549,7 +6549,7 @@ export const CompounderDashboard: React.FC = () => {
                   }}
                   className="w-full input-field text-xs py-2 font-bold"
                 >
-                  {patients.map(p => (
+                  {patients.slice(0, 100).map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name} · Token #{p.tokenNumber || 'TK'} ({p.phone || 'No phone'})
                     </option>

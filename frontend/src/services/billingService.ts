@@ -868,8 +868,8 @@ export class BillingService {
           doctor_fee: consultFee,
           lab_fee: 0,
           pharmacy_fee: 0,
-          platform_fee: source === 'whatsapp' ? 15 : 0,
-          total_amount: source === 'whatsapp' ? consultFee + 15 : consultFee,
+          platform_fee: 0,
+          total_amount: consultFee,
           payment_status: 'pending',
           pod_id: ctx.podId || FALLBACK_POD_ID
         });

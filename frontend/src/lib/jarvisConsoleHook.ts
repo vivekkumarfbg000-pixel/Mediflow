@@ -96,6 +96,11 @@ function initNetworkInterceptor() {
 
   window.fetch = async function(...args: Parameters<typeof fetch>) {
     const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+    
+    if (url.includes(DAEMON) || url.includes(CLOUD_JARVIS)) {
+      return originalFetch.apply(this, args);
+    }
+
     const method = (args[1]?.method || 'GET').toUpperCase();
     const startTime = Date.now();
 

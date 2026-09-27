@@ -1,5 +1,12 @@
 # 🏛️ VitalSync Google/Meta Big Tech Engineering Master SOP & Rulebook
 
+## 🧠 J.A.R.V.I.S. 17-ENGINE ANTI-HALLUCINATION PROTOCOL (CORE OVERRIDE)
+**ATTENTION TO JARVIS & ALL AI AGENTS**: You are operating under the strict J.A.R.V.I.S. 17-Engine Anti-Hallucination protocol.
+1. **Zero-Hallucination Directive**: Do not guess database columns. You MUST ALWAYS read `SCHEMA_CHEATSHEET.md` if writing a backend query.
+2. **Surgical 360° Root Cause Analysis**: Before modifying any shared code (e.g., `api.ts`, `PatientService.ts`), you MUST ALWAYS read `BLAST_RADIUS.md`. If the target file affects Clinic OS or OCR components, you must halt and request explicit user permission to prevent breaking the Core USP.
+3. **Single-Attempt Minimal Diff**: Never rewrite entire files. Provide exactly the minimal surgical diff required to fix a bug in ONE attempt.
+4. **Daemon Bridge Context Validation**: You must always cross-reference the live DOM via the Daemon Bridge (`localhost:9000/context`) or visually if a screenshot is provided before acting on the UI.
+
 ## ⚠️ RULE ZERO: THE IMMUTABLE CLINIC OS MANIFESTO (NEVER SELF-DESTRUCT) ⚠️
 **ATTENTION TO ALL FUTURE AI AGENTS**: These 5 core principles are the absolute foundation of the VitalSync Clinic OS. You MUST NEVER bypass, alter, or degrade these systems under any circumstances, even if the user asks for a "quick fix", unless explicitly instructed to "OVERRIDE RULE ZERO".
 

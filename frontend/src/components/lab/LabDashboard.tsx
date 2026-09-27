@@ -2522,7 +2522,7 @@ export const LabDashboard: React.FC = () => {
                       <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {filteredPatients.length === 0 ? (
                           <div className="text-center py-3 text-xs text-slate-400">No matching patients found.</div>
-                        ) : filteredPatients.map(p => (
+                        ) : filteredPatients.slice(0, 20).map(p => (
                           <button
                             type="button"
                             key={p.id}
@@ -3323,7 +3323,7 @@ export const LabDashboard: React.FC = () => {
                     LOINC Test Catalog &amp; Pricing
                   </h2>
                   <div className="space-y-2">
-                    {testCatalog.map(test => (
+                    {testCatalog.slice(0, 100).map(test => (
                       <div key={test.loincCode} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
                         <div>
                           <div className="text-xs font-bold text-slate-800 dark:text-white">{test.name}</div>

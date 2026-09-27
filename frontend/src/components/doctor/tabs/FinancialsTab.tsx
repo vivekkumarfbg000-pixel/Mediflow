@@ -55,98 +55,120 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
   const labComm = poolStats.doctorLabReferralsEarned;
   const totalEarnings = poolStats.totalDoctorEarned;
 
-  // Dynamic timeframe data generation
-  const chartData = useMemo(() => {
-    const now = new Date();
-    const result: { label: string; clinic: number; pharmacy: number; lab: number }[] = [];
+  // Dynamic timeframe data generation with async chunking (Rule 1.4)
+  const [chartData, setChartData] = useState<{ label: string; clinic: number; pharmacy: number; lab: number }[]>([]);
 
-    if (timeframe === '7d') {
-      // Last 7 Days
-      const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const dayLabel = daysOfWeek[d.getDay()];
-        
-        const dayLedgers = financialLedgers.filter(entry => {
-          if (!entry.createdAt) return false;
-          const entryDate = new Date(entry.createdAt);
-          return entryDate.getFullYear() === d.getFullYear() &&
-                 entryDate.getMonth() === d.getMonth() &&
-                 entryDate.getDate() === d.getDate();
-        });
+  useEffect(() => {
+    let active = true;
+    
+    const computeData = async () => {
+      const now = new Date();
+      const result: { label: string; clinic: number; pharmacy: number; lab: number }[] = [];
 
-        const clinic = dayLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
-        const pharmacy = dayLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-        const lab = dayLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+      // Async yield if records > 50
+      const chunkYield = async () => {
+        if (financialLedgers.length > 50) {
+          await new Promise(r => setTimeout(r, 0));
+        }
+      };
 
-        result.push({ label: dayLabel, clinic, pharmacy, lab });
+      if (timeframe === '7d') {
+        const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        for (let i = 6; i >= 0; i--) {
+          if (!active) return;
+          await chunkYield();
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+          const dayLabel = daysOfWeek[d.getDay()];
+          
+          const dayLedgers = financialLedgers.filter(entry => {
+            if (!entry.createdAt) return false;
+            const entryDate = new Date(entry.createdAt);
+            return entryDate.getFullYear() === d.getFullYear() &&
+                   entryDate.getMonth() === d.getMonth() &&
+                   entryDate.getDate() === d.getDate();
+          });
+
+          const clinic = dayLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
+          const pharmacy = dayLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+          const lab = dayLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+
+          result.push({ label: dayLabel, clinic, pharmacy, lab });
+        }
+      } else if (timeframe === '30d') {
+        for (let i = 5; i >= 0; i--) {
+          if (!active) return;
+          await chunkYield();
+          const endDayOffset = i * 5;
+          const startDayOffset = endDayOffset + 4;
+          
+          const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - startDayOffset);
+          const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - endDayOffset);
+          
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(23, 59, 59, 999);
+
+          const bucketLedgers = financialLedgers.filter(entry => {
+            if (!entry.createdAt) return false;
+            const entryDate = new Date(entry.createdAt);
+            return entryDate >= startDate && entryDate <= endDate;
+          });
+
+          const clinic = bucketLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
+          const pharmacy = bucketLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+          const lab = bucketLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+
+          const label = endDayOffset === 0 ? 'Today' : `D-${endDayOffset}`;
+          result.push({ label, clinic, pharmacy, lab });
+        }
+      } else if (timeframe === '6m') {
+        for (let i = 5; i >= 0; i--) {
+          if (!active) return;
+          await chunkYield();
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthLabel = d.toLocaleString('en-US', { month: 'short' });
+          
+          const monthLedgers = financialLedgers.filter(entry => {
+            if (!entry.createdAt) return false;
+            const entryDate = new Date(entry.createdAt);
+            return entryDate.getFullYear() === d.getFullYear() &&
+                   entryDate.getMonth() === d.getMonth();
+          });
+
+          const clinic = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
+          const pharmacy = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+          const lab = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+
+          result.push({ label: monthLabel, clinic, pharmacy, lab });
+        }
+      } else if (timeframe === '12m') {
+        for (let i = 11; i >= 0; i--) {
+          if (!active) return;
+          await chunkYield();
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthLabel = d.toLocaleString('en-US', { month: 'short' });
+          
+          const monthLedgers = financialLedgers.filter(entry => {
+            if (!entry.createdAt) return false;
+            const entryDate = new Date(entry.createdAt);
+            return entryDate.getFullYear() === d.getFullYear() &&
+                   entryDate.getMonth() === d.getMonth();
+          });
+
+          const clinic = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
+          const pharmacy = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+          const lab = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
+
+          result.push({ label: monthLabel, clinic, pharmacy, lab });
+        }
       }
-    } else if (timeframe === '30d') {
-      // Last 30 Days (grouped into 6 buckets of 5 days)
-      for (let i = 5; i >= 0; i--) {
-        const endDayOffset = i * 5;
-        const startDayOffset = endDayOffset + 4;
-        
-        const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - startDayOffset);
-        const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - endDayOffset);
-        
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
 
-        const bucketLedgers = financialLedgers.filter(entry => {
-          if (!entry.createdAt) return false;
-          const entryDate = new Date(entry.createdAt);
-          return entryDate >= startDate && entryDate <= endDate;
-        });
-
-        const clinic = bucketLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
-        const pharmacy = bucketLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-        const lab = bucketLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-
-        const label = endDayOffset === 0 ? 'Today' : `D-${endDayOffset}`;
-        result.push({ label, clinic, pharmacy, lab });
+      if (active) {
+        setChartData(result);
       }
-    } else if (timeframe === '6m') {
-      // Last 6 Months (default)
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthLabel = d.toLocaleString('en-US', { month: 'short' });
-        
-        const monthLedgers = financialLedgers.filter(entry => {
-          if (!entry.createdAt) return false;
-          const entryDate = new Date(entry.createdAt);
-          return entryDate.getFullYear() === d.getFullYear() &&
-                 entryDate.getMonth() === d.getMonth();
-        });
-
-        const clinic = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
-        const pharmacy = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-        const lab = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-
-        result.push({ label: monthLabel, clinic, pharmacy, lab });
-      }
-    } else if (timeframe === '12m') {
-      // Last 12 Months
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthLabel = d.toLocaleString('en-US', { month: 'short' });
-        
-        const monthLedgers = financialLedgers.filter(entry => {
-          if (!entry.createdAt) return false;
-          const entryDate = new Date(entry.createdAt);
-          return entryDate.getFullYear() === d.getFullYear() &&
-                 entryDate.getMonth() === d.getMonth();
-        });
-
-        const clinic = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'appointment_fee' || ((e.transactionType || (e as any).transaction_type) as any) === 'doctor_consultation_fee').reduce((acc, e) => acc + Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0), 0);
-        const pharmacy = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'medicine_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-        const lab = monthLedgers.filter(e => (e.transactionType || (e as any).transaction_type) === 'lab_commission').reduce((acc, e) => acc + Number(e.netPayout ?? (e as any).net_payout ?? 0), 0);
-
-        result.push({ label: monthLabel, clinic, pharmacy, lab });
-      }
-    }
-
-    return result;
+    };
+    
+    computeData();
+    return () => { active = false; };
   }, [timeframe, financialLedgers]);
 
   // Determine standard grid X coordinates and Y scaling

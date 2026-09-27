@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '../../../lib/supabaseClient';
 import { 
   Users, Search, FileText, Activity, QrCode, Check, X, ShieldAlert, Sparkles, Printer, Mic, MicOff, Plus, Minus, Trash2, Tag, DollarSign, Camera, AlertCircle, ShieldCheck,
@@ -305,6 +306,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       (p.tokenNumber != null && String(p.tokenNumber).toLowerCase().includes(query))
     );
   }, [patients, searchQuery, patientFilterTab, todayOpdPatientIds]);
+
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredPatients.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 72,
+    overscan: 5
+  });
 
   // Catalog item search suggestions
   const catalogSuggestions = useMemo(() => {
@@ -1136,7 +1145,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             className="mb-3"
           />
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 no-scrollbar max-h-[60vh] lg:max-h-none">
+          <div 
+            ref={parentRef}
+            className="flex-1 overflow-y-auto pr-1 no-scrollbar max-h-[60vh] lg:max-h-none"
+          >
             {filteredPatients.length === 0 ? (
               <div className="text-center p-6 text-slate-400 text-xs flex flex-col items-center gap-2">
                 <Users className="w-8 h-8 opacity-20" />
@@ -1150,50 +1162,69 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 </button>
               </div>
             ) : (
-              filteredPatients.map(p => {
-                const isSelected = selectedPatient?.id === p.id;
-                const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, p));
-                const saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : []).filter((r: any) => isEncounterMatchingPatient(r, p));
-                const hasRx = encounters.length > 0 || saasPrescriptions.length > 0;
+              <div
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative'
+                }}
+              >
+                {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                  const p = filteredPatients[virtualRow.index];
+                  const isSelected = selectedPatient?.id === p.id;
+                  const encounters = EncounterService.getEncounters().filter(e => isEncounterMatchingPatient(e, p));
+                  const saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : []).filter((r: any) => isEncounterMatchingPatient(r, p));
+                  const hasRx = encounters.length > 0 || saasPrescriptions.length > 0;
 
-                return (
-                  <div 
-                    key={p.id}
-                    onClick={() => setSelectedPatient(p)}
-                    className={`p-3 rounded-xl cursor-pointer border transition-all text-left relative ${
-                      isSelected 
-                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xs' 
-                        : 'border-slate-100 dark:border-slate-800 hover:border-indigo-300 bg-white/50 dark:bg-slate-900/30'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
-                            detail: p
-                          }));
-                        }}
-                        className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[70%] hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer"
-                        title="Click to view 360° patient profile"
-                      >
-                        {p.name}
+                  return (
+                    <div 
+                      key={virtualRow.key}
+                      onClick={() => setSelectedPatient(p)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: `${virtualRow.size}px`,
+                        transform: `translateY(${virtualRow.start}px)`,
+                        paddingBottom: '8px'
+                      }}
+                    >
+                      <div className={`h-full p-3 rounded-xl cursor-pointer border transition-all text-left relative ${
+                        isSelected 
+                          ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-xs' 
+                          : 'border-slate-100 dark:border-slate-800 hover:border-indigo-300 bg-white/50 dark:bg-slate-900/30'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
+                                detail: p
+                              }));
+                            }}
+                            className="font-bold text-xs text-slate-900 dark:text-white truncate max-w-[70%] hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline cursor-pointer"
+                            title="Click to view 360° patient profile"
+                          >
+                            {p.name}
+                          </div>
+                          <span className="text-[9px] font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
+                            {p.tokenNumber || 'WALK-IN'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
+                          <span>{p.phone || 'No phone'}</span>
+                          {hasRx && (
+                            <span className="text-[8px] font-black px-1.5 py-0.2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded">
+                              Rx Ready
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[9px] font-mono font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
-                        {p.tokenNumber || 'WALK-IN'}
-                      </span>
                     </div>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
-                      <span>{p.phone || 'No phone'}</span>
-                      {hasRx && (
-                        <span className="text-[8px] font-black px-1.5 py-0.2 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded">
-                          Rx Ready
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

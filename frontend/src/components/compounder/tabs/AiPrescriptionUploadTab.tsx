@@ -33,7 +33,7 @@ interface AiPrescriptionUploadTabProps {
   onSuccess?: (patientId: string) => void;
 }
 
-type AiStep = 'idle' | 'scanning' | 'extracting' | 'done' | 'committing' | 'error';
+type AiStep = 'idle' | 'scanning' | 'extracting' | 'done' | 'committing' | 'completed' | 'error';
 
 
 export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = ({ onSuccess }) => {
@@ -67,6 +67,18 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const hasAutoCommitted = useRef<boolean>(false);
+
+  // 🌟 ZERO-DATA-ENTRY DOCTRINE: Autonomous commit trigger
+  useEffect(() => {
+    if (currentStep === 'idle') {
+      hasAutoCommitted.current = false;
+    }
+    if (currentStep === 'done' && !isAssistedReview && !hasAutoCommitted.current) {
+      hasAutoCommitted.current = true;
+      commitClinicOsFlow();
+    }
+  }, [currentStep, isAssistedReview]);
 
   const handleSavePatientAddress = (newAddr: string) => {
     if (extractedPatient) {
@@ -493,13 +505,11 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         }
       }));
       
-      if (onSuccess) {
+      setCurrentStep('completed');
+      
+      // 🌟 OCR-to-POS Auto-Navigation Invariant: Instantly redirect without waiting for a click
+      if (onSuccess && realPatientId) {
         onSuccess(realPatientId);
-      } else {
-        // FIX: Carry patientId in event detail so CompounderDashboard can call
-        // setSelectedPatientForBillHub before rendering BillHubTab
-        window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: { tab: 'billing_daycare', patientId: realPatientId } }));
-        window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: { tab: 'billing_daycare', patientId: realPatientId } }));
       }
 
     } catch (err: any) {
@@ -552,7 +562,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
           </p>
         </div>
 
-        {currentStep === 'done' && (
+        {(currentStep === 'done' || currentStep === 'completed') && (
           <button
             onClick={resetScanner}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm self-start cursor-pointer"
@@ -585,7 +595,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
           >
 
             {/* ASSISTED REVIEW BANNER (Rule Zero self-healing notice) */}
-            {isAssistedReview && currentStep === 'done' && (
+            {isAssistedReview && (currentStep === 'done' || currentStep === 'completed') && (
               <div className="m-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-amber-600 dark:text-amber-400 text-xs">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="flex-1">
@@ -722,7 +732,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             )}
 
             {/* DONE STATE: Prescription Visualizer */}
-            {(currentStep === 'done' || currentStep === 'committing') && (
+            {(currentStep === 'done' || currentStep === 'committing' || currentStep === 'completed') && (
               <div className="flex-1 flex flex-col p-6 items-center justify-center text-center relative bg-[#060a14] rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.05)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-50" />
                 
@@ -755,13 +765,25 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                         <Eye className="w-4 h-4" />
                         Inspect Original Scan
                       </a>
-                      <button
-                        onClick={() => alert('Digital PDF generated successfully! (Feature available in final build)')}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/20 backdrop-blur-md text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 border border-cyan-500/30 transition-all hover:scale-105"
-                      >
-                        <FileText className="w-4 h-4" />
-                        Generate Digital PDF
-                      </button>
+                      {currentStep === 'completed' ? (
+                        <a
+                          href={uploadedImageUrl || '#'}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/20 backdrop-blur-md text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 border border-cyan-500/30 transition-all hover:scale-105"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Open Digital PDF
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => alert('Digital PDF will be generated upon commitment.')}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500/20 backdrop-blur-md text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 border border-cyan-500/30 transition-all hover:scale-105"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Generate Digital PDF
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -781,7 +803,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 <User className="w-4 h-4 text-cyan-500" />
                 <span>Extracted Patient & Medications</span>
               </div>
-              {currentStep === 'done' && (
+              {(currentStep === 'done' || currentStep === 'completed') && (
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setIsEditingAll(!isEditingAll)}
@@ -789,16 +811,18 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   >
                     {isEditingAll ? 'Done Editing' : 'Edit All'}
                   </button>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
-                    <Check className="w-3 h-3" />
-                    Auto-Enrolled
-                  </span>
+                  {currentStep === 'completed' && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
+                      <Check className="w-3 h-3" />
+                      Auto-Enrolled
+                    </span>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Empty State */}
-            {currentStep !== 'done' && (
+            {(currentStep === 'idle' || currentStep === 'scanning' || currentStep === 'extracting' || currentStep === 'error') && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-400 dark:text-slate-500">
                 <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center mb-3">
                   <FileText className="w-6 h-6 text-slate-300 dark:text-slate-600" />
@@ -813,7 +837,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             )}
 
             {/* Extracted Profile Content */}
-            {currentStep === 'done' && extractedPatient && (
+            {(currentStep === 'done' || currentStep === 'committing' || currentStep === 'completed') && extractedPatient && (
               <div className="flex-1 flex flex-col min-h-0">
 
                 {/* Patient Demographic Card */}
@@ -1164,15 +1188,23 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 {/* ✅ Direct Action Button to Billing — ALWAYS VISIBLE, pinned to bottom */}
                 <div className="pt-3 shrink-0 pb-24 md:pb-4">
                   <button
-                    onClick={commitClinicOsFlow}
+                    onClick={() => {
+                      if (currentStep === 'completed') {
+                        if (onSuccess && extractedPatient) onSuccess(extractedPatient.id);
+                      } else {
+                        commitClinicOsFlow();
+                      }
+                    }}
                     disabled={(currentStep as string) === 'committing'}
                     className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="flex items-center gap-2">
                       {(currentStep as string) === 'committing' ? (
                         <><Loader2 className="w-4 h-4 animate-spin" /> Committing to Cloud...</>
+                      ) : (currentStep as string) === 'completed' ? (
+                        <><Zap className="w-4 h-4" /> Proceed to Billing POS</>
                       ) : (
-                        <><Zap className="w-4 h-4" /> Proceed to Billing & Token Issue</>
+                        <><Zap className="w-4 h-4" /> Verify & Proceed</>
                       )}
                     </span>
                     <ChevronRight className="w-4 h-4" />

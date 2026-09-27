@@ -1645,8 +1645,10 @@ export default function App() {
         return;
       }
     }
-    // Immediate synchronous role switch for instant responsiveness
-    setCurrentRole(role);
+    // Use startTransition for heavy UI role switches to prevent freezing
+    startTransition(() => {
+      setCurrentRole(role);
+    });
   };
 
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';

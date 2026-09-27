@@ -1916,7 +1916,7 @@ export const PharmacyDashboard: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredCatalog.map(item => {
+                      filteredCatalog.slice(0, 100).map(item => {
                         const isLow = item.stock <= item.threshold;
                         const isExpired = new Date(item.expiryDate) < new Date();
                         
@@ -1975,7 +1975,7 @@ export const PharmacyDashboard: React.FC = () => {
                     No matching medicine batches found in catalog.
                   </div>
                 ) : (
-                  filteredCatalog.map(item => {
+                  filteredCatalog.slice(0, 100).map(item => {
                     const isLow = item.stock <= item.threshold;
                     const isExpired = new Date(item.expiryDate) < new Date();
                     return (
