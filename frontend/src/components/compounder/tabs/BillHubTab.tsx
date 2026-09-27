@@ -128,8 +128,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [includeOT, setIncludeOT] = useState(true);
   const [selectedMedicines, setSelectedMedicines] = useState<Record<string, { selected: boolean; qty: number }>>({});
   const [selectedTests, setSelectedTests] = useState<Record<string, boolean>>({});
-  const [excludedMedicines, setExcludedMedicines] = useState<Record<string, boolean>>({});
-  const [excludedTests, setExcludedTests] = useState<Record<string, boolean>>({});
+  const [excludedMedicines, setExcludedMedicines] = useState<string[]>([]);
+  const [excludedTests, setExcludedTests] = useState<string[]>([]);
   const [discountInput, setDiscountInput] = useState<number>(0);
   const [referralCode, setReferralCode] = useState<string>("");
   const [partialCashAmount, setPartialCashAmount] = useState<number>(0);
@@ -195,8 +195,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     if (selectedPatient) {
       setFileName(null);
       setManualExtractedData(null);
-      setExcludedMedicines({});
-      setExcludedTests({});
+      setExcludedMedicines([]);
+      setExcludedTests([]);
 
       // Check if consultation fee was ALREADY paid at Gate 1 booking time
       const saasInvoices = BillingService.getInvoices();

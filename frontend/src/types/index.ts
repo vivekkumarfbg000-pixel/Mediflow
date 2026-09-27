@@ -46,7 +46,7 @@ export interface Patient {
   abhaAddress?: string;
   vitals?: PatientVitals;
   tokenNumber?: string;
-  queueStatus?: 'registered' | 'pending_payment' | 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed' | 'sos_priority' | 'awaiting_lab' | 'awaiting_pharmacy' | 'skipped';
+  queueStatus?: 'registered' | 'pending_payment' | 'awaiting_vitals' | 'awaiting_refraction' | 'refraction_in_progress' | 'awaiting_consultation' | 'in_consultation' | 'completed' | 'sos_priority' | 'awaiting_lab' | 'awaiting_pharmacy' | 'skipped' | 'cancelled';
   pastReportsSummary?: string;
   createdAt: string;
   registeredAt?: string;

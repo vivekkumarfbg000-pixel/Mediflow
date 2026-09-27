@@ -1131,7 +1131,7 @@ export const CompounderDashboard: React.FC = () => {
     patients.forEach(p => {
       const pRegDate = getIstDateString(p.registeredAt || (p as any).createdAt || (p as any).created_at);
       const isToday = pRegDate === todayStr;
-      const isPendingQueue = p.queueStatus !== 'completed' && p.queueStatus !== 'cancelled';
+      const isPendingQueue = p.queueStatus !== 'completed' && (p.queueStatus as string) !== 'cancelled';
       const hasAppt = uniqueAppts.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
       if (isToday && isPendingQueue && !hasAppt) {
         seenApptIds.add(`appt-synced-${p.id}`);
