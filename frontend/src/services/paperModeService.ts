@@ -15,6 +15,7 @@ import { LabService } from './labService';
 import { PatientService } from './patientService';
 import { ChronicCareService, CHRONIC_PROTOCOLS } from './chronicCareService';
 import { getIstOffsetDateString } from '../utils/dateUtils';
+import { getPodContext, FALLBACK_DOCTOR_ID, FALLBACK_POD_ID } from './podContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PERMANENT LOCKED WELCOME TEMPLATE (Hinglish + Hindi, 6 clinic features)
@@ -140,8 +141,9 @@ export class PaperModeService {
     prescriptionImageFile?: File | null;
     appointmentId?: string | null;  // ✅ Auto-created appointment linkage
   }): Promise<{ rxId: string; prescriptionImageUrl: string | null }> {
-    const rxId = 'RX-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+    const rxId = crypto.randomUUID();
     let prescriptionImageUrl: string | null = null;
+    const podId = getPodContext().podId || FALLBACK_POD_ID;
 
     // A: Upload prescription image to Supabase storage if file is provided
     if (params.prescriptionImageFile && typeof window !== 'undefined') {
@@ -165,22 +167,24 @@ export class PaperModeService {
       }
     }
 
-    // B: Construct and upsert saas_prescriptions record
-    const rxRecord = {
+    // B: Construct and upsert saas_prescriptions record aligning with live Postgres schema
+    const testStrings: string[] = (params.diagnosticTests || []).map((t: any) => 
+      typeof t === 'string' ? t : (t.name || t.testName || 'Diagnostic Test')
+    );
+
+    const rxRecord: any = {
       id: rxId,
       patient_id: params.patientId,
-      patient_name: params.patientName,
-      patient_phone: params.patientPhone,
-      patient_address: params.patientAddress || null,
-      doctor_name: params.doctorName || 'Dr. Pankaj Kumar',
-      diagnosis: params.diagnosis || null,
-      medications: params.medications || [],
-      diagnostic_tests: params.diagnosticTests || [],
-      is_chronic: params.isChronic || false,
-      chronic_conditions: params.chronicConditions || [],
+      extracted_medicines: params.medications || [],
+      extracted_tests: testStrings,
       prescription_image_url: prescriptionImageUrl,
-      appointment_id: params.appointmentId || null,  // ✅ Linked to auto-created appointment
+      patient_address: params.patientAddress || null,
+      diagnosis: params.diagnosis || null,
+      is_chronic: Boolean(params.isChronic),
+      chronic_conditions: params.chronicConditions || [],
+      appointment_id: params.appointmentId || null,
       source: 'paper_scan',
+      pod_id: podId,
       created_at: new Date().toISOString()
     };
 
@@ -194,9 +198,9 @@ export class PaperModeService {
     // C: Update patient_registry with address + chronic flags
     try {
       await supabase.from('patient_registry').update({
-        address: params.patientAddress,
-        is_chronic: params.isChronic,
-        chronic_conditions: params.chronicConditions
+        address: params.patientAddress || null,
+        is_chronic: Boolean(params.isChronic),
+        chronic_conditions: params.chronicConditions || []
       }).eq('id', params.patientId);
       console.log('[PaperMode] ✅ patient_registry updated');
     } catch (err: any) {
@@ -205,11 +209,12 @@ export class PaperModeService {
 
     // D: Auto-Ingest into chronic_care_cohorts & Sovereign Pod Realtime CDC
     try {
+      const resolvedDocId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
       await ChronicCareService.autoIngestFromEncounter({
         patientId: params.patientId,
         patientName: params.patientName,
         patientPhone: params.patientPhone || '',
-        doctorId: params.doctorName || '',
+        doctorId: resolvedDocId,
         diagnosis: params.diagnosis || '',
         clinicalNotes: (params.chronicConditions || []).join(' '),
         medications: params.medications || [],

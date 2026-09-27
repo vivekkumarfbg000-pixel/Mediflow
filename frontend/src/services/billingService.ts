@@ -552,11 +552,28 @@ export class BillingService {
       const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
       const pId = appt.patientId || (appt as any).patient_id;
       if (pId) {
-        const { error } = await supabase.from('appointments').upsert({
+        // Defensively normalize status to strictly comply with Postgres appointments_status_check
+        const rawStatus = ((appt.status || (appt as any).queue_status || 'scheduled') as string).toLowerCase();
+        let normalizedStatus: 'scheduled' | 'completed' | 'cancelled' | 'pending_payment' = 'scheduled';
+        if (rawStatus === 'completed') normalizedStatus = 'completed';
+        else if (rawStatus === 'cancelled') normalizedStatus = 'cancelled';
+        else if (rawStatus === 'pending_payment' || rawStatus === 'pending') normalizedStatus = 'pending_payment';
+        else normalizedStatus = 'scheduled';
+
+        const rawDocId = appt.doctorId || (appt as any).doctor_id;
+        const validDocId = (typeof rawDocId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDocId)) ? rawDocId : null;
+
+        const rawPaymentStatus = (((appt as any).paymentStatus || (appt as any).payment_status || '').toString()).toLowerCase();
+        let normalizedPaymentStatus = 'pending';
+        if (['cleared', 'paid'].includes(rawPaymentStatus)) normalizedPaymentStatus = 'cleared';
+        else if (rawPaymentStatus === 'failed') normalizedPaymentStatus = 'failed';
+        else normalizedPaymentStatus = 'pending';
+
+        const apptPayload: any = {
           id: appt.id,
           patient_id: pId,
-          doctor_id: appt.doctorId || (appt as any).doctor_id || null,
-          status: appt.status || 'scheduled',
+          doctor_id: validDocId,
+          status: normalizedStatus,
           token_number: String(appt.tokenNumber || (appt as any).token_number || ''),
           patient_name: appt.patientName || (appt as any).patient_name || null,
           patient_phone: appt.patientPhone || (appt as any).patient_phone || null,
@@ -571,13 +588,18 @@ export class BillingService {
           pod_id: podId,
           is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
           is_vip: Boolean(appt.isVip || (appt as any).is_vip),
-          // FIX: Enforce Smart Queue Inviolability — paper_scan appointments MUST default
-          // to 'pending' (not 'cleared') so they go through the payment counter first.
-          payment_status: (appt as any).paymentStatus || (appt as any).payment_status ||
-            ((appt as any).source === 'paper_scan' ? 'pending' : 'cleared'),
+          payment_status: normalizedPaymentStatus,
           problem: (appt as any).problem || (appt as any).chief_complaint || '',
           chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
-        }, { onConflict: 'id' });
+        };
+
+        let { error } = await supabase.from('appointments').upsert(apptPayload, { onConflict: 'id' });
+        if (error && error.code === '23503') {
+          // Foreign key violation on doctor_id or entity_id (not in profiles table) — fallback to null
+          apptPayload.doctor_id = null;
+          const retryRes = await supabase.from('appointments').upsert(apptPayload, { onConflict: 'id' });
+          error = retryRes.error;
+        }
         if (error) {
           console.warn('[BillingService] saveAppointmentAsync Supabase upsert error:', error);
         }

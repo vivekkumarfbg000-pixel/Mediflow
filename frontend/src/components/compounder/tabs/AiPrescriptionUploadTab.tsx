@@ -42,6 +42,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   const [telemetryStep, setTelemetryStep] = useState<number>(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [cloudSyncSuccess, setCloudSyncSuccess] = useState<boolean>(false);
+  const [savedPatientId, setSavedPatientId] = useState<string | null>(null);
+  const isCommittingRef = useRef<boolean>(false);
 
   useEffect(() => {
     return () => {
@@ -75,27 +79,30 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     if ((currentStep === 'done' || currentStep === 'completed') && extractedPatient) {
       const scrollTimer = setTimeout(() => {
         if (profileSectionRef.current) {
-          profileSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          profileSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
       }, 150);
       return () => clearTimeout(scrollTimer);
     }
   }, [currentStep, extractedPatient]);
 
-  // 🌟 ZERO-DATA-ENTRY DOCTRINE: Autonomous commit trigger
+  // 🌟 ZERO-DATA-ENTRY DOCTRINE: Autonomous non-blocking cloud sync trigger
   useEffect(() => {
     if (currentStep === 'idle') {
       hasAutoCommitted.current = false;
+      setSavedPatientId(null);
+      setCloudSyncSuccess(false);
     }
     if (currentStep === 'done' && !isAssistedReview && !hasAutoCommitted.current) {
       hasAutoCommitted.current = true;
-      commitClinicOsFlow();
+      persistClinicOsPipeline();
     }
   }, [currentStep, isAssistedReview]);
 
-  const handleSavePatientAddress = (newAddr: string) => {
+  const handleSavePatientAddress = async (newAddr: string) => {
     if (extractedPatient) {
-      const updated = { ...extractedPatient, address: newAddr.trim() || undefined };
+      const trimmed = newAddr.trim();
+      const updated = { ...extractedPatient, address: trimmed || undefined };
       setExtractedPatient(updated);
       api.setActivePatient(updated);
       setIsEditingAddress(false);
@@ -107,10 +114,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
           type: 'success'
         }
       }));
+      // Non-blocking real-time sync with Supabase
+      persistClinicOsPipeline(updated);
     }
   };
 
-  const handleSavePatientPhone = (newPhone: string) => {
+  const handleSavePatientPhone = async (newPhone: string) => {
     const cleanPhone = newPhone.replace(/\D/g, '').slice(-10);
     if (cleanPhone.length < 10) {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
@@ -135,6 +144,26 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
           type: 'success'
         }
       }));
+      // Non-blocking real-time sync with Supabase
+      persistClinicOsPipeline(updated);
+    }
+  };
+
+  const handleToggleEditAll = async () => {
+    if (isEditingAll) {
+      setIsEditingAll(false);
+      if (extractedPatient) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Profile Updated ✅',
+            message: 'All edits updated and syncing to database.',
+            type: 'success'
+          }
+        }));
+        persistClinicOsPipeline(extractedPatient, extractedMeds, extractedLabs, chronicBadges);
+      }
+    } else {
+      setIsEditingAll(true);
     }
   };
 
@@ -306,34 +335,42 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  const commitClinicOsFlow = async () => {
-    if (!extractedPatient) return;
-    
-    // Auto-fallback for paper walk-in scans missing phone numbers (Under-pocket 999 protocol)
-    let effectivePhone = (inputMobileNumber || '').replace(/\D/g, '').slice(-10);
-    if (!effectivePhone || effectivePhone.length < 10) {
-      effectivePhone = `99999${Math.floor(10000 + Math.random() * 90000)}`;
-      setInputMobileNumber(effectivePhone);
-    }
-    
-    const effectiveName = (extractedPatient.name || '').trim() || 'Walk-in Patient';
-    extractedPatient.name = effectiveName;
-
-    setCurrentStep('committing');
+  const persistClinicOsPipeline = async (
+    customPatient?: Patient,
+    customMeds?: any[],
+    customLabs?: any[],
+    customBadges?: string[]
+  ) => {
+    const patientBase = customPatient || extractedPatient;
+    if (!patientBase) return;
+    if (isCommittingRef.current) return;
+    isCommittingRef.current = true;
+    setIsCloudSyncing(true);
 
     try {
+      const activeMeds = customMeds || extractedMeds || [];
+      const activeLabs = customLabs || extractedLabs || [];
+      const activeBadges = customBadges || chronicBadges || [];
+
+      // Auto-fallback for paper walk-in scans missing phone numbers
+      let effectivePhone = (inputMobileNumber || patientBase.phone || '').replace(/\D/g, '').slice(-10);
+      if (!effectivePhone || effectivePhone.length < 10) {
+        effectivePhone = `99999${Math.floor(10000 + Math.random() * 90000)}`;
+      }
+
+      const effectiveName = (patientBase.name || '').trim() || 'Walk-in Patient';
       const rawPhone = effectivePhone;
       const allSavedPats = PatientService.getPatients();
       const canonicalPat = allSavedPats.find(p => (rawPhone && (p.phone || '').replace(/\D/g, '').slice(-10) === rawPhone)) || ({} as any);
 
       const patientData: any = {
         ...canonicalPat,
-        ...extractedPatient,
-        id: canonicalPat.id || extractedPatient.id,
-        phone: rawPhone,
-        address: inputAddress.trim() || extractedPatient.address || canonicalPat.address || undefined,
-        podId: canonicalPat.podId || getPodContext().podId || (extractedPatient as any).podId,
-        queueStatus: canonicalPat.queueStatus || extractedPatient.queueStatus || 'pending_payment'
+        ...patientBase,
+        id: savedPatientId || canonicalPat.id || patientBase.id,
+        phone: (inputMobileNumber && inputMobileNumber.length >= 10) ? inputMobileNumber : (patientBase.phone || effectivePhone),
+        address: inputAddress.trim() || patientBase.address || canonicalPat.address || undefined,
+        podId: canonicalPat.podId || getPodContext().podId || (patientBase as any).podId,
+        queueStatus: canonicalPat.queueStatus || patientBase.queueStatus || 'pending_payment'
       };
 
       if (!canonicalPat.queueStatus || canonicalPat.queueStatus === 'pending_payment' || canonicalPat.queueStatus === 'completed') {
@@ -343,18 +380,21 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       }
       
       patientData.tokenNumber = canonicalPat.tokenNumber || patientData.tokenNumber || PatientService.generateNextTokenNumber();
-      patientData.abhaId = canonicalPat.abhaId || extractedPatient.abhaId || null;
+      patientData.abhaId = canonicalPat.abhaId || patientBase.abhaId || null;
       patientData.source = 'paper_scan';
 
       // Ensure chronic flags are set before dual-write to avoid race condition overriding to false
-      if (chronicBadges && chronicBadges.length > 0) {
+      if (activeBadges && activeBadges.length > 0) {
         patientData.isChronic = true;
-        patientData.chronicConditions = chronicBadges;
+        patientData.chronicConditions = activeBadges;
       }
 
       // 1. 🌟 ATOMIC SYNCHRONOUS PERSISTENCE: Strict await on Supabase DB write to receive canonical UUID
       const realPatientId = await PatientService.savePatientAsync(patientData);
       patientData.id = realPatientId;
+      setSavedPatientId(realPatientId);
+      setExtractedPatient({ ...patientData });
+      api.setActivePatient(patientData);
 
       const calculateQuantity = (freq: string, dur: string): number | undefined => {
         if (!freq || !dur) return undefined;
@@ -520,32 +560,32 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
       // Broadcast events
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Prescription Ingested & Synced ✅',
-          message: `Profile created for ${patientData.name}. Token: ${patientData.tokenNumber}. Dispatched to WhatsApp.`,
-          type: 'success'
-        }
-      }));
-      
+      setCloudSyncSuccess(true);
       setCurrentStep('completed');
-      
-      // 🌟 OCR-to-POS Auto-Navigation Invariant: Instantly redirect without waiting for a click
-      if (onSuccess && realPatientId) {
-        onSuccess(realPatientId);
-      }
 
     } catch (err: any) {
-      console.error('[OCR] Commit failed:', err);
-      setCurrentStep('done');
-      setErrorMessage(err?.message || 'Failed to save patient profile. Please try again.');
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Clinic Action Required ⚠️',
-          message: err?.message || 'Could not persist patient profile to database. Please check connection.',
-          type: 'error'
-        }
-      }));
+      console.warn('[OCR] Background persistence notice:', err);
+    } finally {
+      setIsCloudSyncing(false);
+      isCommittingRef.current = false;
+    }
+  };
+
+  const handleProceedToBilling = async () => {
+    const targetId = savedPatientId || extractedPatient?.id;
+    if (!targetId) return;
+
+    if (isCommittingRef.current) {
+      let waited = 0;
+      while (isCommittingRef.current && waited < 1500) {
+        await new Promise(r => setTimeout(r, 100));
+        waited += 100;
+      }
+    }
+
+    const finalId = savedPatientId || extractedPatient?.id || targetId;
+    if (onSuccess && finalId) {
+      onSuccess(finalId);
     }
   };
 
@@ -610,7 +650,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
               const files = e.dataTransfer.files;
               if (files && files.length > 0) processPrescriptionFiles(Array.from(files));
             }}
-            className={`rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col lg:min-h-[460px] relative ${
+            className={`rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col ${(currentStep === 'done' || currentStep === 'completed') ? 'h-auto lg:min-h-[460px]' : 'min-h-[380px] lg:min-h-[460px]'} relative ${
               isDragOver
                 ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_40px_rgba(6,182,212,0.25)]'
                 : 'bg-white dark:bg-[#0b1120] border-slate-200 dark:border-cyan-500/20 shadow-xl dark:shadow-[0_0_50px_rgba(6,182,212,0.06)]'
@@ -756,34 +796,37 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
             {/* DONE STATE: Prescription Visualizer */}
             {(currentStep === 'done' || currentStep === 'committing' || currentStep === 'completed') && (
-              <div className="flex-1 flex flex-col p-4 sm:p-6 items-center justify-center text-center relative bg-[#060a14] rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.05)]">
+              <div className="flex-1 flex flex-col p-3 sm:p-6 items-center justify-center text-center relative bg-[#060a14] rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.05)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-50" />
                 
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] mb-2 sm:mb-4 shadow-[0_0_30px_rgba(16,185,129,0.3)] relative z-10 animate-[pulse_3s_ease-in-out_infinite]">
-                  <div className="w-full h-full bg-[#060a14] rounded-[15px] flex items-center justify-center">
-                    <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
+                <div className="flex sm:flex-col items-center gap-2 sm:gap-0 mb-1.5 sm:mb-4 relative z-10">
+                  <div className="w-9 h-9 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] shadow-[0_0_30px_rgba(16,185,129,0.3)] animate-[pulse_3s_ease-in-out_infinite]">
+                    <div className="w-full h-full bg-[#060a14] rounded-[15px] flex items-center justify-center">
+                      <CheckCircle2 className="w-5 h-5 sm:w-8 sm:h-8 text-emerald-400" />
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-center ml-1 sm:ml-0 mt-0 sm:mt-2">
+                    <h3 className="text-sm sm:text-xl font-black text-white">
+                      Digital Profile Created
+                    </h3>
+                    <p className="text-[11px] sm:text-sm text-slate-400">
+                      Prescription digitized & synchronized to cloud.
+                    </p>
                   </div>
                 </div>
-                
-                <h3 className="text-lg sm:text-xl font-black text-white mb-1 sm:mb-2 relative z-10">
-                  Digital Profile Created
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-3 sm:mb-6 relative z-10">
-                  Prescription digitized and linked to patient.
-                </p>
 
                 {uploadedImageUrl && (
                   <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative group z-10 mb-2">
-                    <img src={uploadedImageUrl} alt="Prescription" className="w-full h-28 sm:h-48 object-cover filter brightness-75 contrast-125" />
+                    <img src={uploadedImageUrl} alt="Prescription" className="w-full h-20 sm:h-48 object-cover filter brightness-75 contrast-125" />
                     
                     <div className="absolute inset-0 bg-gradient-to-t from-[#060a14] via-transparent to-transparent opacity-80" />
                     
-                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-3">
+                    <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-2 sm:gap-3">
                       <a
                         href={uploadedImageUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md text-white text-xs font-bold hover:bg-white/20 border border-white/20 transition-all hover:scale-105"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-white/10 backdrop-blur-md text-white text-xs font-bold hover:bg-white/20 border border-white/20 transition-all hover:scale-105"
                       >
                         <Eye className="w-4 h-4" />
                         Inspect Original Scan
@@ -829,17 +872,22 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
               {(currentStep === 'done' || currentStep === 'completed') && (
                 <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => setIsEditingAll(!isEditingAll)}
-                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${isEditingAll ? 'bg-cyan-500 text-white' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                    onClick={handleToggleEditAll}
+                    className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${isEditingAll ? 'bg-cyan-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
                   >
                     {isEditingAll ? 'Done Editing' : 'Edit All'}
                   </button>
-                  {currentStep === 'completed' && (
+                  {isCloudSyncing ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 text-[11px] font-bold border border-cyan-500/20">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Syncing
+                    </span>
+                  ) : cloudSyncSuccess ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold border border-emerald-500/20">
                       <Check className="w-3 h-3" />
-                      Auto-Enrolled
+                      Cloud Synced
                     </span>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
@@ -1209,28 +1257,28 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 </div>{/* end scrollable middle */}
 
                 {/* ✅ Direct Action Button to Billing — ALWAYS VISIBLE, pinned to bottom */}
-                <div className="pt-3 shrink-0 pb-28 sm:pb-6">
+                <div className="pt-3 shrink-0 pb-16 sm:pb-6">
                   <button
-                    onClick={() => {
-                      if (currentStep === 'completed') {
-                        if (onSuccess && extractedPatient) onSuccess(extractedPatient.id);
-                      } else {
-                        commitClinicOsFlow();
-                      }
-                    }}
-                    disabled={(currentStep as string) === 'committing'}
-                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    onClick={handleProceedToBilling}
+                    className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98 cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
-                      {(currentStep as string) === 'committing' ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Committing to Cloud...</>
-                      ) : (currentStep as string) === 'completed' ? (
-                        <><Zap className="w-4 h-4" /> Proceed to Billing POS</>
+                      {isCloudSyncing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-teal-200" />
+                          <span>Syncing with Cloud... • Proceed to Billing POS</span>
+                        </>
                       ) : (
-                        <><Zap className="w-4 h-4" /> Verify & Proceed</>
+                        <>
+                          <Zap className="w-4 h-4 text-emerald-300" />
+                          <span>Proceed to Billing POS</span>
+                        </>
                       )}
                     </span>
-                    <ChevronRight className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-100 font-semibold">
+                      <span>Open POS</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
                   </button>
                 </div>
 

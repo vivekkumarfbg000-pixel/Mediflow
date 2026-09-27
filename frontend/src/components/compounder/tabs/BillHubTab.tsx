@@ -660,11 +660,18 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       rawMeds.forEach((med: any) => {
         const medName = med.medicineName || med.name || 'Prescribed Medicine';
-        const searchWord = medName.split(' ')[0].toLowerCase();
-        const matched = inventory.find(i => 
-          (i.name || '').toLowerCase().includes(searchWord) || 
-          (i.genericName || '').toLowerCase().includes(searchWord)
-        );
+        const strippedName = medName.replace(/^(tab|tablet|cap|capsule|syrup|syp|inj|injection|drops|eye drops|ointment)\.?\s+/i, '').trim();
+        const searchWord = (strippedName.split(' ')[0] || medName.split(' ')[0] || '').toLowerCase();
+        const matched = inventory.find(i => {
+          const invName = (i.name || '').toLowerCase();
+          const invGeneric = (i.genericName || '').toLowerCase();
+          return (
+            (strippedName.length >= 3 && invName.includes(strippedName.toLowerCase())) ||
+            (strippedName.length >= 3 && invGeneric.includes(strippedName.toLowerCase())) ||
+            (searchWord.length >= 3 && invName.includes(searchWord)) ||
+            (searchWord.length >= 3 && invGeneric.includes(searchWord))
+          );
+        });
         medicinesList.push({
           name: medName,
           mrp: matched?.mrp || 120,
@@ -676,12 +683,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       rawTests.forEach((test: any) => {
         let testObj: any = test;
-        if (typeof test === 'string') {
-          const matched = LabService.getTestCatalog().find(t => (t.name || '').toLowerCase() === test.toLowerCase() || t.loincCode === test);
-          testObj = matched || { loincCode: '4544-3', name: test, price: 350 };
+        const testCatalog = LabService.getTestCatalog();
+        const testNameStr = (typeof test === 'string' ? test : (test?.name || test?.testName || '')).toLowerCase().trim();
+        const matched = testCatalog.find(t => 
+          (t.name || '').toLowerCase() === testNameStr || 
+          (testNameStr.length >= 3 && (t.name || '').toLowerCase().includes(testNameStr)) ||
+          (t.loincCode && t.loincCode === (typeof test === 'string' ? test : test?.loincCode))
+        );
+        if (matched) {
+          testObj = { ...matched, price: matched.price || 350 };
+        } else if (typeof test === 'string') {
+          testObj = { loincCode: '4544-3', name: test, price: 350 };
         } else {
-          const matched = LabService.getTestCatalog().find(t => t.loincCode === test.loincCode);
-          if (matched && !testObj.price) testObj.price = matched.price;
+          testObj = { ...test, price: test.price || 350, loincCode: test.loincCode || '4544-3' };
         }
         testsList.push({
           loincCode: testObj.loincCode || '4544-3',

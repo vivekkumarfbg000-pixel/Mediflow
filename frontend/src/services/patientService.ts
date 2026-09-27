@@ -205,6 +205,7 @@ export class PatientService {
           .from('patient_registry')
           .select('id, patient_code, name, address, token_number, queue_status, is_chronic, chronic_conditions')
           .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone}`)
+          .limit(1)
           .maybeSingle();
 
         if (existing?.id) {
@@ -283,8 +284,36 @@ export class PatientService {
       }
 
       if (upsertErr) {
-        console.error('[PatientService] Fatal patient_registry upsert error:', upsertErr);
-        await walDB.addEntry('upsert_patient', upsertPayload);
+        if (upsertErr.code === '23505' && cleanPhone && cleanPhone.length >= 10) {
+          // Phone already exists under another ID — resolve existing row and update in-place
+          try {
+            const { data: existingRow } = await supabase
+              .from('patient_registry')
+              .select('id, patient_code')
+              .or(`phone.eq.${cleanPhone},phone.eq.+91${cleanPhone}`)
+              .limit(1)
+              .maybeSingle();
+
+            if (existingRow?.id) {
+              targetId = existingRow.id;
+              patient.id = targetId;
+              upsertPayload.id = targetId;
+              if (existingRow.patient_code && !patient.patientCode) {
+                patient.patientCode = existingRow.patient_code;
+                upsertPayload.patient_code = existingRow.patient_code;
+              }
+              await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId);
+              console.log('[PatientService] ✅ Resolved phone conflict 23505 and updated existing patient in-place:', targetId);
+            } else {
+              await walDB.addEntry('upsert_patient', upsertPayload);
+            }
+          } catch (_resErr) {
+            await walDB.addEntry('upsert_patient', upsertPayload);
+          }
+        } else {
+          console.error('[PatientService] Fatal patient_registry upsert error:', upsertErr);
+          await walDB.addEntry('upsert_patient', upsertPayload);
+        }
       } else if (!upsertData) {
         // FIX: Silent-fail detection — RLS may block write without returning an error.
         // upsertData=null + upsertErr=null means the row was rejected by a Supabase policy.
