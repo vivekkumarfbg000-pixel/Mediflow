@@ -2169,10 +2169,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                         <span>Consult Fee:</span> <strong className="text-slate-900">₹500 (100% Doctor)</strong>
                       </div>
                       <div className="flex justify-between text-teal-700">
-                        <span>Pharmacy Tech Fee (15%):</span> <strong>₹108.00</strong>
+                        <span>Pharmacy Billing:</span> <strong>Integrated</strong>
                       </div>
                       <div className="flex justify-between text-indigo-700">
-                        <span>Lab Infrastructure Fee (35%):</span> <strong>₹280.00</strong>
+                        <span>Pathology Billing:</span> <strong>Integrated</strong>
                       </div>
                     </div>
                   </div>
@@ -3310,7 +3310,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               {
                 step: '02',
                 title: 'Connect Chemist & Pathology Lab',
-                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners with custom technology fee agreements (e.g., 10%-15% pharmacy tech fee, 30%-40% lab infrastructure fee).",
+                desc: "Link your trusted neighborhood pharmacy and diagnostic laboratory partners to provide a seamless, unified checkout experience for your patients.",
                 color: 'text-indigo-700',
                 bg: 'bg-indigo-50',
                 border: 'border-indigo-200'
