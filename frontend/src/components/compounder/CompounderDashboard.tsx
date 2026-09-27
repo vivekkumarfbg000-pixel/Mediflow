@@ -3268,7 +3268,7 @@ export const CompounderDashboard: React.FC = () => {
       </div>
 
       {/* TAB CONTENT SPACES — vs-tab-content scopes repaints to this area only */}
-      <div className="vs-tab-content vs-main-scroll space-y-6">
+      <div className="vs-tab-content vs-main-scroll space-y-6 w-full touch-pan-y">
         {/* ══════════════════════════════════════════════════════════
             TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}

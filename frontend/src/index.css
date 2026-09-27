@@ -932,16 +932,28 @@ svg line, svg path.domain {
    These rules promote key elements to compositor layers for 60fps operations.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Tab content area: scope repaints to this subtree only (no full-page layout) */
+/* Tab content area: scope repaints on desktop while allowing full document scrolling on mobile */
 .vs-tab-content {
-  contain: layout style paint;
+  contain: none;
   will-change: auto;
+}
+
+@media (min-width: 1024px) {
+  .vs-tab-content {
+    contain: layout style paint;
+  }
 }
 
 /* Tab content entering view — instant, no janky transition */
 .vs-tab-content-active {
-  contain: layout style paint;
+  contain: none;
   backface-visibility: hidden;
+}
+
+@media (min-width: 1024px) {
+  .vs-tab-content-active {
+    contain: layout style paint;
+  }
 }
 
 /* Nav items and sidebar tabs: promote to compositor layer for instant hover */
@@ -973,8 +985,15 @@ svg line, svg path.domain {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
+  touch-action: pan-y;
   scroll-behavior: auto; /* instant, never smooth-scroll the data table */
+}
+
+@media (min-width: 1024px) {
+  .vs-main-scroll {
+    overscroll-behavior: contain;
+  }
 }
 
 /* Patient list rows: contain layout for virtual list perf */

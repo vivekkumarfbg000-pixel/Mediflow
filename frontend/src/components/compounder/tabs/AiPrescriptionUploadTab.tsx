@@ -67,7 +67,20 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const profileSectionRef = useRef<HTMLDivElement>(null);
   const hasAutoCommitted = useRef<boolean>(false);
+
+  // Auto-scroll to extracted profile widget when OCR extraction finishes
+  useEffect(() => {
+    if ((currentStep === 'done' || currentStep === 'completed') && extractedPatient) {
+      const scrollTimer = setTimeout(() => {
+        if (profileSectionRef.current) {
+          profileSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [currentStep, extractedPatient]);
 
   // 🌟 ZERO-DATA-ENTRY DOCTRINE: Autonomous commit trigger
   useEffect(() => {
@@ -555,7 +568,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   };
 
   return (
-    <div className="flex flex-col lg:h-full lg:min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 lg:overflow-y-auto w-full font-sans">
+    <div className="flex flex-col lg:h-full lg:min-h-0 bg-slate-50/50 dark:bg-[#070b16] p-3 sm:p-5 lg:p-6 pb-28 lg:pb-6 lg:overflow-y-auto w-full font-sans touch-pan-y">
 
       {/* ── CLEAN CLINICAL WORKSTATION HEADER ───────────────────────────────── */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/70 dark:border-slate-800/80">
@@ -597,7 +610,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
               const files = e.dataTransfer.files;
               if (files && files.length > 0) processPrescriptionFiles(Array.from(files));
             }}
-            className={`rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col min-h-[460px] relative ${
+            className={`rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col lg:min-h-[460px] relative ${
               isDragOver
                 ? 'border-cyan-400 bg-cyan-950/20 shadow-[0_0_40px_rgba(6,182,212,0.25)]'
                 : 'bg-white dark:bg-[#0b1120] border-slate-200 dark:border-cyan-500/20 shadow-xl dark:shadow-[0_0_50px_rgba(6,182,212,0.06)]'
@@ -743,25 +756,25 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
             {/* DONE STATE: Prescription Visualizer */}
             {(currentStep === 'done' || currentStep === 'committing' || currentStep === 'completed') && (
-              <div className="flex-1 flex flex-col p-6 items-center justify-center text-center relative bg-[#060a14] rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.05)]">
+              <div className="flex-1 flex flex-col p-4 sm:p-6 items-center justify-center text-center relative bg-[#060a14] rounded-3xl overflow-hidden border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.05)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-50" />
                 
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] mb-4 shadow-[0_0_30px_rgba(16,185,129,0.3)] relative z-10 animate-[pulse_3s_ease-in-out_infinite]">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-[1px] mb-2 sm:mb-4 shadow-[0_0_30px_rgba(16,185,129,0.3)] relative z-10 animate-[pulse_3s_ease-in-out_infinite]">
                   <div className="w-full h-full bg-[#060a14] rounded-[15px] flex items-center justify-center">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+                    <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-400" />
                   </div>
                 </div>
                 
-                <h3 className="text-xl font-black text-white mb-2 relative z-10">
+                <h3 className="text-lg sm:text-xl font-black text-white mb-1 sm:mb-2 relative z-10">
                   Digital Profile Created
                 </h3>
-                <p className="text-sm text-slate-400 max-w-md mx-auto mb-6 relative z-10">
-                  The physical prescription has been successfully digitized, matched with sovereign drug catalog, and securely attached to the patient's record.
+                <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-3 sm:mb-6 relative z-10">
+                  Prescription digitized and linked to patient.
                 </p>
 
                 {uploadedImageUrl && (
-                  <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative group z-10">
-                    <img src={uploadedImageUrl} alt="Prescription" className="w-full h-48 object-cover filter brightness-75 contrast-125" />
+                  <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative group z-10 mb-2">
+                    <img src={uploadedImageUrl} alt="Prescription" className="w-full h-28 sm:h-48 object-cover filter brightness-75 contrast-125" />
                     
                     <div className="absolute inset-0 bg-gradient-to-t from-[#060a14] via-transparent to-transparent opacity-80" />
                     
@@ -804,8 +817,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         </div>
 
         {/* ── RIGHT: EXTRACTED CLINICAL PROFILE & DISPENSING QUEUE (5 COLS) ─ */}
-        <div className="lg:col-span-5 flex flex-col lg:h-full min-h-[460px]">
-          <div className="bg-white dark:bg-[#0b1120] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl p-5 sm:p-6 flex flex-col flex-1 lg:h-full lg:max-h-full">
+        <div ref={profileSectionRef} className="lg:col-span-5 flex flex-col lg:h-full lg:min-h-[460px] scroll-mt-6">
+          <div className="bg-white dark:bg-[#0b1120] rounded-3xl border border-slate-200 dark:border-slate-800/80 shadow-xl p-4 sm:p-6 flex flex-col flex-1 lg:h-full lg:max-h-full">
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
@@ -1196,7 +1209,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 </div>{/* end scrollable middle */}
 
                 {/* ✅ Direct Action Button to Billing — ALWAYS VISIBLE, pinned to bottom */}
-                <div className="pt-3 shrink-0 pb-24 md:pb-4">
+                <div className="pt-3 shrink-0 pb-28 sm:pb-6">
                   <button
                     onClick={() => {
                       if (currentStep === 'completed') {
@@ -1206,7 +1219,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                       }
                     }}
                     disabled={(currentStep as string) === 'committing'}
-                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-between shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
                       {(currentStep as string) === 'committing' ? (
