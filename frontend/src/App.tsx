@@ -671,7 +671,7 @@ export const getIsRegisteringActive = (profile?: any): boolean => {
 };
 
 export default function App() {
-  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal' | 'pitch' | 'card'>(() => {
+  const [publicPage, setPublicPage] = useState<null | 'payment' | 'legal' | 'pitch' | 'card' | 'landing'>(() => {
     if (typeof window !== 'undefined') {
       const pathName = window.location.pathname.toLowerCase();
       const searchParams = new URLSearchParams(window.location.search);
@@ -704,6 +704,9 @@ export default function App() {
         searchParams.get('page') === 'visiting'
       ) {
         return 'card';
+      }
+      if (pathName.startsWith('/landing-page')) {
+        return 'landing';
       }
     }
     return null;
@@ -1691,6 +1694,13 @@ export default function App() {
     return (
       <ToastProvider>
         <VisitingCardPrintPage />
+      </ToastProvider>
+    );
+  }
+  if (publicPage === 'landing') {
+    return (
+      <ToastProvider>
+        <LandingPage onAuthSuccess={handleAuthSuccess} />
       </ToastProvider>
     );
   }
