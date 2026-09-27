@@ -2174,7 +2174,13 @@ Keep the tone professional, clinical, objective, and precise.`;
                                   <td className="py-2.5 px-3 text-cyan-600 dark:text-cyan-400 font-mono font-bold">{appt.virtual_time || (appt as any).virtualTime || '—'}</td>
                                   <td className="py-2.5 px-3">
                                     <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold">
-                                      {((appt.source || 'whatsapp') + '').replace(/_/g, ' ')}
+                                      {(() => {
+                                        const s = String(appt.source || 'counter').toLowerCase();
+                                        const isPaper = s.includes('paper');
+                                        const isWa = !isPaper && (s.includes('whatsapp') || s.includes('bot'));
+                                        const isQr = !isPaper && !isWa && s.includes('qr');
+                                        return isPaper ? 'Paper Scan 📄' : isWa ? 'WhatsApp Bot 🟢' : isQr ? 'QR Scan 📲' : 'Walk-In 🏥';
+                                      })()}
                                     </span>
                                   </td>
                                   <td className="py-2.5 px-3">

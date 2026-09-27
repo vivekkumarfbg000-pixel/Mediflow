@@ -418,19 +418,46 @@ export class ChronicCareService {
    */
   public static async registerChronicPatient(record: Partial<ChronicCohortRecord>): Promise<boolean> {
     const pod = getPodContext();
-    const podId = pod?.podId || record.podId || '';
+    const podId = pod?.podId || record.podId || FALLBACK_POD_ID;
     const cleanPhone = (record.patientPhone || '').replace(/\D/g, '').slice(-10);
 
+    const isValidUuid = (val?: string | null): boolean => 
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    let cohortId = isValidUuid(record.id) ? record.id! : '';
+    if (!cohortId && record.patientId && isValidUuid(record.patientId)) {
+      try {
+        const { data: existingCohort } = await supabase
+          .from('chronic_care_cohorts')
+          .select('id')
+          .eq('patient_id', record.patientId)
+          .limit(1)
+          .maybeSingle();
+        if (existingCohort?.id && isValidUuid(existingCohort.id)) {
+          cohortId = existingCohort.id;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    if (!cohortId) {
+      cohortId = crypto.randomUUID();
+    }
+
     try {
+      const resolvedDocId = isValidUuid(record.doctorId) 
+        ? record.doctorId 
+        : (isValidUuid(pod?.doctorId) ? pod.doctorId : null);
+
+      const resolvedPodId = isValidUuid(podId) ? podId : FALLBACK_POD_ID;
+
       const { error } = await supabase
         .from('chronic_care_cohorts')
         .upsert([{
-          id: record.id || `cohort-${record.patientId || crypto.randomUUID().slice(0, 8)}`,
+          id: cohortId,
           patient_id: record.patientId,
-          patient_name: record.patientName,
+          patient_name: record.patientName || 'Chronic Patient',
           patient_phone: cleanPhone,
-          doctor_id: record.doctorId || pod?.doctorId || FALLBACK_DOCTOR_ID,
-          pod_id: podId,
+          doctor_id: resolvedDocId || null,
+          pod_id: resolvedPodId,
           condition_code: record.conditionCode || 'DIABETES',
           condition_name: record.conditionName || 'Type-2 Diabetes Mellitus',
           medications: record.medications || [],

@@ -73,6 +73,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const profileSectionRef = useRef<HTMLDivElement>(null);
   const hasAutoCommitted = useRef<boolean>(false);
+  const pendingCommitRef = useRef<{
+    patient?: Patient;
+    meds?: any[];
+    labs?: any[];
+    badges?: string[];
+  } | null>(null);
 
   // Auto-scroll to extracted profile widget when OCR extraction finishes
   useEffect(() => {
@@ -343,9 +349,27 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   ) => {
     const patientBase = customPatient || extractedPatient;
     if (!patientBase) return;
-    if (isCommittingRef.current) return;
+
+    if (isCommittingRef.current) {
+      // Re-entrant queue: buffer newest patient/meds/labs so compounder edits are never dropped!
+      pendingCommitRef.current = {
+        patient: customPatient || extractedPatient || undefined,
+        meds: customMeds || extractedMeds || undefined,
+        labs: customLabs || extractedLabs || undefined,
+        badges: customBadges || chronicBadges || undefined
+      };
+      return;
+    }
     isCommittingRef.current = true;
     setIsCloudSyncing(true);
+
+    // 5-second safe timeout wrapper to guarantee UI never hangs
+    const withTimeout = <T,>(promise: Promise<T>, ms: number = 5000, fallback: T): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+      ]);
+    };
 
     try {
       const activeMeds = customMeds || extractedMeds || [];
@@ -389,8 +413,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientData.chronicConditions = activeBadges;
       }
 
-      // 1. 🌟 ATOMIC SYNCHRONOUS PERSISTENCE: Strict await on Supabase DB write to receive canonical UUID
-      const realPatientId = await PatientService.savePatientAsync(patientData);
+      // 1. 🌟 ATOMIC SYNCHRONOUS PERSISTENCE: Strict await with timeout on Supabase DB write
+      const realPatientId = await withTimeout(
+        PatientService.savePatientAsync(patientData),
+        5000,
+        patientData.id || crypto.randomUUID()
+      );
       patientData.id = realPatientId;
       setSavedPatientId(realPatientId);
       setExtractedPatient({ ...patientData });
@@ -419,7 +447,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         return undefined;
       };
 
-      const encounterMeds: MedicationRequest[] = extractedMeds.map((m: any, idx: number) => ({
+      const encounterMeds: MedicationRequest[] = activeMeds.map((m: any, idx: number) => ({
         id: `med-${idx}`,
         medicineName: m.medicineName || m.name || 'Prescribed Medicine',
         dosage: m.dosage || '',
@@ -428,6 +456,24 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         quantity: m.quantity || calculateQuantity(m.frequency || '', m.duration || '') || undefined
       }));
 
+      // Cache active OCR bundle for instant POS checkout
+      const activeRxBundle = {
+        patientId: realPatientId,
+        patientName: patientData.name,
+        patientPhone: patientData.phone,
+        patientAddress: patientData.address,
+        tokenNumber: patientData.tokenNumber,
+        medications: encounterMeds,
+        diagnosticTests: activeLabs,
+        prescriptionImageUrl: uploadedImageUrl,
+        timestamp: Date.now()
+      };
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('vitalsync_active_ocr_rx', JSON.stringify(activeRxBundle));
+        } catch (_e) { /* ignore */ }
+      }
+
       // 2. 🌟 PERSIST DIGITIZED PRESCRIPTION & SCAN TO SUPABASE
       let uploadedPublicUrl = uploadedImageUrl;
       const rxTemplate = api.getPrescriptionTemplate();
@@ -435,19 +481,23 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const currentClinicTitle = rxTemplate.clinicName || 'Clinic';
 
       try {
-        const persistRes = await PaperModeService.persistPrescriptionToSupabase({
-          patientId: realPatientId,
-          patientName: patientData.name,
-          patientPhone: patientData.phone,
-          patientAddress: patientData.address,
-          doctorName: currentDocName,
-          clinicName: currentClinicTitle,
-          medications: encounterMeds,
-          diagnosticTests: extractedLabs,
-          isChronic: patientData.isChronic,
-          chronicConditions: patientData.chronicConditions,
-          prescriptionImageFile: uploadedFile
-        });
+        const persistRes = await withTimeout(
+          PaperModeService.persistPrescriptionToSupabase({
+            patientId: realPatientId,
+            patientName: patientData.name,
+            patientPhone: patientData.phone,
+            patientAddress: patientData.address,
+            doctorName: currentDocName,
+            clinicName: currentClinicTitle,
+            medications: encounterMeds,
+            diagnosticTests: activeLabs,
+            isChronic: patientData.isChronic,
+            chronicConditions: patientData.chronicConditions,
+            prescriptionImageFile: uploadedFile
+          }),
+          4000,
+          null
+        );
         if (persistRes?.prescriptionImageUrl) {
           uploadedPublicUrl = persistRes.prescriptionImageUrl;
         }
@@ -465,64 +515,74 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       );
       
       const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
-      if (existingAppt) {
-        await BillingService.saveAppointmentAsync({
-          ...existingAppt,
-          paymentStatus: 'cleared',
-          payment_status: 'cleared',
-          fee_status: 'cleared'
-        } as any);
-      } else {
-        await BillingService.saveAppointmentAsync({
-          id: crypto.randomUUID(),
-          patientId: realPatientId,
-          patientName: patientData.name,
-          patientPhone: patientData.phone,
-          doctorId: resolvedDoctorId,
-          date: todayISO,
-          time: 'Walk-in',
-          status: 'confirmed',
-          paymentStatus: 'cleared',
-          payment_status: 'cleared',
-          fee_status: 'cleared',
-          tokenNumber: patientData.tokenNumber,
-          createdAt: new Date().toISOString(),
-          source: 'paper_scan' as any
-        } as any);
-      }
-
-      // 4. Create Encounter using canonical realPatientId
-      EncounterService.createEncounter({
+      const apptPayload = existingAppt ? {
+        ...existingAppt,
+        paymentStatus: 'cleared',
+        payment_status: 'cleared',
+        fee_status: 'cleared'
+      } : {
+        id: crypto.randomUUID(),
         patientId: realPatientId,
         patientName: patientData.name,
         patientPhone: patientData.phone,
         doctorId: resolvedDoctorId,
-        clinicalNotes: 'Extracted via AI Scanner.',
-        medications: encounterMeds,
-        diagnosticTests: extractedLabs
-      });
+        date: todayISO,
+        time: 'Walk-in',
+        status: 'confirmed',
+        paymentStatus: 'cleared',
+        payment_status: 'cleared',
+        fee_status: 'cleared',
+        tokenNumber: patientData.tokenNumber,
+        createdAt: new Date().toISOString(),
+        source: 'paper_scan' as any
+      };
+
+      try {
+        await withTimeout(BillingService.saveAppointmentAsync(apptPayload as any), 3500, apptPayload as any);
+      } catch (apptErr) {
+        console.warn('[OCR] Appointment booking notice:', apptErr);
+      }
+
+      // 4. Create Encounter using canonical realPatientId
+      try {
+        EncounterService.createEncounter({
+          patientId: realPatientId,
+          patientName: patientData.name,
+          patientPhone: patientData.phone,
+          doctorId: resolvedDoctorId,
+          clinicalNotes: 'Extracted via AI Scanner.',
+          medications: encounterMeds,
+          diagnosticTests: activeLabs
+        });
+      } catch (encErr) {
+        console.warn('[OCR] Encounter creation notice:', encErr);
+      }
 
       api.setActivePatient(patientData);
 
       // 5. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club
-      if (chronicBadges.length > 0) {
+      if (activeBadges.length > 0) {
         try {
           const { ChronicCareService } = await import('../../../services/chronicCareService');
-          for (const badge of chronicBadges) {
-            await ChronicCareService.autoIngestFromEncounter({
-              patientId: realPatientId,
-              patientName: patientData.name,
-              patientPhone: patientData.phone || '',
-              doctorId: resolvedDoctorId,
-              clinicalNotes: 'Extracted via AI Scanner.',
-              chronicConditions: [badge],
-              medications: encounterMeds.map(m => ({
-                medicineName: m.medicineName,
-                dosage: m.dosage,
-                frequency: m.frequency
-              })),
-              isChronic: true
-            });
+          for (const badge of activeBadges) {
+            await withTimeout(
+              ChronicCareService.autoIngestFromEncounter({
+                patientId: realPatientId,
+                patientName: patientData.name,
+                patientPhone: patientData.phone || '',
+                doctorId: resolvedDoctorId,
+                clinicalNotes: 'Extracted via AI Scanner.',
+                chronicConditions: [badge],
+                medications: encounterMeds.map(m => ({
+                  medicineName: m.medicineName,
+                  dosage: m.dosage,
+                  frequency: m.frequency
+                })),
+                isChronic: true
+              }),
+              3000,
+              { enrolled: false }
+            );
           }
         } catch (_e) {
           console.warn('[OCR] Chronic auto-ingest notice:', _e);
@@ -530,7 +590,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       }
 
       // 6. Autonomous WhatsApp Digital Dispatch (Non-blocking)
-      if (patientData.phone && patientData.phone.length >= 10) {
+      if (patientData.phone && patientData.phone.length >= 10 && !patientData.phone.startsWith('99999')) {
         try {
           PaperModeService.dispatchWelcomeWhatsApp({
             patientPhone: patientData.phone,
@@ -550,7 +610,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             doctorName: currentDocName || 'Doctor',
             clinicName: currentClinicTitle || 'Clinic',
             medications: encounterMeds,
-            diagnosticTests: extractedLabs,
+            diagnosticTests: activeLabs,
             prescriptionImageUrl: uploadedPublicUrl
           });
         } catch (e) {
@@ -568,6 +628,14 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     } finally {
       setIsCloudSyncing(false);
       isCommittingRef.current = false;
+      // If user typed phone/address while this commit was running, fire the pending commit!
+      if (pendingCommitRef.current) {
+        const next = pendingCommitRef.current;
+        pendingCommitRef.current = null;
+        setTimeout(() => {
+          persistClinicOsPipeline(next.patient, next.meds, next.labs, next.badges);
+        }, 50);
+      }
     }
   };
 
@@ -577,13 +645,30 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
     if (isCommittingRef.current) {
       let waited = 0;
-      while (isCommittingRef.current && waited < 1500) {
+      while (isCommittingRef.current && waited < 1000) {
         await new Promise(r => setTimeout(r, 100));
         waited += 100;
       }
     }
 
     const finalId = savedPatientId || extractedPatient?.id || targetId;
+
+    // Cache active OCR bundle for instant POS checkout in BillHubTab
+    const activeRxBundle = {
+      patientId: finalId,
+      patientName: extractedPatient?.name || 'Walk-in Patient',
+      patientPhone: extractedPatient?.phone || inputMobileNumber,
+      patientAddress: extractedPatient?.address || inputAddress,
+      tokenNumber: extractedPatient?.tokenNumber,
+      medications: extractedMeds,
+      diagnosticTests: extractedLabs,
+      prescriptionImageUrl: uploadedImageUrl,
+      timestamp: Date.now()
+    };
+    try {
+      localStorage.setItem('vitalsync_active_ocr_rx', JSON.stringify(activeRxBundle));
+    } catch (_e) { /* ignore */ }
+
     if (onSuccess && finalId) {
       onSuccess(finalId);
     }

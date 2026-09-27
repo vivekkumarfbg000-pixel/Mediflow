@@ -145,14 +145,20 @@ export class PaperModeService {
     let prescriptionImageUrl: string | null = null;
     const podId = getPodContext().podId || FALLBACK_POD_ID;
 
-    // A: Upload prescription image to Supabase storage if file is provided
+    // A: Upload prescription image to Supabase storage if file is provided (3-second timeout protection)
     if (params.prescriptionImageFile && typeof window !== 'undefined') {
       try {
         const fileExt = params.prescriptionImageFile.name.split('.').pop() || 'jpg';
         const fileName = `${params.patientId}/${rxId}.${fileExt}`;
-        const { error: uploadErr } = await supabase.storage
+        const uploadPromise = supabase.storage
           .from('prescription-scans')
           .upload(fileName, params.prescriptionImageFile, { upsert: true });
+
+        const timeoutPromise = new Promise<{ error: any }>((resolve) => 
+          setTimeout(() => resolve({ error: { message: 'Storage upload timeout (bypassed)' } }), 3000)
+        );
+
+        const { error: uploadErr } = await Promise.race([uploadPromise, timeoutPromise]);
 
         if (!uploadErr) {
           const { data: publicUrlData } = supabase.storage
@@ -160,7 +166,7 @@ export class PaperModeService {
             .getPublicUrl(fileName);
           prescriptionImageUrl = publicUrlData?.publicUrl || null;
         } else {
-          console.warn('[PaperMode] Image upload notice:', uploadErr.message);
+          console.warn('[PaperMode] Image upload notice:', uploadErr?.message);
         }
       } catch (err: any) {
         console.warn('[PaperMode] Storage upload notice:', err?.message);
@@ -187,6 +193,26 @@ export class PaperModeService {
       pod_id: podId,
       created_at: new Date().toISOString()
     };
+
+    // Immediate Local Storage Sync for instant sub-300ms availability in BillHubTab
+    if (typeof window !== 'undefined') {
+      try {
+        const existingRx = JSON.parse(localStorage.getItem('saas_prescriptions') || '[]');
+        existingRx.unshift(rxRecord);
+        localStorage.setItem('saas_prescriptions', JSON.stringify(existingRx.slice(0, 50)));
+        localStorage.setItem('vitalsync_active_ocr_rx', JSON.stringify({
+          patientId: params.patientId,
+          patientName: params.patientName,
+          patientPhone: params.patientPhone,
+          patientAddress: params.patientAddress,
+          medications: params.medications,
+          diagnosticTests: params.diagnosticTests,
+          prescriptionImageUrl: prescriptionImageUrl,
+          rxId: rxId,
+          timestamp: Date.now()
+        }));
+      } catch (_e) { /* ignore */ }
+    }
 
     try {
       await supabase.from('saas_prescriptions').upsert(rxRecord, { onConflict: 'id' });

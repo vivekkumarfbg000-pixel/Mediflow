@@ -803,7 +803,7 @@ export const CompounderDashboard: React.FC = () => {
           date: getIstDateString(),
           tokenNumber: String(assignedToken),
           isVirtual: false,
-          source: 'whatsapp_physical'
+          source: 'counter'
         } as any;
         BillingService.saveAppointments([newAppt, ...appointments]);
       }
@@ -862,7 +862,7 @@ export const CompounderDashboard: React.FC = () => {
               appointment_time: nowISO,
               created_at: nowISO,
               is_virtual: false,
-              source: 'whatsapp_physical',
+              source: 'counter',
               pod_id: currentPodId
             }, { onConflict: 'id' });
 
@@ -1126,6 +1126,39 @@ export const CompounderDashboard: React.FC = () => {
       }
     });
 
+    // Parity with Doctor EMR: Also include today's active patients from registry who don't yet have an appointment row in appointments table
+    const todayStr = getIstDateString();
+    patients.forEach(p => {
+      const pRegDate = getIstDateString(p.registeredAt || (p as any).createdAt || (p as any).created_at);
+      const isToday = pRegDate === todayStr;
+      const isPendingQueue = p.queueStatus !== 'completed' && p.queueStatus !== 'cancelled';
+      const hasAppt = uniqueAppts.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
+      if (isToday && isPendingQueue && !hasAppt) {
+        seenApptIds.add(`appt-synced-${p.id}`);
+        uniqueAppts.push({
+          id: `appt-synced-${p.id}`,
+          patientId: p.id,
+          patient_id: p.id,
+          doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
+          doctor_id: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
+          status: (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation') ? 'ready_for_consult' : 'scheduled',
+          date: todayStr,
+          appointmentDate: todayStr,
+          tokenNumber: p.tokenNumber || (p as any).token_number || 'T-01',
+          token_number: p.tokenNumber || (p as any).token_number || 'T-01',
+          patientName: p.name,
+          patient_name: p.name,
+          patientPhone: p.phone,
+          patient_phone: p.phone,
+          source: (p as any).source || 'counter',
+          paymentStatus: 'cleared',
+          payment_status: 'cleared',
+          createdAt: (p as any).createdAt || (p as any).created_at || new Date().toISOString(),
+          created_at: (p as any).createdAt || (p as any).created_at || new Date().toISOString()
+        } as any);
+      }
+    });
+
     const resolvedList = uniqueAppts.map((appt, idx) => {
       const p = patients.find(pt => pt.id === appt.patientId || pt.id === (appt as any).patient_id || (pt.phone && appt.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(appt.patientPhone).replace(/\D/g, '').slice(-10)));
       let rawToken = appt.tokenNumber || (appt as any).token_number || p?.tokenNumber || (p as any)?.token_number;
@@ -1291,7 +1324,7 @@ export const CompounderDashboard: React.FC = () => {
             virtual_meeting_url: a.virtual_meeting_url,
             tokenNumber: resolvedToken,
             token_number: resolvedToken,
-            source: a.source || (a.is_virtual ? 'whatsapp_virtual' : 'whatsapp_physical'),
+            source: a.source || (a.is_virtual ? 'whatsapp_virtual' : 'counter'),
             patientName: resolvedName,
             patient_name: resolvedName,
             patientPhone: resolvedPhone,
@@ -1482,7 +1515,7 @@ export const CompounderDashboard: React.FC = () => {
             registeredAt: a.date || a.createdAt || new Date().toISOString(),
             tokenNumber: a.tokenNumber || (a as any).token_number || api.generateNextTokenNumber(),
             queueStatus: 'awaiting_vitals',
-            source: a.source || 'whatsapp'
+            source: a.source || 'counter'
           } as any);
         }
       }
@@ -1502,6 +1535,7 @@ export const CompounderDashboard: React.FC = () => {
       (getEffectiveAppointmentDate(a) === todayStr || getIstDateString(a.createdAt) === todayStr)
     );
     const src = String(appt?.source || (p as any).source || '').toLowerCase();
+    if (src.includes('paper')) return 'paper_scan';
     if (src.includes('whatsapp') || src.includes('bot')) return 'whatsapp';
     if (src.includes('qr') || (p.patientCode && p.patientCode.startsWith('QR'))) return 'qr_scan';
     return 'counter';
@@ -4784,11 +4818,15 @@ export const CompounderDashboard: React.FC = () => {
                                 <span className={`text-[9px] font-mono font-black px-2 py-0.5 rounded-lg border ${
                                   appt.isVirtual
                                     ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/25'
+                                    : String((appt as any).source || '').toLowerCase().includes('paper')
+                                    ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                                    : String((appt as any).source || '').toLowerCase().includes('qr')
+                                    ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30'
                                     : String((appt as any).source || '').toLowerCase().includes('whatsapp')
                                     ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
                                     : 'bg-slate-500/10 text-slate-600 border-slate-500/25'
                                 }`}>
-                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : String((appt as any).source || '').toLowerCase().includes('whatsapp') ? '🟢 [W] WhatsApp Bot' : '🏢 COUNTER'}
+                                  {appt.isVirtual ? '📹 VIRTUAL CALL' : String((appt as any).source || '').toLowerCase().includes('paper') ? '📄 Paper Scan' : String((appt as any).source || '').toLowerCase().includes('qr') ? '📲 QR Scan' : String((appt as any).source || '').toLowerCase().includes('whatsapp') ? '🟢 [W] WhatsApp Bot' : '🏢 COUNTER'}
                                 </span>
                               )}
                               <button
@@ -6264,7 +6302,7 @@ export const CompounderDashboard: React.FC = () => {
                   <option value="" disabled>Choose Patient ({filteredPendingVitalsList.length} in view)...</option>
                   {filteredPendingVitalsList.slice(0, 100).map(p => {
                     const srcTag = getPatientSourceTag(p);
-                    const srcLabel = srcTag === 'whatsapp' ? 'WhatsApp Bot 🟢' : srcTag === 'qr_scan' ? 'QR Scan 📲' : 'Walk-In 🏥';
+                    const srcLabel = srcTag === 'paper_scan' ? 'Paper Scan 📄' : srcTag === 'whatsapp' ? 'WhatsApp Bot 🟢' : srcTag === 'qr_scan' ? 'QR Scan 📲' : 'Walk-In 🏥';
                     return (
                       <option key={p.id} value={p.id}>
                         #{p.tokenNumber || 'TK'} · <span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span> · [{srcLabel}] (+91 {(p.phone || '').slice(-4) || 'XXXX'})
@@ -6281,6 +6319,7 @@ export const CompounderDashboard: React.FC = () => {
               <div className="space-y-2">
                 {filteredPendingVitalsList.slice(0, 100).map((p) => {
                   const srcTag = getPatientSourceTag(p);
+                  const isPaper = srcTag === 'paper_scan';
                   const isWhatsApp = srcTag === 'whatsapp';
                   const isQr = srcTag === 'qr_scan';
                   const appt = appointments.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
@@ -6290,7 +6329,9 @@ export const CompounderDashboard: React.FC = () => {
                     <div 
                       key={p.id}
                       className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
-                        isWhatsApp
+                        isPaper
+                          ? 'border-blue-200 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20'
+                          : isWhatsApp
                           ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20'
                           : isQr
                           ? 'border-purple-200 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20'
@@ -6299,7 +6340,9 @@ export const CompounderDashboard: React.FC = () => {
                     >
                       <div className="flex items-center gap-3">
                         <span className={`w-8 h-8 rounded-xl font-mono font-black text-xs flex items-center justify-center shadow-xs ${
-                          isWhatsApp
+                          isPaper
+                            ? 'bg-blue-600 text-white'
+                            : isWhatsApp
                             ? 'bg-emerald-600 text-white'
                             : isQr
                             ? 'bg-purple-600 text-white'
@@ -6325,13 +6368,15 @@ export const CompounderDashboard: React.FC = () => {
                               View Profile 👤
                             </button>
                             <span className={`px-2 py-0.5 rounded-full text-[8px] font-mono font-bold ${
-                              isWhatsApp
+                              isPaper
+                                ? 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300'
+                                : isWhatsApp
                                 ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300'
                                 : isQr
                                 ? 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300'
                                 : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                             }`}>
-                              {isWhatsApp ? 'WhatsApp Bot 🟢' : isQr ? 'QR Scan 📲' : 'Walk-In 🏥'}
+                              {isPaper ? 'Paper Scan 📄' : isWhatsApp ? 'WhatsApp Bot 🟢' : isQr ? 'QR Scan 📲' : 'Walk-In 🏥'}
                             </span>
                             {pStat === 'cleared' ? (
                               <span className="px-1.5 py-0.5 rounded-full text-[8px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/50">

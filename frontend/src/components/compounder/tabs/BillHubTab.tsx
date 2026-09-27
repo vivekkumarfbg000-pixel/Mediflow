@@ -128,6 +128,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [includeOT, setIncludeOT] = useState(true);
   const [selectedMedicines, setSelectedMedicines] = useState<Record<string, { selected: boolean; qty: number }>>({});
   const [selectedTests, setSelectedTests] = useState<Record<string, boolean>>({});
+  const [excludedMedicines, setExcludedMedicines] = useState<Record<string, boolean>>({});
+  const [excludedTests, setExcludedTests] = useState<Record<string, boolean>>({});
   const [discountInput, setDiscountInput] = useState<number>(0);
   const [referralCode, setReferralCode] = useState<string>("");
   const [partialCashAmount, setPartialCashAmount] = useState<number>(0);
@@ -193,6 +195,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     if (selectedPatient) {
       setFileName(null);
       setManualExtractedData(null);
+      setExcludedMedicines({});
+      setExcludedTests({});
+
       // Check if consultation fee was ALREADY paid at Gate 1 booking time
       const saasInvoices = BillingService.getInvoices();
       const uInvoices = BillingService.getUnifiedInvoices();
@@ -203,6 +208,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       setIncludeOT(true);
       setManualMedicinesList([]);
       setManualTestsList([]);
+      setExcludedMedicines([]);
+      setExcludedTests([]);
       setVoiceTranscript('');
 
       // Check if there is an active digital prescription / encounter
@@ -217,18 +224,30 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
       } catch (_rxErr) { /* ignore */ }
 
+      // Check active OCR bundle from recent scan session
+      let activeOcrBundle: any = null;
+      try {
+        const rawOcr = localStorage.getItem('vitalsync_active_ocr_rx');
+        if (rawOcr) {
+          const parsed = JSON.parse(rawOcr);
+          if (parsed && (isEncounterMatchingPatient(parsed, selectedPatient) || Date.now() - (parsed.timestamp || 0) < 900000)) {
+            activeOcrBundle = parsed;
+          }
+        }
+      } catch (_e) { /* ignore */ }
+
       const latestEncounter = encounters[0];
       const latestRx = saasPrescriptions[0];
 
       const rawMeds = (latestEncounter?.medications && latestEncounter.medications.length > 0)
         ? latestEncounter.medications
-        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || []);
+        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || activeOcrBundle?.extractedMedicines || activeOcrBundle?.extracted_medicines || activeOcrBundle?.medications || []);
 
       const rawTests = (latestEncounter?.diagnosticTests && latestEncounter.diagnosticTests.length > 0)
         ? latestEncounter.diagnosticTests
-        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || []);
+        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || activeOcrBundle?.extractedTests || activeOcrBundle?.extracted_tests || activeOcrBundle?.diagnosticTests || []);
 
-      if (rawMeds.length > 0 || rawTests.length > 0 || latestEncounter || latestRx) {
+      if (rawMeds.length > 0 || rawTests.length > 0 || latestEncounter || latestRx || activeOcrBundle) {
         setBillingMode('digital');
         // Pre-select all digital medicines
         const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
@@ -596,23 +615,36 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   };
 
 
-  const handleRemoveManualMedicine = (medName: string) => {
-    setManualMedicinesList(prev => prev.filter(m => (m.name || '').toLowerCase() !== medName.toLowerCase()));
+  const handleRemoveMedicine = (medName: string) => {
+    const key = (medName || '').toLowerCase();
+    setExcludedMedicines(prev => prev.includes(key) ? prev : [...prev, key]);
+    setManualMedicinesList(prev => prev.filter(m => (m.name || '').toLowerCase() !== key));
     setSelectedMedicines(prev => {
       const next = { ...prev };
-      delete next[medName.toLowerCase()];
+      delete next[key];
       return next;
     });
   };
 
-  const handleRemoveManualTest = (loincCode: string) => {
-    setManualTestsList(prev => prev.filter(t => t.loincCode !== loincCode));
+  const handleRemoveManualMedicine = handleRemoveMedicine;
+
+  const handleRemoveTest = (loincCode: string, testName?: string) => {
+    const nameKey = (testName || '').toLowerCase();
+    setExcludedTests(prev => {
+      const next = [...prev];
+      if (loincCode && !next.includes(loincCode)) next.push(loincCode);
+      if (nameKey && !next.includes(nameKey)) next.push(nameKey);
+      return next;
+    });
+    setManualTestsList(prev => prev.filter(t => t.loincCode !== loincCode && (t.name || '').toLowerCase() !== nameKey));
     setSelectedTests(prev => {
       const next = { ...prev };
       delete next[loincCode];
       return next;
     });
   };
+
+  const handleRemoveManualTest = handleRemoveTest;
 
   // Active items mapping (syncing prices)
   const billingLedger = useMemo(() => {
@@ -647,16 +679,22 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
       } catch (_rxErr) { /* ignore */ }
 
+      let activeOcrRx: any = null;
+      try {
+        const cached = localStorage.getItem('vitalsync_active_ocr_rx');
+        if (cached) activeOcrRx = JSON.parse(cached);
+      } catch (_e) { /* ignore */ }
+
       const latest = encounters[0];
       const latestRx = saasPrescriptions[0];
 
       const rawMeds = (latest?.medications && latest.medications.length > 0)
         ? latest.medications
-        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || []);
+        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || activeOcrRx?.extractedMedicines || activeOcrRx?.extracted_medicines || activeOcrRx?.medications || []);
 
       const rawTests = (latest?.diagnosticTests && latest.diagnosticTests.length > 0)
         ? latest.diagnosticTests
-        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || []);
+        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || activeOcrRx?.extractedTests || activeOcrRx?.extracted_tests || activeOcrRx?.diagnosticTests || []);
 
       rawMeds.forEach((med: any) => {
         const medName = med.medicineName || med.name || 'Prescribed Medicine';
@@ -706,6 +744,22 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           unit: testObj.unit || ''
         });
       });
+
+      // Merge manually added medicines & tests
+      manualMedicinesList.forEach(m => {
+        if (!medicinesList.some(existing => (existing.name || '').toLowerCase() === (m.name || '').toLowerCase())) {
+          medicinesList.push(m);
+        }
+      });
+      manualTestsList.forEach(t => {
+        if (!testsList.some(existing => existing.loincCode === t.loincCode || (existing.name || '').toLowerCase() === (t.name || '').toLowerCase())) {
+          testsList.push(t);
+        }
+      });
+
+      // Filter out explicitly excluded/deleted items
+      medicinesList = medicinesList.filter(m => !excludedMedicines.includes((m.name || '').toLowerCase()));
+      testsList = testsList.filter(t => !excludedTests.includes(t.loincCode) && !excludedTests.includes((t.name || '').toLowerCase()));
     } else {
       // Manual billing combines OCR + Manual list additions
       const combinedMeds = [...manualMedicinesList];
@@ -751,8 +805,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         });
       }
 
-      medicinesList = combinedMeds;
-      testsList = combinedTests;
+      medicinesList = combinedMeds.filter(m => !excludedMedicines.includes((m.name || '').toLowerCase()));
+      testsList = combinedTests.filter(t => !excludedTests.includes(t.loincCode) && !excludedTests.includes((t.name || '').toLowerCase()));
     }
 
     // Totals Calculation
@@ -1677,16 +1731,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                                 )}
                               </div>
 
-                              {isManual && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveManualMedicine(med.name)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer border-0 bg-transparent"
-                                  title="Remove item"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMedicine(med.name)}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer border-0 bg-transparent"
+                                title="Remove item"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         );
@@ -1740,16 +1792,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                                 ₹{test.price}
                               </span>
 
-                              {isManual && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveManualTest(test.loincCode)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer border-0 bg-transparent"
-                                  title="Remove test"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTest(test.loincCode, test.name)}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer border-0 bg-transparent"
+                                title="Remove test"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
                         );
