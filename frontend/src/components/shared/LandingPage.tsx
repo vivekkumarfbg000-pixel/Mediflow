@@ -2732,46 +2732,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               const directOpdEarnings = monthlyOPD * calcFee;
               const chronicPatients = Math.round(monthlyOPD * (calcChronicRatio / 100));
               const refillGMV = chronicPatients * calcMedSale;
-              const pharmacyDoctorSplit = refillGMV * 0.15; // 15% Tech Fee
-              // Assume 35% of chronic patients do a diagnostic test in any given month (approx every 90 days)
-              const labMonthlyGMV = Math.round(chronicPatients * 0.35 * calcLabFee);
-              const labDoctorSplit = labMonthlyGMV * 0.35; // 35% Infrastructure Fee
-              const netPracticeOutput = directOpdEarnings + pharmacyDoctorSplit + labDoctorSplit;
-              const additionalCareValue = pharmacyDoctorSplit + labDoctorSplit;
+              const pharmacyPOSBilling = refillGMV; // Unified Pharmacy Billing
+              const labPOSBilling = Math.round(chronicPatients * 0.35 * calcLabFee); // Unified Lab Billing
+              const totalClinicGMV = directOpdEarnings + pharmacyPOSBilling + labPOSBilling;
+              const unifiedBillingValue = pharmacyPOSBilling + labPOSBilling;
 
               return (
                 <div className="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-950 to-teal-950 p-8 rounded-3xl text-white space-y-6 shadow-2xl border border-teal-500/30 text-left">
                   <div className="border-b border-slate-800 pb-4">
                     <span className="text-[10px] font-mono font-extrabold uppercase text-emerald-400 tracking-widest block">
-                      Estimated Monthly Practice Output
+                      Total Unified Clinic GMV Processed
                     </span>
                     <p className="text-3xl font-black text-white mt-1">
-                      ₹{(netPracticeOutput || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      ₹{(totalClinicGMV || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       <span className="text-xs text-slate-400 font-normal"> / month</span>
                     </p>
                     <span className="text-[11px] font-mono text-cyan-300 block mt-0.5">
-                      Annual Run-Rate: ₹{((netPracticeOutput || 0) * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / yr
+                      Annual Transaction Run-Rate: ₹{((totalClinicGMV || 0) * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / yr
                     </span>
                   </div>
 
                   <div className="space-y-3 text-xs font-mono">
                     <div className="flex justify-between text-slate-300">
-                      <span>1. Direct OPD Consultations (100%):</span>
+                      <span>1. Direct OPD Consultations:</span>
                       <span className="font-bold text-white">₹{(directOpdEarnings || 0).toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-teal-300">
-                      <span>2. Day-25 Refills (Chemist 15% SOP):</span>
-                      <span className="font-bold">₹{(pharmacyDoctorSplit || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                      <span>2. Unified Pharmacy POS Collections:</span>
+                      <span className="font-bold">₹{(pharmacyPOSBilling || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                     </div>
                     <div className="flex justify-between text-indigo-300">
-                      <span>3. 90-Day Diagnostics (Lab 35% SOP):</span>
-                      <span className="font-bold">₹{(labDoctorSplit || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                      <span>3. Unified Pathology POS Collections:</span>
+                      <span className="font-bold">₹{(labPOSBilling || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
                     </div>
                   </div>
 
                   <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-[11px] text-emerald-200 leading-relaxed font-sans font-medium space-y-1">
                     <p>
-                      💡 <strong>The Virtual Hospital Advantage:</strong> Your clinic unlocks an extra <strong>₹{(additionalCareValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / month</strong> (<strong>₹{((additionalCareValue || 0) * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / year</strong>) in automated recurring care coordination value from medicines and lab tests that used to walk away to random unlinked vendors.
+                      💡 <strong>The Unified Hospital Advantage:</strong> Your clinic seamlessly processes an additional <strong>₹{(unifiedBillingValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / month</strong> (<strong>₹{((unifiedBillingValue || 0) * 12).toLocaleString('en-IN', { maximumFractionDigits: 0 })} / year</strong>) in pharmacy and pathology transactions, all managed under one single unified dashboard.
                     </p>
                   </div>
                 </div>
@@ -3351,7 +3349,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             </div>
             <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 tracking-tight uppercase">Platform Fee Schedule</h2>
             <p className="text-slate-500 text-sm font-semibold mt-2 max-w-2xl mx-auto">
-              VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. We maintain 0% commission on Doctor OPD consultations, alongside ultra-low platform software usage fees on partner Pathology Lab (2%) and Pharmacy Counter (1%).
+              VitalSync offers a 90-Day Full-Access Free Pilot followed by a flat ₹999/month Clinical Operations Fee. No hidden fees, no complex revenue splits. Just simple, unified billing across your entire clinical ecosystem.
             </p>
           </div>
 
@@ -3417,25 +3415,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-teal-700 bg-teal-100 border border-teal-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    0% OPD Platform Fee (100% Doctor Payout)
+                    UNIFIED WHATSAPP BOOKING
                   </span>
                   <Sparkles className="h-4 w-4 text-teal-600" />
                 </div>
                 <h3 className="text-base font-extrabold text-slate-900">Online WhatsApp Appointments</h3>
                 <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  Direct patient bookings via WhatsApp Chatbot. 100% of consultation fees go straight to the Doctor's UPI account with zero platform deductions.
+                  Direct patient bookings via WhatsApp Chatbot. Appointments are seamlessly synced to the Doctor EMR queue.
                 </p>
                 <div className="p-4 rounded-2xl bg-white border border-teal-100 text-xs space-y-2 font-mono">
                   <div className="flex justify-between text-slate-500">
-                    <span>Consultation Fee:</span>
-                    <span>₹500.00</span>
+                    <span>Consultation Flow:</span>
+                    <span>Automated</span>
                   </div>
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Total Patient Invoice:</span>
-                    <span>₹500.00</span>
+                    <span>Queue Syncing:</span>
+                    <span>Real-time</span>
                   </div>
                   <div className="text-[10px] text-teal-700 font-bold font-sans pt-1">
-                    ✓ 100% Direct to Doctor UPI • ₹0 Deductions
+                    ✓ Zero Data Entry Required
                   </div>
                 </div>
               </div>
@@ -3446,25 +3444,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    0% OPD Platform Fee (100% Doctor Payout)
+                    UNIFIED CLINIC POS
                   </span>
                   <Award className="h-4 w-4 text-emerald-600" />
                 </div>
                 <h3 className="text-base font-extrabold text-slate-900">Counter Physical Consultations</h3>
                 <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                  Direct walk-in checkups booked at the Compounder desk carry 0% platform fee. 100% of the consultation fee goes to the Doctor.
+                  Direct walk-in checkups booked at the Compounder desk. Vitals are captured and synced instantly.
                 </p>
                 <div className="p-4 rounded-2xl bg-white border border-emerald-100 text-xs space-y-2 font-mono">
                   <div className="flex justify-between text-slate-500">
-                    <span>Counter Consultation Fee:</span>
-                    <span>₹500.00</span>
+                    <span>Vitals Tracking:</span>
+                    <span>Connected</span>
                   </div>
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Doctor Earnings:</span>
-                    <span>₹500.00 (100%)</span>
+                    <span>Billing Status:</span>
+                    <span>Unified Dashboard</span>
                   </div>
                   <div className="text-[10px] text-emerald-700 font-bold font-sans pt-1">
-                    ✓ 90 Days Free • Flat ₹999/mo • Zero OPD Commission
+                    ✓ Instant Queue Allocation
                   </div>
                 </div>
               </div>
@@ -3475,7 +3473,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-indigo-700 bg-indigo-100 border border-indigo-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    2% Platform Fee
+                    UNIFIED LAB BILLING
                   </span>
                   <Building2 className="h-4 w-4 text-indigo-600" />
                 </div>
@@ -3489,15 +3487,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     <span>₹1,000.00</span>
                   </div>
                   <div className="flex justify-between text-indigo-700 font-bold">
-                    <span>Platform Tech Fee (2%):</span>
-                    <span>₹20.00</span>
+                    <span>Patient Reports:</span>
+                    <span>Auto-WhatsApp</span>
                   </div>
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Net Lab Vendor Credit:</span>
-                    <span>₹980.00</span>
+                    <span>Report Sync:</span>
+                    <span>Automated</span>
                   </div>
                   <div className="text-[10px] text-indigo-700 font-bold font-sans pt-1">
-                    ✓ Automated B2B Ledger Settlement
+                    ✓ Unified Diagnostic Worklist
                   </div>
                 </div>
               </div>
@@ -3508,7 +3506,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-sky-800 bg-sky-100 border border-sky-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                    1% Platform Fee
+                    UNIFIED PHARMACY BILLING
                   </span>
                   <Pill className="h-4 w-4 text-sky-600" />
                 </div>
@@ -3522,15 +3520,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     <span>₹1,000.00</span>
                   </div>
                   <div className="flex justify-between text-sky-700 font-bold">
-                    <span>Platform Tech Fee (1%):</span>
-                    <span>₹10.00</span>
+                    <span>Chronic Refills:</span>
+                    <span>1-Tap Automated</span>
                   </div>
                   <div className="border-t border-slate-100 pt-1.5 flex justify-between font-extrabold text-slate-900">
-                    <span>Net Pharmacy Credit:</span>
-                    <span>₹990.00</span>
+                    <span>Inventory Sync:</span>
+                    <span>Real-time</span>
                   </div>
                   <div className="text-[10px] text-sky-700 font-bold font-sans pt-1">
-                    ✓ Realtime Retail Stock Depletion
+                    ✓ Seamless Bill Consolidation
                   </div>
                 </div>
               </div>
@@ -3678,23 +3676,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
                     </p>
                   </div>
                 )
-              },
-              {
-                id: 8,
-                question: "How does the Connected Triad settlement between Doctor, Chemist, and Lab operate?",
-                badge: "Triad Settlements",
-                answer: (
-                  <div className="space-y-2.5 text-xs text-slate-650 leading-relaxed font-normal">
-                    <p>
-                      <strong className="text-slate-900">Settlements are automated, transparent, and governed by clinic SOPs.</strong> The doctor sets custom coordination splits (e.g. 20%–30% on medicines, 30%–40% on diagnostics) in the Doctor EMR SOP Config Tab.
-                    </p>
-                    <p>
-                      When a patient pays for medicines or blood tests at the counter or via UPI, the platform's multi-tenant ledger calculates and deposits each party's share directly into their bank account via automated gateway settlement, maintaining a ₹1,000 safety buffer with zero manual bookkeeping.
-                    </p>
-                  </div>
-                )
-              }
-            ].map((faq) => {
+              }].map((faq) => {
               const isOpen = expandedFaq === faq.id;
               return (
                 <div
