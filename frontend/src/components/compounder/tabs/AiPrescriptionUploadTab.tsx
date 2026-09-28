@@ -239,6 +239,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
       const mockId = crypto.randomUUID();
       const generatedToken = PatientService.generateNextTokenNumber();
+      const extractedAddress = extractedData?.patientAddress || resObj?.patientAddress || extractedData?.address || resObj?.address || undefined;
       let normalizedGender: 'Male' | 'Female' | 'Other' = 'Male';
       const rawG = String(extractedData.patientGender || resObj.patientGender || '').trim().toLowerCase();
       if (rawG === 'female' || rawG === 'f') normalizedGender = 'Female';
