@@ -394,6 +394,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         phone: (inputMobileNumber && inputMobileNumber.length >= 10) ? inputMobileNumber : (patientBase.phone || effectivePhone),
         address: inputAddress.trim() || patientBase.address || canonicalPat.address || undefined,
         podId: canonicalPat.podId || getPodContext().podId || (patientBase as any).podId,
+      };
       // Paper scan prescription implies consultation has already been completed physically by doctor
       patientData.queueStatus = 'completed';
       

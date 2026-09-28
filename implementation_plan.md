@@ -1,42 +1,46 @@
-# 🗺️ VitalSync Mediflow Master Evolution Plan: J.A.R.V.I.S God-Tier (Phase 2 & 3)
+# 🛠️ CTO Implementation Plan: Fix Vercel Build Error in `AiPrescriptionUploadTab.tsx`
 
-## 🎯 Strategic Objective
-We are upgrading J.A.R.V.I.S from a high-speed text aggregator into a **Mathematically Precise AI Engineer** (AST) and a **Relentless QA Automation Suite** (Playwright).
+## 🧠 Root Cause Analysis (RCA)
 
----
-
-## 🧪 Phase 2: Engine 12 — Playwright E2E Automation (The QA Sentinel)
-Right now, J.A.R.V.I.S. gathers the DOM, but it cannot actively verify if a fix actually works. We will build an autonomous QA pipeline.
-
-### The Implementation:
-1. **Initialize Playwright**: Install `@playwright/test` into the `frontend/` directory.
-2. **The Clinic Loop Spec**: Write a master `clinic-os-loop.spec.ts` test that programmatically:
-   - Logs in as a Doctor.
-   - Registers a virtual patient via the Compounder desk.
-   - Verifies the Token is assigned.
-   - Verifies WhatsApp integration hooks don't throw 500 errors.
-3. **Daemon Bridge Integration**: Create an endpoint `POST /api/run-e2e` inside `daemon-bridge.cjs`.
-4. **Dashboard Button**: Wire up the "E2E Tests" button on the `PromptGuardDashboard` to trigger this endpoint and stream the results back via SSE (Server-Sent Events) in real-time.
-
-### 🏁 Deliverable
-Before any code is ever merged, you click a button and J.A.R.V.I.S physically simulates a 3-minute clinic shift in 3 seconds to guarantee Rule Zero is intact.
+- **Failure Symptom**: Vercel production build failed during `tsc -b --force` with errors:
+  - `src/components/compounder/tabs/AiPrescriptionUploadTab.tsx(398,18): error TS1005: ',' expected.`
+  - `src/components/compounder/tabs/AiPrescriptionUploadTab.tsx(411,7): error TS1472: 'catch' or 'finally' expected.`
+  - `src/components/compounder/tabs/AiPrescriptionUploadTab.tsx(1385,1): error TS1128: Declaration or statement expected.`
+- **Systemic Root Cause**:
+  - In [`AiPrescriptionUploadTab.tsx`](file:///c:/Users/vivek/OneDrive/Desktop/vitalsync-Mediflow%20ecosystem/frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx#L390), at line 390, `const patientData: any = {` opened an object literal.
+  - Line 396 ended with `,`, but was **missing the closing brace `};`** before imperative statement assignments `patientData.queueStatus = 'completed';` began on line 398.
+  - This caused the TypeScript compiler to parse all subsequent statements up to line 1385 as invalid property declarations inside an unclosed object literal.
 
 ---
 
-## 🌳 Phase 3: Engine 11 — AST Code Surgery (The Precision Scalpel)
-Right now, J.A.R.V.I.S (Engine 7) uses simple line-number guessing (`lines.slice(start, end)`) to extract code snippets. If a file changes, line numbers shift and it extracts the wrong block.
+## 🎯 Proposed Surgical Changes
 
-### The Implementation:
-1. **Babel / SWC Integration**: Install `@babel/parser` or `typescript` compiler API inside the Daemon Bridge.
-2. **Abstract Syntax Tree (AST) Parsing**: When a bug is reported in a component (e.g., `CompounderDashboard.tsx`), the daemon parses the file into an AST graph.
-3. **Symbol Extraction**: Instead of asking for "Lines 45-90", J.A.R.V.I.S searches the AST for the exact function signature `function saveVitals()` and extracts the exact boundaries down to the closing curly brace `}`.
+### 1. [`frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx`](file:///c:/Users/vivek/OneDrive/Desktop/vitalsync-Mediflow%20ecosystem/frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx#L390-L405)
+- **[MODIFY]**: Close `patientData` object creation at line 397 with `};` before setting `patientData.queueStatus`, `patientData.tokenNumber`, `patientData.abhaId`, and `patientData.source`.
 
-### 🏁 Deliverable
-J.A.R.V.I.S will feed Antigravity mathematically perfect code blocks. This guarantees that Antigravity's `multi_replace_file_content` edits will NEVER fail due to "Target Content Not Found".
+```diff
+       const patientData: any = {
+         ...canonicalPat,
+         ...patientBase,
+         id: savedPatientId || canonicalPat.id || patientBase.id,
+         phone: (inputMobileNumber && inputMobileNumber.length >= 10) ? inputMobileNumber : (patientBase.phone || effectivePhone),
+         address: inputAddress.trim() || patientBase.address || canonicalPat.address || undefined,
+         podId: canonicalPat.podId || getPodContext().podId || (patientBase as any).podId,
++      };
+       // Paper scan prescription implies consultation has already been completed physically by doctor
+       patientData.queueStatus = 'completed';
+       
+       patientData.tokenNumber = canonicalPat.tokenNumber || patientData.tokenNumber || PatientService.generateNextTokenNumber();
+```
 
 ---
 
-## ⚡ Execution Strategy
-Which phase should we begin executing right now?
-- **Option A:** Start building **Phase 2 (Playwright E2E)**.
-- **Option B:** Start building **Phase 3 (AST Surgery)**.
+## 🛡️ Rule 1.3 & Blast Radius Audit
+- **Rule 1.3 Gate**: `AiPrescriptionUploadTab.tsx` governs the OCR flow. Permission gate is requested for fixing this syntax error.
+- **Blast Radius**: Zero logic changes. This is a pure syntax fix restoring valid JavaScript syntax for object assignment. All existing dual-write CDC flags, chronic condition tags, and atomic persistence logic remain 100% intact.
+
+---
+
+## 🧪 Verification Plan
+1. **TypeScript Typecheck**: Run `npx tsc --noEmit` from `frontend/` to confirm exit code 0 (zero errors).
+2. **Production Build Simulation**: Run `npm run build` from `frontend/` to verify Vercel build output generation.
