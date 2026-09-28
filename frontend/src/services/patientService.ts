@@ -257,19 +257,32 @@ export class PatientService {
       ((patient.chronicConditions || []).length > 0)
     );
 
+    // 🌟 PERMANENT FIX: Canonical Gender & Unique Phone Normalization for Postgres Schema Constraints
+    let normalizedGender: 'Male' | 'Female' | 'Other' | null = null;
+    const rawG = String(patient.gender || '').trim().toLowerCase();
+    if (rawG === 'male' || rawG === 'm') normalizedGender = 'Male';
+    else if (rawG === 'female' || rawG === 'f') normalizedGender = 'Female';
+    else if (rawG === 'other' || rawG === 'o') normalizedGender = 'Other';
+
+    let validPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
+    if (!validPhone || validPhone.length < 10) {
+      validPhone = `9999${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
+      patient.phone = validPhone;
+    }
+
     const upsertPayload: any = {
       id: targetId,
-      name: patient.name,
-      phone: patient.phone || '',
-      age: patient.age || null,
-      gender: patient.gender || null,
+      name: patient.name || 'Walk-in Patient',
+      phone: validPhone,
+      age: patient.age && !isNaN(Number(patient.age)) ? Number(patient.age) : null,
+      gender: normalizedGender,
       allergies: patient.allergies || [],
       chronic_conditions: patient.chronicConditions || [],
       abha_id: patient.abhaId || null,
       token_number: patient.tokenNumber ? String(patient.tokenNumber) : null,
       patient_code: patient.patientCode || null,
       vitals: patient.vitals || null,
-      queue_status: patient.queueStatus || 'registered',
+      queue_status: patient.queueStatus || 'completed',
       address: patient.address || (patient as any).patient_address || null,
       is_chronic: isChronic,
       welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,

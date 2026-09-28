@@ -239,13 +239,18 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
       const mockId = crypto.randomUUID();
       const generatedToken = PatientService.generateNextTokenNumber();
-      const extractedAddress = extractedData?.patientAddress || resObj?.patientAddress || extractedData?.address || resObj?.address || undefined;
+      let normalizedGender: 'Male' | 'Female' | 'Other' = 'Male';
+      const rawG = String(extractedData.patientGender || resObj.patientGender || '').trim().toLowerCase();
+      if (rawG === 'female' || rawG === 'f') normalizedGender = 'Female';
+      else if (rawG === 'other' || rawG === 'o') normalizedGender = 'Other';
+      else normalizedGender = 'Male';
+
       const patientData: Patient = {
         id: mockId,
         name: extractedPatientName,
         phone: cleanPhone.length >= 10 ? cleanPhone : '',
         age: extractedData.patientAge ? Number(extractedData.patientAge) : (resObj.patientAge ? Number(resObj.patientAge) : 35),
-        gender: (extractedData.patientGender || resObj.patientGender || 'Male') as any,
+        gender: normalizedGender,
         allergies: [],
         chronicConditions: extractedData.chronicConditions || resObj.chronicConditions || [],
         createdAt: new Date().toISOString(),
@@ -387,7 +392,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       // Auto-fallback for paper walk-in scans missing phone numbers
       let effectivePhone = (inputMobileNumber || patientBase.phone || '').replace(/\D/g, '').slice(-10);
       if (!effectivePhone || effectivePhone.length < 10) {
-        effectivePhone = `99999${Math.floor(10000 + Math.random() * 90000)}`;
+        effectivePhone = `9999${Date.now().toString().slice(-6)}${Math.floor(10 + Math.random() * 90)}`;
       }
 
       const effectiveName = (patientBase.name || '').trim() || 'Walk-in Patient';
