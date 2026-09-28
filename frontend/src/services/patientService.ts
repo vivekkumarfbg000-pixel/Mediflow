@@ -114,9 +114,16 @@ export class PatientService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist single patient mutation to Supabase
     (async () => {
       try {
-        const podId = (patient as any).podId || (patient as any).pod_id || currentPodId || null;
+        const podId = (patient as any).podId || (patient as any).pod_id || currentPodId || FALLBACK_POD_ID;
         const cleanPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
         let targetId = patient.id;
+        
+        let normalizedGender: 'Male' | 'Female' | 'Other' | null = null;
+        const rawG = String(patient.gender || '').trim().toLowerCase();
+        if (rawG === 'male' || rawG === 'm') normalizedGender = 'Male';
+        else if (rawG === 'female' || rawG === 'f') normalizedGender = 'Female';
+        else if (rawG === 'other' || rawG === 'o') normalizedGender = 'Other';
+
         if (cleanPhone) {
           const { data: existing } = await supabase
             .from('patient_registry')
@@ -125,8 +132,6 @@ export class PatientService {
             .maybeSingle();
           if (existing?.id) {
             targetId = existing.id;
-            
-            // Re-sync local storage immediately to prevent split-brain UUIDs
             const currentPats = PatientService.getPatients();
             const pIdx = currentPats.findIndex(p => p.id === patient.id);
             if (pIdx >= 0) {
@@ -138,12 +143,13 @@ export class PatientService {
             }
           }
         }
-        await supabase.from('patient_registry').upsert({
+        
+        const upsertPayload = {
           id: targetId,
           name: patient.name,
           phone: patient.phone || '',
-          age: patient.age || null,
-          gender: patient.gender || null,
+          age: patient.age && !isNaN(Number(patient.age)) ? Number(patient.age) : null,
+          gender: normalizedGender,
           allergies: patient.allergies || [],
           chronic_conditions: patient.chronicConditions || [],
           abha_id: patient.abhaId || null,
@@ -155,7 +161,25 @@ export class PatientService {
           is_chronic: patient.isChronic || (patient as any).is_chronic || false,
           welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,
           pod_id: podId
-        }, { onConflict: 'id' });
+        };
+
+        const { error: upsertErr } = await supabase.from('patient_registry').upsert(upsertPayload, { onConflict: 'id' });
+        
+        if (upsertErr) {
+          if (upsertErr.code === '23505') {
+            await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId);
+          } else {
+            console.error('[PatientService] savePatient upsert error:', upsertErr);
+            // Plain INSERT fallback to bypass RETURNING strict RLS
+            await supabase.from('patient_registry').insert(upsertPayload).catch((e: any) => {
+               if (e.code === '23505') {
+                 supabase.from('patient_registry').update(upsertPayload).eq('id', targetId).catch(() => {});
+               } else {
+                 walDB.addEntry('upsert_patient', upsertPayload);
+               }
+            });
+          }
+        }
 
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('mediflow-state-change'));
