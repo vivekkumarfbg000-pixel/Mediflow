@@ -99,11 +99,11 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       setSavedPatientId(null);
       setCloudSyncSuccess(false);
     }
-    if (currentStep === 'done' && !hasAutoCommitted.current) {
+    if (currentStep === 'done' && !hasAutoCommitted.current && extractedPatient) {
       hasAutoCommitted.current = true;
-      persistClinicOsPipeline();
+      persistClinicOsPipeline(extractedPatient, extractedMeds, extractedLabs, chronicBadges);
     }
-  }, [currentStep, isAssistedReview]);
+  }, [currentStep, isAssistedReview, extractedPatient, extractedMeds, extractedLabs, chronicBadges]);
 
   const handleSavePatientAddress = async (newAddr: string) => {
     if (extractedPatient) {
@@ -298,6 +298,11 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       setChronicBadges(identifiedBadges);
       setExtractedLabs(labs);
 
+      // 🌟 IMMEDIATE REAL-TIME SUPABASE PERSISTENCE GATE:
+      // Pass freshly extracted objects directly in memory to bypass React 18 state closure delays
+      hasAutoCommitted.current = true;
+      persistClinicOsPipeline(patientData, meds, labs, identifiedBadges);
+
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
       setCurrentStep('done');
 
@@ -322,9 +327,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         address: ''
       };
       
+      const fallbackMeds = [{ medicineName: 'Prescription Review Required', dosage: '1 Tab', frequency: '1-0-1', duration: '10 Days' }];
       api.setActivePatient(fallbackPatient);
       setExtractedPatient(fallbackPatient);
-      setExtractedMeds([{ medicineName: 'Prescription Review Required', dosage: '1 Tab', frequency: '1-0-1', duration: '10 Days' }]);
+      setExtractedMeds(fallbackMeds);
       setChronicBadges([]);
       setExtractedLabs([]);
       
@@ -334,6 +340,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       setIsEditingAddress(true);
 
       setIsAssistedReview(true);
+      hasAutoCommitted.current = true;
+      persistClinicOsPipeline(fallbackPatient, fallbackMeds, [], []);
       setCurrentStep('done');
     }
 
