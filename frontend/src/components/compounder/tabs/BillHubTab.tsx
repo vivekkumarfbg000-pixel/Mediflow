@@ -304,9 +304,15 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         // Pre-select all digital tests
         const initialTests: Record<string, boolean> = {};
         rawTests.forEach((t: any) => {
-          const loinc = typeof t === 'string'
-            ? (LabService.getTestCatalog().find(cat => cat.name.toLowerCase() === t.toLowerCase())?.loincCode || t)
-            : (t?.loincCode || t?.testCode || t?.code);
+          const tName = typeof t === 'string' ? t : (t?.name || t?.testName || '');
+          const catalogMatch = LabService.getTestCatalog().find(cat => 
+            cat.name.toLowerCase() === tName.toLowerCase() ||
+            (tName.toLowerCase().includes('hba1c') && cat.name.includes('HbA1c')) ||
+            (tName.toLowerCase().includes('lipid') && cat.name.includes('Lipid')) ||
+            (tName.toLowerCase().includes('thyroid') && cat.name.includes('Thyroid')) ||
+            (tName.toLowerCase().includes('creatinine') && cat.name.includes('Creatinine'))
+          );
+          const loinc = catalogMatch?.loincCode || (typeof t === 'string' ? t : (t?.loincCode || t?.testCode || t?.code));
           if (loinc) initialTests[loinc] = true;
         });
         setSelectedTests(initialTests);

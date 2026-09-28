@@ -156,6 +156,10 @@ export class PatientService {
           welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,
           pod_id: podId
         }, { onConflict: 'id' });
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+        }
       } catch (err) {
         console.warn('[PatientService] Remote patient dual-write notice:', err);
         await walDB.addEntry('upsert_patient', patient);

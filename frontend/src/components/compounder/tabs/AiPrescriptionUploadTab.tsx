@@ -460,7 +460,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientCode: patientData.patientCode || (patientData as any).patient_code,
         tokenNumber: patientData.tokenNumber,
         medications: encounterMeds,
+        extractedMedicines: encounterMeds,
         diagnosticTests: activeLabs,
+        extractedTests: activeLabs,
         prescriptionImageUrl: uploadedImageUrl,
         timestamp: Date.now()
       };
@@ -659,7 +661,9 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       patientCode: extractedPatient?.patientCode || (extractedPatient as any)?.patient_code,
       tokenNumber: extractedPatient?.tokenNumber,
       medications: extractedMeds,
+      extractedMedicines: extractedMeds,
       diagnosticTests: extractedLabs,
+      extractedTests: extractedLabs,
       prescriptionImageUrl: uploadedImageUrl,
       timestamp: Date.now()
     };
