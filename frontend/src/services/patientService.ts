@@ -171,13 +171,17 @@ export class PatientService {
           } else {
             console.error('[PatientService] savePatient upsert error:', upsertErr);
             // Plain INSERT fallback to bypass RETURNING strict RLS
-            await supabase.from('patient_registry').insert(upsertPayload).catch((e: any) => {
+            try {
+              await supabase.from('patient_registry').insert(upsertPayload);
+            } catch (e: any) {
                if (e.code === '23505') {
-                 supabase.from('patient_registry').update(upsertPayload).eq('id', targetId).catch(() => {});
+                 try {
+                   await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId);
+                 } catch (_updateErr) {}
                } else {
-                 walDB.addEntry('upsert_patient', upsertPayload);
+                 await walDB.addEntry('upsert_patient', upsertPayload);
                }
-            });
+            }
           }
         }
 
