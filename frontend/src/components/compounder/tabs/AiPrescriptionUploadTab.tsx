@@ -523,7 +523,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const existingAppt = allAppts.find(a => 
         (a.patientId === realPatientId || (a as any).patient_id === realPatientId) && 
         (a.status !== 'completed' && a.status !== 'cancelled') &&
-        (a.createdAt || '').slice(0, 10) === todayISO
+        // FIX 2a: coalesce camelCase + snake_case — CDC-synced rows store created_at not createdAt
+        ((a.createdAt || (a as any).created_at || '')).slice(0, 10) === todayISO
       );
       
       const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
@@ -536,6 +537,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       } : {
         id: crypto.randomUUID(),
         patientId: realPatientId,
+        patient_id: realPatientId,
         patientName: patientData.name,
         patientPhone: patientData.phone,
         doctorId: resolvedDoctorId,
@@ -547,7 +549,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         fee_status: 'cleared',
         tokenNumber: patientData.tokenNumber,
         createdAt: new Date().toISOString(),
-        source: 'paper_scan' as any
+        source: 'paper_scan' as any,
+        // FIX 2b: Always inject pod_id so Supabase NOT NULL constraint is satisfied
+        podId: getPodContext().podId || null,
+        pod_id: getPodContext().podId || null
       };
 
       try {
@@ -656,26 +661,37 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
     if (isCommittingRef.current) {
       let waited = 0;
-      while (isCommittingRef.current && waited < 1000) {
+      while (isCommittingRef.current && waited < 1500) {
         await new Promise(r => setTimeout(r, 100));
         waited += 100;
       }
     }
 
-    const finalId = savedPatientId || extractedPatient?.id || targetId;
+    // FIX 1: Read the live active patient ID synchronously from api cache.
+    // React state closures (savedPatientId / extractedPatient?.id) may lag by 1-2
+    // render cycles after the async persistClinicOsPipeline() resolves.
+    // api.setActivePatient() is called synchronously inside the pipeline with the
+    // real Supabase UUID, so this is always the canonical source of truth.
+    const liveActiveId = api.getActivePatient()?.id;
+    const finalId = savedPatientId || liveActiveId || extractedPatient?.id || targetId;
+
+    // Re-read current meds/labs from latest extracted state for accurate OCR bundle
+    const currentMeds = extractedMeds;
+    const currentLabs = extractedLabs;
+    const currentPatient = extractedPatient;
 
     // Cache active OCR bundle for instant POS checkout in BillHubTab
     const activeRxBundle = {
       patientId: finalId,
-      patientName: extractedPatient?.name || 'Walk-in Patient',
-      patientPhone: extractedPatient?.phone || inputMobileNumber,
-      patientAddress: extractedPatient?.address || inputAddress,
-      patientCode: extractedPatient?.patientCode || (extractedPatient as any)?.patient_code,
-      tokenNumber: extractedPatient?.tokenNumber,
-      medications: extractedMeds,
-      extractedMedicines: extractedMeds,
-      diagnosticTests: extractedLabs,
-      extractedTests: extractedLabs,
+      patientName: currentPatient?.name || 'Walk-in Patient',
+      patientPhone: currentPatient?.phone || inputMobileNumber,
+      patientAddress: currentPatient?.address || inputAddress,
+      patientCode: currentPatient?.patientCode || (currentPatient as any)?.patient_code,
+      tokenNumber: currentPatient?.tokenNumber,
+      medications: currentMeds,
+      extractedMedicines: currentMeds,
+      diagnosticTests: currentLabs,
+      extractedTests: currentLabs,
       prescriptionImageUrl: uploadedImageUrl,
       timestamp: Date.now()
     };

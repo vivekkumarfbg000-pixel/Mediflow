@@ -56,10 +56,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
   }, [initialMode]);
 
-  // FIX: State declarations moved above — stale-closure bug on selectedPatient resolved.
-  // The active patient fallback now unconditionally runs when no ID match is found.
+  // FIX 3: Added mediflow-state-change listener to retry patient resolution
+  // if BillHubTab mounts before persistClinicOsPipeline finishes writing to localStorage.
+  // This eliminates the timing gap where initialPatientId exists but the patient
+  // record hasn't been flushed to PatientService.getPatients() yet.
   useEffect(() => {
-    const resolvePatient = () => {
+    let resolved = false;
+
+    const resolvePatient = (): boolean => {
       const allPats = PatientService.getPatients();
       if (initialPatientId) {
         const target = allPats.find(p =>
@@ -70,24 +74,47 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         if (target) {
           setSelectedPatient(target);
           setBillingMode('digital');
+          // FIX 4: Bump refreshKey immediately after patient selection so that
+          // billingLedger useMemo re-evaluates AFTER the selectedPatient useEffect
+          // setters (manualMedicinesList, selectedMedicines) have fired.
+          // This prevents the ₹0 / empty-medicines first-paint race condition.
+          setRefreshKey(k => k + 1);
+          resolved = true;
           return true;
         }
       }
 
-      // Always fall back to the active patient (no stale-closure guard needed here)
+      // Always fall back to the active patient
       const activePat = api.getActivePatient();
       if (activePat) {
         setSelectedPatient(activePat);
         setBillingMode('digital');
+        setRefreshKey(k => k + 1);
+        resolved = true;
         return true;
       }
       return false;
     };
 
-    if (!resolvePatient()) {
-      const t = setTimeout(resolvePatient, 150);
-      return () => clearTimeout(t);
-    }
+    if (resolvePatient()) return;
+
+    // Patient not yet in cache — listen for state-change events fired by
+    // persistClinicOsPipeline after it flushes save('patients', ...) to localStorage.
+    const t = setTimeout(resolvePatient, 150);
+    const handleStateChange = () => {
+      if (!resolved) resolvePatient();
+    };
+    window.addEventListener('mediflow-state-change', handleStateChange);
+    // Safety net: stop retrying after 4 seconds regardless
+    const safetyTimer = setTimeout(() => {
+      window.removeEventListener('mediflow-state-change', handleStateChange);
+    }, 4000);
+
+    return () => {
+      clearTimeout(t);
+      clearTimeout(safetyTimer);
+      window.removeEventListener('mediflow-state-change', handleStateChange);
+    };
   }, [initialPatientId]);
   
   // Manual Upload / OCR States
@@ -283,8 +310,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       if (rawMeds.length > 0 || rawTests.length > 0 || latestEncounter || latestRx || activeOcrBundle) {
         setBillingMode('digital');
-        // Pre-select all digital medicines
+        // Pre-select all digital medicines and sync real prices from inventory
         const initialMeds: Record<string, { selected: boolean; qty: number }> = {};
+        const resolvedMedsList: Array<{ name: string; mrp: number; price: number; batch: string; stock: number }> = [];
+        const fullInventory = PharmacyService.getPharmacyInventory();
+
         rawMeds.forEach((m: any) => {
           const mName = (m.medicineName || m.name || '').toLowerCase();
           if (mName) {
@@ -296,13 +326,32 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               const days = parseInt((m.duration.match(/\d+/) || ['15'])[0], 10) || 15;
               computedQty = tabsPerDay * days;
             }
-            initialMeds[mName] = { selected: true, qty: computedQty };
+
+            // Sync with real inventory to get price, mrp, batch
+            const inventoryMatch = fullInventory.find(inv => (inv.name || '').toLowerCase().includes(mName) || mName.includes((inv.name || '').toLowerCase()) || (inv.genericName || '').toLowerCase().includes(mName));
+            
+            const resolvedName = inventoryMatch?.name || m.medicineName || m.name || 'Medicine';
+            const resolvedLower = resolvedName.toLowerCase();
+            
+            initialMeds[resolvedLower] = { selected: true, qty: computedQty };
+            if (!resolvedMedsList.some(rm => rm.name === resolvedName)) {
+              resolvedMedsList.push({
+                name: resolvedName,
+                mrp: inventoryMatch?.mrp || 0,
+                price: inventoryMatch?.price || 0,
+                batch: inventoryMatch?.batchNumber || 'BATCH-01',
+                stock: inventoryMatch?.stock || 0
+              });
+            }
           }
         });
         setSelectedMedicines(initialMeds);
+        setManualMedicinesList(resolvedMedsList);
 
-        // Pre-select all digital tests
+        // Pre-select all digital tests and sync real prices
         const initialTests: Record<string, boolean> = {};
+        const resolvedTestsList: DiagnosticTest[] = [];
+
         rawTests.forEach((t: any) => {
           const tName = typeof t === 'string' ? t : (t?.name || t?.testName || '');
           const catalogMatch = LabService.getTestCatalog().find(cat => 
@@ -313,13 +362,21 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             (tName.toLowerCase().includes('creatinine') && cat.name.includes('Creatinine'))
           );
           const loinc = catalogMatch?.loincCode || (typeof t === 'string' ? t : (t?.loincCode || t?.testCode || t?.code));
-          if (loinc) initialTests[loinc] = true;
+          if (loinc) {
+            initialTests[loinc] = true;
+            if (catalogMatch && !resolvedTestsList.some(rt => rt.loincCode === catalogMatch.loincCode)) {
+              resolvedTestsList.push(catalogMatch);
+            }
+          }
         });
         setSelectedTests(initialTests);
+        setManualTestsList(resolvedTestsList);
       } else {
         setBillingMode('manual');
         setSelectedMedicines({});
         setSelectedTests({});
+        setManualMedicinesList([]);
+        setManualTestsList([]);
       }
     }
   }, [selectedPatient, refreshKey]);
