@@ -316,8 +316,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         const fullInventory = PharmacyService.getPharmacyInventory();
 
         rawMeds.forEach((m: any) => {
-          const mName = (m.medicineName || m.name || '').toLowerCase();
-          if (mName) {
+          const rawMName = (m.medicineName || m.name || '').toLowerCase();
+          const strippedName = rawMName.replace(/^(tab|tablet|cap|capsule|syrup|syp|inj|injection|drops|eye drops|ointment)\.?\s+/i, '').trim();
+          const searchWord = (strippedName.split(' ')[0] || rawMName.split(' ')[0] || '').toLowerCase();
+          
+          if (rawMName) {
             let computedQty = 15; // default 15 tablets
             if (m.quantity) {
               computedQty = Number(m.quantity);
@@ -328,7 +331,17 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             }
 
             // Sync with real inventory to get price, mrp, batch
-            const inventoryMatch = fullInventory.find(inv => (inv.name || '').toLowerCase().includes(mName) || mName.includes((inv.name || '').toLowerCase()) || (inv.genericName || '').toLowerCase().includes(mName));
+            const inventoryMatch = fullInventory.find(inv => {
+              const invName = (inv.name || '').toLowerCase();
+              const invGeneric = (inv.genericName || '').toLowerCase();
+              return (
+                (strippedName.length >= 3 && invName.includes(strippedName)) ||
+                (strippedName.length >= 3 && invGeneric.includes(strippedName)) ||
+                (searchWord.length >= 3 && invName.includes(searchWord)) ||
+                (searchWord.length >= 3 && invGeneric.includes(searchWord)) ||
+                rawMName.includes(invName)
+              );
+            });
             
             const resolvedName = inventoryMatch?.name || m.medicineName || m.name || 'Medicine';
             const resolvedLower = resolvedName.toLowerCase();
@@ -337,10 +350,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             if (!resolvedMedsList.some(rm => rm.name === resolvedName)) {
               resolvedMedsList.push({
                 name: resolvedName,
-                mrp: inventoryMatch?.mrp || 0,
-                price: inventoryMatch?.price || 0,
+                mrp: inventoryMatch?.mrp || 120, // default 120 if not found
+                price: inventoryMatch?.price || 100, // default 100 if not found
                 batch: inventoryMatch?.batchNumber || 'BATCH-01',
-                stock: inventoryMatch?.stock || 0
+                stock: inventoryMatch?.stock || 10
               });
             }
           }
@@ -764,95 +777,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     let medicinesList: Array<{ name: string; mrp: number; price: number; batch: string; stock: number }> = [];
     let testsList: DiagnosticTest[] = [];
 
-    if (billingMode === 'digital') {
-      const encounters = EncounterService.getEncounters()
-        .filter(e => isEncounterMatchingPatient(e, selectedPatient))
-        .sort((a, b) => new Date(b.createdAt || (b as any).created_at || 0).getTime() - new Date(a.createdAt || (a as any).created_at || 0).getTime());
-
-      let saasPrescriptions: any[] = [];
-      try {
-        saasPrescriptions = (BillingService.getPrescriptions ? BillingService.getPrescriptions() : safeGetStorageJSON<any[]>('saas_prescriptions', []))
-          .filter((r: any) => isEncounterMatchingPatient(r, selectedPatient))
-          .sort((a: any, b: any) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
-      } catch (_rxErr) { /* ignore */ }
-
-      let activeOcrRx: any = null;
-      try {
-        const cached = localStorage.getItem('vitalsync_active_ocr_rx');
-        if (cached) activeOcrRx = JSON.parse(cached);
-      } catch (_e) { /* ignore */ }
-
-      const latest = encounters[0];
-      const latestRx = saasPrescriptions[0];
-
-      const rawMeds = (latest?.medications && latest.medications.length > 0)
-        ? latest.medications
-        : (latestRx?.extractedMedicines || latestRx?.extracted_medicines || latestRx?.medications || activeOcrRx?.extractedMedicines || activeOcrRx?.extracted_medicines || activeOcrRx?.medications || []);
-
-      const rawTests = (latest?.diagnosticTests && latest.diagnosticTests.length > 0)
-        ? latest.diagnosticTests
-        : (latestRx?.extractedTests || latestRx?.extracted_tests || latestRx?.diagnosticTests || activeOcrRx?.extractedTests || activeOcrRx?.extracted_tests || activeOcrRx?.diagnosticTests || []);
-
-      rawMeds.forEach((med: any) => {
-        const medName = med.medicineName || med.name || 'Prescribed Medicine';
-        const strippedName = medName.replace(/^(tab|tablet|cap|capsule|syrup|syp|inj|injection|drops|eye drops|ointment)\.?\s+/i, '').trim();
-        const searchWord = (strippedName.split(' ')[0] || medName.split(' ')[0] || '').toLowerCase();
-        const matched = inventory.find(i => {
-          const invName = (i.name || '').toLowerCase();
-          const invGeneric = (i.genericName || '').toLowerCase();
-          return (
-            (strippedName.length >= 3 && invName.includes(strippedName.toLowerCase())) ||
-            (strippedName.length >= 3 && invGeneric.includes(strippedName.toLowerCase())) ||
-            (searchWord.length >= 3 && invName.includes(searchWord)) ||
-            (searchWord.length >= 3 && invGeneric.includes(searchWord))
-          );
-        });
-        medicinesList.push({
-          name: medName,
-          mrp: matched?.mrp || 120,
-          price: matched?.price || 100,
-          batch: matched?.batchNumber || 'BATCH-01',
-          stock: matched?.stock ?? 10
-        });
-      });
-
-      rawTests.forEach((test: any) => {
-        let testObj: any = test;
-        const testCatalog = LabService.getTestCatalog();
-        const testNameStr = (typeof test === 'string' ? test : (test?.name || test?.testName || '')).toLowerCase().trim();
-        const matched = testCatalog.find(t => 
-          (t.name || '').toLowerCase() === testNameStr || 
-          (testNameStr.length >= 3 && (t.name || '').toLowerCase().includes(testNameStr)) ||
-          (t.loincCode && t.loincCode === (typeof test === 'string' ? test : test?.loincCode))
-        );
-        if (matched) {
-          testObj = { ...matched, price: matched.price || 350 };
-        } else if (typeof test === 'string') {
-          testObj = { loincCode: '4544-3', name: test, price: 350 };
-        } else {
-          testObj = { ...test, price: test.price || 350, loincCode: test.loincCode || '4544-3' };
-        }
-        testsList.push({
-          loincCode: testObj.loincCode || '4544-3',
-          name: testObj.name || 'Diagnostic Test',
-          price: testObj.price || 350,
-          category: testObj.category || 'General',
-          normalRange: testObj.normalRange || '',
-          unit: testObj.unit || ''
-        });
-      });
-
-      // Merge manually added medicines & tests
-      manualMedicinesList.forEach(m => {
-        if (!medicinesList.some(existing => (existing.name || '').toLowerCase() === (m.name || '').toLowerCase())) {
-          medicinesList.push(m);
-        }
-      });
-      manualTestsList.forEach(t => {
-        if (!testsList.some(existing => existing.loincCode === t.loincCode || (existing.name || '').toLowerCase() === (t.name || '').toLowerCase())) {
-          testsList.push(t);
-        }
-      });
+    if (billingMode === 'digital' || billingMode === 'manual') {
+      medicinesList = [...manualMedicinesList];
+      testsList = [...manualTestsList];
 
       // Filter out explicitly excluded/deleted items
       medicinesList = medicinesList.filter(m => !excludedMedicines.includes((m.name || '').toLowerCase()));

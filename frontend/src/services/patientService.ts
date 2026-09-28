@@ -378,35 +378,23 @@ export class PatientService {
             await walDB.addEntry('upsert_patient', upsertPayload);
           }
         } else {
-          console.error('[PatientService] Fatal patient_registry upsert error:', upsertErr);
-          await walDB.addEntry('upsert_patient', upsertPayload);
-        }
-      } else if (!upsertData) {
-        // ════════════════════════════════════════════════════════════
-        // 🔴 PERMANENT FIX: Upsert error recovery path
-        // upsertErr exists but wasn't a 23505 — queue to WAL for replay.
-        // The silent data=null,error=null case is now handled ABOVE
-        // by decoupling the .select() from the upsert (Root Cause Fix 2).
-        // ════════════════════════════════════════════════════════════
-        console.warn('[PatientService] Upsert produced no data row — falling back to direct INSERT then WAL:', targetId);
-        try {
-          // 🌟 ROOT CAUSE FIX 3: Plain INSERT without RETURNING to bypass any RLS SELECT restriction.
-          // This succeeds even when the SELECT RETURNING would be blocked by tenant isolation policy.
-          await supabase.from('patient_registry').insert(upsertPayload).throwOnError();
-          console.log('[PatientService] ✅ Recovered via plain INSERT (no returning):', targetId);
-        } catch (_insertErr: any) {
-          if ((_insertErr?.code || '') === '23505') {
-            // Row already exists (race condition / duplicate) — try a plain UPDATE instead
-            try {
-              await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId).throwOnError();
-              console.log('[PatientService] ✅ Recovered via plain UPDATE on existing row:', targetId);
-            } catch (_updateErr) {
-              console.warn('[PatientService] Queuing to WAL after update fallback failure:', targetId);
+          console.warn('[PatientService] Upsert failed (possibly RLS SELECT block) — falling back to direct INSERT:', targetId, upsertErr);
+          try {
+            await supabase.from('patient_registry').insert(upsertPayload).throwOnError();
+            console.log('[PatientService] ✅ Recovered via plain INSERT (no returning):', targetId);
+          } catch (_insertErr: any) {
+            if ((_insertErr?.code || '') === '23505') {
+              try {
+                await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId).throwOnError();
+                console.log('[PatientService] ✅ Recovered via plain UPDATE on existing row:', targetId);
+              } catch (_updateErr) {
+                console.warn('[PatientService] Queuing to WAL after update fallback failure:', targetId);
+                await walDB.addEntry('upsert_patient', upsertPayload);
+              }
+            } else {
+              console.warn('[PatientService] Queuing to WAL. Patient ID:', targetId, _insertErr);
               await walDB.addEntry('upsert_patient', upsertPayload);
             }
-          } else {
-            console.warn('[PatientService] Queuing to WAL. Patient ID:', targetId, _insertErr);
-            await walDB.addEntry('upsert_patient', upsertPayload);
           }
         }
       }

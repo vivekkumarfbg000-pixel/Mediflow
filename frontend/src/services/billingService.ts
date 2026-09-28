@@ -602,6 +602,24 @@ export class BillingService {
         }
         if (error) {
           console.warn('[BillingService] saveAppointmentAsync Supabase upsert error:', error);
+          if (error.code !== '23505') {
+            try {
+              console.warn('[BillingService] Upsert blocked (possibly RLS). Falling back to direct insert:', apptPayload.id);
+              await supabase.from('appointments').insert(apptPayload).throwOnError();
+              console.log('[BillingService] ✅ Recovered via plain INSERT for appointment:', apptPayload.id);
+            } catch (insertErr: any) {
+              if (insertErr.code === '23505') {
+                try {
+                  await supabase.from('appointments').update(apptPayload).eq('id', apptPayload.id).throwOnError();
+                  console.log('[BillingService] ✅ Recovered via plain UPDATE for appointment:', apptPayload.id);
+                } catch (updateErr) {
+                  console.warn('[BillingService] Both insert and update fallbacks failed:', updateErr);
+                }
+              } else {
+                console.warn('[BillingService] Insert fallback failed:', insertErr);
+              }
+            }
+          }
         }
       }
     } catch (e) {
