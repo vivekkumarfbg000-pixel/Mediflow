@@ -407,27 +407,29 @@ export class PatientService {
     }
 
     // 5. Ingest into ChronicCare if applicable
+    // Fire-and-forget background sync to prevent Vite dev server dynamic import deadlock
     if (isChronic && targetId && patient.name) {
-      try {
-        const { ChronicCareService } = await import('./chronicCareService');
-        await ChronicCareService.registerChronicPatient({
-          patientId: targetId,
-          patientName: patient.name,
-          patientPhone: patient.phone || '',
-          conditionCode: 'DIABETES',
-          conditionName: (patient.chronicConditions || [])[0] || 'Type-2 Diabetes Mellitus',
-          medications: [],
-          daysSupply: 30,
-          dispensedAt: new Date().toISOString(),
-          nextRefillDate: new Date(Date.now() + 25 * 86400000).toISOString().slice(0, 10),
-          nextRetestDate: new Date(Date.now() + 75 * 86400000).toISOString().slice(0, 10),
-          adherenceScore: 100,
-          status: 'active',
-          monthlyMedicineSpend: 1500
+      import('./chronicCareService')
+        .then(({ ChronicCareService }) => {
+          ChronicCareService.registerChronicPatient({
+            patientId: targetId,
+            patientName: patient.name as string,
+            patientPhone: patient.phone || '',
+            conditionCode: 'DIABETES',
+            conditionName: (patient.chronicConditions || [])[0] || 'Type-2 Diabetes Mellitus',
+            medications: [],
+            daysSupply: 30,
+            dispensedAt: new Date().toISOString(),
+            nextRefillDate: new Date(Date.now() + 25 * 86400000).toISOString().slice(0, 10),
+            nextRetestDate: new Date(Date.now() + 75 * 86400000).toISOString().slice(0, 10),
+            adherenceScore: 100,
+            status: 'active',
+            monthlyMedicineSpend: 1500
+          }).catch((e: any) => console.warn('[PatientService] Chronic auto-ingest error:', e));
+        })
+        .catch((err: any) => {
+          console.warn('[PatientService] Failed to load ChronicCareService dynamically:', err);
         });
-      } catch (_e) {
-        console.warn('[PatientService] Chronic auto-ingest notice:', _e);
-      }
     }
 
     return targetId;

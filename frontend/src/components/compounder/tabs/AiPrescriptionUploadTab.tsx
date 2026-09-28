@@ -574,11 +574,11 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       api.setActivePatient(patientData);
 
       // 5. 🌟 ZERO-DATA-ENTRY DOCTRINE: Auto-ingest chronic patient into Care Club
+      // Fire-and-forget background sync to prevent Vite dev server dynamic import deadlock
       if (activeBadges.length > 0) {
-        try {
-          const { ChronicCareService } = await import('../../../services/chronicCareService');
-          for (const badge of activeBadges) {
-            await withTimeout(
+        import('../../../services/chronicCareService')
+          .then(({ ChronicCareService }) => {
+            for (const badge of activeBadges) {
               ChronicCareService.autoIngestFromEncounter({
                 patientId: realPatientId,
                 patientName: patientData.name,
@@ -586,20 +586,18 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                 doctorId: resolvedDoctorId,
                 clinicalNotes: 'Extracted via AI Scanner.',
                 chronicConditions: [badge],
-                medications: encounterMeds.map(m => ({
+                medications: encounterMeds.map((m: any) => ({
                   medicineName: m.medicineName,
                   dosage: m.dosage,
                   frequency: m.frequency
                 })),
                 isChronic: true
-              }),
-              3000,
-              { enrolled: false }
-            );
-          }
-        } catch (_e) {
-          console.warn('[OCR] Chronic auto-ingest notice:', _e);
-        }
+              }).catch((e: any) => console.warn('[OCR] Chronic auto-ingest error:', e));
+            }
+          })
+          .catch((err: any) => {
+            console.warn('[OCR] Failed to load ChronicCareService dynamically:', err);
+          });
       }
 
       // 6. Autonomous WhatsApp Digital Dispatch (Non-blocking)
