@@ -215,19 +215,27 @@ export class PaperModeService {
     }
 
     try {
-      await supabase.from('saas_prescriptions').upsert(rxRecord, { onConflict: 'id' });
+      const { error: upsertErr } = await supabase.from('saas_prescriptions').upsert(rxRecord, { onConflict: 'id' });
+      if (upsertErr) throw upsertErr;
       console.log('[PaperMode] ✅ saas_prescriptions record saved');
     } catch (err: any) {
-      console.warn('[PaperMode] saas_prescriptions save notice:', err?.message);
+      console.warn('[PaperMode] saas_prescriptions save notice (fallback to insert):', err?.message);
+      try {
+        await supabase.from('saas_prescriptions').insert(rxRecord).throwOnError();
+        console.log('[PaperMode] ✅ saas_prescriptions record saved via fallback insert');
+      } catch (insertErr: any) {
+        console.warn('[PaperMode] saas_prescriptions insert fallback failed:', insertErr?.message);
+      }
     }
 
     // C: Update patient_registry with address + chronic flags
     try {
-      await supabase.from('patient_registry').update({
+      const { error: updateErr } = await supabase.from('patient_registry').update({
         address: params.patientAddress || null,
         is_chronic: Boolean(params.isChronic),
         chronic_conditions: params.chronicConditions || []
       }).eq('id', params.patientId);
+      if (updateErr) throw updateErr;
       console.log('[PaperMode] ✅ patient_registry updated');
     } catch (err: any) {
       console.warn('[PaperMode] patient_registry update notice:', err?.message);

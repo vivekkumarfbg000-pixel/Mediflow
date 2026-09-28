@@ -160,7 +160,8 @@ export class PatientService {
           address: patient.address || (patient as any).patient_address || null,
           is_chronic: patient.isChronic || (patient as any).is_chronic || false,
           welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,
-          pod_id: podId
+          pod_id: podId,
+          registered_at_entity: getPodContext().entityId || null
         };
 
         const { error: upsertErr } = await supabase.from('patient_registry').upsert(upsertPayload, { onConflict: 'id' });
@@ -316,7 +317,8 @@ export class PatientService {
       address: patient.address || (patient as any).patient_address || null,
       is_chronic: isChronic,
       welcome_sent_at: patient.welcomeSentAt || (patient as any).welcome_sent_at || null,
-      pod_id: podId
+      pod_id: podId,
+      registered_at_entity: getPodContext().entityId || null
     };
 
     try {

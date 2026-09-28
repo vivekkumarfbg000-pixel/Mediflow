@@ -586,6 +586,7 @@ export class BillingService {
           appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
           created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
           pod_id: podId,
+          entity_id: getPodContext().entityId || null,
           is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
           is_vip: Boolean(appt.isVip || (appt as any).is_vip),
           payment_status: normalizedPaymentStatus,
