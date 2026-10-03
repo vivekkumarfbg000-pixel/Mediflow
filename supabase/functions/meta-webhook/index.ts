@@ -553,7 +553,8 @@ if (!isManualRelay) {
                 type: "template",
                 template: {
                   name: templateName,
-                  language: { code: templateLang }
+                  language: { code: templateLang },
+                  ...(payload.templateComponents ? { components: payload.templateComponents } : {})
                 }
               })
             });
@@ -756,7 +757,8 @@ if (!isManualRelay) {
                 type: "template",
                 template: {
                   name: templateName,
-                  language: { code: templateLang }
+                  language: { code: templateLang },
+                  ...(payload.templateComponents ? { components: payload.templateComponents } : {})
                 }
               })
             });

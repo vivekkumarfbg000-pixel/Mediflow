@@ -221,6 +221,18 @@ export class WhatsAppService {
                 action: 'send_manual_message',
                 patientPhone: cleanToPhone,
                 messageText: msgBody,
+                templateName: templateName,
+                templateComponents: [
+                  {
+                    type: "body",
+                    parameters: [
+                      {
+                        type: "text",
+                        text: msgBody
+                      }
+                    ]
+                  }
+                ],
                 phoneId: (activePhoneId && activePhoneId !== '105829471928374') ? activePhoneId : undefined,
                 phoneNumberId: (activePhoneId && activePhoneId !== '105829471928374') ? activePhoneId : undefined,
                 systemToken: validSystemToken
