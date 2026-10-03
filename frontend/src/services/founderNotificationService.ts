@@ -186,6 +186,32 @@ ${email ? `📧 *Doctor Email:* ${email}\n` : ''}🏷️ *Clinic Code:* ${clinic
       console.warn('[FounderNotification] Demo WA outbound queue notice:', waErr);
     }
 
+    // ── 2.5 Dual-Write to Cloud Telemetry (Guarantees Lead Capture) ───────────
+    try {
+      await supabase.from('system_health_telemetry').insert([{
+        id: crypto.randomUUID(),
+        subsystem: 'founder_lead_radar',
+        severity: 'info',
+        error_code: 'NEW_DEMO_REQUESTED',
+        error_stack: JSON.stringify({
+          founder_target_phone: FOUNDER_PHONE,
+          doctor_name: doctorName,
+          clinic_name: clinicName,
+          doctor_phone: cleanDoctorPhone,
+          specialty: specialty,
+          patients_volume: patientsVolume,
+          preferred_time: preferredTime,
+          city: cleanCity,
+          timestamp: new Date().toISOString()
+        }),
+        healing_attempts: 0,
+        status: 'alerted',
+        created_at: new Date().toISOString()
+      }]);
+    } catch (dbErr) {
+      console.warn('[FounderNotification] Demo remote telemetry dual-write notice:', dbErr);
+    }
+
     // ── 2b. Dispatch WhatsApp Confirmation to Doctor ─────────────────────────
     if (cleanDoctorPhone) {
       const doctorMessage = `Namaste ${doctorName ? `Dr. ${doctorName}` : 'Doctor'}! 🙏\n\nThank you for booking a Live Demo with VitalSync.\n\nYour request for ${preferredTime || 'soon'} has been received. Our Deployment Desk will connect with you shortly to confirm the slot.\n\nRef: ${refCode}`;
