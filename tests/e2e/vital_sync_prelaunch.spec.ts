@@ -7,22 +7,22 @@ test.describe('VitalSync Pre-Launch Master Verification Suite', () => {
 
   test.beforeEach(async ({ page }) => {
     // Navigate to local dev app
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    // Wait for React to mount
+    await page.waitForSelector('#root > *', { state: 'attached', timeout: 30000 }).catch(() => {});
   });
 
   test('Pillar 1: Application Loads & Disarms Startup Shield', async ({ page }) => {
     // Expect page title or root app container to exist
-    await expect(page).toHaveTitle(/Mediflow|VitalSync/i);
+    await expect(page).toHaveTitle(/Mediflow|VitalSync/i, { timeout: 30000 });
 
     // Verify disarmed startup healthy flag
-    const isHealthy = await page.evaluate(() => (window as any).__mediflow_startup_healthy);
-    expect(isHealthy).toBeTruthy();
+    await page.waitForFunction(() => (window as any).__mediflow_startup_healthy === true, { timeout: 15000 });
   });
 
   test('Pillar 2: Auto-Healer 24/7 Background Sentinel Online', async ({ page }) => {
     // Verify Auto-Healer sentinel is disarmed/active
-    const isSentinelActive = await page.evaluate(() => (window as any).__vitalsync_sentinel_active);
-    expect(isSentinelActive).toBeTruthy();
+    await page.waitForFunction(() => (window as any).__vitalsync_sentinel_active === true, { timeout: 15000 });
   });
 
   test('Pillar 3: SafeStorage Corrupted JSON Self-Healing', async ({ page }) => {

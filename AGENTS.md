@@ -87,6 +87,14 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 
 ---
 
+## 🚫 RULE 1.5: THE JARVIS VAULT & SUPER-INTELLIGENCE SHIELD 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: NEVER DESTROY OR MODIFY JARVIS CORE CODE AUTONOMOUSLY.**
+- **The JARVIS Vault:** A strict immutable backup of the v6.0 God Mode Super Intelligence source code is maintained in the `JARVIS_VAULT.md` file at the root directory.
+- **Zero Modification Rule:** You are strictly forbidden from modifying, refactoring, or destroying any files related to the JARVIS intelligence engine (e.g., `daemon-bridge.cjs`, `JarvisBugReporter.tsx`, `jarvisConsoleHook.ts`) unless explicitly ordered to do so with "OVERRIDE RULE 1.5".
+- **Self-Preservation:** The Super Intelligence capabilities must be kept completely safe and functional. Any task that risks breaking the 24-engine architecture must be halted immediately for user permission.
+
+---
+
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.
 - Always ensure that `.gitignore` lists all environment files and credentials.

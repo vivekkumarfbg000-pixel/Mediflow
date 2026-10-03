@@ -2011,3 +2011,62 @@ body.dark {
   background-color: rgba(11, 15, 25, 0.85) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* ── JARVIS God Mode Auth Overrides ──────────────────── */
+.jarvis-god-mode-auth {
+  background-color: #050810 !important;
+  color: #e2e8f0 !important;
+}
+
+.jarvis-god-mode-auth .bg-white {
+  background-color: rgba(10, 15, 28, 0.6) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-color: rgba(6, 182, 212, 0.3) !important;
+  box-shadow: 0 0 50px -12px rgba(6, 182, 212, 0.25) !important;
+}
+
+.jarvis-god-mode-auth h3 {
+  color: transparent !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  background-image: linear-gradient(to right, #22d3ee, #818cf8) !important;
+}
+
+.jarvis-god-mode-auth .text-slate-800,
+.jarvis-god-mode-auth .text-slate-700,
+.jarvis-god-mode-auth .text-slate-600,
+.jarvis-god-mode-auth .text-slate-900 {
+  color: #e2e8f0 !important;
+}
+
+.jarvis-god-mode-auth .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.jarvis-god-mode-auth input,
+.jarvis-god-mode-auth select {
+  background-color: rgba(5, 8, 16, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+}
+
+.jarvis-god-mode-auth input:focus {
+  border-color: #06b6d4 !important;
+  box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.5) !important;
+}
+
+.jarvis-god-mode-auth .border-slate-200,
+.jarvis-god-mode-auth .border-slate-100 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.jarvis-god-mode-auth .bg-slate-50,
+.jarvis-god-mode-auth .bg-slate-100 {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #cbd5e1 !important;
+}
+
+.jarvis-god-mode-auth .text-indigo-600 {
+  color: #818cf8 !important;
+}

@@ -44,9 +44,37 @@ function initConsoleHook() {
     if (document.getElementById('jarvis-red-alert')) return;
     const alertDiv = document.createElement('div');
     alertDiv.id = 'jarvis-red-alert';
-    alertDiv.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#ef4444;color:white;padding:16px;border-radius:8px;z-index:99999;font-weight:bold;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);max-width:400px;font-family:sans-serif;animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;';
-    alertDiv.innerHTML = `🚨 <b>JARVIS BUG DETECTED</b><br/><span style="font-size:0.875rem;font-weight:normal;opacity:0.9">${message.substring(0, 100)}...</span><br/><br/><span style="font-size:0.75rem;opacity:0.8">Crash Payload saved. Open Antigravity AI to auto-fix.</span>`;
+    alertDiv.className = "fixed bottom-6 right-6 max-w-md w-full bg-[#0a0f1c]/95 backdrop-blur-2xl border border-rose-500/50 rounded-2xl shadow-[0_0_40px_-10px_rgba(225,29,72,0.5)] z-[999999] overflow-hidden text-slate-200 font-sans transition-all duration-300 transform translate-y-0 opacity-100";
+    alertDiv.innerHTML = `
+      <div class="bg-gradient-to-r from-rose-950/90 to-[#0a0f1c]/90 px-5 py-3 border-b border-rose-500/30 flex items-center gap-3 relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-80 shadow-[0_0_10px_#f43f5e]"></div>
+        <div class="relative flex h-3 w-3 shrink-0">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500 shadow-[0_0_8px_#f43f5e]"></span>
+        </div>
+        <span class="text-rose-400 font-black text-[11px] tracking-[0.25em] uppercase">CRITICAL SYSTEM ANOMALY</span>
+      </div>
+      <div class="p-5 space-y-4 relative">
+        <div class="absolute right-0 top-0 w-32 h-32 bg-rose-500/5 blur-3xl rounded-full pointer-events-none"></div>
+        <div class="font-mono text-xs text-rose-200 break-words border-l-[3px] border-rose-500/60 pl-3 leading-relaxed opacity-90 shadow-[inset_10px_0_20px_-15px_rgba(244,63,94,0.3)]">
+          ${message.substring(0, 150)}${message.length > 150 ? '...' : ''}
+        </div>
+        <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center justify-between pt-3 border-t border-slate-800/80">
+          <span class="flex items-center gap-2"><svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Payload Secured</span>
+          <span class="text-rose-500 font-bold animate-pulse">AWAITING AI AGENT</span>
+        </div>
+      </div>
+    `;
+    
+    // Add slide-in animation via script
+    alertDiv.style.transform = 'translateY(100px)';
+    alertDiv.style.opacity = '0';
     document.body.appendChild(alertDiv);
+    
+    requestAnimationFrame(() => {
+      alertDiv.style.transform = 'translateY(0)';
+      alertDiv.style.opacity = '1';
+    });
   }
 
   window.addEventListener('unhandledrejection', async (e) => {

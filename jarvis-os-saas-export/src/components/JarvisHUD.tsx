@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Bug, Target, Copy, X, Camera } from 'lucide-react';
+import { Bug, Target, Copy, X, Camera, Loader2, Zap } from 'lucide-react';
 
 interface JarvisHUDProps {
   apiKey: string;
@@ -18,6 +18,15 @@ export const JarvisHUD: React.FC<JarvisHUDProps> = ({ apiKey }) => {
   const [performanceWarning, setPerformanceWarning] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [isActive, setIsActive] = useState(true);
+  const [daemonOnline, setDaemonOnline] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [confidence, setConfidence] = useState<{ score: number, grade: string } | null>(null);
+
+  useEffect(() => {
+    fetch('http://localhost:9000/health')
+      .then(r => setDaemonOnline(r.ok))
+      .catch(() => setDaemonOnline(false));
+  }, []);
 
   // --- API KEY LICENSING CHECK ---
   useEffect(() => {
@@ -50,6 +59,11 @@ export const JarvisHUD: React.FC<JarvisHUDProps> = ({ apiKey }) => {
       originalError(...args);
       const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
       setLogs(prev => [...prev, msg].slice(-5));
+      fetch('http://localhost:9000/push-console-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level: 'error', message: msg.slice(0, 1000), url: window.location.href, timestamp: new Date().toISOString() })
+      }).catch(() => {});
     };
 
     // Capture Network Errors
@@ -139,13 +153,24 @@ export const JarvisHUD: React.FC<JarvisHUDProps> = ({ apiKey }) => {
       const target = e.target as HTMLElement;
       document.querySelectorAll('.jarvis-highlight').forEach(el => el.classList.remove('jarvis-highlight'));
       
-      setCapturedElement({
+      const captured = {
         html: target.outerHTML.slice(0, 500) + (target.outerHTML.length > 500 ? '...' : ''),
         id: target.id || 'none',
         className: target.className || 'none'
-      });
+      };
+      setCapturedElement(captured);
       setIsTargeting(false);
       setIsOpen(true);
+
+      fetch('http://localhost:9000/push-dom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capturedElement: captured,
+          activeRoute: window.location.pathname,
+          timestamp: new Date().toISOString()
+        })
+      }).catch(() => {});
     };
 
     const style = document.createElement('style');
@@ -163,7 +188,7 @@ export const JarvisHUD: React.FC<JarvisHUDProps> = ({ apiKey }) => {
     };
   }, [isTargeting, isActive]);
 
-  const copyPrompt = () => {
+  const copyLocalPrompt = () => {
     const prompt = `<USER_REQUEST_TRIAGE>
 ╔═══════════════════════════════════════════════════════════════════╗
 ║  🧠 JARVIS-OS — Bug Command Center                                ║
@@ -206,7 +231,35 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
 </USER_REQUEST_TRIAGE>`;
 
     navigator.clipboard.writeText(prompt);
-    alert('JARVIS Prompt Copied! Paste it into your AI.');
+    alert('JARVIS Prompt Copied (Local Mode — Start daemon for 17-engine enrichment)');
+  };
+
+  const generateAndCopyPrompt = async () => {
+    if (!daemonOnline) {
+      copyLocalPrompt();
+      return;
+    }
+    setIsGenerating(true);
+    setConfidence(null);
+    try {
+      const r = await fetch('http://localhost:9000/api/diagnostics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bugDescription: bugDescription || `UI bug in element: ${capturedElement?.id || capturedElement?.className}`,
+          windowSize: `${window.innerWidth}x${window.innerHeight}`
+        })
+      });
+      if (!r.ok) throw new Error('Daemon rejected');
+      const data = await r.json();
+      navigator.clipboard.writeText(data.prompt);
+      setConfidence(data.confidence);
+      alert(`✅ JARVIS Prompt Copied! Confidence: ${data.confidence?.score ?? '?'}/100 — ${data.confidence?.grade ?? ''}`);
+    } catch {
+      copyLocalPrompt();
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   if (!isActive) return null;
@@ -223,6 +276,10 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
       <div className="bg-slate-800/80 px-4 py-3 border-b border-slate-700 flex items-center justify-between">
         <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm tracking-widest uppercase">
           <Bug className="h-4 w-4" /> JARVIS HUD
+          <span className="relative flex h-2.5 w-2.5 ml-2" title={daemonOnline ? 'Daemon Online' : 'Daemon Offline'}>
+            {daemonOnline && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+            <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${daemonOnline ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+          </span>
         </div>
         <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white transition-colors">
           <X className="h-5 w-5" />
@@ -255,8 +312,13 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
             <p className="truncate"><span className="text-slate-400">Class:</span> {capturedElement.className}</p>
           </div>
         )}
-        <button onClick={copyPrompt} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20">
-          <Copy className="h-4 w-4" /> Copy JARVIS Prompt
+        {confidence && (
+          <div className="bg-slate-950 border border-slate-700/50 rounded-lg p-2 text-center text-xs font-mono">
+            Confidence: <span className={confidence.score >= 85 ? 'text-emerald-400' : confidence.score >= 65 ? 'text-amber-400' : 'text-rose-400'}>{confidence.score}/100</span> — {confidence.grade}
+          </div>
+        )}
+        <button onClick={generateAndCopyPrompt} disabled={isGenerating} className={`w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-50 ${daemonOnline ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 shadow-emerald-500/20' : 'bg-slate-700 hover:bg-slate-600 text-slate-300'}`}>
+          {isGenerating ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</> : daemonOnline ? <><Zap className="h-4 w-4 text-amber-300" /> Generate & Copy (17 Engines)</> : <><Copy className="h-4 w-4" /> Copy Local Prompt</>}
         </button>
       </div>
     </div>

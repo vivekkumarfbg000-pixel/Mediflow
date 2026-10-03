@@ -1803,9 +1803,9 @@ export default function App() {
     const isConsoleRequested = Boolean(consoleQuery) || new URLSearchParams(window.location.search).get('tab') !== null;
     if (isConsoleRequested || isRegisterRequested) {
       return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+        <div className="jarvis-god-mode-auth min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/20 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/20 blur-[120px] pointer-events-none" />
           
           <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
             <div className="flex flex-col items-center space-y-2 text-center">
@@ -1852,9 +1852,9 @@ export default function App() {
       // Always show the dashboard login panel on single-domain (localhost, Vercel previews, direct IPs).
       // The marketing LandingPage is only served on vitalsync.in / www.vitalsync.in.
       return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+        <div className="jarvis-god-mode-auth min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/20 blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/20 blur-[120px] pointer-events-none" />
           
           <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
             <div className="flex flex-col items-center space-y-2 text-center">
@@ -1974,9 +1974,9 @@ export default function App() {
   // 6. Dashboard Domain Gated View (app.vitalsync.in / app.localhost)
   if (isDashboardSubdomain && (!session || !activeProfile || isRegistering)) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-teal-500/10 blur-[120px] pointer-events-none" />
+      <div className="jarvis-god-mode-auth min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden text-slate-800 font-sans">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-cyan-500/20 blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-indigo-500/20 blur-[120px] pointer-events-none" />
         
         <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 z-10 animate-fade-in">
           <div className="flex flex-col items-center space-y-2 text-center">
