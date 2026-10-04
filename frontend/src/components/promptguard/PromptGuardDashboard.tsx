@@ -198,10 +198,22 @@ export const PromptGuardDashboard: React.FC = () => {
     setDiagnosticsMeta(null);
     setConfidence(null);
     try {
+      if (imagePreview) {
+        fetch(`${DAEMON}/push-console-image`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: imagePreview, timestamp: new Date().toISOString() })
+        }).catch(() => {});
+      }
       const r = await fetch(`${DAEMON}/api/diagnostics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bugDescription, windowSize: `${window.innerWidth}x${window.innerHeight}`, hasImage: !!imagePreview })
+        body: JSON.stringify({
+          bugDescription,
+          windowSize: `${window.innerWidth}x${window.innerHeight}`,
+          hasImage: !!imagePreview,
+          imageBase64: imagePreview || null
+        })
       });
       if (!r.ok) throw new Error('Daemon rejected');
       const data = await r.json();

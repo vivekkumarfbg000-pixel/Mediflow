@@ -282,6 +282,36 @@ function initPerformanceMonitor() {
   } catch { /* browser may not support */ }
 }
 
+// ─── GAP 8: DOM TELEMETRY HEARTBEAT ──────────────────────────────
+function initDomHeartbeat() {
+  if (typeof window === 'undefined') return;
+
+  const pushLiveDom = () => {
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      const snapshot = {
+        activeRoute: window.location.pathname + window.location.search + window.location.hash,
+        title: document.title,
+        nodeCount: document.querySelectorAll('*').length,
+        url: window.location.href,
+        source: 'browser_heartbeat',
+        timestamp: new Date().toISOString()
+      };
+      safePush('/push-dom', snapshot);
+    } catch { /* ignore */ }
+  };
+
+  // Immediate push on load
+  setTimeout(pushLiveDom, 1500);
+
+  // Periodic heartbeat every 15 seconds
+  setInterval(pushLiveDom, 15000);
+
+  // Push on navigation events
+  window.addEventListener('popstate', pushLiveDom);
+  window.addEventListener('hashchange', pushLiveDom);
+}
+
 // ─── MAIN EXPORT ─────────────────────────────────────────────────
 export function initJarvisConsoleHook() {
   if (typeof window === 'undefined') return;
@@ -291,7 +321,9 @@ export function initJarvisConsoleHook() {
   initNetworkInterceptor(); // GAP 2: Network failures
   initReactStateSnapshot(); // GAP 4: React state snapshot
   initPerformanceMonitor(); // GAP 7: Performance vitals
+  initDomHeartbeat();       // GAP 8: DOM Telemetry Heartbeat
 
-  console.log('[J.A.R.V.I.S. v5.0] 4 browser hooks active → streaming to Daemon Bridge port 9000');
-  console.log('[J.A.R.V.I.S. v5.0] Monitoring: console errors, network failures, React state, performance vitals');
+  console.log('[J.A.R.V.I.S. v5.0] 5 browser hooks active → streaming to Daemon Bridge port 9000');
+  console.log('[J.A.R.V.I.S. v5.0] Monitoring: console errors, network failures, React state, performance vitals, DOM heartbeat');
 }
+

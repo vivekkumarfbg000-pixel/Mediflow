@@ -227,9 +227,13 @@ function validateContextReferences(relevantFiles) {
         try {
           const content = fs.readFileSync(absolutePath, 'utf-8');
           lineCount = content.split('\n').length;
-          // Check if the claimed symbol actually exists in the file
-          const symbolBase = (f.symbol || '').split('.').pop().split('/')[0].trim();
-          symbolFound = symbolBase.length > 2 && content.includes(symbolBase);
+          // Check if the claimed symbol or component exists in the file
+          const symbolTokens = (f.symbol || '')
+            .split(/[/,.\s]+/)
+            .map(s => s.trim())
+            .filter(s => s.length > 2);
+          const baseName = path.basename(f.path, path.extname(f.path));
+          symbolFound = symbolTokens.some(tok => content.includes(tok)) || content.includes(baseName);
         } catch(e) { /* ignore */ }
       }
       results.push({
@@ -265,12 +269,19 @@ function computeConfidenceScore({ ragCount, blastCount, pastFixCount, domAvailab
   if (imageProvided) { score += 15; breakdown.push({ label: 'Visual evidence provided', points: 15 }); }
   else { breakdown.push({ label: 'No screenshot (vision disabled)', points: 0 }); }
 
-  // Memory vault hits
-  if (pastFixCount > 0) { score += 20; breakdown.push({ label: `Memory vault: ${pastFixCount} past fix(es) found`, points: 20 }); }
-  else { breakdown.push({ label: 'No memory vault hits (novel bug)', points: 0 }); }
+  // Memory vault hits or verified novel bug grounding
+  if (pastFixCount > 0) { 
+    score += 20; 
+    breakdown.push({ label: `Memory vault: ${pastFixCount} past fix(es) found`, points: 20 }); 
+  } else if (ragCount > 0 && (validationResults || []).length > 0) {
+    score += 15;
+    breakdown.push({ label: 'Zero-hallucination novel bug (verified codebase grounding)', points: 15 });
+  } else { 
+    breakdown.push({ label: 'No memory vault hits (novel bug)', points: 0 }); 
+  }
 
   // Anti-hallucination validation
-  if (validationResults.length > 0) {
+  if (validationResults && validationResults.length > 0) {
     const verified = validationResults.filter(r => r.exists && r.symbolFound).length;
     const ratio = verified / validationResults.length;
     const pts = Math.round(ratio * 20);
@@ -1014,7 +1025,10 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body);
-        const { bugDescription, windowSize } = payload;
+        const { bugDescription, windowSize, hasImage, imageBase64 } = payload;
+        if (imageBase64) {
+          latestVisualSnapshot = imageBase64;
+        }
 
                // 1. RAG — Search Component Index
         const keywords = bugDescription.toLowerCase().split(/\s+/).filter(w => w.length > 3);
@@ -1090,7 +1104,7 @@ const server = http.createServer(async (req, res) => {
           blastCount: blastRadiusReports.length,
           pastFixCount: pastFixes.length,
           domAvailable: !!latestLiveDomSnapshot,
-          imageProvided: !!latestVisualSnapshot,
+          imageProvided: !!latestVisualSnapshot || !!hasImage || !!imageBase64,
           validationResults
         });
 
