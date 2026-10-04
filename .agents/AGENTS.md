@@ -86,6 +86,34 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 
 ---
 
+## 🚫 RULE 1.6: THE CONVERSATIONAL BOUNDARY PROTOCOL (KNOWLEDGE VS. ACTION) 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: DO NOT ALWAYS JUMP TO "CTO TASKFORCE PLAN" MODE.**
+- **Query Detection:** If the user explicitly says "I want to know", "Is it possible", or asks a purely knowledge-based/exploratory question, YOU MUST ONLY ANSWER THE QUESTION.
+- **No Unprompted Action:** Do not automatically assume the user is ordering you to build, refactor, or write code. Do not generate an `implementation_plan.md` unless the user explicitly commands a change or fix.
+- **Consultant Mode:** Treat these queries as high-level CTO consulting sessions. Provide the knowledge, the pros/cons, and the architectural feasibility, then stop. Wait for the user to explicitly say "build this" or "do this" before executing code.
+
+---
+
+## 🚫 RULE 1.7: THE PROMPT ENFORCEMENT & EXECUTION PROTOCOL 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: THESE THREE EXECUTION GATES ARE MANDATORY.**
+1. **The J.A.R.V.I.S. Prompt Enforcer:** If the user asks for ANY code change, bug fix, or feature implementation using a casual prompt (without the official `J.A.R.V.I.S. v6.0` triage prompt template), YOU MUST HALT. Do not write code. Politely remind the user: *"Please use the J.A.R.V.I.S. prompt template to initiate this code change to ensure the 17-Engine Anti-Hallucination protocol is active."*
+2. **The Mandatory Approval Gate:** Whenever the user *does* use the J.A.R.V.I.S. prompt, you MUST first create an `implementation_plan.md` and explicitly STOP to ask for the user's approval before touching or modifying any source code files. Zero bypass.
+3. **The Supabase SQL Warning Rule:** Whenever your solution requires SQL changes (creating tables, RPCs, or migrations), you MUST output the complete, copy-paste ready SQL snippet in your response. Above the SQL, you MUST display a massive warning banner that explicitly says: **"⚠️ WARNING: YOU MUST RUN THIS SQL SNIPPET IN YOUR SUPABASE DASHBOARD SQL EDITOR!"**
+
+---
+
+## 🚫 RULE 1.8: THE IMMUTABLE EAGLE-EYE RAG OCR SHIELD 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: EAGLE-EYE RAG PRESCRIPTION OCR IS MEDIFLOW'S PRIMARY CORE USP. IT IS PERMANENTLY LOCKED & STRICTLY OFF-LIMITS FOR AUTONOMOUS MODIFICATION.**
+- **The Protected OCR Subsystem Inventory**: The following 4 files form the neuro-symbolic Eagle-Eye RAG OCR pipeline that delivers >95% accuracy on handwritten Indian prescriptions. They are strictly protected:
+  1. `frontend/src/utils/ocrFuzzyCorrector.ts`: Token decoupler (`splitDrugNameAndStrength`), `STRENGTH_SIGNATURES` anchor mapping, Tier 1 active clinic pharmacy stock grounding via `PharmacyService.getPharmacyInventory()`, decoupled Levenshtein distance corrector (`fuzzyCorrectMedicineName`), and deterministic LOINC diagnostic test acronym resolver (`fuzzyCorrectLabTest`).
+  2. `frontend/src/data/indianMedicalContext.ts`: Regional demographic priors (Bihar/UP geography, 120+ surnames), `MEDICINE_ALIASES` (400+ Indian brand-to-generic mappings + dual-therapy anchors), `INDIAN_LAB_TESTS`, and `buildRegionalContextInjection()`.
+  3. `frontend/src/services/forecastService.ts`: Stage 2 regional prompt injection and Stage 3 post-extraction fuzzy grounding execution order (`applyOcrFuzzyCorrections` MUST run immediately after vision JSON parsing before `mappedTests` construction).
+  4. `frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx`: The autonomous OCR upload, client-side canvas compression, and Zero-Data-Entry clinical loop.
+- **Zero Autonomous Refactoring / Deletion**: AI agents are strictly forbidden from modifying, refactoring, deleting, or altering any logic or algorithms in these files unless the user explicitly issues the command: `"OVERRIDE EAGLE-EYE OCR SHIELD"`.
+- **Zero Accuracy Regression Invariant**: Any authorized modification MUST maintain ≥95% benchmark accuracy and 0 TypeScript compilation errors. Never bypass or remove regional prompt injection or inventory grounding.
+
+---
+
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.
 - Always ensure that `.gitignore` lists all environment files and credentials.
@@ -124,7 +152,7 @@ Even when the user provides brief, informal, conversational, or underspecified p
 
 5. **STEP 5: Surgical Implementation & Zero-Bypass Policy**:
    - Apply isolated, minimal diffs complying strictly with Rules 1–100.
-   - **Core 7 USPs Anti-Regression Shield**: Verify that no edits break or alter any of the 7 Core Invariants:
+   - **Core 8 USPs Anti-Regression Shield**: Verify that no edits break or alter any of the 8 Core Invariants:
      1. Sub-300ms Outbound WhatsApp Response Engine
      2. 1-Tap Native WhatsApp Reply Buttons (`type: "button"`)
      3. Payment Gateway Clearance Gate (Unpaid appointments filtered from active queues)
@@ -132,6 +160,7 @@ Even when the user provides brief, informal, conversational, or underspecified p
      5. 1-Click Pharmacy Delivery & Reminders
      6. B2B Referral Reward Engine (10% OFF codes)
      7. 360° Realtime Supabase CDC Sync
+     8. Eagle-Eye RAG Prescription OCR (>95% Accuracy Pipeline with Token Decoupler & Pharmacy Stock Grounding)
    - **Database Schema Idempotence Execution & Automatic Migration Generation**: Whenever code interacts with tables, columns, RPCs, or data identifiers, create/update `supabase/migrations/` and `supabase/combined_upgrade.sql`.
    - NEVER rewrite entire files or discard adjacent comments, formatting, or CSS classes.
    - Defensively guard all property accesses (`(str || '').toLowerCase()`, `(arr || []).map(...)`, `(num || 0).toFixed(2)`).
@@ -185,7 +214,7 @@ Even when the user provides brief, informal, conversational, or underspecified p
     * `Virtual Video Review 💻` (**Emergency / Busy Fallback**): Generates Jitsi link for remote video review & dispatches 1-Click home delivery.
 - **4 Premium Member Benefits**: Paying medicine/lab bills at clinic counter unlocks 1 Free Virtual Consult (15-20 days), 10% OFF Refills, WhatsApp Daily Reminders + AI Longitudinal Report, and Instant PDF Lab Reports.
 
-### 5. Mandatory Preservation of Mediflow 7 Core USPs (Anti-Regression Shield)
+### 5. Mandatory Preservation of Mediflow 8 Core USPs (Anti-Regression Shield)
 1. **Sub-300ms Outbound WhatsApp Response Engine**: Outbound Meta Graph API requests MUST be dispatched FIRST (~250ms latency) before session DB updates or non-blocking activity logs.
 2. **1-Tap Native WhatsApp Reply Buttons (`type: "button"`)**: Main menus, dates, and slots MUST use single-tap reply buttons for instant auto-sending.
 3. **Strict Payment Gate**: Unpaid appointments MUST remain in `status: "pending_payment"` and MUST be filtered out from active Doctor EMR and Compounder queues until the active payment gateway emits a successful payment status.
@@ -193,6 +222,7 @@ Even when the user provides brief, informal, conversational, or underspecified p
 5. **1-Click Pharmacy Delivery & 3 Reminders**: Chronic prescriptions trigger 1-Click delivery orders and schedule 3 reminders (Day 7, Month 1, Month 3).
 6. **B2B Referral Reward Engine**: Codes (`REF-XXXX`) unlock 10% OFF for referrer and new patient, automatically deducting from checkup and medicine bills.
 7. **360° Realtime Supabase Sync**: `realtimeSyncService.ts` streams live Postgres events to Doctor EMR, Compounder Desk, and Pharmacy Counter without page refreshes.
+8. **Eagle-Eye RAG Prescription OCR (>95% Accuracy Pipeline)**: Multimodal vision (Gemini 3.6 Flash) conditioned with regional Bihar/UP demographic priors, decoupled brand-strength tokens (`splitDrugNameAndStrength`), closed-world Tier 1 clinic pharmacy stock grounding (`PharmacyService.getPharmacyInventory`), and deterministic LOINC diagnostic test mapping. Never downgrade, refactor, or bypass.
 
 ### 6. Multi-Gateway Payment Engine, Idempotent Settlement & Safety Buffer Contract
 - **Supported Payment Gateways**: The platform supports **Direct Doctor Dynamic UPI (`upi://pay`)**, **Paytm PG (0% MDR)**, **PhonePe (0% MDR)**, **Razorpay**, **Cashfree**, and **Cash Counter**.

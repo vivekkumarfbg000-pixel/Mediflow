@@ -1367,6 +1367,36 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
   };
 
+  // 17-Engine Auto-Polling for Magic Link Fallback
+  useEffect(() => {
+    if (registrationStep !== 3 || !registeredEmail) return;
+
+    let pollInterval: NodeJS.Timeout;
+    let isChecking = false;
+
+    pollInterval = setInterval(async () => {
+      if (isChecking) return;
+      isChecking = true;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (session && user && user.email_confirmed_at) {
+          clearInterval(pollInterval);
+          setOtpVerifying(true);
+          const finalDisplayName = `${firstName.trim()} ${lastName.trim()}`;
+          await completeClinicRegistration(user.id, registeredEmail, finalDisplayName, session);
+        }
+      } catch (err) {
+        /* ignore */
+      } finally {
+        isChecking = false;
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [registrationStep, registeredEmail, firstName, lastName]);
+
   const handleClinicRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1609,7 +1639,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     } catch (err: any) {
       console.warn('[Mediflow Auth] Resend OTP error:', err);
       if (err.message?.toLowerCase().includes('rate limit') || err.status === 429) {
-        setOtpError('Email rate limit reached. Please wait a minute before requesting another code.');
+        setOtpError('CRITICAL: Supabase email rate limit (3/hour) reached. Please check your Supabase Dashboard SMTP settings.');
       } else {
         setOtpError(err.message || 'Could not resend code. Please try again later.');
       }
@@ -3251,6 +3281,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   </h3>
                   <p className="text-xs text-slate-500 leading-relaxed font-medium px-2">
                     We have dispatched a 6-digit confirmation code to:
+                  </p>
+                  <p className="text-[10px] text-amber-600 font-bold px-2 leading-tight bg-amber-50 py-1 rounded-md mt-1 border border-amber-100">
+                    If your email only contains a link, click it! This page will automatically log you in.
                   </p>
                   <div className="inline-flex items-center gap-1.5 bg-slate-100 border border-slate-200/80 px-3 py-1 rounded-xl text-xs font-bold font-mono text-slate-800">
                     <Mail className="h-3.5 w-3.5 text-indigo-600" />

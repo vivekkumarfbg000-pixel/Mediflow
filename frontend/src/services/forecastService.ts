@@ -6,6 +6,10 @@ import { TelemetryService } from './telemetry';
 import { MASTER_TEST_CATALOG } from './labService';
 import { getPodContext } from './podContext';
 import type { SeasonalForecast, DiagnosticTest } from '../types';
+// 🦅 EAGLE-EYE OCR: Stage 2 — Regional Context RAG
+import { buildRegionalContextInjection } from '../data/indianMedicalContext';
+// 🦅 EAGLE-EYE OCR: Stage 3 — Post-Extraction Fuzzy Corrector
+import { applyOcrFuzzyCorrections } from '../utils/ocrFuzzyCorrector';
 
 export class ForecastService {
   // Toggle this flag to true during development to return simulated mock data immediately
@@ -1092,7 +1096,10 @@ Dhyan rakhein aur jaldi theek hon!`;
       // High-speed (~3-5s), zero-hallucination, structured clinical OCR
       // ═══════════════════════════════════════════════════════════════════════
 
+      // 🦅 EAGLE-EYE OCR: Stage 2 — Inject hyper-localized Bihar/India regional context
+      const regionalContext = buildRegionalContextInjection();
       const directVisionPrompt = `You are an expert Indian clinical pharmacist and medical AI reading a handwritten doctor's prescription slip. Your accuracy is paramount.
+${regionalContext}
 
 CRITICAL RULES FOR DEMOGRAPHICS (ZERO HALLUCINATION):
 1. You MUST extract exactly what is visibly written on the paper for name, age, gender, phone, address.
@@ -1422,9 +1429,12 @@ Return ONLY this exact JSON object structure (strictly valid JSON):
 
       // If vision AI parsed results successfully
       if (parsedResult) {
+        // 🦅 EAGLE-EYE OCR: Stage 3 — Apply fuzzy corrections to auto-fix hallucinated medicine/lab names FIRST
+        parsedResult = applyOcrFuzzyCorrections(parsedResult);
+
         const mappedTests: DiagnosticTest[] = [];
 
-        // Collect all test strings / codes from AI result
+        // Collect all test strings / codes from fuzzy-corrected AI result
         const testEntries: Array<{ code?: string; name?: string }> = [];
         if (Array.isArray(parsedResult.requestedLOINCCodes)) {
           parsedResult.requestedLOINCCodes.forEach((c: any) => {
