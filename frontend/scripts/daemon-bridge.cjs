@@ -915,13 +915,14 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     exec('npx tsc --noEmit 2>&1', { cwd: frontendDir, timeout: 60000 }, (error, stdout, stderr) => {
       const output = (stdout + stderr).trim();
-      const passed = !error && output.length === 0;
+      const tsErrors = output.split('\n').filter(l => l.includes('error TS'));
+      const passed = !error && tsErrors.length === 0;
       res.end(JSON.stringify({
         passed,
-        errors: passed ? [] : output.split('\n').filter(l => l.includes('error TS')).slice(0, 20),
+        errors: tsErrors.slice(0, 20),
         summary: passed
           ? '✅ TypeScript Shadow Compile: PASS — Zero type errors. Safe to deploy.'
-          : `🚨 TypeScript Shadow Compile: FAIL — ${output.split('\n').filter(l => l.includes('error TS')).length} type error(s) detected. AI fix rejected.`,
+          : `🚨 TypeScript Shadow Compile: FAIL — ${tsErrors.length} type error(s) detected. AI fix rejected.`,
         rawOutput: output.slice(0, 3000)
       }));
     });
