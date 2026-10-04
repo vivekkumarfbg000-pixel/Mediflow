@@ -28,6 +28,7 @@ import { EncounterService } from '../../../services/encounterService';
 import { BillingService } from '../../../services/billingService';
 import { PaperModeService } from '../../../services/paperModeService';
 import { getPodContext, FALLBACK_DOCTOR_ID } from '../../../services/podContext';
+import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 
 interface AiPrescriptionUploadTabProps {
   onSuccess?: (patientId: string) => void;
@@ -409,10 +410,18 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         address: inputAddress.trim() || patientBase.address || canonicalPat.address || undefined,
         podId: canonicalPat.podId || getPodContext().podId || (patientBase as any).podId,
       };
-      // Paper scan prescription implies consultation has already been completed physically by doctor
-      patientData.queueStatus = 'completed';
+      // 🌟 CLINIC OS INVARIANT: Walk-in / OCR scanned patients enter active queue awaiting consultation
+      patientData.queueStatus = 'awaiting_consultation';
       
-      patientData.tokenNumber = canonicalPat.tokenNumber || patientData.tokenNumber || PatientService.generateNextTokenNumber();
+      // Strict Token Sequencing: Only reuse token if patient already booked for TODAY
+      const todayIst = getIstDateString();
+      const existingTodayAppt = allSavedPats.length > 0 ? BillingService.getAppointments().find(a => 
+        (a.patientId === canonicalPat.id || (a as any).patient_id === canonicalPat.id) &&
+        (getEffectiveAppointmentDate(a) === todayIst || (a.createdAt || (a as any).created_at || '').slice(0, 10) === todayIst) &&
+        a.status !== 'cancelled'
+      ) : null;
+      patientData.tokenNumber = existingTodayAppt?.tokenNumber || (existingTodayAppt as any)?.token_number || patientData.tokenNumber || PatientService.generateNextTokenNumber();
+      patientData.token_number = patientData.tokenNumber;
       patientData.abhaId = canonicalPat.abhaId || patientBase.abhaId || null;
       patientData.source = 'paper_scan';
 
@@ -519,10 +528,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
       // 3. 🌟 AUTONOMOUS OPD APPOINTMENT BOOKING for Walk-ins using canonical realPatientId
       const allAppts = BillingService.getAppointments();
-      const todayISO = new Date().toISOString().slice(0, 10);
+      const todayISO = getIstDateString();
       const existingAppt = allAppts.find(a => 
         (a.patientId === realPatientId || (a as any).patient_id === realPatientId) && 
-        (a.status !== 'completed' && a.status !== 'cancelled') &&
+        (a.status !== 'cancelled') &&
         // FIX 2a: coalesce camelCase + snake_case — CDC-synced rows store created_at not createdAt
         ((a.createdAt || (a as any).created_at || '')).slice(0, 10) === todayISO
       );
@@ -530,10 +539,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
       const apptPayload = existingAppt ? {
         ...existingAppt,
-        status: 'completed',
+        status: existingAppt.status === 'completed' ? 'completed' : 'ready_for_consult',
         paymentStatus: 'cleared',
         payment_status: 'cleared',
-        fee_status: 'cleared'
+        fee_status: 'cleared',
+        tokenNumber: patientData.tokenNumber,
+        token_number: patientData.tokenNumber
       } : {
         id: crypto.randomUUID(),
         patientId: realPatientId,
@@ -542,13 +553,16 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         patientPhone: patientData.phone,
         doctorId: resolvedDoctorId,
         date: todayISO,
+        appointmentDate: todayISO,
         time: 'Walk-in',
-        status: 'completed',
+        status: 'ready_for_consult',
         paymentStatus: 'cleared',
         payment_status: 'cleared',
         fee_status: 'cleared',
         tokenNumber: patientData.tokenNumber,
+        token_number: patientData.tokenNumber,
         createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         source: 'paper_scan' as any,
         // FIX 2b: Always inject pod_id so Supabase NOT NULL constraint is satisfied
         podId: getPodContext().podId || null,

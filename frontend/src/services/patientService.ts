@@ -535,17 +535,32 @@ export class PatientService {
       const matchedApptA = todayAppts.find(x => x.patientId === a.id || (x as any).patient_id === a.id);
       const matchedApptB = todayAppts.find(x => x.patientId === b.id || (x as any).patient_id === b.id);
       
-      const timeA = new Date(
-        matchedApptA?.appointmentTime || matchedApptA?.createdAt || (matchedApptA as any)?.created_at || 
-        a.registeredAt || a.createdAt || (a as any).created_at || (a as any).registered_at || 0
-      ).getTime();
-      
-      const timeB = new Date(
-        matchedApptB?.appointmentTime || matchedApptB?.createdAt || (matchedApptB as any)?.created_at || 
-        b.registeredAt || b.createdAt || (b as any).created_at || (b as any).registered_at || 0
-      ).getTime();
+      const getArrivalMs = (pObj: any, aObj: any) => {
+        // Priority 1: Appointment createdAt / created_at (actual booking today)
+        const apptCreated = aObj?.createdAt || (aObj as any)?.created_at;
+        if (apptCreated) {
+          const t = new Date(apptCreated).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        // Priority 2: Appointment time if formatted as ISO timestamp
+        const apptTime = aObj?.appointmentTime || (aObj as any)?.appointment_time;
+        if (apptTime && apptTime.includes('T')) {
+          const t = new Date(apptTime).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        // Priority 3: Patient registered today
+        const pCreated = pObj?.createdAt || (pObj as any)?.created_at || pObj?.registeredAt || (pObj as any)?.registered_at;
+        if (pCreated) {
+          const t = new Date(pCreated).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        return 0;
+      };
 
-      if (timeA !== timeB && !isNaN(timeA) && !isNaN(timeB) && timeA > 0 && timeB > 0) {
+      const timeA = getArrivalMs(a, matchedApptA);
+      const timeB = getArrivalMs(b, matchedApptB);
+
+      if (timeA !== timeB && timeA > 0 && timeB > 0) {
         return timeA - timeB;
       }
 
@@ -561,6 +576,17 @@ export class PatientService {
     // Map each today's patient to strictly sequential canonical token: T-01, T-02, ...
     let tokensChanged = false;
     todayPatients.forEach((p, idx) => {
+      const matchedAppt = todayAppts.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
+      const isVip = Boolean(
+        (p as any).isVip || (p as any).is_vip || (p as any).isEmergency || (p as any).is_emergency ||
+        (matchedAppt && ((matchedAppt as any).isVip || (matchedAppt as any).is_vip || (matchedAppt as any).isEmergency || (matchedAppt as any).is_emergency)) ||
+        String(p.tokenNumber || (p as any).token_number || matchedAppt?.tokenNumber || '').toUpperCase().startsWith('VIP-')
+      );
+      if (isVip) {
+        // Preserve VIP priority token
+        return;
+      }
+
       const canonicalToken = `T-${(idx + 1).toString().padStart(2, '0')}`;
       if (p.tokenNumber !== canonicalToken || tokensMap[p.id] !== canonicalToken || (p as any).token_number !== canonicalToken) {
         p.tokenNumber = canonicalToken;
@@ -568,7 +594,6 @@ export class PatientService {
         tokensMap[p.id] = canonicalToken;
         tokensChanged = true;
 
-        const matchedAppt = todayAppts.find(a => a.patientId === p.id || (a as any).patient_id === p.id);
         if (matchedAppt) {
           matchedAppt.tokenNumber = canonicalToken;
           (matchedAppt as any).token_number = canonicalToken;
@@ -1030,11 +1055,29 @@ export class PatientService {
     const appointments = load<any[]>('saas_appointments', []);
     const directAppts = safeGetStorageJSON<any[]>('appointments', []);
     const localAppts = safeGetStorageJSON<any[]>('mediflow_appointments', []);
-    const allAppts = storeAppts.length > 0 ? storeAppts : [...appointments, ...directAppts, ...localAppts];
+    
+    const seenApptIds = new Set<string>();
+    const allAppts: any[] = [];
+    [...storeAppts, ...appointments, ...directAppts, ...localAppts].forEach(a => {
+      if (a && (a.id || a.patientId || (a as any).patient_id)) {
+        const key = a.id || `${a.patientId || (a as any).patient_id}_${a.tokenNumber || (a as any).token_number}`;
+        if (!seenApptIds.has(key)) {
+          seenApptIds.add(key);
+          allAppts.push(a);
+        }
+      }
+    });
 
     const patients = load<any[]>('patients', []);
     const registryPatients = safeGetStorageJSON<any[]>('patient_registry', []);
-    const allPatients = storePatients.length > 0 ? storePatients : [...patients, ...registryPatients];
+    const seenPatIds = new Set<string>();
+    const allPatients: any[] = [];
+    [...storePatients, ...patients, ...registryPatients].forEach(p => {
+      if (p && p.id && !seenPatIds.has(p.id)) {
+        seenPatIds.add(p.id);
+        allPatients.push(p);
+      }
+    });
 
     const dateStr = targetDate || getIstDateString();
 
