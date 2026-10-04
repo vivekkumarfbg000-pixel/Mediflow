@@ -1371,7 +1371,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
   useEffect(() => {
     if (registrationStep !== 3 || !registeredEmail) return;
 
-    let pollInterval: NodeJS.Timeout;
+    let pollInterval: ReturnType<typeof setInterval>;
     let isChecking = false;
 
     pollInterval = setInterval(async () => {
