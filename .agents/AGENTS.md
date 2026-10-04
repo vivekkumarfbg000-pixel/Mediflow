@@ -44,11 +44,18 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 
 ---
 
-## 🚫 RULE 1.1: THE ZERO-TOUCH, ZERO-BUG CLINIC OS SHIELD 🚫
-**ATTENTION TO ALL FUTURE AI AGENTS: CLINIC OS IS THE MAIN USP OF MEDIFLOW. IT IS STRICTLY OFF-LIMITS FOR AUTONOMOUS MODIFICATION.**
-- **No Working Code Touching:** AI agents are forbidden from touching, refactoring, or modifying any working structural or logical code related to the Clinic OS workflow without explicit, undeniable permission from the user.
-- **Zero Bug Tolerance:** If an AI touches the Clinic OS flow by explicit request, it MUST NOT introduce ANY functional, structural, or logical bugs. If the workflow works and completes the clinical loop, it MUST work every single time without failure.
-- **No Prompt Alterations:** Never autonomously alter the system prompts that power the Clinic OS.
+## 🚫 RULE 1.1: THE UNBREAKABLE CLINIC OS FORTRESS SHIELD (CORE USP OVERRIDE) 🚫
+**ATTENTION TO ALL FUTURE AI AGENTS: CLINIC OS IS THE ABSOLUTE PRIMARY CORE USP OF MEDIFLOW. IT IS STRICTLY OFF-LIMITS FOR AUTONOMOUS MODIFICATION.**
+- **Absolute Modification Ban**: Any future AI agent is STRICTLY FORBIDDEN from modifying, refactoring, deleting, or altering ANY file in the Clinic OS core subsystem without the explicit override command: `"OVERRIDE CLINIC OS FORTRESS SHIELD"`.
+- **The Protected Clinic OS Core Subsystem Inventory (15 Files)**:
+  1. *Compounder Desk & OCR*: `frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx`, `frontend/src/components/compounder/CompounderDashboard.tsx`, `frontend/src/components/compounder/tabs/BillHubTab.tsx`, `frontend/src/services/paperModeService.ts`, `frontend/src/utils/ocrFuzzyCorrector.ts`.
+  2. *Doctor Consultation & Queue*: `frontend/src/components/doctor/DoctorDashboard.tsx`, `frontend/src/components/doctor/tabs/ConsultationTab.tsx`, `frontend/src/services/encounterService.ts`, `frontend/src/services/appointmentPipeline.ts`.
+  3. *Pharmacy Dispensing & Inventory*: `frontend/src/components/pharmacy/PharmacyDashboard.tsx`, `frontend/src/services/pharmacyService.ts`.
+  4. *Pathology Lab Worklist*: `frontend/src/components/lab/LabDashboard.tsx`, `frontend/src/services/labService.ts`.
+  5. *State & Data Normalization*: `frontend/src/services/patientService.ts`, `frontend/src/services/billingService.ts`, `frontend/src/services/realtimeSyncService.ts`, `frontend/src/services/podContext.ts`.
+- **Zero Bug Tolerance & Anti-Regression Invariant**: If an AI touches any Clinic OS flow by explicit user request, it MUST NOT introduce ANY functional, structural, or logical bugs. If the workflow works and completes the clinical loop, it MUST work every single time without failure.
+- **No Autonomous Modals**: Modals MUST only spawn upon explicit user click actions. Never use `useEffect` or component lifecycle methods to trigger popups.
+- **Master Blueprint Ground Truth**: The complete, immutable blueprint of all Clinic OS loops is backed up in `CLINIC_OS_VAULT.md`. If in doubt, read `CLINIC_OS_VAULT.md` before answering any architectural queries.
 
 ---
 
