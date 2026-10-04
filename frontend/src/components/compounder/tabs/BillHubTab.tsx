@@ -974,7 +974,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       }
 
       // 3. Clear the unified invoice (triggers 3% platform fee split, commission pool refill, and financial ledgers)
-      BillingService.clearInvoice(unifiedInvoiceId, paymentMethod);
+      await BillingService.clearInvoice(unifiedInvoiceId, paymentMethod);
 
       // 4. Deduct pharmacy inventory stock for selected medicines and create MedicineBill
       if (billingLedger.pharmacySub > 0) {
@@ -1157,6 +1157,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       window.dispatchEvent(new CustomEvent('mediflow-chronic-update', {
         detail: { patientId: selectedPatient.id }
       }));
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
 
       setRefreshKey(prev => prev + 1);
 

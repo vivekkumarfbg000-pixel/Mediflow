@@ -89,8 +89,13 @@ export class BillingService {
   }
 
   static saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {
+    entries.forEach(e => cloudStore.applyLocalDiff('financial_ledgers', e));
     save('financial_ledgers', entries);
     notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+    }
   }
 
   static saveAppointments(appointments: Appointment[]): void {
@@ -146,7 +151,7 @@ export class BillingService {
     })();
   }
 
-  static clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): void {
+  static async clearInvoice(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     const invoices = this.getUnifiedInvoices();
     const idx = invoices.findIndex(i => i.id === invoiceId);
     let invoiceAmount = 500;
@@ -224,38 +229,8 @@ export class BillingService {
       }).eq('id', targetPatientId).then(() => {});
     }
 
-    // Core Invoice Settlement & Financial Ledger Splits
-    this.recordInvoicePayment(invoiceId, paymentMethod);
-
-    // Inject optimistic ledger entry to bypass Supabase CDC latency
-    try {
-      const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
-      const optimisticLedger = {
-        id: `tx-auto-${(invoiceId || 'N/A').substring(0, 8)}`,
-        invoiceId: invoiceId,
-        sourceEntityId: getPodContext().entityId || 'clinic-admin-entity',
-        destinationEntityId: getPodContext().entityId || 'clinic-admin-entity',
-        transactionType: 'appointment_fee' as const,
-        grossAmount: invoiceAmount,
-        commissionRate: 0,
-        netPayout: invoiceAmount,
-        paymentStatus: 'cleared' as const,
-        settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        patientName: targetPatientId ? PatientService.getPatients().find(p => p.id === targetPatientId)?.name || 'Patient Customer' : 'Patient Customer',
-        paymentMethod: paymentMethod
-      };
-      
-      const existingIdx = ledgers.findIndex(l => l.id === optimisticLedger.id);
-      if (existingIdx >= 0) {
-        ledgers[existingIdx] = optimisticLedger;
-      } else {
-        ledgers.unshift(optimisticLedger);
-      }
-      this.saveFinancialLedgers(ledgers);
-    } catch (e) {
-      console.warn('[BillingService] Failed to inject optimistic ledger:', e);
-    }
+    // Core Invoice Settlement & Financial Ledger Splits — Await to guarantee exact split persistence
+    await this.recordInvoicePayment(invoiceId, paymentMethod);
 
     // Atomic Backend Settlement via Postgres RPC v2
     supabase.rpc('process_invoice_settlement_v2', {
@@ -307,7 +282,7 @@ export class BillingService {
         DEMO_PATIENT_ID_2,
         'pat-101', 'pat-102', 'pat-103'
       ]);
-      const testSyntheticNames = new Set(['rls test patient', 'patient customer', 'unknown patient', 'auto test patient']);
+      const testSyntheticNames = new Set(['rls test patient', 'auto test patient']);
       const effectivePod = (currentPodId && currentPodId !== 'unresolved-pod') ? currentPodId : FALLBACK_POD_ID;
       ledgers = ledgers.filter(l => {
         const pod = (l as any).podId || (l as any).pod_id;
@@ -1134,15 +1109,18 @@ export class BillingService {
     const splitPlatLab = activeSop?.extractedConfig?.splits?.platform ?? 5.00;
     const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc - splitPlatLab);
 
-    // Resolve patient name for this invoice/appointment
+    // Resolve patient name and appointment for this invoice
     const invoices = this.getInvoices();
+    const uInvoices = this.getUnifiedInvoices();
     const appts = this.getAppointments();
     const patients = PatientService.getPatients();
     const inv = invoices.find(i => i.id === invoiceId);
-    const appt = appts.find(a => a.id === appointmentId || a.id === inv?.appointmentId);
-    const patId = inv?.patientId || appt?.patientId;
+    const uInv = uInvoices.find(u => u.id === invoiceId);
+    const appt = appts.find(a => a.id === appointmentId || a.id === inv?.appointmentId || a.id === uInv?.encounterId);
+    const patId = inv?.patientId || uInv?.patientId || appt?.patientId;
     const resolvedPatient = patients.find(p => p.id === patId);
-    const resolvedPatientName = resolvedPatient?.name || (inv as any)?.patientName || (appt as any)?.patient_name || 'Patient Customer';
+    const resolvedPatientName = resolvedPatient?.name || uInv?.patientName || (inv as any)?.patientName || (appt as any)?.patient_name || 'Walk-in Patient';
+    const resolvedDoctorId = appt?.doctorId || (appt as any)?.doctor_id || (uInv as any)?.doctorId || getPodContext().doctorId || null;
 
     const listToSave: FinancialLedgerEntry[] = [];
     let platformAmt = 0;
@@ -1166,7 +1144,9 @@ export class BillingService {
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
+        patientId: patId,
         patientName: resolvedPatientName,
+        doctorId: resolvedDoctorId,
         paymentMethod
       };
       listToSave.push(docLedger);
@@ -1189,7 +1169,10 @@ export class BillingService {
         netPayout: platformAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientId: patId,
+        patientName: resolvedPatientName,
+        paymentMethod
       };
 
       const docLedger: FinancialLedgerEntry = {
@@ -1203,7 +1186,11 @@ export class BillingService {
         netPayout: docAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientId: patId,
+        patientName: resolvedPatientName,
+        doctorId: resolvedDoctorId,
+        paymentMethod
       };
 
       const labLedger: FinancialLedgerEntry = {
@@ -1217,7 +1204,11 @@ export class BillingService {
         netPayout: labAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientId: patId,
+        patientName: resolvedPatientName,
+        doctorId: resolvedDoctorId,
+        paymentMethod
       };
       listToSave.push(platformLedger, docLedger, labLedger);
     } else if (type === 'pharmacy') {
@@ -1240,7 +1231,10 @@ export class BillingService {
         netPayout: platformAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientId: patId,
+        patientName: resolvedPatientName,
+        paymentMethod
       };
 
       const docMedLedger: FinancialLedgerEntry = {
@@ -1254,7 +1248,11 @@ export class BillingService {
         netPayout: docMedAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientId: patId,
+        patientName: resolvedPatientName,
+        doctorId: resolvedDoctorId,
+        paymentMethod
       };
 
       const pharmacyLedger: FinancialLedgerEntry = {
@@ -1268,19 +1266,27 @@ export class BillingService {
         netPayout: pharmaAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        patientId: patId,
+        patientName: resolvedPatientName,
+        doctorId: resolvedDoctorId,
+        paymentMethod
       };
       listToSave.push(platformLedger, docMedLedger, pharmacyLedger);
     }
 
     if (listToSave.length > 0) {
       ledgerEntries.unshift(...listToSave);
-      save('financial_ledgers', ledgerEntries);
+      this.saveFinancialLedgers(ledgerEntries);
 
       // Sync splits to Supabase with the new database columns
       const dbEntries = listToSave.map(s => ({
         id: s.id,
         invoice_id: s.invoiceId,
+        appointment_id: appointmentId !== 'counter-checkout' ? appointmentId : null,
+        patient_id: patId || null,
+        patient_name: resolvedPatientName,
+        doctor_id: resolvedDoctorId,
         source_entity_id: s.sourceEntityId,
         destination_entity_id: s.destinationEntityId,
         transaction_type: s.transactionType,
@@ -1311,6 +1317,9 @@ export class BillingService {
       supabase.rpc('accumulate_platform_revenue', { p_pod_id: getPodContext().podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
         if (error) console.error('Error updating pod platform revenue in Supabase:', error);
       });
+
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
     }
   }
 

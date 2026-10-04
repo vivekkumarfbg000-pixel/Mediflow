@@ -311,6 +311,9 @@ export interface FinancialLedgerEntry {
   settledAt: string | null;
   createdAt: string;
   patientName?: string;
+  patientId?: string;
+  doctorId?: string | null;
+  appointmentId?: string | null;
   paymentMethod?: PaymentMethod;
 }
 
