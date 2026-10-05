@@ -1371,7 +1371,7 @@ export const CompounderDashboard: React.FC = () => {
         // Safety Merge: Preserve recent locally created appointments (< 15 mins old or paper_scan) not yet indexed in remote response
         const existingLocal = api.getAppointments() || [];
         const nowMs = Date.now();
-        const merged = [...mapped];
+        const merged: any[] = [...mapped];
         existingLocal.forEach(localAppt => {
           if (localAppt && localAppt.id && !merged.some(m => m.id === localAppt.id)) {
             const apptAge = nowMs - new Date(localAppt.createdAt || (localAppt as any).created_at || nowMs).getTime();
