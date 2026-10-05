@@ -1029,7 +1029,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       recordRateLimitAttempt('login', cleanEmail, true);
       recordAttempt(cleanEmail, true, { user_id: data.user.id });
       
-      // onAuthSuccess(data.session, profile);
+      // Clear registration flags so onAuthStateChange doesn't block profile loading
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+        sessionStorage.removeItem('vitalsync_is_registering');
+      }
+      onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Login failed:', err);
@@ -1153,7 +1158,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       recordRateLimitAttempt('login', cleanEmail, true);
       recordAttempt(cleanEmail, true, { user_id: data.user.id });
       
-      // onAuthSuccess(data.session, profile);
+      // Clear registration flags so onAuthStateChange doesn't block profile loading
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+        sessionStorage.removeItem('vitalsync_is_registering');
+      }
+      onAuthSuccess(data.session, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[Mediflow Auth] Partner login failed:', err);
@@ -1369,7 +1379,14 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
 
     if (activeSess) {
-      // onAuthSuccess(activeSess, synthesizedProfile);
+      // Clear registration flags before calling onAuthSuccess so onAuthStateChange doesn't block
+      if (typeof window !== 'undefined') {
+        (window as any).__mediflow_registering = false;
+        sessionStorage.removeItem('vitalsync_is_registering');
+        sessionStorage.removeItem('vitalsync_reg_step');
+        sessionStorage.removeItem('vitalsync_reg_email');
+      }
+      onAuthSuccess(activeSess, synthesizedProfile);
     }
   };
 
@@ -1876,7 +1893,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // 5. Notify app of authentication success or show confirmation card!
       if (activeSession) {
-        // onAuthSuccess(activeSession, profile);
+        // Clear registration flags before calling onAuthSuccess so onAuthStateChange doesn't block
+        if (typeof window !== 'undefined') {
+          (window as any).__mediflow_registering = false;
+          sessionStorage.removeItem('vitalsync_is_registering');
+        }
+        onAuthSuccess(activeSession, profile);
       } else {
         setPartnerJoinSubmitted(true);
       }

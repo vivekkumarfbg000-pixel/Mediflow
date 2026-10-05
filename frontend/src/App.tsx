@@ -1324,8 +1324,14 @@ export default function App() {
         clearPodContext();
       } else {
         setSession(session);
-        if (getIsRegisteringActive(activeProfile)) {
-          console.log('[Mediflow Auth] Registration in progress. Deferring profile loading in onAuthStateChange.');
+        // Only defer profile loading when SIGNED_IN fires during the OTP email-verification
+        // step (step 3). Normal sign-in SIGNED_IN events must NEVER be blocked here —
+        // blocking them causes infinite loading since onAuthSuccess already called handleAuthSuccess.
+        const isInOtpVerificationStep = typeof window !== 'undefined' &&
+          sessionStorage.getItem('vitalsync_reg_step') === '3' &&
+          (window as any).__mediflow_registering === true;
+        if (event === 'SIGNED_IN' && isInOtpVerificationStep) {
+          console.log('[Mediflow Auth] OTP registration step 3 active. Deferring profile load in onAuthStateChange.');
           return;
         }
         if (typeof window !== 'undefined' && (window as any).__vitalsync_ops_redirect) {
