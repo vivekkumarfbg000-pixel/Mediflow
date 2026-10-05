@@ -1304,9 +1304,17 @@ export default function App() {
         // Guard 1: Do NOT wipe session on INITIAL_SESSION if cached profile exists
         if (event === 'INITIAL_SESSION') {
           const cached = typeof window !== 'undefined' ? localStorage.getItem('vitalsync_cached_profile') : null;
-          if (cached) {
+          if (cached && session) {
+            try {
+              const cachedProfile = JSON.parse(cached);
+              setSession(session);
+              setActiveProfile(cachedProfile);
+            } catch (_e) { /* ignore parse error — continue to normal load */ }
             setIsLoadingSession(false);
             return;
+          }
+          if (cached && !session) {
+            if (typeof window !== 'undefined') localStorage.removeItem('vitalsync_cached_profile');
           }
         }
         // Guard 2: Do NOT wipe session in DEV if mediflow_dev_bypass is active (mock session has no real Supabase token)
@@ -1323,6 +1331,10 @@ export default function App() {
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
       } else {
+        if (event === 'TOKEN_REFRESHED') {
+          setSession(session);
+          return;
+        }
         setSession(session);
         // Only defer profile loading when SIGNED_IN fires during the OTP email-verification
         // step (step 3). Normal sign-in SIGNED_IN events must NEVER be blocked here —
@@ -1343,12 +1355,8 @@ export default function App() {
           setActiveProfile(null);
           setIsLoadingSession(true);
         }
-        // For SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED, etc., load profile and refresh pod context
+        // For SIGNED_IN, USER_UPDATED, etc., load profile and refresh pod context
         resolvePodContext().catch(() => {});
-        if (event === 'TOKEN_REFRESHED' && activeProfile && activeProfile.id === session.user.id) {
-          setIsLoadingSession(false);
-          return;
-        }
         const finalProfile = await loadOrHealProfile(session);
         if (active) {
           // Use resolved profile, or fall back to cached profile if DB lookup returned null (cold start / missing profile race)
@@ -1838,6 +1846,7 @@ export default function App() {
               onAuthSuccess={handleAuthSuccess} 
               allowSignup={true} 
               initialSignupTab={initialSignupTab}
+              isRecoveryMode={isRecoveryMode}
             />
             <div className="pt-2 text-center pb-2">
               <a href="/landing-page" className="text-[11px] font-bold text-slate-400 hover:text-indigo-600 transition-colors uppercase tracking-wider">
@@ -2009,6 +2018,7 @@ export default function App() {
             onAuthSuccess={handleAuthSuccess} 
             allowSignup={true} 
             initialSignupTab={initialSignupTab}
+            isRecoveryMode={isRecoveryMode}
           />
         </div>
       </div>

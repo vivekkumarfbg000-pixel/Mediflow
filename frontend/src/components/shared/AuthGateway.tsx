@@ -303,6 +303,7 @@ interface AuthGatewayProps {
   onAuthSuccess: (session: any, profile: any) => void;
   allowSignup?: boolean;
   initialSignupTab?: 'signin' | 'register' | 'join' | 'ops';
+  isRecoveryMode?: boolean;
 }
 
 const getIsSingleDomain = (hostname: string): boolean => {
@@ -316,7 +317,8 @@ const getIsSingleDomain = (hostname: string): boolean => {
 export const AuthGateway: React.FC<AuthGatewayProps> = ({ 
   onAuthSuccess,
   allowSignup = false,
-  initialSignupTab = 'signin'
+  initialSignupTab = 'signin',
+  isRecoveryMode = false
 }) => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isDashboardSubdomain = hostname === 'app.vitalsync.in' || hostname.startsWith('app.');
@@ -588,6 +590,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
     }
   }, []);
 
+  useEffect(() => {
+    if (isRecoveryMode) {
+      setActiveTab('forgot');
+    }
+  }, [isRecoveryMode]);
+
 
 
   // Check if session exists and resolve profile gracefully (Google OAuth landing / page refreshes)
@@ -774,7 +782,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }));
 
-      // onAuthSuccess(sessionWithNoProfile, profile);
+      onAuthSuccess(sessionWithNoProfile, profile);
     } catch (_err) { // Force rebuild of AuthGateway to clear compiler error
       const err = _err as any;
       console.error('[OAuth Onboarding] Register Clinic failed:', err);
@@ -831,7 +839,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         }
       }));
 
-      // onAuthSuccess(sessionWithNoProfile, profile);
+      onAuthSuccess(sessionWithNoProfile, profile);
     } catch (_err) {
       const err = _err as any;
       console.error('[OAuth Onboarding] Join Clinic failed:', err);
@@ -1610,7 +1618,10 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         throw verifyError;
       }
 
-      const verifiedUser = verifyData?.user || (await supabase.auth.getUser()).data.user;
+      const verifiedUser = verifyData?.user || await Promise.race([
+        supabase.auth.getUser().then(r => r.data.user),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 2000))
+      ]);
       if (!verifiedUser) {
         throw new Error('Verification completed but user record could not be loaded. Please sign in.');
       }
@@ -2081,7 +2092,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
 
       // 2. Dispatch password reset request with redirect URL
       const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: `${redirectUrl}?recovery=true`
+        redirectTo: `${redirectUrl}/`
       });
 
       // Execute constant-time dummy calculation to defeat timing analysis on email existence

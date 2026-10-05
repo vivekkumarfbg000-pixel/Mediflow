@@ -42,7 +42,7 @@ interface IdentifierBucket {
 const DEFAULT_CONFIGS: Record<AuthAction, RateLimitConfig> = {
   login: {
     maxAttempts: 5,
-    windowSeconds: 60,         // 5 attempts per 1 minute
+    windowSeconds: 5 * 60,     // 5 attempts per 5 minutes
     lockoutSeconds: 15 * 60,   // 15-minute initial lockout
     exponentialMultiplier: 2   // 15m -> 30m -> 60m
   },
