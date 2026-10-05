@@ -280,7 +280,7 @@ export interface UnifiedInvoice {
   platformFee: number;
   totalAmount: number;
   upiQrPayload: string;
-  paymentStatus: 'pending' | 'cleared' | 'disputed';
+  paymentStatus: 'pending' | 'cleared' | 'disputed' | 'refunded';
   payment_status?: string;
   paymentMethod?: PaymentMethod;
   referralCode?: string;
@@ -311,7 +311,7 @@ export interface FinancialLedgerEntry {
   grossAmount: number;
   commissionRate: number;
   netPayout: number;
-  paymentStatus: 'pending' | 'cleared' | 'disputed';
+  paymentStatus: 'pending' | 'cleared' | 'disputed' | 'refunded';
   settledAt: string | null;
   createdAt: string;
   patientName?: string;

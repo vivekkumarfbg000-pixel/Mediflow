@@ -946,9 +946,6 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         setSelectedPatient(null);
         setSelectedMedicines({});
         setSelectedTests({});
-        if (activeMode === 'daycare_discharge') {
-           setActiveMode('manual_billing');
-        }
         setIsClearing(false);
         return;
       }

@@ -115,7 +115,7 @@ export interface DBInvoice {
 
 export interface WALEntry {
   id: string; // client UUID (idempotency key)
-  action: 'CREATE_ENCOUNTER' | 'UPDATE_VITALS' | 'REGISTER_PATIENT' | 'REGISTER_WALKIN_LAB' | 'CREATE_LAB_REQ_FROM_RX' | 'UPDATE_QUEUE_STATUS' | 'SAVE_REFRACTION' | 'upsert_patient' | 'upsert_appointment';
+  action: 'CREATE_ENCOUNTER' | 'UPDATE_VITALS' | 'REGISTER_PATIENT' | 'REGISTER_WALKIN_LAB' | 'CREATE_LAB_REQ_FROM_RX' | 'UPDATE_QUEUE_STATUS' | 'SAVE_REFRACTION' | 'upsert_patient' | 'upsert_appointment' | 'offline_pos_checkout' | 'issue_refund_credit_memo';
   payload: any;
   timestamp: string;
   synced: boolean;

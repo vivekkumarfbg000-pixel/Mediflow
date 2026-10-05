@@ -16,6 +16,7 @@ import {
   CheckCircle2, 
   AlertTriangle,
   ShieldAlert,
+  ShieldCheck,
   Activity,
   HeartPulse,
   LayoutDashboard,
@@ -2123,7 +2124,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                                   <span className="truncate flex-1">E2EE Telehealth Link Encrypted</span>
                                   <button
                                     onClick={async () => {
-                                      const { TelehealthService } = await import('../../../services/telehealthService');
+                                      const { TelehealthService } = await import('../../services/telehealthService');
                                       const e2eeUrl = TelehealthService.generateSecureRoomUrl(appt.id);
                                       navigator.clipboard.writeText(e2eeUrl);
                                       window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { title: 'Link Copied! 📋', message: 'E2EE Secure Room link copied to clipboard.', type: 'success' } }));
@@ -2138,7 +2139,7 @@ Keep the tone professional, clinical, objective, and precise.`;
                                 <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
                                   <button
                                     onClick={async () => {
-                                      const { TelehealthService } = await import('../../../services/telehealthService');
+                                      const { TelehealthService } = await import('../../services/telehealthService');
                                       const e2eeUrl = await TelehealthService.initiateCall(appt.id);
                                       window.open(e2eeUrl, '_blank', 'noopener,noreferrer');
                                     }}

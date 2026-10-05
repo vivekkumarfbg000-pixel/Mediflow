@@ -122,9 +122,9 @@ class CryptoServiceSingleton {
       const iv = this._base64ToBuffer(withoutPrefix.slice(0, colonIdx));
       const cipherBuffer = this._base64ToBuffer(withoutPrefix.slice(colonIdx + 1));
       const decryptedBuffer = await window.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
+        { name: 'AES-GCM', iv: iv as BufferSource },
         this._activeKey,
-        cipherBuffer
+        cipherBuffer as BufferSource
       );
       return new TextDecoder().decode(decryptedBuffer);
     } catch (e) {
