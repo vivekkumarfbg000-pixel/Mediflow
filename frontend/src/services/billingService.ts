@@ -130,7 +130,7 @@ export class BillingService {
             source: (appt as any).source || ((appt as any).isVirtual ? 'whatsapp' : 'counter'),
             appointment_time: (appt as any).appointmentTime || (appt as any).appointment_time || `${apptDate}T10:00:00.000Z`,
             created_at: (appt as any).createdAt || (appt as any).created_at || nowISO,
-            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || null,
+            pod_id: (appt as any).podId || (appt as any).pod_id || currentPodId || FALLBACK_POD_ID,
             is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
             is_vip: Boolean(appt.isVip || (appt as any).is_vip),
             payment_status: (appt as any).paymentStatus || (appt as any).payment_status || 'cleared',
@@ -484,7 +484,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist appointment mutation to Supabase
     (async () => {
       try {
-        const podId = (appt as any).podId || (appt as any).pod_id || getPodContext().podId || null;
+        const podId = (appt as any).podId || (appt as any).pod_id || getPodContext().podId || FALLBACK_POD_ID;
         const nowISO = new Date().toISOString();
         const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
         const pId = appt.patientId || (appt as any).patient_id;
@@ -522,7 +522,7 @@ export class BillingService {
   static async saveAppointmentAsync(appt: Appointment): Promise<Appointment> {
     this.saveAppointment(appt);
     try {
-      const podId = (appt as any).podId || (appt as any).pod_id || getPodContext().podId || null;
+      const podId = (appt as any).podId || (appt as any).pod_id || getPodContext().podId || FALLBACK_POD_ID;
       const nowISO = new Date().toISOString();
       const apptDate = getEffectiveAppointmentDate(appt) || (appt as any).date || getIstDateString();
       const pId = appt.patientId || (appt as any).patient_id;
@@ -568,10 +568,20 @@ export class BillingService {
           is_vip: Boolean(appt.isVip || (appt as any).is_vip),
           payment_status: normalizedPaymentStatus,
           problem: (appt as any).problem || (appt as any).chief_complaint || '',
-          chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
+          chief_complaint: (appt as any).chief_complaint || (appt as any).problem || '',
+          occ_version: (appt.occVersion || appt.occ_version || 1) + 1
         };
 
         let { error } = await supabase.from('appointments').upsert(apptPayload, { onConflict: 'id' });
+        
+        if (error && error.message && error.message.includes('OCC_VERSION_MISMATCH')) {
+          console.warn('[BillingService] OCC_VERSION_MISMATCH intercepted for appointment:', apptPayload.id);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { title: 'Queue Update Blocked 🚨', message: 'This appointment was just modified by another counter. Syncing latest state...', type: 'error' } }));
+          }
+          return appt;
+        }
+
         if (error && error.code === '23503') {
           // Foreign key violation on doctor_id or entity_id (not in profiles table) — fallback to null
           apptPayload.doctor_id = null;
@@ -580,7 +590,7 @@ export class BillingService {
         }
         if (error) {
           console.warn('[BillingService] saveAppointmentAsync Supabase upsert error:', error);
-          if (error.code !== '23505') {
+          if (error.code !== '23505' && !error.message?.includes('OCC_VERSION_MISMATCH')) {
             try {
               console.warn('[BillingService] Upsert blocked (possibly RLS). Falling back to direct insert:', apptPayload.id);
               await supabase.from('appointments').insert(apptPayload).throwOnError();
@@ -671,7 +681,7 @@ export class BillingService {
     // 🌟 ENTERPRISE DUAL-WRITE REALTIME GUARANTEE: Instantly persist invoice mutation to Supabase
     (async () => {
       try {
-        const podId = (invoice as any).podId || (invoice as any).pod_id || getPodContext().podId || null;
+        const podId = (invoice as any).podId || (invoice as any).pod_id || getPodContext().podId || FALLBACK_POD_ID;
         const nowISO = new Date().toISOString();
         const pId = (invoice as any).patientId || (invoice as any).patient_id || '';
         const apptId = (invoice as any).appointmentId || (invoice as any).appointment_id || null;
@@ -1055,6 +1065,70 @@ export class BillingService {
     }
   }
 
+  // PHASE 19: Immutable Refund / Rollback Protocol (Event Sourcing)
+  static async issueRefundCreditMemo(invoiceId: string, amount: number, reason: string): Promise<void> {
+    const uInvoices = this.getUnifiedInvoices();
+    const uInv = uInvoices.find(u => u.id === invoiceId);
+    if (!uInv) return;
+
+    const podEntityId = getPodContext().entityId;
+    const creditMemo: FinancialLedgerEntry = {
+      id: `tx-refund-${crypto.randomUUID().substring(0,8)}`,
+      invoiceId: invoiceId,
+      sourceEntityId: podEntityId,
+      destinationEntityId: podEntityId,
+      transactionType: 'refund_credit_memo' as any,
+      grossAmount: -Math.abs(amount),
+      commissionRate: 0,
+      netPayout: -Math.abs(amount),
+      paymentStatus: 'cleared',
+      settledAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      patientId: uInv.patientId,
+      patientName: uInv.patientName,
+      paymentMethod: 'cash'
+    };
+
+    const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    ledgers.push(creditMemo);
+    save('financial_ledgers', ledgers);
+
+    try {
+      await supabase.from('financial_ledgers').insert({
+        id: creditMemo.id,
+        invoice_id: creditMemo.invoiceId,
+        source_entity_id: creditMemo.sourceEntityId,
+        destination_entity_id: creditMemo.destinationEntityId,
+        transaction_type: creditMemo.transactionType,
+        gross_amount: creditMemo.grossAmount,
+        commission_rate: creditMemo.commissionRate,
+        net_payout: creditMemo.netPayout,
+        payment_status: creditMemo.paymentStatus,
+        settled_at: creditMemo.settledAt,
+        created_at: creditMemo.createdAt,
+        patient_id: creditMemo.patientId,
+        patient_name: creditMemo.patientName,
+        payment_method: creditMemo.paymentMethod,
+        pod_id: podEntityId || FALLBACK_POD_ID
+      });
+      
+      uInv.paymentStatus = 'refunded';
+      save('unified_invoices', uInvoices);
+      
+      await supabase.from('unified_invoices').update({
+        payment_status: 'refunded'
+      }).eq('id', invoiceId);
+      
+      notify();
+      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: `Refund processed. Immutable Credit Memo generated for ₹${amount}.`, type: 'success', title: 'Refund Completed' }}));
+    } catch (e) {
+      console.error('[BillingService] Refund failed:', e);
+      if (walDB && walDB.addEntry) {
+         await walDB.addEntry('issue_refund_credit_memo', { invoiceId, amount, reason, creditMemo });
+      }
+    }
+  }
+
   static async settleSaaSInvoice(invoiceId: string): Promise<void> {
     await this.recordInvoicePayment(invoiceId);
     notify();
@@ -1107,10 +1181,8 @@ export class BillingService {
 
     // Fetch active SOP or use defaults for doctor/lab splits
     const activeSop = this.getActiveSop();
-    const splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
-    const splitPlatLab = activeSop?.extractedConfig?.splits?.platform ?? 5.00;
-    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc - splitPlatLab);
-
+    let splitDoc = activeSop?.extractedConfig?.splits?.doctor ?? 40;
+    
     // Resolve patient name and appointment for this invoice
     const invoices = this.getInvoices();
     const uInvoices = this.getUnifiedInvoices();
@@ -1124,6 +1196,29 @@ export class BillingService {
     const resolvedPatientName = resolvedPatient?.name || uInv?.patientName || (inv as any)?.patientName || (appt as any)?.patient_name || 'Walk-in Patient';
     const resolvedDoctorId = appt?.doctorId || (appt as any)?.doctor_id || (uInv as any)?.doctorId || getPodContext().doctorId || null;
 
+    // PHASE 19: Dynamic Autonomous Revenue Splits (Smart Contracts)
+    if (resolvedDoctorId && typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('vitalsync_cached_profile');
+        if (cached) {
+           const prof = JSON.parse(cached);
+           if (prof.id === resolvedDoctorId && prof.consultation_commission_rate != null) {
+              splitDoc = prof.consultation_commission_rate;
+           }
+        } else {
+           const { data: docProfile } = await supabase.from('profiles').select('consultation_commission_rate').eq('id', resolvedDoctorId).single();
+           if (docProfile && docProfile.consultation_commission_rate != null) {
+              splitDoc = docProfile.consultation_commission_rate;
+           }
+        }
+      } catch (err) {
+        console.warn('[BillingService] Failed to fetch dynamic doctor commission, falling back to SOP:', err);
+      }
+    }
+
+    const splitPlatLab = activeSop?.extractedConfig?.splits?.platform ?? 5.00;
+    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc - splitPlatLab);
+
     const listToSave: FinancialLedgerEntry[] = [];
     let platformAmt = 0;
     const isCash = paymentMethod === 'cash';
@@ -1135,7 +1230,7 @@ export class BillingService {
     if (type === 'consult') {
       const docAmt = amount;
       const docLedger: FinancialLedgerEntry = {
-        id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-doc-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
@@ -1161,7 +1256,7 @@ export class BillingService {
       const labAmt = parseFloat((remainingAmt - docAmt).toFixed(2));
 
       const platformLedger: FinancialLedgerEntry = {
-        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-plat-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
@@ -1178,7 +1273,7 @@ export class BillingService {
       };
 
       const docLedger: FinancialLedgerEntry = {
-        id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-doc-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
@@ -1196,7 +1291,7 @@ export class BillingService {
       };
 
       const labLedger: FinancialLedgerEntry = {
-        id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-lab-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: labDestId,
@@ -1223,7 +1318,7 @@ export class BillingService {
       const pharmaAmt = parseFloat((remainingAmt - docMedAmt).toFixed(2));
 
       const platformLedger: FinancialLedgerEntry = {
-        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-plat-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
@@ -1240,7 +1335,7 @@ export class BillingService {
       };
 
       const docMedLedger: FinancialLedgerEntry = {
-        id: `tx-doc-med-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-doc-med-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
@@ -1258,7 +1353,7 @@ export class BillingService {
       };
 
       const pharmacyLedger: FinancialLedgerEntry = {
-        id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
+        id: `tx-pharma-${invoiceId.substring(0, 8)}`,
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: pharmDestId,
@@ -1367,7 +1462,7 @@ export class BillingService {
           // Create and persist financial ledger entry for Doctor Consultation Fee
           const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
           const consultLedger: FinancialLedgerEntry = {
-            id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+            id: `tx-doc-${saasInv.id.substring(0, 8)}`,
             invoiceId: saasInv.id,
             appointmentId: appt.id,
             patientId: patId,
@@ -1897,7 +1992,9 @@ export class BillingService {
       payment_status: invoice.paymentStatus === 'cleared' ? 'paid' : (invoice.paymentStatus as any),
       payment_method: invoice.paymentMethod || null,
       created_at: invoice.createdAt,
-      pod_id: getPodContext().podId
+      pod_id: getPodContext().podId,
+      hash_signature: invoice.hash_signature || null,
+      hash_timestamp: invoice.hash_timestamp || null
     }).then(({ error }) => {
       if (error) console.error('[BillingService] Unified invoice sync failed:', error);
     });
@@ -2063,6 +2160,35 @@ export class BillingService {
       }
     }
     return eligibility.isEligible;
+  }
+
+  // PHASE 19: AI-Powered Revenue Leakage & Fraud Detection
+  static async auditRevenueLeakage(): Promise<void> {
+    try {
+       const { PharmacyService } = await import('./pharmacyService');
+       const inv = PharmacyService.getPharmacyInventory();
+       const medBills = import('./apiHelper').then(m => m.load<any[]>('medicine_bills', []));
+       
+       let leakageDetected = false;
+       let leakageDetails = '';
+       
+       const lowStockItems = inv.filter(i => i.stock < i.threshold);
+       for (const item of lowStockItems) {
+           const bills = await medBills;
+           const recentSales = bills.filter(b => b.status === 'paid' && (b.items || []).some((bi:any) => bi.name.toLowerCase() === item.name.toLowerCase()));
+           if (recentSales.length === 0 && item.stock < (item.threshold / 2)) {
+               leakageDetected = true;
+               leakageDetails = `${item.name} stock critically low (${item.stock}) but no paid bills found.`;
+               break;
+           }
+       }
+       
+       if (leakageDetected) {
+           window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: `🚨 REVENUE LEAKAGE ALERT: ${leakageDetails}`, type: 'error', title: 'AI Audit Alert' }}));
+       }
+    } catch (e) {
+       console.warn('[BillingService] Revenue Audit failed:', e);
+    }
   }
 }
 

@@ -974,5 +974,11 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     console.log('[RealtimeSync] Network online detected — re-hydrating cloud tables and validating channel status...');
     RealtimeSyncService.fetchInitialCloudData().catch(() => {});
+    
+    // Explicitly force a reconnect instead of waiting up to 10s for the watchdog
+    if (RealtimeSyncService.getStatus() !== 'connected') {
+      console.log('[RealtimeSync] Forcing immediate channel reconnect after network restoration.');
+      (RealtimeSyncService as any).scheduleAutoReconnect();
+    }
   });
 }

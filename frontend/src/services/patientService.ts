@@ -6,6 +6,7 @@ import { safeGetStorageJSON } from '../utils/storage';
 import type { Patient, PatientVitals, Appointment } from '../types';
 import { cloudStore } from './cloudStore';
 import { walDB } from './api';
+import { CryptoService } from './cryptoService';
 
 export interface PhysicalConsent {
   id: string;
@@ -164,11 +165,14 @@ export class PatientService {
           registered_at_entity: getPodContext().entityId || null
         };
 
-        const { error: upsertErr } = await supabase.from('patient_registry').upsert(upsertPayload, { onConflict: 'id' });
+        // Phase 11: FLE — Encrypt PHI fields before writing to Supabase
+        const encryptedUpsertPayload = await CryptoService.encryptPatientPHI(upsertPayload);
+
+        const { error: upsertErr } = await supabase.from('patient_registry').upsert(encryptedUpsertPayload, { onConflict: 'id' });
         
         if (upsertErr) {
           if (upsertErr.code === '23505') {
-            await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId);
+            await supabase.from('patient_registry').update(encryptedUpsertPayload).eq('id', targetId);
           } else {
             console.error('[PatientService] savePatient upsert error:', upsertErr);
             // Plain INSERT fallback to bypass RETURNING strict RLS
@@ -321,15 +325,14 @@ export class PatientService {
       registered_at_entity: getPodContext().entityId || null
     };
 
+    // Phase 11: FLE — Encrypt PHI fields before writing to Supabase (savePatientAsync)
+    const encryptedUpsertPayload = await CryptoService.encryptPatientPHI(upsertPayload);
+
     try {
       // 🌟 ROOT CAUSE FIX 2: Do NOT chain .select() on the upsert.
-      // The RLS "Enforce tenant pod isolation" policy (FOR ALL) applies its USING clause to
-      // the RETURNING SELECT too. If get_user_pod() returns null (broken profiles→entities chain),
-      // Supabase returns {data: null, error: null} — the row IS written but appears as a failure.
-      // By decoupling the upsert from the select, we guarantee the write always completes.
       const { error: upsertErr } = await supabase
         .from('patient_registry')
-        .upsert(upsertPayload, { onConflict: 'id' });
+        .upsert(encryptedUpsertPayload, { onConflict: 'id' });
 
       // Probe separately (no RETURNING) to get the real persisted id/patient_code.
       // This probe is a plain SELECT which will succeed if RLS allows read (or return null if not, which is OK — we already have targetId).

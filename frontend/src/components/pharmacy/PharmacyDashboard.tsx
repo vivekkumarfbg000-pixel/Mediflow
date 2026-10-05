@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback , startTransition, Suspense} from 'react';
+import React, { useState, useEffect, useMemo, useCallback , startTransition, Suspense, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { api } from '../../services/api';
 import { PaymentService } from '../../services/paymentService';
 import { supabase } from '../../lib/supabaseClient';
@@ -596,6 +597,26 @@ export const PharmacyDashboard: React.FC = () => {
       return matchSearch && matchCategory;
     });
   }, [inventory, searchQuery, categoryFilter]);
+  
+  const parentRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filteredCatalog.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 64,
+  });
+
+  const mobileParentRef = useRef<HTMLDivElement>(null);
+  const mobileRowVirtualizer = useVirtualizer({
+    count: filteredCatalog.length,
+    getScrollElement: () => mobileParentRef.current,
+    estimateSize: () => 140,
+  });
+
+  const deskVirtualItems = rowVirtualizer.getVirtualItems();
+  const deskPaddingTop = deskVirtualItems.length > 0 ? deskVirtualItems[0]?.start || 0 : 0;
+  const deskPaddingBottom = deskVirtualItems.length > 0
+    ? rowVirtualizer.getTotalSize() - (deskVirtualItems[deskVirtualItems.length - 1]?.end || 0)
+    : 0;
 
   // Tab 3 Low Stock computed
   const lowStockItems = useMemo(() => {
@@ -1895,9 +1916,9 @@ export const PharmacyDashboard: React.FC = () => {
             <div className="border border-slate-200 rounded-xl overflow-hidden glass-panel-inner">
               
               {/* Desktop View */}
-              <div className="hidden md:block overflow-x-auto responsive-table-container">
+              <div ref={parentRef} className="hidden md:block overflow-auto responsive-table-container max-h-[600px]">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-white text-slate-600 border-b border-slate-200 font-bold uppercase tracking-wider text-[10px] sticky top-0 z-10">
                     <tr>
                       <th className="p-3.5">Medicine & Generic</th>
                       <th className="p-3.5">Category</th>
@@ -1916,12 +1937,15 @@ export const PharmacyDashboard: React.FC = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredCatalog.slice(0, 100).map(item => {
+                      <>
+                        {deskPaddingTop > 0 && <tr><td colSpan={7} style={{ height: deskPaddingTop }} /></tr>}
+                        {deskVirtualItems.map(virtualRow => {
+                          const item = filteredCatalog[virtualRow.index];
                         const isLow = item.stock <= item.threshold;
                         const isExpired = new Date(item.expiryDate) < new Date();
                         
                         return (
-                          <tr key={item.id} className="hover:bg-white/40 transition-colors">
+                          <tr key={virtualRow.key} ref={rowVirtualizer.measureElement} data-index={virtualRow.index} className="hover:bg-white/40 transition-colors">
                             <td className="p-3.5 space-y-1">
                               <div className="font-bold text-slate-800 text-xs">{item.name} <span className="text-[10px] text-slate-500 font-normal">({item.dosage})</span></div>
                               <div className="text-[10px] text-slate-500 italic font-mono">{item.genericName}</div>
@@ -1963,23 +1987,27 @@ export const PharmacyDashboard: React.FC = () => {
                           </tr>
                         );
                       })
-                    )}
+                    }
+                    {deskPaddingBottom > 0 && <tr><td colSpan={7} style={{ height: deskPaddingBottom }} /></tr>}
+                    </>)}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile Card List View */}
-              <div className="block md:hidden divide-y divide-slate-200 bg-slate-50/30">
+              <div ref={mobileParentRef} className="block md:hidden bg-slate-50/30 overflow-y-auto max-h-[600px] relative">
                 {filteredCatalog.length === 0 ? (
                   <div className="p-8 text-center text-slate-400 font-medium text-xs">
                     No matching medicine batches found in catalog.
                   </div>
                 ) : (
-                  filteredCatalog.slice(0, 100).map(item => {
+                  <div style={{ height: `${mobileRowVirtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+                    {mobileRowVirtualizer.getVirtualItems().map(virtualRow => {
+                      const item = filteredCatalog[virtualRow.index];
                     const isLow = item.stock <= item.threshold;
                     const isExpired = new Date(item.expiryDate) < new Date();
                     return (
-                      <div key={item.id} className="p-4 space-y-3 hover:bg-white/40 transition-colors">
+                      <div key={virtualRow.key} ref={mobileRowVirtualizer.measureElement} data-index={virtualRow.index} className="p-4 space-y-3 hover:bg-white/40 transition-colors absolute w-full border-b border-slate-200" style={{ top: 0, left: 0, transform: `translateY(${virtualRow.start}px)` }}>
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold text-slate-800 text-xs">{item.name} <span className="text-[10px] text-slate-500 font-normal">({item.dosage})</span></div>
@@ -2029,6 +2057,7 @@ export const PharmacyDashboard: React.FC = () => {
                       </div>
                     );
                   })
+                }</div>
                 )}
               </div>
 
@@ -2524,11 +2553,16 @@ export const PharmacyDashboard: React.FC = () => {
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
-                                api.dispenseMedicineBill(bill.id);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
-                                }));
-                                syncData();
+                                api.dispenseMedicineBillAsync(bill.id).then(() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via CASH. Stock deducted.`, type: 'success', title: 'Payment Received' }
+                                  }));
+                                  syncData();
+                                }).catch(() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: { message: 'Transaction Halted: Another staff member just dispensed this item, resulting in insufficient stock.', type: 'error', title: 'Dispensation Failed 🚨' }
+                                  }));
+                                });
                               }}
                               className="flex-1 px-2.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-slate-850 font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
                             >
@@ -2536,11 +2570,16 @@ export const PharmacyDashboard: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                api.dispenseMedicineBill(bill.id);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
-                                }));
-                                syncData();
+                                api.dispenseMedicineBillAsync(bill.id).then(() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: { message: `₹${(bill.totalAmount || 0).toFixed(0)} collected via UPI. Stock deducted.`, type: 'success', title: 'UPI Payment Received' }
+                                  }));
+                                  syncData();
+                                }).catch(() => {
+                                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                                    detail: { message: 'Transaction Halted: Another staff member just dispensed this item, resulting in insufficient stock.', type: 'error', title: 'Dispensation Failed 🚨' }
+                                  }));
+                                });
                               }}
                               className="flex-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg uppercase tracking-wider text-[9px] cursor-pointer"
                             >

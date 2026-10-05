@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { WhatsAppService, normalizeWhatsAppPhone } from './whatsappService';
+import { WhatsAppService } from './whatsappService';
 import { getPodContext, FALLBACK_POD_ID } from './podContext';
 import { writeAuditLog } from './apiHelper';
 import { WhatsAppTemplateEngine } from './WhatsAppTemplateEngine';
@@ -188,26 +188,6 @@ export class ClinicalNotificationService {
     return `Aapka lab report test results ke sath prepare ho gaya hai. Final medical review ke liye doctor se sampark karein. 🟢`;
   }
 
-  /**
-   * Directly dispatches outbound Meta Graph API request via Supabase Edge Relay
-   * with automatic phone normalization (91 prefix) and non-blocking failure tolerance.
-   */
-  private static async relayMetaGraphApi(phone: string, text: string): Promise<void> {
-    try {
-      const cleanToPhone = normalizeWhatsAppPhone(phone);
-      if (!cleanToPhone) return;
-
-      await supabase.functions.invoke('meta-webhook', {
-        body: {
-          action: 'send_manual_message',
-          patientPhone: cleanToPhone,
-          messageText: text
-        }
-      });
-    } catch (relayErr) {
-      console.warn('[ClinicalNotificationService] Meta Graph API edge relay notice:', relayErr);
-    }
-  }
 
   /**
    * 1. AUTOMATED LAB REPORT & HINGLISH SUMMARY DELIVERY
@@ -276,7 +256,6 @@ export class ClinicalNotificationService {
     msg += `Time par dawa lein aur swasth rahein! 🟢`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-    await this.relayMetaGraphApi(patientPhone, msg);
 
     writeAuditLog('WHATSAPP_PRESCRIPTION_DISPATCHED', {
       phone: patientPhone,
@@ -358,7 +337,6 @@ export class ClinicalNotificationService {
     msg += `Free video consult book karne ke liye kisi bhi samay is chat par *'2'* ya *'VIDEO'* reply kijiye! 😊`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-    await this.relayMetaGraphApi(patientPhone, msg);
 
     writeAuditLog('WHATSAPP_LOYALTY_BENEFIT_DISPATCHED', {
       phone: patientPhone,
@@ -410,7 +388,6 @@ export class ClinicalNotificationService {
     msg += `Thank you for choosing ${resolvedClinic}! Stay healthy! 🟢`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-    await this.relayMetaGraphApi(patientPhone, msg);
 
     writeAuditLog('WHATSAPP_APPOINTMENT_TIMING_GREETING_DISPATCHED', {
       phone: patientPhone,
@@ -446,7 +423,6 @@ export class ClinicalNotificationService {
     msg += `Consultation ke baad digital prescription isi chat par automatic deliver ho jayega. Thank you! 😊`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-    await this.relayMetaGraphApi(patientPhone, msg);
 
     writeAuditLog('WHATSAPP_VIRTUAL_MEETING_LINK_DISPATCHED', {
       phone: patientPhone,
@@ -488,7 +464,6 @@ export class ClinicalNotificationService {
     msg += `Swasth rahein aur dhyan rakhein! 🟢`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-    await this.relayMetaGraphApi(patientPhone, msg);
 
     writeAuditLog('WHATSAPP_DOSAGE_REMINDER_DISPATCHED', {
       phone: patientPhone,
@@ -531,7 +506,6 @@ export class ClinicalNotificationService {
     msg += `Please reply *1* ya *2* to confirm your choice! 🟢`;
 
     WhatsAppService.pushWhatsAppMessageFromBot(patientPhone, msg);
-    await this.relayMetaGraphApi(patientPhone, msg);
 
     writeAuditLog('WHATSAPP_LAB_ARRIVAL_REVISIT_DISPATCHED', {
       phone: patientPhone,

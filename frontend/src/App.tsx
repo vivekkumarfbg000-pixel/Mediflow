@@ -132,11 +132,15 @@ import { PatientWhatsAppSimulator } from './components/shared/PatientWhatsAppSim
 import { PatientMobileDashboard } from './components/shared/PatientMobileDashboard';
 import { CommandBar } from './components/shared/CommandBar';
 import { ToastProvider } from './components/shared/ToastProvider';
-import { resolvePodContext, clearPodContext } from './services/podContext';
+import { resolvePodContext, clearPodContext, getPodContext } from './services/podContext';
 import { RealtimeSyncService } from './services/realtimeSyncService';
+import { WhatsAppService } from './services/whatsappService';
+import { CryptoService } from './services/cryptoService';
 import { PatientService } from './services/patientService';
 import { PatientProfileModal } from './components/shared/PatientProfileModal';
 import { PromptGuardDashboard } from './components/promptguard/PromptGuardDashboard';
+import { EphemeralVaultProvider } from './context/EphemeralVaultProvider';
+import { CircuitBreakerProvider } from './context/CircuitBreakerContext';
 import {
   DashboardSkeleton,
   DoctorDashboardSkeleton,
@@ -144,6 +148,23 @@ import {
   PharmacyDashboardSkeleton,
   FullPageLoader
 } from './components/shared/LoadingSkeleton';
+import { NetworkSentinel, type ConnectionQuality } from './services/networkSentinel';
+
+const NetworkStatusPill = () => {
+  const [quality, setQuality] = useState<ConnectionQuality>('fast');
+  useEffect(() => {
+    return NetworkSentinel.subscribe(setQuality);
+  }, []);
+
+  if (quality === 'fast') return null;
+
+  return (
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10000] px-4 py-2 rounded-full bg-amber-500/90 text-white shadow-lg backdrop-blur-md text-xs font-bold flex items-center gap-2 pointer-events-none">
+      <AlertTriangle className="w-3.5 h-3.5" />
+      {quality === 'offline' ? 'Offline Mode' : 'Slow Connection (Data Saver)'}
+    </div>
+  );
+};
 
 interface Toast {
   id: string;
@@ -190,6 +211,11 @@ function AppContent({
   });
 
   useEffect(() => {
+    // Phase 9: Initialize Webhook DLQ Engine
+    WhatsAppService.initDLQEngine();
+    // Phase 12: Network Sentinel
+    NetworkSentinel.initialize();
+
     const handleSidebarToggle = () => {
       if (typeof window !== 'undefined' && window.innerWidth >= 768) {
         startTransition(() => {
@@ -489,6 +515,8 @@ function AppContent({
       <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-indigo-500/15 dark:bg-indigo-500/10 blur-[120px] pointer-events-none z-0 animate-ambient-float-1" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-500/15 dark:bg-teal-500/10 blur-[130px] pointer-events-none z-0 animate-ambient-float-2" />
       
+      <NetworkStatusPill />
+
       {/* Shared Ecosystem Navigation Header */}
       <Navbar 
         currentRole={currentRole} 
@@ -1258,6 +1286,15 @@ export default function App() {
         }
         setCrossDomainCookie(true);
         const finalProfile = await loadOrHealProfile(currentSession);
+        // Phase 11: Initialize Clinic Pod Encryption Key after pod context resolves
+        try {
+          const podCtx = getPodContext();
+          const cachedPod = typeof window !== 'undefined' ? (() => { try { const p = JSON.parse(localStorage.getItem('vitalsync_cached_active_pod') || 'null'); return p; } catch { return null; } })() : null;
+          const clinicCode = (cachedPod?.clinicCode || cachedPod?.clinic_code || podCtx.podId || '');
+          if (podCtx.podId && clinicCode) {
+            CryptoService.initializeForSession(podCtx.podId, clinicCode).catch(() => {});
+          }
+        } catch (_e) { /* Non-blocking — FLE degrades gracefully */ }
         if (active) {
           clearTimeout(safetyTimeout);
           if (finalProfile) {
@@ -1330,6 +1367,8 @@ export default function App() {
         setIsLoadingSession(false);
         // Clear pod context so next user gets fresh real IDs
         clearPodContext();
+        // Phase 11: Nullify the Clinic Pod Encryption Key on sign-out
+        CryptoService.clearKey();
       } else {
         if (event === 'TOKEN_REFRESHED') {
           setSession(session);
@@ -2029,46 +2068,50 @@ export default function App() {
     <ToastProvider>
       <ClinicProvider activeProfile={activeProfile}>
         <SpecializationProvider activeProfile={activeProfile}>
-          {isSigningOutProcess && (
-            <div className="fixed inset-0 z-[999999] bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white font-sans select-none animate-fade-in">
-              <div className="relative flex items-center justify-center mb-6">
-                <div className="w-20 h-20 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 border-r-cyan-400 animate-spin" />
-                <div className="absolute w-12 h-12 rounded-full bg-indigo-500/20 blur-md animate-pulse" />
-                <LogOut className="absolute h-8 w-8 text-cyan-400 animate-pulse" />
+          <CircuitBreakerProvider>
+            <EphemeralVaultProvider>
+            {isSigningOutProcess && (
+              <div className="fixed inset-0 z-[999999] bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white font-sans select-none animate-fade-in">
+                <div className="relative flex items-center justify-center mb-6">
+                  <div className="w-20 h-20 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 border-r-cyan-400 animate-spin" />
+                  <div className="absolute w-12 h-12 rounded-full bg-indigo-500/20 blur-md animate-pulse" />
+                  <LogOut className="absolute h-8 w-8 text-cyan-400 animate-pulse" />
+                </div>
+                <h3 className="text-xl font-black text-white tracking-wide font-sans mb-2">
+                  Terminating Workspace Session...
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm text-center font-medium leading-relaxed mb-6">
+                  Clearing local memory caches, Postgres CDC streams, and security credentials.
+                </p>
+                <div className="space-y-2 text-[10px] font-mono text-emerald-400/90 bg-slate-900/80 border border-white/10 px-4 py-3 rounded-xl min-w-[280px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    <span>[✓] Realtime CDC Channels Detached</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-cyan-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    <span>[✓] Encryption Tokens & Storage Purged</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-indigo-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                    <span>[✓] Pod Context Cleared</span>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-black text-white tracking-wide font-sans mb-2">
-                Terminating Workspace Session...
-              </h3>
-              <p className="text-xs text-slate-400 max-w-sm text-center font-medium leading-relaxed mb-6">
-                Clearing local memory caches, Postgres CDC streams, and security credentials.
-              </p>
-              <div className="space-y-2 text-[10px] font-mono text-emerald-400/90 bg-slate-900/80 border border-white/10 px-4 py-3 rounded-xl min-w-[280px]">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  <span>[✓] Realtime CDC Channels Detached</span>
-                </div>
-                <div className="flex items-center gap-2 text-cyan-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  <span>[✓] Encryption Tokens & Storage Purged</span>
-                </div>
-                <div className="flex items-center gap-2 text-indigo-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                  <span>[✓] Pod Context Cleared</span>
-                </div>
-              </div>
-            </div>
-          )}
-          <AppContent
-            session={session}
-            activeProfile={activeProfile}
-            currentRole={currentRole}
-            toasts={toasts}
-            isBypassMode={isBypassMode}
-            handleSignOut={handleSignOut}
-            handleToggleBypass={handleToggleBypass}
-            handleRoleChange={handleRoleChange}
-            removeToast={removeToast}
-          />
+            )}
+            <AppContent
+              session={session}
+              activeProfile={activeProfile}
+              currentRole={currentRole}
+              toasts={toasts}
+              isBypassMode={isBypassMode}
+              handleSignOut={handleSignOut}
+              handleToggleBypass={handleToggleBypass}
+              handleRoleChange={handleRoleChange}
+              removeToast={removeToast}
+            />
+            </EphemeralVaultProvider>
+          </CircuitBreakerProvider>
         </SpecializationProvider>
       </ClinicProvider>
     </ToastProvider>

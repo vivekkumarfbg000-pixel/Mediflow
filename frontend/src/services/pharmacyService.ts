@@ -410,7 +410,7 @@ export class PharmacyService {
     return [];
   }
 
-  static savePharmacyInventory(items: PharmacyInventoryItem[]) {
+  static savePharmacyInventory(items: PharmacyInventoryItem[], skipRemoteSync: boolean = false) {
     items.forEach(i => cloudStore.applyLocalDiff('pharmacy_inventory', i));
     save('pharmacy_inventory', items);
     notify();
@@ -418,6 +418,8 @@ export class PharmacyService {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'pharmacy_inventory' } }));
     }
+
+    if (skipRemoteSync) return;
 
     // Asynchronously upsert modified inventory items to Supabase
     (async () => {
@@ -939,7 +941,9 @@ export class PharmacyService {
         payment_mode: (bill.paymentMode as string) || 'cash',
         status: bill.status || 'draft',
         source: bill.source || 'counter',
-        pod_id: getPodContext().podId
+        pod_id: getPodContext().podId,
+        hash_signature: bill.hash_signature || null,
+        hash_timestamp: bill.hash_timestamp || null
       });
       if (error) {
         console.error('Error saving bill in Supabase:', error);
@@ -991,11 +995,12 @@ export class PharmacyService {
     }
   }
 
-  static dispenseMedicineBill(id: string): void {
+  static async dispenseMedicineBillAsync(id: string): Promise<void> {
     const bills = this.getMedicineBills();
     const billIndex = bills.findIndex(b => b.id === id);
     if (billIndex >= 0) {
       const bill = bills[billIndex];
+      const oldStatus = bill.status;
       bill.status = 'paid';
       
       // Clear matching inventory holds for the patient
@@ -1019,13 +1024,24 @@ export class PharmacyService {
       }
       
       const inventory = this.getPharmacyInventory();
-      bill.items.forEach(item => {
+      for (const item of bill.items) {
         if (item.isStockDeducted) {
-          return; // Skip stock deduction since it was already deducted when hold was created
+          continue; // Skip stock deduction since it was already deducted when hold was created
         }
         const invItem = inventory.find(inv => inv.id === item.inventoryItemId);
         if (invItem) {
           const oldStock = invItem.stock;
+          
+          // Phase 13: True Atomic OCC Decrement
+          const { data, error } = await supabase.rpc('atomic_decrement_inventory', { p_item_id: invItem.id, p_quantity: item.quantity });
+          
+          if (error || data === false) {
+             console.error('[PharmacyService] Atomic inventory decrement failed due to OCC constraint:', error || 'INSUFFICIENT_STOCK');
+             // Revert local changes and abort
+             bill.status = oldStatus;
+             throw new Error('INSUFFICIENT_STOCK');
+          }
+
           invItem.stock = Math.max(0, invItem.stock - item.quantity);
           
           if (invItem.stock <= invItem.threshold && oldStock > invItem.threshold) {
@@ -1051,7 +1067,7 @@ export class PharmacyService {
         }
       });
       
-      this.savePharmacyInventory(inventory);
+      this.savePharmacyInventory(inventory, true);
       bills[billIndex] = bill;
       save('medicine_bills', bills);
 

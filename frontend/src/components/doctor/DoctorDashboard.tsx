@@ -9,6 +9,7 @@ import { RealtimeSyncService } from '../../services/realtimeSyncService';
 import { ClinicalSafetySentry } from '../../services/clinicalSafetySentry';
 import { safeGetStorageJSON } from '../../utils/storage';
 import { cloudStore } from '../../services/cloudStore';
+import { CryptoAuditService } from '../../services/cryptoAuditService';
 import type { Patient, Appointment, DiagnosticTest, MedicationRequest, PharmacyInventoryItem, WhatsAppDrugOrder, PathologyReport, FinancialLedgerEntry, ClinicSop, UnifiedInvoice, Invoice } from '../../types';
 import { 
   Trash2, 
@@ -41,6 +42,7 @@ import {
   Stethoscope,
   Loader2
 } from 'lucide-react';
+import { useEphemeralVault } from '../../context/EphemeralVaultProvider';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
 import { useSpecialization } from '../../context/SpecializationContext';
@@ -69,6 +71,7 @@ const ChronicCareTab = lazy(() => import('./tabs/ChronicCareTab').then(m => ({ d
 
 export const DoctorDashboard: React.FC = () => {
   const { activePod, activeEntity, activeProfile } = useClinic();
+  const { isLocked } = useEphemeralVault();
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'>('pod_view');
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['pod_view', 'chronic']));
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -383,6 +386,21 @@ export const DoctorDashboard: React.FC = () => {
   const [chatSearch, setChatSearch] = useState('');
   const [selectedChatSession, setSelectedChatSession] = useState<any | null>(null);
   const [manualChatMsg, setManualChatMsg] = useState('');
+
+  // Memory Scrubbing Hook
+  useEffect(() => {
+    if (isLocked) {
+      setSelectedPatient(null);
+      setSelectedDirectoryPatient(null);
+      setWhatsAppSessions([]);
+      setAnalyzingReport(null);
+      setSelectedApprovedReport(null);
+      setSelectedPathologyReportForTest(null);
+    } else {
+      // Rehydrate local cached states (or let the polling/child components refresh naturally)
+      // They are normally populated on user action.
+    }
+  }, [isLocked]);
 
   // Cashfree Dynamic Splits & Bank Onboarding States
   const [activeVendor, setActiveVendor] = useState<any | null>(null);
@@ -1491,7 +1509,7 @@ Keep the tone professional, clinical, objective, and precise.`;
       finalNotes += serializeBiometry(biometryRx);
     }
 
-    api.createEncounter({
+    const baseEncounterPayload = {
       patientId: selectedPatient.id,
       patientName: selectedPatient.name,
       patientPhone: selectedPatient.phone,
@@ -1499,6 +1517,18 @@ Keep the tone professional, clinical, objective, and precise.`;
       clinicalNotes: finalNotes,
       medications: finalMedications,
       diagnosticTests: sourceTests
+    };
+
+    // Phase 17: Cryptographic PHI Tamper-Evident Ledger Signature
+    const auditHash = await CryptoAuditService.generatePHISignature(
+      baseEncounterPayload,
+      activeDoctorProfile?.id || getPodContext().doctorId || FALLBACK_DOCTOR_ID
+    );
+
+    api.createEncounter({
+      ...baseEncounterPayload,
+      hash_signature: auditHash.signature,
+      hash_timestamp: auditHash.timestamp
     });
 
     // Mark completed patient status in patient registry & queue
@@ -2088,31 +2118,35 @@ Keep the tone professional, clinical, objective, and precise.`;
                                   </p>
                                 </div>
 
-                                {/* Copy Jitsi Link */}
+                                {/* Copy Secure Link */}
                                 <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/60 rounded-xl text-xs font-mono text-slate-600 dark:text-slate-400">
-                                  <span className="truncate flex-1">{meetUrl}</span>
+                                  <span className="truncate flex-1">E2EE Telehealth Link Encrypted</span>
                                   <button
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(meetUrl);
-                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { title: 'Link Copied! 📋', message: 'Jitsi meeting link copied to clipboard.', type: 'success' } }));
+                                    onClick={async () => {
+                                      const { TelehealthService } = await import('../../../services/telehealthService');
+                                      const e2eeUrl = TelehealthService.generateSecureRoomUrl(appt.id);
+                                      navigator.clipboard.writeText(e2eeUrl);
+                                      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { title: 'Link Copied! 📋', message: 'E2EE Secure Room link copied to clipboard.', type: 'success' } }));
                                     }}
                                     className="text-cyan-600 hover:text-cyan-800 dark:text-cyan-400 dark:hover:text-cyan-200 cursor-pointer shrink-0"
-                                    title="Copy Jitsi Link"
+                                    title="Copy Secure Link"
                                   >
                                     <Copy className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
 
                                 <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
-                                  <a
-                                    href={meetUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-700 rounded-xl transition-all shadow-md shadow-cyan-500/20 cursor-pointer"
+                                  <button
+                                    onClick={async () => {
+                                      const { TelehealthService } = await import('../../../services/telehealthService');
+                                      const e2eeUrl = await TelehealthService.initiateCall(appt.id);
+                                      window.open(e2eeUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
                                   >
-                                    <Video className="w-4 h-4" />
-                                    Join Video Call 💻
-                                  </a>
+                                    <ShieldCheck className="w-4 h-4" />
+                                    Join Secure Call (E2EE)
+                                  </button>
                                   <button
                                     onClick={() => {
                                       setNotes('');

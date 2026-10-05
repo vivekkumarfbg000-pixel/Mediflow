@@ -326,7 +326,7 @@ export class LabService {
             test_name: r.testName,
             barcode: r.barcode || `BAR-${r.id.slice(0, 8)}`,
             status: r.status || 'pending',
-            pod_id: (r as any).podId || (r as any).pod_id || currentPodId || null,
+            pod_id: (r as any).podId || (r as any).pod_id || currentPodId || FALLBACK_POD_ID,
             created_at: (r as any).createdAt || (r as any).created_at || nowISO
           });
         }
@@ -625,7 +625,7 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
-      pod_id: getPodContext().podId,
+      pod_id: getPodContext().podId || FALLBACK_POD_ID,
       lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== FALLBACK_LAB_ENTITY) ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
@@ -847,7 +847,7 @@ export class LabService {
       id: newReq.id,
       encounter_id: null,
       patient_id: patientId,
-      pod_id: getPodContext().podId,
+      pod_id: getPodContext().podId || FALLBACK_POD_ID,
       lab_entity_id: (getPodContext().labEntityId && getPodContext().labEntityId !== FALLBACK_LAB_ENTITY) ? getPodContext().labEntityId : null,
       loinc_code: testCode,
       test_name: testName,
@@ -905,7 +905,7 @@ export class LabService {
       id: report.id,
       requisition_id: report.requisitionId,
       patient_id: report.patientId,
-      pod_id: getPodContext().podId,
+      pod_id: getPodContext().podId || FALLBACK_POD_ID,
       patient_name: report.patientName,
       report_file_url: report.reportFileUrl || null,
       biomarker_json: report.biomarkerJson || null,

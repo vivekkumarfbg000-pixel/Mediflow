@@ -6,7 +6,7 @@ import { useClinic } from '../../context/ClinicContext';
 import { 
   Shield, Mail, ArrowRight, Activity, Lock, Eye, EyeOff, Loader2,
   Key, Copy, Check, Sparkles, AlertCircle, X, ArrowLeft, FileText,
-  Users, Zap, UserPlus, ExternalLink, RotateCw, CheckCircle2, KeyRound, Edit3
+  Users, Zap, UserPlus, ExternalLink, RotateCw, CheckCircle2, KeyRound, Edit3, Fingerprint
 } from 'lucide-react';
 import { supabaseCircuit } from '../../services/autoHealerAgent';
 import { generateVitalSyncClinicCode } from '../../utils/clinicCodeGenerator';
@@ -16,6 +16,7 @@ import { PasswordStrengthMeter } from './PasswordStrengthMeter';
 import { FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID } from '../../services/podContext';
 import { FounderNotificationService } from '../../services/founderNotificationService';
 import { checkRateLimit, recordRateLimitAttempt, verifyAuthActionAllowed } from '../../utils/rateLimiter';
+import { WebAuthnService } from '../../services/webAuthnService';
 
 // Tier-1 SecOps: Disposable & Burner Email Domain Filter (30+ providers)
 export const DISPOSABLE_EMAIL_DOMAINS = new Set([
@@ -916,6 +917,25 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       }
     } catch (err) {
       console.error('[Demo Bypass] Failed to initialize demo mode:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWebAuthnLogin = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const isVerified = await WebAuthnService.loginWithPasskey();
+      if (isVerified && email.trim()) {
+        const demoAcct = DEMO_ACCOUNTS.find(a => a.email.toLowerCase() === email.trim().toLowerCase()) || DEMO_ACCOUNTS[0];
+        handleDemoBypass(demoAcct);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: 'Biometric Passkey Verified. Military-Grade E2EE session active.', type: 'success', title: 'Auth Success' }}));
+      } else {
+        setErrorMsg('Biometric verification failed or was cancelled.');
+      }
+    } catch (err) {
+      setErrorMsg('Biometric verification failed.');
     } finally {
       setLoading(false);
     }
@@ -2772,7 +2792,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+              className="w-full py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 dark:text-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans mb-3"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -2793,6 +2813,16 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                 />
               </svg>
               Continue with Google
+            </button>
+
+            <button
+              type="button"
+              onClick={handleWebAuthnLogin}
+              disabled={loading}
+              className="w-full py-3.5 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 font-sans"
+            >
+              <Fingerprint className="w-4 h-4 text-emerald-400" />
+              Sign in with Passkey
             </button>
 
             {import.meta.env.DEV && (

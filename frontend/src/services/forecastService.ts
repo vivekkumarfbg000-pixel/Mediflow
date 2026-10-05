@@ -10,6 +10,7 @@ import type { SeasonalForecast, DiagnosticTest } from '../types';
 import { buildRegionalContextInjection } from '../data/indianMedicalContext';
 // 🦅 EAGLE-EYE OCR: Stage 3 — Post-Extraction Fuzzy Corrector
 import { applyOcrFuzzyCorrections } from '../utils/ocrFuzzyCorrector';
+import { NetworkSentinel } from './networkSentinel';
 
 export class ForecastService {
   // Toggle this flag to true during development to return simulated mock data immediately
@@ -1007,7 +1008,7 @@ Dhyan rakhein aur jaldi theek hon!`;
                   // Fallback for browsers with restricted canvas filter API
                 }
                 ctx.drawImage(img, 0, 0, width, height);
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', NetworkSentinel.getRecommendedImageQuality());
                 const base64Clean = compressedDataUrl.replace(/^data:image\/jpeg;base64,/, '');
                 safeResolve({ base64Data: base64Clean, mimeType: 'image/jpeg' });
                 return;

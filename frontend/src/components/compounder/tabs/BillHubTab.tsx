@@ -27,6 +27,8 @@ import { PaperModeService } from '../../../services/paperModeService';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../../utils/dateUtils';
 import { safeGetStorageJSON } from '../../../utils/storage';
 import { save } from '../../../services/apiHelper';
+import { useCircuitBreaker } from '../../../context/CircuitBreakerContext';
+import { CryptoAuditService } from '../../../services/cryptoAuditService';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 
@@ -38,6 +40,8 @@ export interface BillHubTabProps {
 export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan', initialPatientId = null }) => {
   const { isOphthalmology } = useSpecialization();
   const { activePod, activeProfile } = useClinic();
+  const { status: circuitStatus } = useCircuitBreaker();
+  const isWhatsAppOffline = circuitStatus.whatsapp === 'OPEN';
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // App States — MUST be declared before any useEffect that references these setters
@@ -919,9 +923,36 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, selectedMedicines, selectedTests, discountInput, referralCode, inventory, isOphthalmology, refreshKey]);
   const handleClearBill = async () => {
     if (!selectedPatient || !billingLedger) return;
+    if (isClearing) return; // Phase 8 POS Double-Tap Guard
     setIsClearing(true);
 
     try {
+      // PHASE 19: Offline Vault POS Support
+      if (!navigator.onLine) {
+        const unifiedInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
+        const payload = {
+          patientId: selectedPatient.id,
+          billingLedger,
+          paymentMethod,
+          unifiedInvoiceId,
+          timestamp: new Date().toISOString()
+        };
+        const walDB = await import('../../../services/api').then(m => m.walDB);
+        if (walDB && walDB.addEntry) {
+          await walDB.addEntry('offline_pos_checkout', payload);
+        }
+        window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: `Offline Mode Active. Bill secured in Local Vault POS and will sync automatically.`, type: 'info', title: 'Offline Checkout' }}));
+        
+        setSelectedPatient(null);
+        setSelectedMedicines({});
+        setSelectedTests({});
+        if (activeMode === 'daycare_discharge') {
+           setActiveMode('manual_billing');
+        }
+        setIsClearing(false);
+        return;
+      }
+
       // 1. Always create & save a UnifiedInvoice for the full consolidated bill (Consult + Pharmacy + Lab + OT)
       const unifiedInvoiceId = `inv-${crypto.randomUUID().substring(0, 8)}`;
       const isPureCounterConsult = billingLedger.pharmacySub === 0 && billingLedger.labSub === 0 && billingLedger.otTotal === 0;
@@ -956,6 +987,12 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       if (linkedApptId !== 'counter-checkout') {
         (newUnifiedInvoice as any).appointmentId = linkedApptId;
       }
+
+      // Generate Cryptographic PHI Tamper-Evident Hash
+      const auditHash = await CryptoAuditService.generatePHISignature(newUnifiedInvoice, activeProfile?.id || 'compounder');
+      (newUnifiedInvoice as any).hash_signature = auditHash.signature;
+      (newUnifiedInvoice as any).hash_timestamp = auditHash.timestamp;
+
       BillingService.saveUnifiedInvoice(newUnifiedInvoice);
 
       // 2. Clear existing consultation invoice if any
@@ -1025,6 +1062,11 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             source: 'counter',
             createdAt: new Date().toISOString()
           };
+          
+          const medBillHash = await CryptoAuditService.generatePHISignature(newMedicineBill, activeProfile?.id || 'compounder');
+          (newMedicineBill as any).hash_signature = medBillHash.signature;
+          (newMedicineBill as any).hash_timestamp = medBillHash.timestamp;
+
           PharmacyService.saveMedicineBill(newMedicineBill as any).catch(err => console.warn('[BillHubTab] Pharmacy dispatch failed', err));
         }
       }
@@ -1161,9 +1203,16 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
       setRefreshKey(prev => prev + 1);
 
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: { title: 'Bill Settled & WhatsApp Sent! 🧾📱', message: `Invoice amount of ₹${billingLedger.finalTotal.toFixed(2)} received via ${paymentMethod.toUpperCase()}. Digital bill sent to patient WhatsApp!`, type: 'success' }
-      }));
+      if (isWhatsAppOffline) {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: { title: 'Bill Settled! 🧾', message: `Invoice amount of ₹${billingLedger.finalTotal.toFixed(2)} received via ${paymentMethod.toUpperCase()}. WhatsApp offline, printing physical copy!`, type: 'info' }
+        }));
+        setTimeout(() => window.print(), 500);
+      } else {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: { title: 'Bill Settled & WhatsApp Sent! 🧾📱', message: `Invoice amount of ₹${billingLedger.finalTotal.toFixed(2)} received via ${paymentMethod.toUpperCase()}. Digital bill sent to patient WhatsApp!`, type: 'success' }
+        }));
+      }
 
       setSelectedPatient(null);
     } catch (err) {
@@ -1855,6 +1904,16 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 </span>
               </div>
 
+              {isWhatsAppOffline && (
+                <div className="mb-4 bg-rose-500/20 border border-rose-500/50 rounded-xl p-3 flex items-start gap-2 text-left">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-[10px] font-black text-rose-300 uppercase tracking-wider">Meta API Regional Outage</h4>
+                    <p className="text-[10px] text-rose-200/80 mt-0.5 leading-snug">WhatsApp dispatch is currently offline. Rerouting to Physical Print Protocols to prevent queue bottlenecks.</p>
+                  </div>
+                </div>
+              )}
+
               {!billingLedger ? (
                 <div className="flex-1 flex items-center justify-center text-white/40 text-xs text-center p-4">
                   Select a patient on the left to review ledger and complete payment.
@@ -1994,10 +2053,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                       type="button"
                       onClick={handleClearBill}
                       disabled={isClearing}
-                      className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black text-sm shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0"
+                      className={`w-full py-3 rounded-xl text-white font-black text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0 ${isWhatsAppOffline ? 'bg-gradient-to-r from-rose-500 to-orange-500 hover:shadow-rose-500/25' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-emerald-500/25'}`}
                     >
-                      {isClearing ? 'Settling & Clearing...' : `Clear & Dispatch Bill (${paymentMethod.toUpperCase()})`}
-                      {!isClearing && <Send className="w-4 h-4" />}
+                      {isClearing ? 'Settling & Clearing...' : (isWhatsAppOffline ? `Clear & Print Physical Bill (${paymentMethod.toUpperCase()})` : `Clear & Dispatch Bill (${paymentMethod.toUpperCase()})`)}
+                      {!isClearing && (isWhatsAppOffline ? <Printer className="w-4 h-4" /> : <Send className="w-4 h-4" />)}
                     </button>
                   </div>
                 </div>

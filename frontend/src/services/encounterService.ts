@@ -149,6 +149,8 @@ export class EncounterService {
       clinicalNotes: newEncounter.clinicalNotes,
       clinical_notes: newEncounter.clinicalNotes,
       status: 'active',
+      hash_signature: newEncounter.hash_signature || null,
+      hash_timestamp: newEncounter.hash_timestamp || null,
       podId: ctx.podId,
       pod_id: ctx.podId,
       createdAt: new Date().toISOString(),
@@ -380,6 +382,8 @@ export class EncounterService {
           medications: newEncounter.medications || [],
           diagnostic_tests: newEncounter.diagnosticTests || [],
           status: 'completed',
+          hash_signature: newEncounter.hash_signature || null,
+          hash_timestamp: newEncounter.hash_timestamp || null,
           pod_id: ctx.podId
         }, { onConflict: 'id' });
         if (encError) {
@@ -403,6 +407,8 @@ export class EncounterService {
             extracted_medicines: newEncounter.medications || [],
             extracted_tests: (newEncounter.diagnosticTests || []).map(t => t.loincCode || t.name),
             status: 'active',
+            hash_signature: newRxRecord.hash_signature || null,
+            hash_timestamp: newRxRecord.hash_timestamp || null,
             pod_id: ctx.podId
           }, { onConflict: 'id' });
         } catch (rxErr) {

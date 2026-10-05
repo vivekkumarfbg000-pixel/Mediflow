@@ -215,6 +215,8 @@ export interface Encounter {
   diagnosticTests: DiagnosticTest[];
   status: 'active' | 'completed';
   createdAt: string;
+  hash_signature?: string;
+  hash_timestamp?: string;
 }
 
 export interface ReagentDeduction {
@@ -285,6 +287,8 @@ export interface UnifiedInvoice {
   referralDiscount?: number;
   type?: string;
   createdAt: string;
+  hash_signature?: string;
+  hash_timestamp?: string;
 }
 
 export interface SeasonalForecast {
@@ -447,6 +451,8 @@ export interface MedicineBill {
   deliveryCharge?: number;
   shiprocketOrderId?: string;
   createdAt: string;
+  hash_signature?: string;
+  hash_timestamp?: string;
 }
 
 // ─── WHATSAPP DRUG ORDERS (existing) ────────────────────────────────────────
@@ -559,6 +565,8 @@ export interface Appointment {
   is_vip?: boolean;
   vitals?: PatientVitals;
   patient_vitals?: PatientVitals;
+  occVersion?: number;
+  occ_version?: number;
 }
 
 export interface EveningSlot {

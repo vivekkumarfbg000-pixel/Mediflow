@@ -16,6 +16,9 @@ import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
 import { getPodContext, resolvePodContext, resolveSovereignPodId, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
 import { cloudStore } from './cloudStore';
+import { requestDeduplicator } from '../utils/requestDeduplicator';
+import { NetworkSentinel } from './networkSentinel';
+
 
 import type { 
   Patient, 
@@ -359,9 +362,14 @@ class MediflowApiService {
           if (this.realtimeSyncTimer) clearTimeout(this.realtimeSyncTimer);
           this.realtimeSyncTimer = setTimeout(() => {
             this.realtimeSyncTimer = null;
+            if (NetworkSentinel.isSlowConnection()) {
+               console.log('[Mediflow Realtime] Slow connection detected. Skipping non-critical background sync.');
+               return;
+            }
             this.syncFromSupabase().catch(err => console.error('[Mediflow API] Realtime-triggered sync failed:', err));
           }, 250);
         }
+
       )
       .subscribe((status) => {
           console.log('[Mediflow Realtime] Channel status changed:', status);
@@ -438,6 +446,28 @@ class MediflowApiService {
 
   public async replayWALOutbox(): Promise<void> {
     if (this.isSyncing || this.isWALReplaying) return;
+    
+    // Phase 10: Distributed Locking (Leader Election) to prevent Thundering Herd
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      try {
+        await navigator.locks.request('vitalsync_wal_sync_lock', { ifAvailable: true }, async (lock) => {
+          if (!lock) {
+            console.log('[Mediflow WAL] Another tab is currently replaying the WAL Outbox. Yielding leader election.');
+            return;
+          }
+          await this._executeWALReplay();
+        });
+      } catch (e) {
+        console.warn('[Mediflow WAL] Lock API failed, falling back to unsafe execution', e);
+        await this._executeWALReplay();
+      }
+    } else {
+      await this._executeWALReplay();
+    }
+  }
+
+  private async _executeWALReplay(): Promise<void> {
+    if (this.isSyncing || this.isWALReplaying) return;
     this.isWALReplaying = true;
     let entries;
     try {
@@ -471,7 +501,7 @@ class MediflowApiService {
                 entity_id: ctx.entityId || FALLBACK_ENTITY_ID,
                 clinical_notes: payload.clinicalNotes,
                 status: 'active',
-                pod_id: ctx.podId
+                pod_id: ctx.podId || FALLBACK_POD_ID
               }, { onConflict: 'id' });
             if (encError) throw encError;
 
@@ -533,7 +563,7 @@ class MediflowApiService {
               patient_code: payload.patientCode || null,
               vitals: payload.vitals || null,
               queue_status: payload.queueStatus || 'registered',
-              pod_id: (payload as any).podId || (payload as any).pod_id || null
+              pod_id: (payload as any).podId || (payload as any).pod_id || FALLBACK_POD_ID
             };
             const { error } = await supabase.from('patient_registry').upsert(dbPatient, { onConflict: 'id' });
             if (error) throw error;
@@ -551,7 +581,7 @@ class MediflowApiService {
               patient_phone: payload.patientPhone || (payload as any).patient_phone || null,
               is_virtual: Boolean(payload.isVirtual || (payload as any).is_virtual),
               source: (payload as any).source || ((payload as any).isVirtual ? 'whatsapp' : 'counter'),
-              pod_id: (payload as any).podId || (payload as any).pod_id || null,
+              pod_id: (payload as any).podId || (payload as any).pod_id || FALLBACK_POD_ID,
               payment_status: (payload as any).paymentStatus || (payload as any).payment_status || 'cleared'
             };
             const { error } = await supabase.from('appointments').upsert(dbAppt, { onConflict: 'id' });
@@ -590,7 +620,7 @@ class MediflowApiService {
               abha_id: payload.abhaId,
               token_number: payload.tokenNumber,
               registered_at_entity: ctx.entityId && ctx.entityId !== FALLBACK_ENTITY_ID ? ctx.entityId : null,
-              pod_id: ctx.podId
+              pod_id: ctx.podId || FALLBACK_POD_ID
             }, { onConflict: 'id' });
             if (error) throw error;
             break;
@@ -609,7 +639,7 @@ class MediflowApiService {
               status: 'pending',
               assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== FALLBACK_LAB_ENTITY ? ctx.labEntityId : null,
               created_at: entry.timestamp,
-              pod_id: ctx.podId
+              pod_id: ctx.podId || FALLBACK_POD_ID
             }, { onConflict: 'id' });
             if (error) throw error;
             break;
@@ -628,7 +658,7 @@ class MediflowApiService {
               prescription_file_url: payload.prescriptionFileUrl,
               assigned_technician_id: ctx.labEntityId && ctx.labEntityId !== FALLBACK_LAB_ENTITY ? ctx.labEntityId : null,
               created_at: entry.timestamp,
-              pod_id: ctx.podId
+              pod_id: ctx.podId || FALLBACK_POD_ID
             }, { onConflict: 'id' });
             if (error) throw error;
             break;
@@ -676,6 +706,12 @@ class MediflowApiService {
   }
 
   public async syncFromSupabase(): Promise<void> {
+    return requestDeduplicator.dedupe('syncFromSupabase', async () => {
+      await this._syncFromSupabase();
+    });
+  }
+
+  private async _syncFromSupabase(): Promise<void> {
     if (this.isSyncing || this.isWALReplaying) return; // ← concurrency guard: skip if a sync or WAL replay is already in flight
 
     // In enterprise offline-first mode, allow anonymous public clinic cloud sync when online
@@ -1735,8 +1771,8 @@ class MediflowApiService {
     this.notify();
   }
 
-  dispenseMedicineBill(id: string): void {
-    PharmacyService.dispenseMedicineBill(id);
+  async dispenseMedicineBillAsync(id: string): Promise<void> {
+    await PharmacyService.dispenseMedicineBillAsync(id);
     this.notify();
   }
 

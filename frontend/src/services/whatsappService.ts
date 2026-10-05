@@ -132,6 +132,23 @@ export class WhatsAppService {
     return this.getActiveDoctorName();
   }
 
+  // ── Phase 16: API Circuit Breaker State ──────────────────────────────
+  static circuitState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+
+  static initCircuitBreakerListener() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('circuit-breaker-tripped', (e: any) => {
+        if (e.detail?.service === 'whatsapp') this.circuitState = 'OPEN';
+      });
+      window.addEventListener('circuit-breaker-half-open', (e: any) => {
+        if (e.detail?.service === 'whatsapp') this.circuitState = 'HALF_OPEN';
+      });
+      window.addEventListener('circuit-breaker-closed', (e: any) => {
+        if (e.detail?.service === 'whatsapp') this.circuitState = 'CLOSED';
+      });
+    }
+  }
+
   // ── Phase 4: Leaky-Bucket Rate-Limited Dispatch Queue (Max 15 msgs/sec) ────
   private static dispatchQueue: Array<() => Promise<any>> = [];
   private static isProcessingQueue = false;
@@ -155,11 +172,74 @@ export class WhatsAppService {
     this.isProcessingQueue = false;
   }
 
+  // ── Phase 9: Webhook Resilience & Dead-Letter Queue (DLQ) ─────────────────
+  private static pushToDLQ(phone: string, templateName: string, variables: Record<string, any>) {
+    const dlq = load<any[]>('vitalsync_whatsapp_dlq', []);
+    dlq.push({
+      phone,
+      templateName,
+      variables,
+      failedAt: new Date().toISOString(),
+      retryCount: 0
+    });
+    save('vitalsync_whatsapp_dlq', dlq);
+  }
+
+  static retryDLQ = () => {
+    // Phase 10: Distributed Locking for DLQ to prevent double-dispatch Thundering Herd
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      navigator.locks.request('vitalsync_whatsapp_dlq_lock', { ifAvailable: true }, async (lock) => {
+        if (!lock) {
+          console.log('[VitalSync DLQ] Another tab is currently retrying DLQ. Yielding.');
+          return;
+        }
+        this._executeDLQRetry();
+      }).catch(err => {
+        console.warn('[VitalSync DLQ] Lock API failed, falling back to unsafe execution', err);
+        this._executeDLQRetry();
+      });
+    } else {
+      this._executeDLQRetry();
+    }
+  }
+
+  private static _executeDLQRetry = () => {
+    const dlq = load<any[]>('vitalsync_whatsapp_dlq', []);
+    if (dlq.length === 0) return;
+    
+    console.log(`[VitalSync DLQ] Retrying ${dlq.length} failed webhooks...`);
+    // Clear local DLQ. Any that fail again will naturally re-append via pushToDLQ
+    save('vitalsync_whatsapp_dlq', []);
+    
+    dlq.forEach(item => {
+      this.sendWhatsAppMessagePayload(item.phone, item.templateName, item.variables);
+    });
+  }
+
+  static initDLQEngine() {
+    if (typeof window !== 'undefined') {
+      this.initCircuitBreakerListener();
+      window.addEventListener('online', this.retryDLQ);
+      setInterval(this.retryDLQ, 60000); // 1-minute autonomous poll
+      setTimeout(this.retryDLQ, 5000); // Initial boot check
+    }
+  }
+
   static async sendWhatsAppMessagePayload(
     phone: string,
     templateName: string,
     variables: Record<string, any>
   ): Promise<boolean> {
+    if (this.circuitState === 'OPEN') {
+      console.warn('[CircuitBreaker] WhatsApp circuit is OPEN. Fast-failing dispatch.');
+      return false;
+    }
+
+    // If HALF_OPEN, we allow the request to proceed as a probe, but we don't queue multiple.
+    if (this.circuitState === 'HALF_OPEN') {
+      this.circuitState = 'OPEN'; // Temporarily flip to OPEN to prevent concurrent probes
+    }
+
     return new Promise((resolve) => {
       this.dispatchQueue.push(async () => {
         try {
@@ -239,9 +319,20 @@ export class WhatsAppService {
               }
             });
             console.log("DIAGNOSTIC: Edge function invocation result:", invokeRes);
+            if (invokeRes.error) throw invokeRes.error;
+            
+            // Dispatch telemetry success
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('report-service-success', { detail: { service: 'whatsapp' } }));
+            }
             dispatchSuccess = true;
           } catch (_wabaErr) {
-            console.warn('[VitalSync Outgoing Dispatch] Edge function dispatch fallback:', _wabaErr);
+            console.warn('[VitalSync Outgoing Dispatch] Edge function dispatch fallback, appending to DLQ:', _wabaErr);
+            // Dispatch telemetry failure
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('report-service-failure', { detail: { service: 'whatsapp' } }));
+            }
+            this.pushToDLQ(phone, templateName, variables);
           }
 
           // NOW update local session history for instant patient/doctor sync (after Meta dispatch)

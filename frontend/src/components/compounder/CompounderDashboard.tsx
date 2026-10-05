@@ -19,6 +19,7 @@ import { cloudStore } from '../../services/cloudStore';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { DashboardSkeleton } from '../shared/LoadingSkeleton';
+import { useEphemeralVault } from '../../context/EphemeralVaultProvider';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
 import { categorizeAppointments, isVipBooking, compareAppointmentsForQueue } from '../../services/appointmentPipeline';
 import type {
@@ -161,12 +162,25 @@ export const CompounderDashboard: React.FC = () => {
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
 
   // Core Registry & Live Sync States
+  const { isLocked } = useEphemeralVault();
   const [patients, setPatients] = useState<Patient[]>(() => api.getPatients());
   const [sessions, setSessions] = useState<WhatsAppSession[]>(() => api.getWhatsAppSessions());
   const [appointments, setAppointments] = useState<Appointment[]>(() => api.getAppointments());
   const [dataRevision, setDataRevision] = useState(0);
   const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
   const [heightVal, setHeightVal] = useState('170');
+
+  useEffect(() => {
+    if (isLocked) {
+      setPatients([]);
+      setAppointments([]);
+      setSessions([]);
+    } else {
+      setPatients(api.getPatients());
+      setAppointments(api.getAppointments());
+      setSessions(api.getWhatsAppSessions());
+    }
+  }, [isLocked]);
 
   // Modern Mobile Native Sheets & Modals
   const [showInstantAppointmentModal, setShowInstantAppointmentModal] = useState(false);
@@ -3035,15 +3049,24 @@ export const CompounderDashboard: React.FC = () => {
     api.saveMedicineBill(bill);
 
     if (mode === 'cash') {
-      api.dispenseMedicineBill(billId);
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          message: `Direct cash transaction settled at counter! Stock deducted. Invoice printed.`,
-          type: 'success',
-          title: 'POS Settle Complete'
-        }
-      }));
-      setBillingItems([]);
+      api.dispenseMedicineBillAsync(billId).then(() => {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            message: `Direct cash transaction settled at counter! Stock deducted. Invoice printed.`,
+            type: 'success',
+            title: 'POS Settle Complete'
+          }
+        }));
+        setBillingItems([]);
+      }).catch(() => {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            message: 'Transaction Halted: Another staff member just dispensed this item, resulting in insufficient stock.',
+            type: 'error',
+            title: 'Dispensation Failed 🚨'
+          }
+        }));
+      });
     } else {
       // WhatsApp dispatch
       // Find session or initiate

@@ -262,7 +262,33 @@ async function getCanonicalTemplate(templateKey: string): Promise<{ name: string
   };
 }
 
+// PHASE 20: Edge-Level DDoS Webhook Shield (In-Memory Token Bucket)
+const RATE_LIMIT_MAP = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT_WINDOW_MS = 1000;
+const RATE_LIMIT_MAX_REQS = 50;
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = RATE_LIMIT_MAP.get(ip);
+  if (!record || (now - record.windowStart > RATE_LIMIT_WINDOW_MS)) {
+    RATE_LIMIT_MAP.set(ip, { count: 1, windowStart: now });
+    return true;
+  }
+  if (record.count >= RATE_LIMIT_MAX_REQS) {
+    return false;
+  }
+  record.count++;
+  return true;
+}
+
 serve(async (req) => {
+  // Extract IP from Cloudflare or native Deno headers
+  const clientIp = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "unknown";
+  if (!checkRateLimit(clientIp)) {
+    console.warn(`[Meta Webhook] DDoS Shield Active: Rate limit exceeded for IP ${clientIp}`);
+    return new Response("Too Many Requests", { status: 429 });
+  }
+
   const corsHeaders = getCorsHeaders(req);
   const url = new URL(req.url);
 

@@ -426,9 +426,15 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       patientData.source = 'paper_scan';
 
       // Ensure chronic flags are set before dual-write to avoid race condition overriding to false
-      if (activeBadges && activeBadges.length > 0) {
+      const mergedBadges = Array.from(new Set([
+        ...(canonicalPat.chronicConditions || []), 
+        ...(canonicalPat.chronic_conditions || []), 
+        ...(activeBadges || [])
+      ]));
+      if (mergedBadges.length > 0) {
         patientData.isChronic = true;
-        patientData.chronicConditions = activeBadges;
+        patientData.chronicConditions = mergedBadges;
+        patientData.chronic_conditions = mergedBadges;
       }
 
       // 1. 🌟 ATOMIC SYNCHRONOUS PERSISTENCE: Strict await with timeout on Supabase DB write
