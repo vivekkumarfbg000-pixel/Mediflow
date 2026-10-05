@@ -1132,7 +1132,10 @@ export const CompounderDashboard: React.FC = () => {
   }, [appointments, dataRevision]);
 
   const activeOpdAppointments = useMemo(() => {
-    const rawList = categorizedAppts.todayOpdQueue;
+    const rawList = [
+      ...(categorizedAppts.todayOpdQueue || []),
+      ...(categorizedAppts.completedToday || [])
+    ];
 
     // Map each appointment to an actionable queue card (preserve all appointments by appt.id)
     const seenApptIds = new Set<string>();
@@ -1149,8 +1152,8 @@ export const CompounderDashboard: React.FC = () => {
     const todayStr = getIstDateString();
     patients.forEach(p => {
       const pRegDate = getIstDateString(p.registeredAt || (p as any).createdAt || (p as any).created_at);
-      const isToday = pRegDate === todayStr || (!pRegDate && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation'));
-      const isPendingQueue = p.queueStatus !== 'completed' && (p.queueStatus as string) !== 'cancelled';
+      const isToday = pRegDate === todayStr || (!pRegDate && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation' || p.queueStatus === 'completed'));
+      const isPendingQueue = (p.queueStatus as string) !== 'cancelled';
       const hasAppt = uniqueAppts.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
       if (isToday && isPendingQueue && !hasAppt) {
         seenApptIds.add(`appt-synced-${p.id}`);
@@ -1160,7 +1163,7 @@ export const CompounderDashboard: React.FC = () => {
           patient_id: p.id,
           doctorId: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
           doctor_id: (activePod as any)?.doctor_id || (activePod as any)?.doctorId || FALLBACK_DOCTOR_ID,
-          status: (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation') ? 'ready_for_consult' : 'scheduled',
+          status: (p.queueStatus === 'completed') ? 'completed' : ((p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation') ? 'ready_for_consult' : 'scheduled'),
           date: todayStr,
           appointmentDate: todayStr,
           tokenNumber: p.tokenNumber || (p as any).token_number || 'T-01',
@@ -1203,7 +1206,7 @@ export const CompounderDashboard: React.FC = () => {
 
     resolvedList.sort(compareAppointmentsForQueue);
     return resolvedList;
-  }, [categorizedAppts.todayOpdQueue, patients, dataRevision]);
+  }, [categorizedAppts.todayOpdQueue, categorizedAppts.completedToday, patients, dataRevision]);
 
   const upcomingAdvanceBookings = useMemo(() => {
     return categorizedAppts.upcomingAdvanceBookings.map((appt, idx) => {
@@ -3425,6 +3428,8 @@ export const CompounderDashboard: React.FC = () => {
                             ? 'border-rose-300 dark:border-rose-800 bg-rose-50/80 dark:bg-rose-950/30'
                             : isInConsult
                             ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 ring-1 ring-emerald-500/20'
+                            : (a.status === 'completed' || p?.queueStatus === 'completed')
+                            ? 'border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 hover:border-teal-400'
                             : 'border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800/90 hover:border-indigo-300 dark:hover:border-indigo-700'
                         }`}
                       >
@@ -3444,6 +3449,8 @@ export const CompounderDashboard: React.FC = () => {
                               ? 'bg-rose-600 animate-pulse'
                               : isInConsult
                               ? 'bg-emerald-600'
+                              : (a.status === 'completed' || p?.queueStatus === 'completed')
+                              ? 'bg-teal-600'
                               : hasVitals
                               ? 'bg-indigo-600'
                               : 'bg-amber-500'
@@ -3476,7 +3483,30 @@ export const CompounderDashboard: React.FC = () => {
 
                         {/* Action Status Button */}
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {!hasVitals ? (
+                          {(a.status === 'completed' || p?.queueStatus === 'completed') ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetPat = p || {
+                                  id: a.patientId || (a as any).patient_id,
+                                  name: a.patientName || (a as any).patient_name || 'Patient',
+                                  phone: a.patientPhone || (a as any).patient_phone || '',
+                                  patientCode: pid
+                                };
+                                setBillingPatient(targetPat as any);
+                                setSelectedPatientForBillHub(a.patientId || (a as any).patient_id);
+                                startTransition(() => {
+                                  setActiveTab('billing_daycare');
+                                  setBillingSubTab('billing');
+                                  setBillHubInitialMode('manual_billing');
+                                });
+                              }}
+                              className="py-1.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
+                              title="Open BillHub POS to bill prescribed medicines & lab tests"
+                            >
+                              <span>Done ✅ Bill 💳</span>
+                            </button>
+                          ) : !hasVitals ? (
                             <button
                               type="button"
                               onClick={() => {
@@ -3970,13 +4000,13 @@ export const CompounderDashboard: React.FC = () => {
                 <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
                   opdSubTab === 'today_queue' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
                 }`}>
-                  {(() => {
-                    const todayStr = getIstDateString();
+                  {activeOpdAppointments.length}
+                  {/*
                     return appointments.filter(a => {
                       if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
                       return getEffectiveAppointmentDate(a) === todayStr;
                     }).length;
-                  })()}
+                  */}
                 </span>
               </button>
 
@@ -4819,8 +4849,9 @@ export const CompounderDashboard: React.FC = () => {
                         appt.status === 'in_consult' ||
                         appt.status === 'completed'
                       );
-                      const isAwaitingVitals = !hasVitalsRecorded && (patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus);
-                      const isAwaitingConsult = hasVitalsRecorded || patient.queueStatus === 'awaiting_consultation';
+                      const isCompletedVisit = appt.status === 'completed' || patient.queueStatus === 'completed';
+                      const isAwaitingVitals = !isCompletedVisit && !hasVitalsRecorded && (patient.queueStatus === 'awaiting_vitals' || !patient.queueStatus);
+                      const isAwaitingConsult = !isCompletedVisit && (hasVitalsRecorded || patient.queueStatus === 'awaiting_consultation');
                       const isSOS = Boolean((appt as any).isEmergency || (appt as any).is_emergency || (appt as any).is_vip || (appt as any).isVip || String(appt.source || '').toLowerCase().includes('sos') || String(appt.source || '').toLowerCase().includes('vip') || String(appt.source || '').toLowerCase().includes('emergency') || String(appt.tokenNumber || '').toUpperCase().includes('SOS') || String(appt.tokenNumber || '').startsWith('VIP-') || String(appt.tokenNumber || '').toUpperCase().includes(' E') || String(appt.tokenNumber || '').startsWith('#EM-'));
                       const rawToken = appt.token_number || appt.tokenNumber || (appt as any).token;
                       const tokenDisplay = String(rawToken || `TK-${String(idx + 1).padStart(2, '0')}`);
@@ -4833,6 +4864,8 @@ export const CompounderDashboard: React.FC = () => {
                               ? 'border-rose-500 bg-rose-500/10 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30'
                               : vitalsPatient?.id === patient.id 
                               ? 'border-rose-500/50 bg-rose-500/5 shadow-md shadow-rose-500/5' 
+                              : isCompletedVisit
+                              ? 'bg-teal-50/40 dark:bg-teal-950/20 border-teal-200 dark:border-teal-800/60 hover:border-teal-400'
                               : 'bg-slate-50 border-slate-200 hover:bg-slate-100/50'
                           }`}
                         >
@@ -4892,11 +4925,11 @@ export const CompounderDashboard: React.FC = () => {
                                   ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 animate-pulse'
                                   : appt.status === 'ready_for_consult'
                                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                  : appt.status === 'completed'
+                                  : isCompletedVisit
                                   ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20'
                                   : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
                               }`}>
-                                {!isPaymentVerified ? '⚠️ Payment Not Verified' : appt.status === 'ready_for_consult' ? 'Paid & Active 🟢' : appt.status}
+                                {!isPaymentVerified ? '⚠️ Payment Not Verified' : isCompletedVisit ? 'Consult Done ✅ Ready for Billing' : appt.status === 'ready_for_consult' ? 'Paid & Active 🟢' : appt.status}
                               </span>
 
                               {opdQueueFilter === 'upcoming' && (() => {
@@ -5175,19 +5208,24 @@ export const CompounderDashboard: React.FC = () => {
                             ) : (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[8px] bg-emerald-500/10 text-emerald-600 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20 uppercase tracking-widest">
-                                  Consult Complete
+                                  Consult Done ✅
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => {
                                     setSelectedPatientForBillHub(patient.id);
-                                    startTransition(() => setActiveTab('ai_ocr_upload'));
+                                    setBillingPatient(patient);
+                                    startTransition(() => {
+                                      setActiveTab('billing_daycare');
+                                      setBillingSubTab('billing');
+                                      setBillHubInitialMode('manual_billing');
+                                    });
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                   }}
-                                  className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700 rounded text-[8px] font-bold cursor-pointer"
-                                  title="View or Re-scan in Clinic OS Auto-Flow"
+                                  className="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white rounded-lg text-[9px] font-bold cursor-pointer border-0 shadow-xs flex items-center gap-1"
+                                  title="Open BillHub POS to bill prescribed medicines & lab tests"
                                 >
-                                  🧾 View / Bill
+                                  <span>Bill & Dispense 💳</span>
                                 </button>
                               </div>
                             )}
