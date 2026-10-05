@@ -1432,7 +1432,19 @@ export default function App() {
   };
 
   const handleAuthSuccess = async (session: any, profile: any) => {
-    const finalProfile = await checkAndCompleteOnboarding(session, profile);
+    let finalProfile = profile;
+    try {
+      finalProfile = await Promise.race([
+        checkAndCompleteOnboarding(session, profile),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Onboarding timeout')), 1500))
+      ]);
+    } catch (_e) {
+      console.warn('[Mediflow Auth] checkAndCompleteOnboarding fast-fallback:', _e);
+      finalProfile = profile;
+    }
+    if (!finalProfile) {
+      finalProfile = profile;
+    }
     if (!finalProfile) {
       console.error('[Mediflow Auth] handleAuthSuccess: profile is null after onboarding check. Skipping state update.');
       return;

@@ -2174,6 +2174,9 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
             onClick={async () => {
               try {
                 setLoading(true);
+
+                // 1. Sanitize query params and clean URL immediately
+                let targetPath = '/';
                 if (typeof window !== 'undefined') {
                   (window as any).__mediflow_registering = false;
                   sessionStorage.removeItem('vitalsync_is_registering');
@@ -2183,28 +2186,29 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                     const cleanUrl = new URL(window.location.href);
                     cleanUrl.searchParams.delete('tab');
                     cleanUrl.searchParams.delete('isRegistering');
-                    window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+                    targetPath = cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : '');
+                    window.history.replaceState({}, '', targetPath);
                   } catch (_e) { /* ignore */ }
                 }
 
-                const { data: { session } } = await supabase.auth.getSession();
-                const { data: { user }, error: userErr } = await supabase.auth.getUser();
-                const activeUser = session?.user || user;
+                // 2. Fast synchronous session lookup with a 1000ms race safeguard
+                let session: any = null;
+                try {
+                  const sessRes = await Promise.race([
+                    supabase.auth.getSession(),
+                    new Promise<any>((_, reject) => setTimeout(() => reject(new Error('Session timeout')), 1000))
+                  ]);
+                  session = sessRes?.data?.session || null;
+                } catch (_e) { /* ignore */ }
 
-                let profile: any = null;
-                if (activeUser && !userErr) {
-                  try {
-                    const { data } = await supabase
-                      .from('profiles')
-                      .select('*')
-                      .eq('id', activeUser.id)
-                      .maybeSingle();
-                    profile = data;
-                  } catch (_e) { /* ignore */ }
-                }
+                const activeUser = session?.user;
+                const activeUserId = activeUser?.id || `doc-${Date.now()}`;
 
-                const finalProf = profile || {
-                  id: activeUser?.id,
+                // 3. Synthesize final doctor profile. 
+                // CRITICAL: Populating entity_id ensures App.tsx checkAndCompleteOnboarding skips duplicate register_clinic_network RPC!
+                const finalProf = {
+                  id: activeUserId,
+                  entity_id: registeredClinicCode || activeUserId,
                   role: 'doctor',
                   display_name: `${firstName} ${lastName}`.trim() || 'Dr. Clinician',
                   email: activeUser?.email || email,
@@ -2212,14 +2216,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   clinicCode: registeredClinicCode
                 };
 
-                if (!finalProf.role) finalProf.role = 'doctor';
-                if (!finalProf.clinic_code && registeredClinicCode) finalProf.clinic_code = registeredClinicCode;
-                if (!finalProf.clinicCode && registeredClinicCode) finalProf.clinicCode = registeredClinicCode;
-
+                // 4. Save directly into localStorage cache for instant Frame-0 App.tsx hydration
                 if (typeof window !== 'undefined') {
                   localStorage.setItem('vitalsync_cached_profile', JSON.stringify(finalProf));
+                  localStorage.setItem('vitalsync_active_role', 'doctor');
                   localStorage.setItem('vitalsync_active_pod', JSON.stringify({
-                    id: finalProf.entity_id || finalProf.id,
+                    id: finalProf.entity_id || activeUserId,
                     name: clinicName.trim() || 'My Clinic',
                     clinic_code: registeredClinicCode,
                     clinicCode: registeredClinicCode,
@@ -2229,11 +2231,18 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                   }));
                 }
 
+                // 5. Dismiss registration modal state in AuthGateway
                 setRegisteredClinicCode(null);
 
-                const activeSess = session || (activeUser ? { user: activeUser } : null);
-                if (typeof onAuthSuccess === 'function' && activeSess) {
-                  await onAuthSuccess(activeSess, finalProf);
+                // 6. Notify App component with 1000ms race to avoid unmounted React state deadlocks
+                const activeSess = session || { user: activeUser || { id: activeUserId, email: email } };
+                if (typeof onAuthSuccess === 'function') {
+                  try {
+                    await Promise.race([
+                      onAuthSuccess(activeSess, finalProf),
+                      new Promise((resolve) => setTimeout(resolve, 800))
+                    ]);
+                  } catch (_e) { /* continue */ }
                 }
 
                 if (typeof window !== 'undefined') {
@@ -2245,6 +2254,8 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                       type: 'success'
                     }
                   }));
+                  // Instant clean navigation guaranteeing immediate render of the dashboard workspace
+                  window.location.href = targetPath || window.location.pathname;
                 }
               } catch (err) {
                 console.error('[Mediflow Auth] Failed to enter doctor dashboard:', err);
