@@ -493,7 +493,7 @@ export class BillingService {
             id: appt.id,
             patient_id: pId,
             doctor_id: appt.doctorId || (appt as any).doctor_id || null,
-            status: appt.status || 'scheduled',
+            status: appt.status === 'completed' ? 'completed' : appt.status === 'cancelled' ? 'cancelled' : appt.status === 'pending_payment' ? 'pending_payment' : 'ready_for_consult',
             token_number: String(appt.tokenNumber || (appt as any).token_number || ''),
             patient_name: appt.patientName || (appt as any).patient_name || null,
             patient_phone: appt.patientPhone || (appt as any).patient_phone || null,
@@ -508,7 +508,7 @@ export class BillingService {
             pod_id: podId,
             is_emergency: Boolean(appt.isEmergency || (appt as any).is_emergency),
             is_vip: Boolean(appt.isVip || (appt as any).is_vip),
-            payment_status: (appt as any).paymentStatus || (appt as any).payment_status || 'cleared',
+            payment_status: (appt as any).paymentStatus || (appt as any).payment_status || (((appt as any).source === 'paper_scan' || (appt as any).source === 'walkin') ? 'cleared' : 'cleared'),
             problem: (appt as any).problem || (appt as any).chief_complaint || '',
             chief_complaint: (appt as any).chief_complaint || (appt as any).problem || ''
           }, { onConflict: 'id' });
@@ -528,19 +528,21 @@ export class BillingService {
       const pId = appt.patientId || (appt as any).patient_id;
       if (pId) {
         // Defensively normalize status to strictly comply with Postgres appointments_status_check
-        const rawStatus = ((appt.status || (appt as any).queue_status || 'scheduled') as string).toLowerCase();
-        let normalizedStatus: 'scheduled' | 'completed' | 'cancelled' | 'pending_payment' = 'scheduled';
+        const rawStatus = ((appt.status || (appt as any).queue_status || 'ready_for_consult') as string).toLowerCase();
+        let normalizedStatus: 'scheduled' | 'completed' | 'cancelled' | 'pending_payment' | 'ready_for_consult' = 'ready_for_consult';
         if (rawStatus === 'completed') normalizedStatus = 'completed';
         else if (rawStatus === 'cancelled') normalizedStatus = 'cancelled';
         else if (rawStatus === 'pending_payment' || rawStatus === 'pending') normalizedStatus = 'pending_payment';
-        else normalizedStatus = 'scheduled';
+        else if (rawStatus === 'ready_for_consult' || rawStatus === 'awaiting_consultation' || rawStatus === 'scheduled') normalizedStatus = 'ready_for_consult';
+        else normalizedStatus = 'ready_for_consult';
 
         const rawDocId = appt.doctorId || (appt as any).doctor_id;
         const validDocId = (typeof rawDocId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawDocId)) ? rawDocId : null;
 
         const rawPaymentStatus = (((appt as any).paymentStatus || (appt as any).payment_status || '').toString()).toLowerCase();
+        const src = String((appt as any).source || '').toLowerCase();
         let normalizedPaymentStatus = 'pending';
-        if (['cleared', 'paid'].includes(rawPaymentStatus)) normalizedPaymentStatus = 'cleared';
+        if (['cleared', 'paid'].includes(rawPaymentStatus) || src.includes('paper') || src.includes('walkin')) normalizedPaymentStatus = 'cleared';
         else if (rawPaymentStatus === 'failed') normalizedPaymentStatus = 'failed';
         else normalizedPaymentStatus = 'pending';
 

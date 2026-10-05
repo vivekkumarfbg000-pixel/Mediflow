@@ -539,12 +539,15 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       const resolvedDoctorId = getPodContext().doctorId || FALLBACK_DOCTOR_ID;
       const apptPayload = existingAppt ? {
         ...existingAppt,
-        status: existingAppt.status === 'completed' ? 'completed' : 'ready_for_consult',
+        status: 'ready_for_consult',
         paymentStatus: 'cleared',
         payment_status: 'cleared',
         fee_status: 'cleared',
+        source: 'paper_scan' as any,
         tokenNumber: patientData.tokenNumber,
-        token_number: patientData.tokenNumber
+        token_number: patientData.tokenNumber,
+        podId: (existingAppt as any).podId || (existingAppt as any).pod_id || getPodContext().podId || null,
+        pod_id: (existingAppt as any).pod_id || (existingAppt as any).podId || getPodContext().podId || null
       } : {
         id: crypto.randomUUID(),
         patientId: realPatientId,

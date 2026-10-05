@@ -8224,3 +8224,45 @@ BEGIN
   END IF;
 END $$;
 
+-- ============================================================================
+-- STEP 165: OCR Appointment Queue Sync & Status Constraint Expansion (20261005000001)
+-- ============================================================================
+
+DO $$
+BEGIN
+  ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS appointments_status_check;
+  ALTER TABLE public.appointments ADD CONSTRAINT appointments_status_check 
+    CHECK (status IN ('scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'pending_payment', 'awaiting_vitals', 'arrived', 'ready_for_consult'));
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Notice: appointments_status_check update handled: %', SQLERRM;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS appointments_payment_status_check;
+  ALTER TABLE public.appointments ADD CONSTRAINT appointments_payment_status_check 
+    CHECK (payment_status IN ('pending', 'cleared', 'paid', 'unverified', 'failed', 'refunded'));
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Notice: appointments_payment_status_check update handled: %', SQLERRM;
+END $$;
+
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'walkin';
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS payment_status VARCHAR(50) DEFAULT 'cleared';
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE DEFAULT 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001';
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS token_number TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_pod_date_status ON public.appointments(pod_id, appointment_date, status);
+CREATE INDEX IF NOT EXISTS idx_appointments_payment_status ON public.appointments(payment_status);
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.appointments;
+    EXCEPTION WHEN duplicate_object THEN
+      NULL;
+    END;
+  END IF;
+END $$;
+
+

@@ -59,6 +59,12 @@ export function isPendingPayment(appt: Appointment | any): boolean {
   if (!appt) return false;
   const status = String(appt.status || '').toLowerCase();
   const paymentStatus = String(appt.paymentStatus || appt.payment_status || '').toLowerCase();
+  const source = String(appt.source || (appt as any).source || '').toLowerCase();
+
+  // Rule Zero & Directive 1: Paper scan OCR prescriptions and walk-in clinical intakes are automatically cleared
+  if (source.includes('paper') || source.includes('walkin') || status === 'ready_for_consult') {
+    return false;
+  }
 
   // If status is explicitly pending_payment
   if (status === 'pending_payment') {
@@ -164,13 +170,13 @@ export function categorizeAppointments(
     }
 
     // 4. Future Advance Bookings (dates > todayStr)
-    if (apptDate > todayStr) {
+    if (apptDate && apptDate > todayStr) {
       upcomingAdvanceBookings.push(appt);
       continue;
     }
 
     // 5. Today's Active OPD Queue (dates === todayStr or same-day fallback)
-    if (apptDate === todayStr) {
+    if (apptDate === todayStr || (!apptDate && (status === 'ready_for_consult' || status === 'scheduled'))) {
       todayOpdQueue.push(appt);
       if (isVipBooking(appt)) {
         emergencyVipPriority.push(appt);

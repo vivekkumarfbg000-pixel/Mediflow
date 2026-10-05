@@ -1149,7 +1149,7 @@ export const CompounderDashboard: React.FC = () => {
     const todayStr = getIstDateString();
     patients.forEach(p => {
       const pRegDate = getIstDateString(p.registeredAt || (p as any).createdAt || (p as any).created_at);
-      const isToday = pRegDate === todayStr;
+      const isToday = pRegDate === todayStr || (!pRegDate && (p.queueStatus === 'awaiting_consultation' || p.queueStatus === 'in_consultation'));
       const isPendingQueue = p.queueStatus !== 'completed' && (p.queueStatus as string) !== 'cancelled';
       const hasAppt = uniqueAppts.some(a => a.patientId === p.id || (a as any).patient_id === p.id);
       if (isToday && isPendingQueue && !hasAppt) {
@@ -1245,7 +1245,7 @@ export const CompounderDashboard: React.FC = () => {
 
   const fetchLiveAppointments = useCallback(async () => {
     try {
-      const podId = resolveSovereignPodId();
+      const podId = resolveSovereignPodId(activePod?.id);
       let apptQuery = supabase
         .from('appointments')
         .select('*')
@@ -1329,7 +1329,7 @@ export const CompounderDashboard: React.FC = () => {
             patient_id: a.patient_id,
             doctorId: a.doctor_id,
             doctor_id: a.doctor_id,
-            status: a.status || 'scheduled',
+            status: a.status || 'ready_for_consult',
             isVirtual: a.is_virtual === true,
             is_virtual: a.is_virtual === true,
             date: apptDate,
@@ -1354,8 +1354,8 @@ export const CompounderDashboard: React.FC = () => {
             created_at: a.created_at || a.appointment_time || new Date().toISOString(),
             appointmentTime: a.appointment_time,
             appointment_time: a.appointment_time,
-            paymentStatus: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
-            payment_status: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.status === 'completed' ? 'cleared' : 'unverified'),
+            paymentStatus: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.source === 'paper_scan' || a.status === 'completed' || a.status === 'ready_for_consult' ? 'cleared' : 'unverified'),
+            payment_status: a.payment_status || a.paymentStatus || (a.source === 'walkin' || a.source === 'paper_scan' || a.status === 'completed' || a.status === 'ready_for_consult' ? 'cleared' : 'unverified'),
             isEmergency: a.is_emergency === true || a.isEmergency === true,
             is_emergency: a.is_emergency === true || a.isEmergency === true,
             isVip: a.is_vip === true || a.isVip === true,
@@ -1368,9 +1368,22 @@ export const CompounderDashboard: React.FC = () => {
         });
 
         // Authoritative Cloud SSOT: Update cloudStore snapshot and prune dead records
-        cloudStore.setInitialCloudSnapshot('appointments', mapped);
-        setAppointments(mapped as any);
-        BillingService.saveAppointments(mapped as any);
+        // Safety Merge: Preserve recent locally created appointments (< 15 mins old or paper_scan) not yet indexed in remote response
+        const existingLocal = api.getAppointments() || [];
+        const nowMs = Date.now();
+        const merged = [...mapped];
+        existingLocal.forEach(localAppt => {
+          if (localAppt && localAppt.id && !merged.some(m => m.id === localAppt.id)) {
+            const apptAge = nowMs - new Date(localAppt.createdAt || (localAppt as any).created_at || nowMs).getTime();
+            if (apptAge < 15 * 60 * 1000 || String(localAppt.source || (localAppt as any).source || '').includes('paper')) {
+              merged.push(localAppt);
+            }
+          }
+        });
+
+        cloudStore.setInitialCloudSnapshot('appointments', merged);
+        setAppointments(merged as any);
+        BillingService.saveAppointments(merged as any);
       } else if (apptRes.data !== undefined && apptRes.data !== null && apptRes.data.length === 0) {
         const existing = api.getAppointments() || [];
         if (existing.length > 0) {
@@ -1384,7 +1397,7 @@ export const CompounderDashboard: React.FC = () => {
     } catch (err) {
       console.warn('[CompounderDashboard] Error fetching live appointments:', err);
     }
-  }, []);
+  }, [activePod?.id]);
 
   const handleConfirmPendingCounterPayment = useCallback(async (appt: Appointment) => {
     try {
