@@ -1065,7 +1065,7 @@ export class PharmacyService {
             newStock: invItem.stock 
           }, invItem.id);
         }
-      });
+      }
       
       this.savePharmacyInventory(inventory, true);
       bills[billIndex] = bill;
