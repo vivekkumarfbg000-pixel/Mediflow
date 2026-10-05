@@ -1288,6 +1288,12 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
       sessionStorage.removeItem('vitalsync_is_registering');
       sessionStorage.removeItem('vitalsync_reg_step');
       sessionStorage.removeItem('vitalsync_reg_email');
+      try {
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('tab');
+        cleanUrl.searchParams.delete('isRegistering');
+        window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+      } catch (_e) { /* ignore */ }
     }
 
     // Dispatch automated real-time WhatsApp & webhook alert to Founder (+91-9608032073)
@@ -2142,63 +2148,125 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
               <button
                 type="button"
                 onClick={handleCopyCode}
-                className="p-2.5 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 text-cyan-600 rounded-xl transition-all hover:scale-105 cursor-pointer"
+                className="p-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 rounded-xl transition-all hover:scale-105 cursor-pointer shadow-sm"
                 title="Copy Clinic Code"
               >
-                {copiedCode ? <Check className="h-4.5 w-4.5 text-emerald-600" /> : <Copy className="h-4.5 w-4.5" />}
+                {copiedCode ? <Check className="h-4.5 w-4.5 text-emerald-400" /> : <Copy className="h-4.5 w-4.5 text-cyan-400" />}
               </button>
             </div>
             {copiedCode && <span className="text-[10px] text-emerald-600 font-bold block animate-fade-in">Copied to clipboard!</span>}
           </div>
 
-          <div className="text-left bg-cyan-50 border border-cyan-200 rounded-xl p-3.5 space-y-2">
-            <h4 className="text-[10px] font-bold text-cyan-600 flex items-center gap-2 uppercase tracking-wider">
-              <Shield className="h-3.5 w-3.5" /> Next Steps:
+          <div className="text-left bg-cyan-950/50 border border-cyan-500/30 rounded-xl p-4 space-y-2.5 backdrop-blur-md shadow-sm">
+            <h4 className="text-[11px] font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider">
+              <Shield className="h-4 w-4 text-cyan-400 shrink-0" /> Next Steps:
             </h4>
-            <ul className="text-[10px] text-slate-600 space-y-1 list-decimal list-inside pl-1 leading-relaxed font-medium">
-              <li>Copy the unique code above</li>
-              <li>Share it with your partner Pharmacy and Lab staff</li>
-              <li>When they register using this code, approve their requests in your clinic dashboard settings</li>
-              <li>Your unified care loop will link together immediately</li>
+            <ul className="text-xs text-slate-200 space-y-2 list-decimal list-inside pl-1 leading-relaxed font-medium">
+              <li><strong className="text-white font-semibold">Copy</strong> the unique code above</li>
+              <li><strong className="text-white font-semibold">Share it</strong> with your partner Pharmacy and Lab staff</li>
+              <li>When they register using this code, <strong className="text-cyan-300 font-semibold">approve their requests</strong> in your clinic dashboard settings</li>
+              <li>Your <strong className="text-emerald-400 font-semibold">unified care loop</strong> will link together immediately</li>
             </ul>
           </div>
 
           <button
             type="button"
             onClick={async () => {
-              if (typeof window !== 'undefined') {
-                (window as any).__mediflow_registering = false;
-                sessionStorage.removeItem('vitalsync_is_registering');
-                sessionStorage.removeItem('vitalsync_reg_step');
-                sessionStorage.removeItem('vitalsync_reg_email');
-              }
-              const { data: { session } } = await supabase.auth.getSession();
-              const { data: { user }, error: userErr } = await supabase.auth.getUser();
-              if (session?.user && user && !userErr) {
+              try {
+                setLoading(true);
+                if (typeof window !== 'undefined') {
+                  (window as any).__mediflow_registering = false;
+                  sessionStorage.removeItem('vitalsync_is_registering');
+                  sessionStorage.removeItem('vitalsync_reg_step');
+                  sessionStorage.removeItem('vitalsync_reg_email');
+                  try {
+                    const cleanUrl = new URL(window.location.href);
+                    cleanUrl.searchParams.delete('tab');
+                    cleanUrl.searchParams.delete('isRegistering');
+                    window.history.replaceState({}, '', cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+                  } catch (_e) { /* ignore */ }
+                }
+
+                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { user }, error: userErr } = await supabase.auth.getUser();
+                const activeUser = session?.user || user;
+
                 let profile: any = null;
-                try {
-                  const { data } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .maybeSingle();
-                  profile = data;
-                } catch (_e) { /* ignore */ }
+                if (activeUser && !userErr) {
+                  try {
+                    const { data } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .eq('id', activeUser.id)
+                      .maybeSingle();
+                    profile = data;
+                  } catch (_e) { /* ignore */ }
+                }
 
                 const finalProf = profile || {
-                  id: user.id,
+                  id: activeUser?.id,
                   role: 'doctor',
                   display_name: `${firstName} ${lastName}`.trim() || 'Dr. Clinician',
-                  email: user.email,
+                  email: activeUser?.email || email,
                   clinic_code: registeredClinicCode,
                   clinicCode: registeredClinicCode
                 };
-                // onAuthSuccess(session, finalProf);
+
+                if (!finalProf.role) finalProf.role = 'doctor';
+                if (!finalProf.clinic_code && registeredClinicCode) finalProf.clinic_code = registeredClinicCode;
+                if (!finalProf.clinicCode && registeredClinicCode) finalProf.clinicCode = registeredClinicCode;
+
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('vitalsync_cached_profile', JSON.stringify(finalProf));
+                  localStorage.setItem('vitalsync_active_pod', JSON.stringify({
+                    id: finalProf.entity_id || finalProf.id,
+                    name: clinicName.trim() || 'My Clinic',
+                    clinic_code: registeredClinicCode,
+                    clinicCode: registeredClinicCode,
+                    health_score: 100,
+                    is_verified_for_billing: true,
+                    platform_fee_percent: 2.5
+                  }));
+                }
+
+                setRegisteredClinicCode(null);
+
+                const activeSess = session || (activeUser ? { user: activeUser } : null);
+                if (typeof onAuthSuccess === 'function' && activeSess) {
+                  await onAuthSuccess(activeSess, finalProf);
+                }
+
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('mediflow-profile-updated', { detail: finalProf }));
+                  window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                    detail: {
+                      title: 'Welcome to your Doctor Dashboard! 🩺',
+                      message: `Dr. ${finalProf.display_name || ''} — Clinic Node ${registeredClinicCode} is active.`,
+                      type: 'success'
+                    }
+                  }));
+                }
+              } catch (err) {
+                console.error('[Mediflow Auth] Failed to enter doctor dashboard:', err);
+                if (typeof window !== 'undefined') {
+                  window.location.href = window.location.pathname;
+                }
+              } finally {
+                setLoading(false);
               }
             }}
-            className="w-full py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-750 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans"
+            disabled={loading}
+            className="w-full py-3.5 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer font-sans disabled:opacity-60"
           >
-            Enter Doctor Dashboard <ArrowRight className="h-4 w-4" />
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Entering Dashboard...
+              </span>
+            ) : (
+              <>
+                Enter Doctor Dashboard <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </button>
         </div>
       </div>

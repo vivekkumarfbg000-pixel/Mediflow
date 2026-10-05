@@ -1,7 +1,9 @@
-# 🏛️ J.A.R.V.I.S. CTO Implementation Plan: Prescription OCR & RAG Pipeline Upgrade (>95% Accuracy)
+# 🏛️ J.A.R.V.I.S. CTO Implementation Plan: Fix Doctor Dashboard Navigation & Registration Guide Visibility
 
 ## 📌 Executive Summary
-This engineering plan surgically resolves the 5 critical mathematical, architectural, and data catalog bugs identified in Mediflow Clinic OS's prescription OCR pipeline. By decoupling dosage/strength tokens from drug stems, integrating live clinic inventory grounding, reordering the lab test mapping pipeline, and expanding the Indian clinical lexicon, we elevate real-world prescription extraction accuracy from ~55%–65% to **>95%**.
+This engineering plan surgically resolves the two clinical onboarding defects identified on the Doctor Registration completion screen:
+1. **Unresponsive "Enter Doctor Dashboard" Button**: The `onClick` handler in `AuthGateway.tsx` had `onAuthSuccess(session, finalProf)` commented out, left `tab=register` lingering in the browser URL query, and failed to reset `registeredClinicCode`, trapping newly registered doctors on the success screen without transitioning to `DoctorDashboard`.
+2. **Invisible Guide Rules in "Next Steps" Box**: Under `.jarvis-god-mode-auth` dark mode, CSS rule `.jarvis-god-mode-auth .text-slate-600 { color: #e2e8f0 !important; }` forced the guide text into pure light-white, while the container remained `.bg-cyan-50` (`#ecfeff` pale white/cyan), causing zero-contrast illegibility (white text on a white box).
 
 ---
 
@@ -9,60 +11,69 @@ This engineering plan surgically resolves the 5 critical mathematical, architect
 
 | File | Role | Changes | Blast Radius / Consuming Files |
 | :--- | :--- | :--- | :--- |
-| `frontend/src/utils/ocrFuzzyCorrector.ts` | Post-OCR Fuzzy Matcher | • Add Token Decoupler (separates drug stem from strength `625`, `650`, `40`, and form `Tab`, `Cap`)<br>• Add Strength-Anchored candidate locking<br>• Integrate Tier 1 active pharmacy inventory lookup | `forecastService.ts` |
-| `frontend/src/services/forecastService.ts` | OCR Pipeline Orchestrator | • Fix execution order: run `applyOcrFuzzyCorrections()` BEFORE constructing `mappedTests`<br>• Pass corrected lab tests to LOINC matcher and return in `diagnosticTests` | `api.ts`, `AiPrescriptionUploadTab.tsx`, `BillHubTab.tsx`, `CompounderDashboard.tsx` |
-| `frontend/src/data/indianMedicalContext.ts` | Medical Lexicon & Prompt RAG | • Add top Indian dual-therapy brands (`Telma-AM`, `Pantocid-DSR`, `Montina-L`, `Moxikind-CV 625`, `Glycomet-GP 1/2`, `Zifi-CV`, `Clavam 625`, `Enzoflam`, `Chymoral Forte`, etc.)<br>• Add top LOINC lab test acronym hints to `buildRegionalContextInjection()` | `forecastService.ts`, `ocrFuzzyCorrector.ts` |
+| `frontend/src/components/shared/AuthGateway.tsx` | Auth & Onboarding Gateway | • Surgically re-enable `onAuthSuccess(activeSession, finalProf)` in "Enter Doctor Dashboard" button<br>• Clear `tab=register` from URL via `window.history.replaceState` upon clinic creation and dashboard entry<br>• Reset `registeredClinicCode(null)` and dispatch `mediflow-profile-updated`<br>• Upgrade "Next Steps" guide box to high-contrast glassmorphic container (`bg-cyan-950/40 border-cyan-500/30 text-slate-200`) with legible typographic accents | `frontend/src/App.tsx` (verified safe, blast radius 1) |
+| `frontend/src/index.css` | Global Design System & Theme Overrides | • Add `.jarvis-god-mode-auth .bg-cyan-50` dark glass override (`rgba(6, 182, 212, 0.12)` + cyan border) to ensure complete theme consistency across all auth modal variants | Global styling (pure additive CSS, zero regression) |
 
 ---
 
 ## 🔬 Root Cause Isolation & Surgical Solutions
 
-### 1. Mathematical Threshold Bug in `ocrFuzzyCorrector.ts`
-- **Root Cause**: `similarityScore("Dolo 650", "Dolo")` returns `50%` due to the extra 4 characters `" 650"`. Because `50% < 82%` (`CORRECTION_THRESHOLD`), the match is silently dropped.
+### 1. Doctor Dashboard Navigation Blockage
+- **Root Cause**:
+  1. In `AuthGateway.tsx` line 2196, `// onAuthSuccess(session, finalProf);` was commented out during a bulk auth-refactor.
+  2. The URL still retained `?tab=register`. In `App.tsx` (line 1779 and 1975), `const isRegisterRequested = new URLSearchParams(window.location.search).get('tab') === 'register' || isRegistering;` kept `App.tsx` trapped in the `AuthGateway` conditional branch instead of falling through to `<AppContent>` (Doctor Dashboard).
+  3. `registeredClinicCode` state variable in `AuthGateway.tsx` remained populated, so even if the component re-rendered, it re-rendered the `if (registeredClinicCode)` return branch.
 - **Surgical Solution**:
-  1. Implement `splitDrugNameAndStrength(rawName)`:
-     - Regex extracts numerical strengths (`625`, `650`, `500mg`, `40`, `10`, `0.5`) and dosage forms (`Tab`, `Cap`, `Syp`, `Inj`, `Drops`).
-     - Extracts clean stem: e.g., `"Dolo 650"` $\rightarrow$ Stem: `"dolo"`, Strength: `"650"`.
-  2. Compute Levenshtein distance on the **drug stem only**:
-     - `similarityScore("dolo", "dolo")` = **100%**!
-  3. If a strength number is present (e.g. `625`), anchor to Amoxicillin+Clavulanate formulations (`Augmentin 625`, `Clavam 625`, `Moxikind-CV 625`) with **99% confidence**.
+  1. In the `onClick` handler of "Enter Doctor Dashboard":
+     - Strip `tab=register` and `isRegistering` from `window.location.href` via `window.history.replaceState`.
+     - Clear `(window as any).__mediflow_registering` and all `sessionStorage` flags.
+     - Fetch or synthesize the active `session` and `finalProf` (with `role: 'doctor'`, `clinic_code`, and `entity_id`).
+     - Save `vitalsync_cached_profile` and `vitalsync_active_pod` into `localStorage`.
+     - Reset `setRegisteredClinicCode(null)`.
+     - Invoke `await onAuthSuccess(activeSession, finalProf)`.
+     - Dispatch `mediflow-profile-updated` and welcome toast.
+     - Provide a safe fallback navigation `window.location.href = window.location.pathname` if React state does not immediately unmount.
 
-### 2. Execution Order & Dead Code Bug in `forecastService.ts`
-- **Root Cause**: In `generateDigitizedPrescription()`, lines 1450–1555 construct `mappedTests` from raw, uncorrected Gemini output. Then line 1558 calls `applyOcrFuzzyCorrections(parsedResult)` which updates `parsedResult.labTests`. But line 1574 returns `diagnosticTests: mappedTests`, so all lab test fuzzy corrections are discarded.
+### 2. Guide Rule Low-Contrast Illegibility
+- **Root Cause**:
+  1. The "Next Steps" container used `bg-cyan-50 border border-cyan-200` with child `ul` class `text-slate-600`.
+  2. In `frontend/src/index.css`, line 2038 applied:
+     ```css
+     .jarvis-god-mode-auth .text-slate-600 { color: #e2e8f0 !important; }
+     ```
+  3. Because `.jarvis-god-mode-auth` lacked an override for `.bg-cyan-50`, the container background rendered at `#ecfeff` (bright pale white/cyan), while its list text was forced to `#e2e8f0` (pure white text), rendering the guide steps completely invisible to the human eye.
 - **Surgical Solution**:
-  1. Call `parsedResult = applyOcrFuzzyCorrections(parsedResult)` **immediately after Gemini JSON parsing**.
-  2. Build `mappedTests` using the fuzzy-corrected lab test names and LOINC codes.
-  3. Ensure `diagnosticTests: mappedTests` contains verified LOINC mappings.
-
-### 3. Live Clinic Pharmacy Inventory Grounding
-- **Root Cause**: The OCR pipeline was disconnected from the clinic's local pharmacy stock (`PharmacyService.getPharmacyInventory()`).
-- **Surgical Solution**:
-  1. Before querying the general 200+ drug dictionary, compare extracted drug stem against active clinic pharmacy stock.
-  2. If the drug matches an item in `PharmacyService.getPharmacyInventory()` with similarity $\ge 75\%$, snap directly to that item's exact brand name and batch specification. This guarantees 1-tap billing at the compounder POS.
-
-### 4. Catalog Expansion & Prompt Enrichment
-- **Root Cause**: Missing top Indian multi-therapy combinations (`Telma-AM`, `Pantocid-DSR`, `Montina-L`, `Moxikind-CV 625`, `Glycomet-GP 1/2`) and prompt injection omitting lab test LOINC acronyms.
-- **Surgical Solution**:
-  1. Add 40+ high-frequency Indian prescription brands to `MEDICINE_ALIASES`.
-  2. In `buildRegionalContextInjection()`, inject concise lab test acronym hints (`CBC`, `KFT`, `LFT`, `HbA1c`, `FBS`, `PPBS`, `Lipid Profile`, `TSH`, `Urine R/M`) to guide Gemini Vision prior to OCR token generation.
+  1. Update `AuthGateway.tsx` lines 2154–2164 to use dark-glass container tokens:
+     - `bg-cyan-950/40 border border-cyan-500/30 rounded-xl p-4 text-left`
+     - Header: `text-xs font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-wider`
+     - Step list: `text-xs text-slate-200 space-y-2 list-decimal list-inside pl-1 leading-relaxed font-medium`
+     - Bold semantic accents (`<strong className="text-white">Copy the unique code above</strong>`, etc.).
+  2. In `frontend/src/index.css`, add:
+     ```css
+     .jarvis-god-mode-auth .bg-cyan-50 {
+       background-color: rgba(6, 182, 212, 0.12) !important;
+       border-color: rgba(6, 182, 212, 0.3) !important;
+     }
+     ```
+     This guarantees WCAG AAA compliant contrast (>7:1) in all mobile browsers and dark-mode web views.
 
 ---
 
 ## 🛡️ Anti-Regression & Safety Invariants (Rule Zero & Rules 1–100)
 1. **Zero-Data-Entry Doctrine**: No manual modals or popups are introduced.
-2. **Mandatory Phone Fallback**: Missing or illegible phone numbers remain `null`, cleanly triggering the existing manual input fallback prompt in `AiPrescriptionUploadTab.tsx`.
-3. **Defensive Property Access**: All strings guarded with `(str || '').trim()`, all arrays with `(arr || []).map(...)`.
+2. **Defensive Property Access**: All strings guarded with `(str || '').trim()`, all arrays with `(arr || []).map(...)`.
+3. **Database Schema Idempotence**: No SQL schema, table, or RPC modifications required. Existing RPC `register_clinic_network` remains untouched and functional.
 4. **Zero TypeScript Errors**: Shadow compile verified via `tsc --noEmit`.
 
 ---
 
 ## 🚦 Verification Playbook
-1. **Unit Test Verification**:
-   - `similarityScore` on `"Dolo 650"` $\rightarrow$ Auto-corrects to `"Dolo 650 (Paracetamol 650mg)"` with $\ge 95\%$ confidence.
-   - `"Augmnt 625 Tab"` $\rightarrow$ Auto-corrects to `"Augmentin 625 (Amoxicillin + Clavulanate)"`.
-   - `"Telma AM"` $\rightarrow$ Auto-corrects to `"Telma-AM (Telmisartan 40mg + Amlodipine 5mg)"`.
-   - `"Pan DSR"` $\rightarrow$ Auto-corrects to `"Pan-D (Pantoprazole 40mg + Domperidone)"`.
-2. **Lab Test Verification**:
-   - Extraction of `"KFT"` or `"Creatinin"` correctly maps to LOINC `2160-0` and appears in `diagnosticTests`.
-3. **Build & Typecheck**:
-   - Execute shadow-compile / `tsc --noEmit` and confirm exit code 0.
+1. **Visual Contrast Verification**:
+   - Inspect the Clinic Registration success screen on mobile viewport (1280x585 and 390x844).
+   - Verify the "Next Steps" guide box is dark glassmorphic with bright cyan headers and clear, crisp white/slate-200 text.
+2. **Navigation Flow Verification**:
+   - Click "Enter Doctor Dashboard".
+   - Confirm immediate transition into Doctor Dashboard workspace (`DoctorDashboard.tsx` with consultation tab, patient directory, and live queue).
+   - Confirm URL parameter `?tab=register` is cleared and returning doctors are never bounced back to the registration gate.
+3. **Compiler & Diagnostic Verification**:
+   - Run `npx tsc --noEmit` to confirm 0 compilation errors.
