@@ -3073,7 +3073,8 @@ export class ActionButtonSelfHealer {
 
   private static handleGlobalException(error: any): void {
     const errorStr = String(error?.stack || error?.message || error || '');
-    console.warn('[ActionButtonSelfHealer] ⚠️ Caught unhandled runtime action exception:', errorStr);
+    // Silent heal: log to console only — do NOT show toast on every background network error
+    console.debug('[ActionButtonSelfHealer] Caught unhandled exception (silent heal):', errorStr);
 
     // Unfreeze pointer locks & body overflow if a modal was stuck
     try {
@@ -3082,15 +3083,6 @@ export class ActionButtonSelfHealer {
     } catch (_e) {
       /* ignore DOM reset error */
     }
-
-    // Dispatch self-healing toast to unfreeze user UI
-    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-      detail: {
-        title: 'Action Auto-Recovered 🔄',
-        message: 'A temporary network or click anomaly was caught and healed. Please try clicking the button again.',
-        type: 'warning'
-      }
-    }));
   }
 }
 

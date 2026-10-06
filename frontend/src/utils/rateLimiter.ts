@@ -41,15 +41,15 @@ interface IdentifierBucket {
 
 const DEFAULT_CONFIGS: Record<AuthAction, RateLimitConfig> = {
   login: {
-    maxAttempts: 5,
-    windowSeconds: 5 * 60,     // 5 attempts per 5 minutes
-    lockoutSeconds: 15 * 60,   // 15-minute initial lockout
-    exponentialMultiplier: 2   // 15m -> 30m -> 60m
+    maxAttempts: 10,
+    windowSeconds: 10 * 60,    // 10 attempts per 10 minutes
+    lockoutSeconds: 5 * 60,    // 5-minute initial lockout (clinical-ergonomic)
+    exponentialMultiplier: 2   // 5m -> 10m -> 20m
   },
   forgot_password: {
-    maxAttempts: 3,
-    windowSeconds: 15 * 60,    // 3 attempts per 15 minutes
-    lockoutSeconds: 30 * 60,   // 30-minute lockout
+    maxAttempts: 5,
+    windowSeconds: 30 * 60,    // 5 attempts per 30 minutes
+    lockoutSeconds: 10 * 60,   // 10-minute lockout
     exponentialMultiplier: 2
   },
   signup: {
