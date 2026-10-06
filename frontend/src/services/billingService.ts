@@ -898,7 +898,7 @@ export class BillingService {
           source: source,
           doctor_id: resolvedDoctorId,
           status: 'pending_payment',
-          appointment_time: `${effectiveDate}T10:00:00.000Z`,
+          appointment_time: `${effectiveDate}T04:30:00.000Z`,
           is_virtual: source === 'whatsapp',
           virtual_date: effectiveDate,
           appointment_date: effectiveDate,

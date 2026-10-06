@@ -1067,6 +1067,25 @@ if (!isManualRelay) {
         } catch (_wErr) {}
       }
 
+      // Robust Single-Tenant Fallback for CDC Realtime Sync Guarantee
+      // If no explicit WABA connection is found, automatically route the new session 
+      // to the first active clinic pod instead of dying in the DEFAULT_POD_UUID void.
+      if (connection.pod_id === DEFAULT_POD_UUID) {
+        try {
+          const { data: firstPod } = await supabase
+            .from("pods")
+            .select("id, entity_id")
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+            
+          if (firstPod) {
+            connection.pod_id = toValidUuid(firstPod.id);
+            if (firstPod.entity_id) connection.entity_id = toValidUuid(firstPod.entity_id, connection.pod_id);
+          }
+        } catch (_fErr) {}
+      }
+
       inboundPhoneId = phoneId;
       inboundToken = tenantToken;
 

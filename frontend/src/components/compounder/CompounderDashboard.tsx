@@ -4888,6 +4888,37 @@ export const CompounderDashboard: React.FC = () => {
                       </div>
                     </div>
 
+                {pendingClearanceAppointments && pendingClearanceAppointments.length > 0 && (
+                  <div className="mb-6 bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-700/30 rounded-2xl p-4 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-400 dark:bg-amber-500"></div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 bg-amber-100 dark:bg-amber-900/40 rounded-lg shrink-0">
+                        <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <h3 className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                        Awaiting Payment Gate ({pendingClearanceAppointments.length})
+                      </h3>
+                    </div>
+                    <div className="space-y-2">
+                      {pendingClearanceAppointments.map((appt, idx) => (
+                        <div key={appt.id || idx} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-xl border border-amber-100/60 dark:border-amber-800/20">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[12px] font-black text-slate-800 dark:text-white">{appt.patientName}</span>
+                              <span className="px-1.5 py-0.2 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 rounded-full text-[9px] font-bold">WhatsApp Booking</span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">{appt.patientPhone}</p>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 animate-pulse">Payment Pending</span>
+                            <span className="text-[9px] text-slate-400">Waiting for Razorpay clearance...</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {(() => {
                     const confirmedAppts = opdQueueFilter === 'today' 

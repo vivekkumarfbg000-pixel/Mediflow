@@ -563,6 +563,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
         doctorId: resolvedDoctorId,
         date: todayISO,
         appointmentDate: todayISO,
+        appointment_date: todayISO,
+        virtual_date: todayISO,
         time: 'Walk-in',
         status: 'ready_for_consult',
         paymentStatus: 'cleared',
