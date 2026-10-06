@@ -135,81 +135,48 @@ export class LabBillingService {
       });
     }
 
-    // Create financial ledger splits
+    // Record clean hospital digital ledger entry for lab diagnostics (0% platform cut)
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     const exists = ledgerEntries.some(l => l.invoiceId === id);
     if (!exists) {
-      const splitPlat = 5; // 5% platform fee for lab
       const amount = bill.totalAmount;
-      const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      const labAmt = parseFloat((amount - platformAmt).toFixed(2));
-
       const podEntityId = getPodContext().entityId;
       const labDestId = getPodContext().labEntityId || podEntityId;
 
-      const platformLedger: FinancialLedgerEntry = {
-        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
-        invoiceId: id,
-        sourceEntityId: podEntityId,
-        destinationEntityId: podEntityId,
-        transactionType: 'platform_fee',
-        grossAmount: amount,
-        commissionRate: splitPlat / 100,
-        netPayout: platformAmt,
-        paymentStatus: 'cleared',
-        settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString()
-      };
-
       const labLedger: FinancialLedgerEntry = {
-        id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: id,
         sourceEntityId: podEntityId,
         destinationEntityId: labDestId,
-        transactionType: 'lab_commission',
+        transactionType: 'lab_diagnostic',
         grossAmount: amount,
-        commissionRate: 1 - splitPlat / 100,
-        netPayout: labAmt,
+        commissionRate: 0,
+        netPayout: amount,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
         createdAt: new Date().toISOString()
       };
 
-      ledgerEntries.unshift(platformLedger, labLedger);
+      ledgerEntries.unshift(labLedger);
       save('financial_ledgers', ledgerEntries);
 
-      // Sync splits to Supabase
+      // Sync clean ledger entry to Supabase
       if (navigator.onLine) {
-        const dbEntries = [
-          {
-            id: platformLedger.id,
-            invoice_id: id,
-            source_entity_id: podEntityId,
-            destination_entity_id: podEntityId,
-            transaction_type: 'platform_fee',
-            gross_amount: amount,
-            commission_rate: splitPlat,
-            net_payout: platformAmt,
-            payment_status: 'cleared',
-            settled_at: new Date().toISOString(),
-            pod_id: getPodContext().podId
-          },
-          {
-            id: labLedger.id,
-            invoice_id: id,
-            source_entity_id: podEntityId,
-            destination_entity_id: labDestId,
-            transaction_type: 'lab_commission',
-            gross_amount: amount,
-            commission_rate: 100 - splitPlat,
-            net_payout: labAmt,
-            payment_status: 'cleared',
-            settled_at: new Date().toISOString(),
-            pod_id: getPodContext().podId
-          }
-        ];
-        supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
-          if (error) console.error('[LabBillingService] Error upserting ledger splits:', error);
+        const dbEntry = {
+          id: labLedger.id,
+          invoice_id: id,
+          source_entity_id: podEntityId,
+          destination_entity_id: labDestId,
+          transaction_type: 'lab_diagnostic',
+          gross_amount: amount,
+          commission_rate: 0,
+          net_payout: amount,
+          payment_status: 'cleared',
+          settled_at: new Date().toISOString(),
+          pod_id: getPodContext().podId
+        };
+        supabase.from('financial_ledgers').upsert([dbEntry], { onConflict: 'id' }).then(({ error }) => {
+          if (error) console.error('[LabBillingService] Error upserting ledger entry:', error);
         });
       }
     }

@@ -3,7 +3,7 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, resolveSovereignPodId } from './podContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { safeGetStorageJSON } from '../utils/storage';
-import type { Patient, PatientVitals, Appointment } from '../types';
+import type { Patient, PatientVitals, Appointment, IoTDeviceReading } from '../types';
 import { cloudStore } from './cloudStore';
 import { walDB } from './api';
 import { CryptoService } from './cryptoService';
@@ -871,6 +871,75 @@ export class PatientService {
     })();
 
     this.processSyncQueue();
+  }
+
+  /**
+   * 🌟 PHASE 21: Ambient IoT Vitals Ingestion (Zero-Data-Entry Doctrine)
+   * Ingests hardware readings from Bluetooth/Serial IoT devices into local storage & Supabase.
+   */
+  static ingestIoTVitals(patientId: string, reading: IoTDeviceReading): PatientVitals {
+    const patients = this.getPatients();
+    const idx = patients.findIndex(p => p.id === patientId);
+
+    const existingVitals: PatientVitals = (idx !== -1 && patients[idx].vitals)
+      ? patients[idx].vitals!
+      : {
+          temperature: '98.6',
+          bloodPressure: '120/80',
+          pulseRate: '72',
+          weight: '65',
+          recordedAt: new Date().toISOString()
+        };
+
+    const mergedVitals: PatientVitals = {
+      ...existingVitals,
+      ...(reading.vitals || {}),
+      deviceSource: reading.deviceType === 'multipara_serial' ? 'serial' : (reading.vitals?.deviceSource || 'bluetooth'),
+      recordedAt: new Date().toISOString()
+    };
+
+    if (idx !== -1) {
+      patients[idx].vitals = mergedVitals;
+      save('patients', patients);
+      cloudStore.applyLocalDiff('patients', patients[idx]);
+    }
+
+    const vitalsMap = load<Record<string, PatientVitals>>('vitals_map', {});
+    vitalsMap[patientId] = mergedVitals;
+    save('vitals_map', vitalsMap);
+
+    writeAuditLog('IOT_VITALS_STREAMED', {
+      patientId,
+      deviceType: reading.deviceType,
+      deviceName: reading.deviceName,
+      vitals: mergedVitals,
+      confidenceScore: reading.confidenceScore
+    }, patientId);
+
+    notify();
+
+    // Async dual-write to Supabase patient_registry & iot_device_events
+    (async () => {
+      try {
+        const podId = getPodContext().podId || FALLBACK_POD_ID;
+        await Promise.all([
+          supabase.from('patient_registry').update({
+            vitals: mergedVitals,
+            updated_at: new Date().toISOString()
+          }).eq('id', patientId),
+          supabase.from('iot_device_events').insert({
+            pod_id: podId,
+            patient_id: patientId,
+            device_type: reading.deviceType,
+            raw_payload: reading
+          })
+        ]);
+      } catch (err) {
+        console.warn('[PatientService] ingestIoTVitals remote sync notice:', err);
+      }
+    })();
+
+    return mergedVitals;
   }
 
   static saveRefractionDiagnostics(patientId: string, diagnostics: Partial<PatientVitals>): void {

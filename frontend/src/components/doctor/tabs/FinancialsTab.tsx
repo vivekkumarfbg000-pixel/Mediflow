@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Landmark, FileText, Pill, FlaskConical, Activity, Search } from 'lucide-react';
+import { Landmark, FileText, Pill, FlaskConical, Activity, Search, ShieldCheck, Sparkles, Check } from 'lucide-react';
 import type { FinancialLedgerEntry } from '../../../types';
 import { SettlementWidget } from '../../shared/SettlementWidget';
 import { PointerGlowCard } from '../../ui/PointerGlowCard';
 import { BillingService } from '../../../services/billingService';
 import { RealtimeSyncService } from '../../../services/realtimeSyncService';
 import { supabase } from '../../../lib/supabaseClient';
+import { SaaSSubscriptionService, type SaaSSubscription, type PodUsageQuota } from '../../../services/saasSubscriptionService';
 
 interface FinancialsTabProps {
   financialLedgers: FinancialLedgerEntry[];
@@ -50,10 +51,16 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     return BillingService.calculateCommissionPoolBalance();
   }, [financialLedgers, syncVersion]);
 
-  const apptFees = poolStats.doctorConsultsEarned;
-  const pharmacyComm = poolStats.doctorMedicineReferralsEarned;
-  const labComm = poolStats.doctorLabReferralsEarned;
-  const totalEarnings = poolStats.totalDoctorEarned;
+  // Phase 23: Precision doctor settlement summary engine
+  const doctorId = activePod?.doctor_id || activePod?.doctorId || '';
+  const settlementSummary = useMemo(() => {
+    return BillingService.calculateDoctorSettlementSummary(doctorId, timeframe);
+  }, [doctorId, timeframe, financialLedgers, syncVersion]);
+
+  const apptFees = settlementSummary.grossOpdConsults > 0 ? settlementSummary.netOpdConsults : poolStats.doctorConsultsEarned;
+  const pharmacyComm = settlementSummary.pharmacyReferralEarnings > 0 ? settlementSummary.pharmacyReferralEarnings : poolStats.doctorMedicineReferralsEarned;
+  const labComm = settlementSummary.labReferralEarnings > 0 ? settlementSummary.labReferralEarnings : poolStats.doctorLabReferralsEarned;
+  const totalEarnings = settlementSummary.totalNetEarnings > 0 ? settlementSummary.totalNetEarnings : poolStats.totalDoctorEarned;
 
   // Dynamic timeframe data generation with async chunking (Rule 1.4)
   const [chartData, setChartData] = useState<{ label: string; clinic: number; pharmacy: number; lab: number }[]>([]);
@@ -217,39 +224,23 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
     }).join(' ');
   }, [chartData, xCoords, getY]);
 
-  // Commission pool balance
-  const [poolBalance, setPoolBalance] = useState<number | null>(null);
-  const [pendingCash, setPendingCash] = useState<number>(0);
-  const [isPoolLow, setIsPoolLow] = useState(false);
+  // SaaS Software Subscription & Quota State (Phase 25)
+  const [saasSub, setSaasSub] = useState<SaaSSubscription>(() => SaaSSubscriptionService.getCachedSubscription(activePod?.id));
+  const [saasQuota, setSaasQuota] = useState<PodUsageQuota>(() => SaaSSubscriptionService.getCachedQuota(activePod?.id));
 
   useEffect(() => {
-    const client = supabaseClient || supabase;
-    const currentPodId = activePod?.id || (typeof window !== 'undefined' ? (() => {
-      try {
-        const raw = localStorage.getItem('vitalsync_active_pod') || localStorage.getItem('mediflow_active_pod');
-        return raw ? JSON.parse(raw)?.id : null;
-      } catch { return null; }
-    })() : null);
+    SaaSSubscriptionService.fetchLiveStatus(activePod?.id).then(({ subscription, quota }) => {
+      setSaasSub(subscription);
+      setSaasQuota(quota);
+    });
 
-    if (!client || !currentPodId) return;
-
-    client
-      .rpc('get_pool_status', { p_pod_id: currentPodId })
-      .then(({ data, error }: any) => {
-        if (error) throw error;
-        if (data) {
-          setPoolBalance(data.pool_balance ?? 0);
-          setPendingCash(data.pending_cash_balance ?? 0);
-          setIsPoolLow(data.is_low ?? false);
-        }
-      })
-      .catch((err: any) => {
-        console.error('[FinancialsTab] Network error fetching pool status:', err);
-        setPoolBalance(0);
-        setPendingCash(0);
-        setIsPoolLow(true);
-      });
-  }, [activePod?.id, supabaseClient, syncVersion]);
+    const handleSubUpdate = (e: any) => {
+      if (e.detail?.subscription) setSaasSub(e.detail.subscription);
+      if (e.detail?.quota) setSaasQuota(e.detail.quota);
+    };
+    window.addEventListener('mediflow-subscription-update', handleSubUpdate);
+    return () => window.removeEventListener('mediflow-subscription-update', handleSubUpdate);
+  }, [activePod?.id]);
 
   const activeSop = BillingService.getActiveSop();
   const docLabSplit = activeSop?.extractedConfig?.splits?.doctor ?? 40;
@@ -395,8 +386,8 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
             <div class="meta-val">₹${apptFees.toLocaleString()}</div>
           </div>
           <div class="meta-box">
-            <div class="meta-label">Commission Pool Net Balance</div>
-            <div class="meta-val">₹${poolStats.netPoolBalance.toLocaleString()}</div>
+            <div class="meta-label">Direct Clinic Net Retained</div>
+            <div class="meta-val">₹${totalEarnings.toLocaleString()}</div>
           </div>
           <div class="meta-box">
             <div class="meta-label">Total Transactions Recorded</div>
@@ -468,103 +459,70 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         ))}
       </div>
 
-      {/* Commission Pool Status Card */}
+      {/* NMC Compliant 100% Direct Settlement & SaaS Software Subscription Status Card */}
       <div className="rounded-2xl border border-indigo-200/80 dark:border-indigo-500/20 bg-white dark:bg-slate-950/80 p-6 space-y-4 shadow-sm text-slate-800 dark:text-white">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 p-2.5 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 shrink-0">
-              <Landmark className="w-6 h-6" />
+            <div className="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 p-2.5 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 shrink-0">
+              <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                Commission Pool Balance
+                100% Direct Clinic Settlement &amp; SaaS License
                 <span className="text-[9px] bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-mono px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-500/20 font-bold uppercase">
-                  2% - 5% Dynamic Tech Ledger Engine
+                  {saasSub.tierName}
                 </span>
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Doctor OPD consults are 100% fee-free (₹0 debt). Platform fee of 5% on Lab and 2% on Pharmacy sales accrues pool ledger debt (-), automatically tracked without touching clinic gross cash.
+                Strictly NMC Ethics Code 6.4 Compliant: 100% of patient consultation, pharmacy, and diagnostic fees settle directly to your clinic with 0% platform deductions.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-6 text-right">
+          <div className="flex items-center gap-4 text-right">
             <div>
-              <div className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-mono font-bold">Net Pool Balance</div>
-              <div className={`text-2xl font-bold font-mono ${
-                poolStats.netPoolBalance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
-              }`}>
-                ₹{poolStats.netPoolBalance.toLocaleString()}
+              <div className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-mono font-bold">Monthly Software License</div>
+              <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                ₹{saasSub.monthlyFeeInr}/mo
               </div>
             </div>
 
-            {poolStats.transferableDoctorPayout > 0 && (
-              <div>
-                <div className="text-[9px] text-indigo-600 dark:text-indigo-400 uppercase tracking-widest font-mono font-bold">Transferable Payout (&gt;₹1k)</div>
-                <div className="text-2xl font-bold font-mono text-indigo-600 dark:text-indigo-400">
-                  ₹{poolStats.transferableDoctorPayout.toLocaleString()}
-                </div>
-              </div>
-            )}
-
             <button
               onClick={() => {
-                if (poolStats.transferableDoctorPayout > 0) {
-                  const ref = prompt(`Transfer ₹${poolStats.transferableDoctorPayout.toLocaleString()} (amount above ₹1,000 buffer) to Doctor Bank Account?\n\nEnter Payout UTR / Ref Number:`, `PAYOUT-${Date.now().toString().substring(5)}`);
-                  if (ref) {
-                    BillingService.recordPoolSettlement(-poolStats.transferableDoctorPayout, ref, 'VitalSync Automated Bank Payout (>₹1k)');
-                    window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                      detail: {
-                        message: `Payout of ₹${poolStats.transferableDoctorPayout.toLocaleString()} transferred to Doctor bank account with UTR ${ref}!`,
-                        type: 'success',
-                        title: 'Doctor Payout Transferred 💳'
-                      }
-                    }));
-                  }
-                } else {
-                  const ref = prompt('Enter Bank Settlement Transaction Reference (NEFT/IMPS/UPI):');
-                  if (ref) {
-                    const amtStr = prompt('Enter Settle Amount (₹):', Math.abs(poolStats.netPoolBalance).toString());
-                    const amt = parseFloat(amtStr || '0');
-                    if (amt > 0) {
-                      BillingService.recordPoolSettlement(amt, ref, 'Manual Debt Offset');
-                      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                        detail: {
-                          message: `Settlement of ₹${amt} recorded with reference ${ref}. Commission Pool balance updated!`,
-                          type: 'success',
-                          title: 'Manual Settlement Logged 💳'
-                        }
-                      }));
-                    }
-                  }
-                }
+                const nextTier = saasSub.tier === 'tier_2_unlimited_pro' ? 'tier_1_growth' : 'tier_2_unlimited_pro';
+                SaaSSubscriptionService.upgradeTier(nextTier, activePod?.id);
               }}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 border-0 cursor-pointer"
+              className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-500/20 border-0 cursor-pointer flex items-center gap-1.5"
             >
-              {poolStats.transferableDoctorPayout > 0
-                ? `Payout Doctor ₹${poolStats.transferableDoctorPayout.toLocaleString()} 💳`
-                : 'Settle Debt / Offset 💳'
-              }
+              <Sparkles className="w-3.5 h-3.5" />
+              {saasSub.tier === 'tier_2_unlimited_pro' ? 'Current Plan: Unlimited Pro' : 'Upgrade to Unlimited Pro (₹1,999/mo)'}
             </button>
           </div>
         </div>
 
+        {/* Real-time Usage Quota Gauges */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-3 border-t border-slate-200/80 dark:border-white/10 text-xs">
           <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Accrued Cash Debt (-3%)</span>
-            <span className="text-sm font-bold text-rose-600 dark:text-rose-400 font-mono">₹{poolStats.totalCashCommissionOwed.toLocaleString()}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">AI Vision OCR Scans</span>
+            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+              {saasQuota.aiScansUsed} / {saasQuota.aiScansLimit < 0 ? 'Unlimited' : saasQuota.aiScansLimit}
+            </span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Online WhatsApp Receipts (+)</span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">₹{poolStats.totalOnlineOffsetReceived.toLocaleString()}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">WhatsApp Care Loop Msgs</span>
+            <span className="text-sm font-bold text-teal-600 dark:text-teal-400 font-mono">
+              {saasQuota.whatsappMessagesUsed} / {saasQuota.whatsappMessagesLimit < 0 ? 'Unlimited' : saasQuota.whatsappMessagesLimit}
+            </span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Buffer Retained (Max ₹1k)</span>
-            <span className="text-sm font-bold text-amber-600 dark:text-amber-400 font-mono">₹{Math.min(1000, Math.max(0, poolStats.netPoolBalance)).toLocaleString()}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Platform Transaction Cut</span>
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 font-mono">0.00% (Strictly ₹0)</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-white/5 border border-slate-200/70 dark:border-white/5">
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Doctor Bank Transfer (&gt;₹1k)</span>
-            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 font-mono">₹{poolStats.transferableDoctorPayout.toLocaleString()}</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase block">Pilot Expiry / Renewal</span>
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-200 font-mono">
+              {saasSub.pilotEndDate ? new Date(saasSub.pilotEndDate).toLocaleDateString() : 'Active'}
+            </span>
           </div>
         </div>
       </div>
@@ -707,7 +665,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 <circle cx="260" cy="205" r="16" fill="#eef2ff" stroke="#4f46e5" strokeWidth="2.5" />
                 <text x="260" y="209" textAnchor="middle" className="text-[9px] font-extrabold fill-indigo-600 font-sans" stroke="none">MF</text>
                 <text x="284" y="203" className="text-[9px] font-extrabold fill-slate-700 font-sans" stroke="none">Platform Fee</text>
-                <text x="284" y="213" className="text-[8px] font-mono fill-indigo-600 font-bold" stroke="none">₹{poolStats.totalCashCommissionOwed.toLocaleString()} (3% Engine)</text>
+                <text x="284" y="213" className="text-[8px] font-mono fill-emerald-600 font-bold" stroke="none">₹0 (0% Pure SaaS)</text>
               </g>
             </svg>
           </div>
@@ -752,8 +710,8 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
                 <th className="p-3.5">Payment Mode / Channel</th>
                 <th className="p-3.5">Type</th>
                 <th className="p-3.5 text-right">Gross Amount</th>
-                <th className="p-3.5 text-center">Comm. Rate</th>
-                <th className="p-3.5 text-right">Net Commission</th>
+                <th className="p-3.5 text-center">Rate</th>
+                <th className="p-3.5 text-right">Net Payout</th>
                 <th className="p-3.5 text-center">Status</th>
               </tr>
             </thead>

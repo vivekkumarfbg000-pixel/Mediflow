@@ -13,7 +13,7 @@ import { AIService, type AIResult } from './aiService';
 import { ClinicalNotificationService } from './clinicalNotificationService';
 // Circuit breakers — safe to import now that autoHealerAgent uses dynamic import() for api
 import { supabaseCircuit, backendApiCircuit } from './autoHealerAgent';
-import { getPodContext, resolvePodContext, resolveSovereignPodId, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID } from './podContext';
+import { getPodContext, resolvePodContext, resolveSovereignPodId, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_LAB_ENTITY, FALLBACK_DOCTOR_ID, getMonotonicSequenceId, getMeshNodeId } from './podContext';
 import { getIstDateString } from '../utils/dateUtils';
 import { cloudStore } from './cloudStore';
 import { requestDeduplicator } from '../utils/requestDeduplicator';
@@ -23,6 +23,7 @@ import { NetworkSentinel } from './networkSentinel';
 import type { 
   Patient, 
   PatientVitals,
+  IoTDeviceReading,
   Encounter, 
   LabRequisition, 
   InventoryHold, 
@@ -120,6 +121,9 @@ export interface WALEntry {
   timestamp: string;
   synced: boolean;
   retryCount?: number;
+  sequenceId?: number;
+  nodeId?: string;
+  podId?: string;
 }
 
 class WALIndexedDB {
@@ -173,11 +177,18 @@ class WALIndexedDB {
       timestamp: new Date().toISOString(),
       synced: false,
       retryCount: 0,
+      sequenceId: getMonotonicSequenceId(),
+      nodeId: getMeshNodeId(),
+      podId: (payload && (payload.podId || payload.pod_id)) || getPodContext().podId || FALLBACK_POD_ID
     };
     return this.append(entry);
   }
 
   async append(entry: WALEntry): Promise<WALEntry> {
+    if (!entry.sequenceId) entry.sequenceId = getMonotonicSequenceId();
+    if (!entry.nodeId) entry.nodeId = getMeshNodeId();
+    if (!entry.podId) entry.podId = getPodContext().podId || FALLBACK_POD_ID;
+
     try {
       const db = await this.getDB();
       return new Promise((resolve, reject) => {
@@ -205,13 +216,26 @@ class WALIndexedDB {
         const request = store.getAll();
         request.onsuccess = () => {
           const all = request.result as WALEntry[];
-          resolve(all.filter(e => !e.synced).sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || ''))));
+          resolve(
+            all
+              .filter(e => !e.synced)
+              .sort((a, b) => {
+                // Phase 24: Total causal ordering by sequenceId, timestamp, and nodeId
+                const seqDiff = (a.sequenceId || 0) - (b.sequenceId || 0);
+                if (seqDiff !== 0) return seqDiff;
+                const timeDiff = String(a.timestamp || '').localeCompare(String(b.timestamp || ''));
+                if (timeDiff !== 0) return timeDiff;
+                return String(a.nodeId || '').localeCompare(String(b.nodeId || ''));
+              })
+          );
         };
         request.onerror = () => reject(request.error);
       });
     } catch (e) {
       const memOutbox = this.getMemOutbox();
-      return memOutbox.filter((e: any) => !e.synced);
+      return memOutbox
+        .filter((e: any) => !e.synced)
+        .sort((a, b) => (a.sequenceId || 0) - (b.sequenceId || 0));
     }
   }
 
@@ -483,7 +507,13 @@ class MediflowApiService {
     }
 
     console.log(`[Mediflow WAL] Replaying ${entries.length} offline operations...`);
+    const activePodId = getPodContext().podId || FALLBACK_POD_ID;
     for (const entry of entries) {
+      // Phase 24: Strict multi-tenant pod boundary isolation
+      if (entry.podId && entry.podId !== activePodId) {
+        console.warn(`[Mediflow WAL] Skipping entry ${entry.id} belonging to foreign pod ${entry.podId} (current pod: ${activePodId}) to enforce strict isolation.`);
+        continue;
+      }
       try {
         console.log(`[Mediflow WAL] Syncing entry ${entry.id} (${entry.action})...`);
         
@@ -1289,6 +1319,12 @@ class MediflowApiService {
 
     PatientService.updatePatientVitalsAndToken(patientId, vitals, token);
     this.notify();
+  }
+
+  ingestIoTVitals(patientId: string, reading: IoTDeviceReading): PatientVitals {
+    const updated = PatientService.ingestIoTVitals(patientId, reading);
+    this.notify();
+    return updated;
   }
 
   saveRefractionDiagnostics(patientId: string, diagnostics: Partial<PatientVitals>): void {

@@ -403,14 +403,6 @@ export const DoctorDashboard: React.FC = () => {
     }
   }, [isLocked]);
 
-  // Cashfree Dynamic Splits & Bank Onboarding States
-  const [activeVendor, setActiveVendor] = useState<any | null>(null);
-  const [vendorFormOpen, setVendorFormOpen] = useState(false);
-  const [vendorHolderName, setVendorHolderName] = useState('');
-  const [vendorAccountNumber, setVendorAccountNumber] = useState('');
-  const [vendorIfsc, setVendorIfsc] = useState('');
-  const [vendorEmail, setVendorEmail] = useState('');
-  const [vendorPhone, setVendorPhone] = useState('');
 
   useEffect(() => {
     const hydrateWabaConnection = async () => {
@@ -849,17 +841,6 @@ export const DoctorDashboard: React.FC = () => {
                 }
               }
             }
-          });
-
-        // Fetch Cashfree vendor connection for the clinic entity
-        supabase
-          .from('cashfree_vendors')
-          .select('*')
-          .eq('pod_id', activePod.id)
-          .eq('entity_id', activeEntity?.id || FALLBACK_ENTITY_ID)
-          .maybeSingle()
-          .then(({ data }) => {
-            setActiveVendor(data || null);
           });
       }
       
@@ -3156,7 +3137,7 @@ Keep the tone professional, clinical, objective, and precise.`;
         <div className="flex items-center gap-4">
           <span>Sub-300ms Outbound WhatsApp</span>
           <span>·</span>
-          <span>Cashfree Payment Gate Active</span>
+          <span>Practo Ray ERP Active (0% Fee)</span>
           <span>·</span>
           <span className="text-indigo-600 dark:text-indigo-400 font-semibold">RLS Encrypted · Doctor EMR</span>
         </div>

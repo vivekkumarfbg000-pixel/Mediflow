@@ -1080,8 +1080,8 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <div className="p-2 bg-white rounded-lg border border-slate-300 text-[10px] text-slate-800 space-y-0.5 font-bold">
                     <div className="text-emerald-800">✔ 100% Doctor consultation fee protection.</div>
                     <div>✔ Counter cash stays 100% in your clinic drawer.</div>
-                    <div>✔ ₹1,000 automated commission safety buffer &amp; direct bank settlements.</div>
-                    <div>✔ Transparent 3% coordination fee only on digital clearing.</div>
+                    <div>✔ 100% Direct Clinic Settlement with 0% platform deduction.</div>
+                    <div>✔ Transparent B2B Software SaaS (90 Days Free Pilot • ₹999/mo).</div>
                   </div>
                 </div>
               </div>
@@ -1242,7 +1242,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   </div>
                   <div className="text-xs font-black text-slate-950">4. Doctor EMR &amp; Scribe</div>
                   <p className="text-[10px] text-slate-800 leading-snug font-medium">
-                    CDSS AI Scribe, Refraction grid, 1-0-1 dosage tokens. 100% doctor fee immunity directly to bank.
+                    CDSS AI Scribe, Refraction grid, 1-0-1 dosage tokens. 100% direct clinic collection with 0% platform fee.
                   </p>
                 </div>
 
@@ -1410,7 +1410,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             </div>
 
             <div className="p-2 bg-slate-100 rounded-xl flex items-center justify-between text-xs border border-slate-300 mt-2">
-              <span className="text-slate-800 font-bold">Seamlessly integrates with your existing clinic workflow. Automated ledger reconciliation and secure bank settlements.</span>
+              <span className="text-slate-800 font-bold">Seamlessly integrates with your existing clinic workflow. Automated single-bucket ledger and direct clinic collections.</span>
               <span className="text-teal-800 font-black">Doctor FAQs →</span>
             </div>
           </section>
@@ -1515,14 +1515,14 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 mt-3">
                 <div className="p-3 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-1 text-center">
                   <div className="w-7 h-7 rounded-lg bg-teal-700 text-white mx-auto flex items-center justify-center font-black text-xs shadow-sm">1</div>
-                  <div className="text-xs font-black text-slate-950">Practice Setup &amp; Bank</div>
-                  <p className="text-[10px] text-slate-800 font-medium">Register clinic profile and link direct settlement bank account for instant payouts.</p>
+                  <div className="text-xs font-black text-slate-950">Practice Setup &amp; Direct Collections</div>
+                  <p className="text-[10px] text-slate-800 font-medium">Register clinic profile and set your Direct Clinic UPI QR &amp; Counter Cash for 100% direct clinic collections.</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-1 text-center">
                   <div className="w-7 h-7 rounded-lg bg-teal-700 text-white mx-auto flex items-center justify-center font-black text-xs shadow-sm">2</div>
                   <div className="text-xs font-black text-slate-950">Connect Chemist &amp; Lab</div>
-                  <p className="text-[10px] text-slate-800 font-medium">Link trusted neighborhood pharmacy &amp; lab with custom SOP split parameters.</p>
+                  <p className="text-[10px] text-slate-800 font-medium">Link trusted neighborhood pharmacy &amp; lab with 0% fee single-hospital billing accreditation.</p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl border-2 border-slate-300 space-y-1 text-center">

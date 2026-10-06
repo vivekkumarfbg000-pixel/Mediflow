@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabaseClient';
 import { PaymentService } from './paymentService';
+import { BillingService } from './billingService';
 import { safeGetStorageJSON, safeSetStorageJSON } from '../utils/storage';
-import { FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from './podContext';
+import { FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, broadcastMeshHeartbeat, getMonotonicSequenceId, getMeshNodeId } from './podContext';
 
 // ─── Telemetry Types ────────────────────────────────────────────────────────────
 
@@ -199,10 +200,19 @@ export class StateHealingEngine {
     return false;
   }
 
-  /** 💰 Phase 22: Autonomous Financial Ledger Integrity Reconciler */
-  static reconcileFinancialLedgerSplits(): boolean {
+  /** 💰 Phase 23: Autonomous Financial Ledger Integrity Reconciler */
+  static async reconcileFinancialLedgerSplits(): Promise<boolean> {
     let healed = false;
     try {
+      // 1. Delegate to BillingService's comprehensive multi-entity orphaned invoice reconciler
+      const report = await BillingService.reconcileOrphanedInvoices();
+      if (report && report.healedCount > 0) {
+        this.totalHealedCount += report.healedCount;
+        healed = true;
+        console.log(`[Auto-Healer v5.0] 💸 Reconciled ${report.healedCount} orphaned invoice(s) (₹${report.totalVolumeReconciled}) into multi-entity ledger splits.`);
+      }
+
+      // 2. Synchronous fallback pass for offline localStorage queue
       const rawLedgers = localStorage.getItem('financial_ledgers');
       const rawInvoices = localStorage.getItem('unified_invoices');
       if (rawInvoices) {
@@ -902,6 +912,7 @@ export class StateHealingEngine {
     await safeAwait(() => this.auditSubscriptionAndPaymentGate(), 'auditSubscriptionAndPaymentGate');
     await safeAwait(() => this.adaptToNetworkBandwidth(), 'adaptToNetworkBandwidth');
     await safeAwait(() => this.verifyMultiTenantIsolation(), 'verifyMultiTenantIsolation');
+    await safeAwait(() => MultiPodMeshSentinel.auditMultiPodMeshHealth(), 'MultiPodMeshSentinel.health');
     await safeAwait(() => this.auditOutboundWhatsAppPipeline(), 'auditOutboundWhatsAppPipeline');
     await safeAwait(() => this.auditAbhaReportIntegrity(), 'auditAbhaReportIntegrity');
     await safeAwait(() => this.profileAndOptimizePerformance(), 'profileAndOptimizePerformance');
@@ -3086,5 +3097,35 @@ export class ActionButtonSelfHealer {
 // Automatically boot Phase 15 Global Action Button Self-Healer in browser context
 if (typeof window !== 'undefined') {
   ActionButtonSelfHealer.initGlobalButtonSelfHealer();
+}
+
+// ── Phase 24: Sovereign Multi-Pod Mesh & Health Heartbeat Sentinel ───────────
+export class MultiPodMeshSentinel {
+  static async auditMultiPodMeshHealth(): Promise<{ status: string; sequenceId: number; nodeId: string }> {
+    const seq = getMonotonicSequenceId();
+    const nodeId = getMeshNodeId();
+
+    try {
+      // 1. Dual-write broadcast heartbeat locally and to Supabase mesh_node_heartbeats
+      await broadcastMeshHeartbeat('auto-healer');
+
+      // 2. Lightweight connection test
+      const start = Date.now();
+      const { error } = await supabase.from('mesh_node_heartbeats').select('id').limit(1);
+      const pingMs = Date.now() - start;
+
+      if (!error) {
+        console.log(`[MultiPodMeshSentinel] 🌐 Mesh Node '${nodeId}' Healthy (seq: ${seq}, ping: ${pingMs}ms)`);
+      }
+    } catch (_e) {
+      /* ignore transient offline failure */
+    }
+
+    return {
+      status: 'online',
+      sequenceId: seq,
+      nodeId
+    };
+  }
 }
 

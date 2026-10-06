@@ -910,7 +910,7 @@ const server = http.createServer(async (req, res) => {
   // ──────────────────────────────────────────────
 
   // ─── ENGINE 2: Shadow Compiler ───
-  if (req.method === 'POST' && pathname === '/api/shadow-compile') {
+  if ((req.method === 'POST' || req.method === 'GET') && pathname === '/api/shadow-compile') {
     const frontendDir = path.resolve(__dirname, '..');
     res.writeHead(200, { 'Content-Type': 'application/json' });
     exec('npx tsc --noEmit 2>&1', { cwd: frontendDir, timeout: 60000 }, (error, stdout, stderr) => {

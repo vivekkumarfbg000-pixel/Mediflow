@@ -1089,84 +1089,48 @@ export class PharmacyService {
         if (error) console.error('Error dispensing bill in Supabase:', error);
       });
 
-      // Record splits for pharmacy cash payments!
+      // Record clean hospital digital ledger entry for pharmacy cash payment (0% platform cut)
       const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
       const exists = ledgerEntries.some(l => l.invoiceId === id);
       if (!exists) {
-        const sops = load<any[]>('clinic_sops', []);
-        const activeSop = sops.find((s: any) => s.isActive);
-        const splitPlat = activeSop?.extractedConfig?.splits?.pharmacyPlatform ?? 2;
-        
         const amount = bill.totalAmount;
-        const platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-        const pharmaAmt = parseFloat((amount * (1 - splitPlat / 100)).toFixed(2));
-
         const podEntityId = getPodContext().entityId;
         const pharmDestId = getPodContext().pharmacyEntityId || podEntityId;
 
-        const platformLedger: FinancialLedgerEntry = {
-          id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
-          invoiceId: id,
-          sourceEntityId: podEntityId,
-          destinationEntityId: podEntityId,
-          transactionType: 'platform_fee',
-          grossAmount: amount,
-          commissionRate: splitPlat / 100,
-          netPayout: platformAmt,
-          paymentStatus: 'cleared',
-          settledAt: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        };
-
         const pharmacyLedger: FinancialLedgerEntry = {
-          id: `tx-pharma-${crypto.randomUUID().substring(0, 8)}`,
+          id: crypto.randomUUID(),
           invoiceId: id,
           sourceEntityId: podEntityId,
           destinationEntityId: pharmDestId,
-          transactionType: 'medicine_commission',
+          transactionType: 'pharmacy_dispensation',
           grossAmount: amount,
-          commissionRate: 1 - splitPlat / 100,
-          netPayout: pharmaAmt,
+          commissionRate: 0,
+          netPayout: amount,
           paymentStatus: 'cleared',
           settledAt: new Date().toISOString(),
           createdAt: new Date().toISOString()
         };
 
-        ledgerEntries.unshift(platformLedger, pharmacyLedger);
+        ledgerEntries.unshift(pharmacyLedger);
         save('financial_ledgers', ledgerEntries);
 
-        // Sync splits to Supabase
-        const dbEntries = [
-          {
-            id: platformLedger.id,
-            invoice_id: id,
-            source_entity_id: podEntityId,
-            destination_entity_id: podEntityId,
-            transaction_type: 'platform_fee',
-            gross_amount: amount,
-            commission_rate: splitPlat,
-            net_payout: platformAmt,
-            payment_status: 'cleared',
-            settled_at: new Date().toISOString(),
-            pod_id: getPodContext().podId
-          },
-          {
-            id: pharmacyLedger.id,
-            invoice_id: id,
-            source_entity_id: podEntityId,
-            destination_entity_id: pharmDestId,
-            transaction_type: 'medicine_commission',
-            gross_amount: amount,
-            commission_rate: 100 - splitPlat,
-            net_payout: pharmaAmt,
-            payment_status: 'cleared',
-            settled_at: new Date().toISOString(),
-            pod_id: getPodContext().podId
-          }
-        ];
+        // Sync single clean ledger entry to Supabase
+        const dbEntry = {
+          id: pharmacyLedger.id,
+          invoice_id: id,
+          source_entity_id: podEntityId,
+          destination_entity_id: pharmDestId,
+          transaction_type: 'pharmacy_dispensation',
+          gross_amount: amount,
+          commission_rate: 0,
+          net_payout: amount,
+          payment_status: 'cleared',
+          settled_at: new Date().toISOString(),
+          pod_id: getPodContext().podId
+        };
 
-        supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
-          if (error) console.error('Error upserting pharmacy cash ledger splits in Supabase:', error);
+        supabase.from('financial_ledgers').upsert([dbEntry], { onConflict: 'id' }).then(({ error }) => {
+          if (error) console.error('Error upserting pharmacy cash ledger in Supabase:', error);
         });
       }
 

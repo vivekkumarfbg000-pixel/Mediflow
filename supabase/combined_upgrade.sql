@@ -8265,4 +8265,765 @@ BEGIN
   END IF;
 END $$;
 
+-- =========================================================================
+-- PHASE 21: MILITARY-GRADE IOT DEVICE TELEMETRY EVENT STORE & AUDIT LOG
+-- =========================================================================
 
+CREATE TABLE IF NOT EXISTS public.iot_device_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+  device_type VARCHAR(50) NOT NULL,
+  raw_payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_iot_device_events_patient ON public.iot_device_events (patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_iot_device_events_pod ON public.iot_device_events (pod_id, created_at DESC);
+
+ALTER TABLE public.iot_device_events ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'iot_device_events' AND policyname = 'iot_events_pod_isolation'
+  ) THEN
+    CREATE POLICY iot_events_pod_isolation ON public.iot_device_events
+      FOR ALL
+      USING (
+        pod_id = public.get_user_pod() OR 
+        pod_id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid
+      );
+  END IF;
+END $$;
+
+-- =========================================================================
+-- PHASE 22: MILITARY-GRADE AMBIENT CLINICAL SCRIBE SESSIONS & AUDIT LOG
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS public.ambient_scribe_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID REFERENCES public.pods(id) ON DELETE CASCADE,
+  patient_id UUID REFERENCES public.patient_registry(id) ON DELETE CASCADE,
+  doctor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  encounter_id UUID REFERENCES public.encounters(id) ON DELETE SET NULL,
+  transcript TEXT NOT NULL,
+  soap_data JSONB NOT NULL,
+  extracted_entities JSONB DEFAULT '{}'::jsonb,
+  audio_duration_seconds INTEGER DEFAULT 0,
+  language_detected VARCHAR(50) DEFAULT 'Hinglish',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for instant patient and pod telemetry queries
+CREATE INDEX IF NOT EXISTS idx_ambient_scribe_patient 
+  ON public.ambient_scribe_sessions (patient_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_ambient_scribe_pod 
+  ON public.ambient_scribe_sessions (pod_id, created_at DESC);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.ambient_scribe_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Idempotent RLS Policy for multi-tenant pod isolation
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'ambient_scribe_sessions' AND policyname = 'ambient_scribe_pod_isolation'
+  ) THEN
+    CREATE POLICY ambient_scribe_pod_isolation ON public.ambient_scribe_sessions
+      FOR ALL
+      USING (
+        pod_id = public.get_user_pod() OR 
+        pod_id = 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid
+      );
+  END IF;
+END $$;
+
+-- Enhance public.encounters with ambient scribe fields
+ALTER TABLE IF EXISTS public.encounters
+  ADD COLUMN IF NOT EXISTS soap_notes JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS ambient_transcript TEXT,
+  ADD COLUMN IF NOT EXISTS ai_scribe_used BOOLEAN DEFAULT false;
+
+-- =========================================================================
+-- PHASE 23: MILITARY-GRADE FINANCIAL LEDGER MESH & RECONCILIATION INDEXES
+-- =========================================================================
+
+-- Composite index for instant sub-300ms invoice split lookups and idempotency checks
+CREATE INDEX IF NOT EXISTS idx_financial_ledgers_invoice_type 
+  ON public.financial_ledgers (invoice_id, transaction_type);
+
+-- Composite index for high-speed doctor earnings and settlement queries
+CREATE INDEX IF NOT EXISTS idx_financial_ledgers_doctor_status 
+  ON public.financial_ledgers (doctor_id, payment_status, created_at DESC);
+
+-- Ensure idempotency key column exists
+ALTER TABLE IF EXISTS public.financial_ledgers
+  ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS reconciled_at TIMESTAMPTZ;
+
+-- Unique index on idempotency key to prevent double-spend at database level
+CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_ledgers_idempotency_key 
+  ON public.financial_ledgers (idempotency_key) 
+  WHERE idempotency_key IS NOT NULL;
+
+-- =========================================================================
+-- PHASE 24: SOVEREIGN MULTI-POD MESH & ZERO-DOWNTIME DEPLOYMENT SENTINEL
+-- =========================================================================
+
+-- 1. Create mesh_node_heartbeats table for multi-counter terminal mesh tracking
+CREATE TABLE IF NOT EXISTS public.mesh_node_heartbeats (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id UUID NOT NULL,
+  node_id TEXT NOT NULL,
+  node_role TEXT DEFAULT 'counter',
+  last_sequence_id BIGINT DEFAULT 0,
+  status TEXT DEFAULT 'online',
+  last_seen TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- Composite Unique Index on pod_id + node_id to allow upserts from active clinic terminals
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mesh_node_heartbeats_pod_node
+  ON public.mesh_node_heartbeats (pod_id, node_id);
+
+-- Performance Index for Node Status Audits
+CREATE INDEX IF NOT EXISTS idx_mesh_node_heartbeats_status
+  ON public.mesh_node_heartbeats (pod_id, status, last_seen DESC);
+
+-- 2. Create deployment_audit_logs table for zero-downtime client version tracking
+CREATE TABLE IF NOT EXISTS public.deployment_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  version TEXT NOT NULL,
+  deployed_by TEXT DEFAULT 'ci_sentinel',
+  pod_id UUID,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  metadata JSONB DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployment_audit_logs_version
+  ON public.deployment_audit_logs (version, created_at DESC);
+
+-- 3. Enable Row Level Security & Establish Permissive Access Policies
+ALTER TABLE public.mesh_node_heartbeats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.deployment_audit_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  -- mesh_node_heartbeats Policies
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'mesh_node_heartbeats' AND policyname = 'mesh_node_heartbeats_read_all'
+  ) THEN
+    CREATE POLICY mesh_node_heartbeats_read_all ON public.mesh_node_heartbeats
+      FOR SELECT USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'mesh_node_heartbeats' AND policyname = 'mesh_node_heartbeats_write_all'
+  ) THEN
+    CREATE POLICY mesh_node_heartbeats_write_all ON public.mesh_node_heartbeats
+      FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+
+  -- deployment_audit_logs Policies
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'deployment_audit_logs' AND policyname = 'deployment_audit_logs_read_all'
+  ) THEN
+    CREATE POLICY deployment_audit_logs_read_all ON public.deployment_audit_logs
+      FOR SELECT USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'deployment_audit_logs' AND policyname = 'deployment_audit_logs_write_all'
+  ) THEN
+    CREATE POLICY deployment_audit_logs_write_all ON public.deployment_audit_logs
+      FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+-- ============================================================================
+-- VITALSYNC MASTER UPGRADE MIGRATION: Phase 25 SaaS Subscription & Quota Engine
+-- Strict NMC Ethics Code 6.4 & DPDP Act 2023 Compliance
+-- Flat SaaS Subscriptions: 90-Day Free Pilot, ₹999/mo Growth, ₹1,999/mo Pro
+-- 100% Direct Clinic Settlement (0% Platform Fee Deductions)
+-- ============================================================================
+
+-- 1. Ensure public.saas_subscriptions table exists
+CREATE TABLE IF NOT EXISTS public.saas_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+    tier VARCHAR(50) NOT NULL DEFAULT 'tier_0_pilot', -- 'tier_0_pilot', 'tier_1_growth', 'tier_2_unlimited_pro'
+    tier_name VARCHAR(100) NOT NULL DEFAULT '90-Day Free Clinical Pilot',
+    billing_cycle VARCHAR(20) NOT NULL DEFAULT 'monthly',
+    monthly_fee_inr NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(50) NOT NULL DEFAULT 'active', -- 'active', 'past_due', 'cancelled'
+    pilot_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    pilot_end_date TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 days'),
+    current_period_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    current_period_end TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+    max_ai_scans_per_month INTEGER NOT NULL DEFAULT 1000, -- -1 for unlimited
+    max_whatsapp_messages_per_month INTEGER NOT NULL DEFAULT 1000, -- -1 for unlimited
+    auto_renew BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT saas_subscriptions_pod_id_key UNIQUE (pod_id)
+);
+
+-- 2. Ensure public.pod_usage_quotas table exists
+CREATE TABLE IF NOT EXISTS public.pod_usage_quotas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pod_id UUID NOT NULL REFERENCES public.pods(id) ON DELETE CASCADE,
+    billing_month VARCHAR(7) NOT NULL, -- 'YYYY-MM'
+    ai_scans_used INTEGER NOT NULL DEFAULT 0,
+    whatsapp_messages_used INTEGER NOT NULL DEFAULT 0,
+    ai_scans_limit INTEGER NOT NULL DEFAULT 1000,
+    whatsapp_messages_limit INTEGER NOT NULL DEFAULT 1000,
+    is_hard_limit_exceeded BOOLEAN NOT NULL DEFAULT FALSE,
+    last_increment_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT pod_usage_quotas_pod_month_key UNIQUE (pod_id, billing_month)
+);
+
+-- 3. Reset all pod platform fee percentages to 0.00 (Zero Platform Deductions)
+ALTER TABLE public.pods ADD COLUMN IF NOT EXISTS platform_fee_percent NUMERIC(5,2) DEFAULT 0.00;
+UPDATE public.pods SET platform_fee_percent = 0.00 WHERE platform_fee_percent != 0.00 OR platform_fee_percent IS NULL;
+
+-- 4. Deprecate accumulate_platform_revenue as safe no-op
+CREATE OR REPLACE FUNCTION public.accumulate_platform_revenue(
+    p_pod_id UUID,
+    p_amount NUMERIC,
+    p_is_cash BOOLEAN DEFAULT FALSE
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    -- PHASE 25 DEPRECATION: Commission/platform transaction cuts are legally eliminated.
+    -- Retained strictly as a safe no-op to preserve backwards compatibility with offline WAL replay.
+    RETURN;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.accumulate_platform_revenue(UUID, NUMERIC, BOOLEAN) TO authenticated, anon, service_role;
+
+-- 5. Atomic Usage Quota Tracking RPC
+CREATE OR REPLACE FUNCTION public.record_pod_usage_quota(
+    p_pod_id UUID,
+    p_usage_type VARCHAR, -- 'ai_scan' or 'whatsapp_message'
+    p_increment INTEGER DEFAULT 1
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_month VARCHAR(7);
+    v_sub RECORD;
+    v_quota RECORD;
+    v_scans_used INT;
+    v_wa_used INT;
+    v_scans_limit INT;
+    v_wa_limit INT;
+    v_allowed BOOLEAN := TRUE;
+    v_reason TEXT := 'OK';
+BEGIN
+    v_month := to_char(NOW(), 'YYYY-MM');
+
+    -- Auto-provision 90-day pilot if missing
+    SELECT * INTO v_sub FROM public.saas_subscriptions WHERE pod_id = p_pod_id LIMIT 1;
+    IF NOT FOUND THEN
+        INSERT INTO public.saas_subscriptions (
+            pod_id, tier, tier_name, monthly_fee_inr, status,
+            pilot_started_at, pilot_end_date,
+            max_ai_scans_per_month, max_whatsapp_messages_per_month
+        ) VALUES (
+            p_pod_id, 'tier_0_pilot', '90-Day Free Clinical Pilot', 0.00, 'active',
+            NOW(), NOW() + INTERVAL '90 days',
+            1000, 1000
+        )
+        ON CONFLICT (pod_id) DO UPDATE SET updated_at = NOW()
+        RETURNING * INTO v_sub;
+    END IF;
+
+    v_scans_limit := COALESCE(v_sub.max_ai_scans_per_month, 1000);
+    v_wa_limit := COALESCE(v_sub.max_whatsapp_messages_per_month, 1000);
+
+    -- Ensure monthly quota row
+    INSERT INTO public.pod_usage_quotas (
+        pod_id, billing_month, ai_scans_used, whatsapp_messages_used,
+        ai_scans_limit, whatsapp_messages_limit
+    ) VALUES (
+        p_pod_id, v_month, 0, 0,
+        v_scans_limit, v_wa_limit
+    )
+    ON CONFLICT (pod_id, billing_month) DO NOTHING;
+
+    -- Update usage with atomicity
+    IF p_usage_type = 'ai_scan' THEN
+        IF v_scans_limit > 0 THEN
+            SELECT ai_scans_used INTO v_scans_used FROM public.pod_usage_quotas WHERE pod_id = p_pod_id AND billing_month = v_month;
+            IF (v_scans_used + p_increment) > v_scans_limit THEN
+                v_allowed := FALSE;
+                v_reason := 'AI vision scan quota exceeded for current billing month. Upgrade to Unlimited Pro (₹1,999/mo) to unlock unlimited scans.';
+            END IF;
+        END IF;
+
+        UPDATE public.pod_usage_quotas
+        SET ai_scans_used = ai_scans_used + p_increment,
+            last_increment_at = NOW(),
+            updated_at = NOW()
+        WHERE pod_id = p_pod_id AND billing_month = v_month
+        RETURNING * INTO v_quota;
+
+    ELSIF p_usage_type = 'whatsapp_message' THEN
+        IF v_wa_limit > 0 THEN
+            SELECT whatsapp_messages_used INTO v_wa_used FROM public.pod_usage_quotas WHERE pod_id = p_pod_id AND billing_month = v_month;
+            IF (v_wa_used + p_increment) > v_wa_limit THEN
+                v_allowed := FALSE;
+                v_reason := 'WhatsApp message quota exceeded for current billing month. Upgrade to Unlimited Pro (₹1,999/mo) to unlock unlimited care loops.';
+            END IF;
+        END IF;
+
+        UPDATE public.pod_usage_quotas
+        SET whatsapp_messages_used = whatsapp_messages_used + p_increment,
+            last_increment_at = NOW(),
+            updated_at = NOW()
+        WHERE pod_id = p_pod_id AND billing_month = v_month
+        RETURNING * INTO v_quota;
+    ELSE
+        SELECT * INTO v_quota FROM public.pod_usage_quotas WHERE pod_id = p_pod_id AND billing_month = v_month;
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'allowed', v_allowed,
+        'reason', v_reason,
+        'tier', v_sub.tier,
+        'tier_name', v_sub.tier_name,
+        'monthly_fee_inr', v_sub.monthly_fee_inr,
+        'pilot_end_date', v_sub.pilot_end_date,
+        'billing_month', v_month,
+        'ai_scans_used', COALESCE(v_quota.ai_scans_used, 0),
+        'ai_scans_limit', v_scans_limit,
+        'whatsapp_messages_used', COALESCE(v_quota.whatsapp_messages_used, 0),
+        'whatsapp_messages_limit', v_wa_limit
+    );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.record_pod_usage_quota(UUID, VARCHAR, INTEGER) TO authenticated, anon, service_role;
+
+-- 6. RPC to get subscription & quota status
+CREATE OR REPLACE FUNCTION public.get_pod_subscription_status(p_pod_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_sub RECORD;
+    v_quota RECORD;
+    v_month VARCHAR(7);
+BEGIN
+    v_month := to_char(NOW(), 'YYYY-MM');
+    SELECT * INTO v_sub FROM public.saas_subscriptions WHERE pod_id = p_pod_id LIMIT 1;
+    IF NOT FOUND THEN
+        INSERT INTO public.saas_subscriptions (
+            pod_id, tier, tier_name, monthly_fee_inr, status,
+            pilot_started_at, pilot_end_date,
+            max_ai_scans_per_month, max_whatsapp_messages_per_month
+        ) VALUES (
+            p_pod_id, 'tier_0_pilot', '90-Day Free Clinical Pilot', 0.00, 'active',
+            NOW(), NOW() + INTERVAL '90 days',
+            1000, 1000
+        )
+        ON CONFLICT (pod_id) DO UPDATE SET updated_at = NOW()
+        RETURNING * INTO v_sub;
+    END IF;
+
+    SELECT * INTO v_quota FROM public.pod_usage_quotas WHERE pod_id = p_pod_id AND billing_month = v_month LIMIT 1;
+
+    RETURN jsonb_build_object(
+        'pod_id', p_pod_id,
+        'tier', v_sub.tier,
+        'tier_name', v_sub.tier_name,
+        'monthly_fee_inr', v_sub.monthly_fee_inr,
+        'status', v_sub.status,
+        'pilot_end_date', v_sub.pilot_end_date,
+        'billing_month', v_month,
+        'ai_scans_used', COALESCE(v_quota.ai_scans_used, 0),
+        'ai_scans_limit', COALESCE(v_sub.max_ai_scans_per_month, 1000),
+        'whatsapp_messages_used', COALESCE(v_quota.whatsapp_messages_used, 0),
+        'whatsapp_messages_limit', COALESCE(v_sub.max_whatsapp_messages_per_month, 1000)
+    );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_pod_subscription_status(UUID) TO authenticated, anon, service_role;
+
+-- 7. RPC to upgrade SaaS tier
+CREATE OR REPLACE FUNCTION public.upgrade_pod_saas_tier(
+    p_pod_id UUID,
+    p_new_tier VARCHAR
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_tier_name VARCHAR(100);
+    v_monthly_fee NUMERIC(10,2);
+    v_scans_limit INT;
+    v_wa_limit INT;
+    v_res RECORD;
+BEGIN
+    IF p_new_tier = 'tier_2_unlimited_pro' THEN
+        v_tier_name := 'Unlimited Pro Plan';
+        v_monthly_fee := 1999.00;
+        v_scans_limit := -1; -- unlimited
+        v_wa_limit := -1;    -- unlimited
+    ELSIF p_new_tier = 'tier_1_growth' THEN
+        v_tier_name := 'Growth Plan';
+        v_monthly_fee := 999.00;
+        v_scans_limit := 1000;
+        v_wa_limit := 1000;
+    ELSE
+        v_tier_name := '90-Day Free Clinical Pilot';
+        v_monthly_fee := 0.00;
+        v_scans_limit := 1000;
+        v_wa_limit := 1000;
+    END IF;
+
+    INSERT INTO public.saas_subscriptions (
+        pod_id, tier, tier_name, monthly_fee_inr, status,
+        max_ai_scans_per_month, max_whatsapp_messages_per_month, updated_at
+    ) VALUES (
+        p_pod_id, p_new_tier, v_tier_name, v_monthly_fee, 'active',
+        v_scans_limit, v_wa_limit, NOW()
+    )
+    ON CONFLICT (pod_id) DO UPDATE SET
+        tier = p_new_tier,
+        tier_name = v_tier_name,
+        monthly_fee_inr = v_monthly_fee,
+        max_ai_scans_per_month = v_scans_limit,
+        max_whatsapp_messages_per_month = v_wa_limit,
+        updated_at = NOW()
+    RETURNING * INTO v_res;
+
+    -- Update current month limit
+    UPDATE public.pod_usage_quotas
+    SET ai_scans_limit = v_scans_limit,
+        whatsapp_messages_limit = v_wa_limit,
+        updated_at = NOW()
+    WHERE pod_id = p_pod_id AND billing_month = to_char(NOW(), 'YYYY-MM');
+
+    RETURN jsonb_build_object(
+        'success', TRUE,
+        'tier', v_res.tier,
+        'tier_name', v_res.tier_name,
+        'monthly_fee_inr', v_res.monthly_fee_inr,
+        'max_ai_scans', v_scans_limit,
+        'max_whatsapp', v_wa_limit
+    );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.upgrade_pod_saas_tier(UUID, VARCHAR) TO authenticated, anon, service_role;
+
+-- 8. Add Realtime publication
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.saas_subscriptions;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.pod_usage_quotas;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- ==============================================================================
+-- PHASE 26: 100% LEGAL PRACTO-MODEL DIGITAL FINANCIAL LEDGER & ERP ARCHITECTURE
+-- NMC Code §6.4 & RBI PSS Act 2007 Compliance
+-- ==============================================================================
+
+-- 1. Ensure unified_invoices supports Single-Bucket Hospital Billing & Counter Modes
+ALTER TABLE IF EXISTS unified_invoices
+  ADD COLUMN IF NOT EXISTS billing_model text DEFAULT 'hospital_single_bucket',
+  ADD COLUMN IF NOT EXISTS payment_mode text DEFAULT 'counter_direct',
+  ADD COLUMN IF NOT EXISTS clinic_upi_vpa text DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS partner_pharmacy_dl text DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS partner_lab_nabl text DEFAULT NULL;
+
+-- 2. Ensure financial_ledgers operates purely as a bookkeeping ledger with zero escrow
+ALTER TABLE IF EXISTS financial_ledgers
+  ADD COLUMN IF NOT EXISTS collection_method text DEFAULT 'direct_counter',
+  ADD COLUMN IF NOT EXISTS is_offline_b2b_reconciliation boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS reconciliation_partner_name text DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS platform_fee_amount numeric DEFAULT 0;
+
+-- 3. Dedicated Offline B2B Partner Reconciliation Table (Pure Bookkeeping for External Vendors)
+CREATE TABLE IF NOT EXISTS offline_vendor_reconciliations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pod_id uuid NOT NULL,
+  partner_entity_id uuid,
+  partner_name text NOT NULL,
+  partner_type text NOT NULL CHECK (partner_type IN ('pharmacy', 'lab')),
+  reconciliation_period text NOT NULL,
+  item_count integer DEFAULT 0,
+  total_accrued_amount numeric NOT NULL DEFAULT 0,
+  settlement_status text DEFAULT 'pending_offline_invoice' CHECK (settlement_status IN ('pending_offline_invoice', 'invoiced', 'settled_offline')),
+  b2b_invoice_number text,
+  settled_at timestamptz,
+  notes text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Index for instant monthly reconciliation queries
+CREATE INDEX IF NOT EXISTS idx_offline_recon_pod_period ON offline_vendor_reconciliations (pod_id, reconciliation_period);
+
+-- 4. Enable RLS and Sovereign Pod Isolation
+ALTER TABLE offline_vendor_reconciliations ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'offline_vendor_reconciliations' 
+    AND policyname = 'pod_isolated_offline_recon'
+  ) THEN
+    CREATE POLICY pod_isolated_offline_recon ON offline_vendor_reconciliations
+      FOR ALL
+      USING (
+        pod_id = NULLIF(current_setting('request.jwt.claims', true)::json->>'pod_id', '')::uuid
+        OR EXISTS (
+          SELECT 1 FROM profiles 
+          WHERE profiles.id = auth.uid() 
+          AND (profiles.role IN ('superadmin', 'doctor', 'compounder', 'lab', 'pharmacy'))
+        )
+      );
+  END IF;
+END $$;
+
+-- ==============================================================================
+-- PHASE 27: COMPLETE ERADICATION OF LEGACY COMMISSION SPLITS & COMMISSION POOLS
+-- 100% Legal Practo Ray / HIS Hospital Single-Bucket ERP Model (NMC §6.4 & RBI PSS Act)
+-- ==============================================================================
+
+-- 1. Ensure pods table defaults to 0.00% platform fee and clean columns
+ALTER TABLE IF EXISTS public.pods 
+  ALTER COLUMN platform_fee_percent SET DEFAULT 0.00;
+
+UPDATE public.pods 
+SET platform_fee_percent = 0.00,
+    pending_cash_balance = 0.00
+WHERE platform_fee_percent > 0.00 OR pending_cash_balance != 0.00;
+
+-- 2. Permanently replace process_invoice_settlement_v2 with 100% Direct Clinic Settlement
+DROP FUNCTION IF EXISTS public.process_invoice_settlement_v2(TEXT, TEXT, NUMERIC, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.process_invoice_settlement_v2(TEXT) CASCADE;
+
+-- Zero platform cuts, Zero kickbacks, Zero vitalsync_pool_settlements insertions.
+CREATE OR REPLACE FUNCTION public.process_invoice_settlement_v2(
+    p_invoice_id TEXT,
+    p_payment_method TEXT DEFAULT 'upi',
+    p_amount_paid NUMERIC DEFAULT NULL,
+    p_gateway_reference_id TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    v_invoice RECORD;
+    v_amount NUMERIC(12,2) := 0.00;
+    v_doc_fee NUMERIC(12,2) := 0.00;
+    v_lab_fee NUMERIC(12,2) := 0.00;
+    v_pharm_fee NUMERIC(12,2) := 0.00;
+    v_pod_id UUID;
+    v_patient_id UUID;
+BEGIN
+    -- 1. Strict row-level lock on unified_invoices to eliminate race conditions
+    SELECT * INTO v_invoice
+    FROM public.unified_invoices
+    WHERE id::text = p_invoice_id OR id::text LIKE (p_invoice_id || '%')
+    LIMIT 1
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invoice not found: ' || p_invoice_id);
+    END IF;
+
+    -- Idempotent bypass if already cleared
+    IF v_invoice.payment_status = 'cleared' OR v_invoice.payment_status = 'paid' THEN
+        RETURN jsonb_build_object(
+            'success', true, 
+            'skipped', true, 
+            'message', 'Invoice already cleared and settled at clinic counter',
+            'invoice_id', v_invoice.id::text
+        );
+    END IF;
+
+    -- 2. Resolve baseline figures
+    v_amount := COALESCE(p_amount_paid, v_invoice.total_amount, 0.00);
+    v_doc_fee := COALESCE(v_invoice.doctor_fee, 0.00);
+    v_lab_fee := COALESCE(v_invoice.lab_fee, 0.00);
+    v_pharm_fee := COALESCE(v_invoice.pharmacy_fee, 0.00);
+
+    -- Fallback: If departmental fees are all 0 but total > 0, treat as pure doctor consultation
+    IF v_doc_fee = 0.00 AND v_lab_fee = 0.00 AND v_pharm_fee = 0.00 AND v_amount > 0.00 THEN
+        v_doc_fee := v_amount;
+    END IF;
+
+    -- Safe pod ID and patient ID casting
+    BEGIN
+        v_pod_id := v_invoice.pod_id::uuid;
+    EXCEPTION WHEN OTHERS THEN
+        v_pod_id := 'dfb2a1a8-8e68-4f8a-929e-4a6c8e317001'::uuid;
+    END;
+
+    BEGIN
+        v_patient_id := v_invoice.patient_id::uuid;
+    EXCEPTION WHEN OTHERS THEN
+        v_patient_id := NULL;
+    END;
+
+    -- 3. Atomic Insertion into public.financial_ledgers as Pure Clinic Bookkeeping (0% Platform Fee)
+    -- A. Doctor Consultation Ledger (100% Direct Clinic Retention)
+    IF v_doc_fee > 0.00 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, patient_id, destination_entity_id, transaction_type,
+            gross_amount, commission_rate, net_payout, payment_status, settled_at,
+            platform_fee_deducted, payment_method, amount, pod_id
+        ) VALUES (
+            gen_random_uuid(),
+            v_invoice.id, v_patient_id, NULL, 'appointment_fee',
+            v_doc_fee, 0.00, v_doc_fee, 'cleared', NOW(),
+            0.00, p_payment_method, v_doc_fee, v_pod_id
+        );
+    END IF;
+
+    -- B. Lab Diagnostic Ledger (100% Direct Clinic Retention - 0% Platform Fee)
+    IF v_lab_fee > 0.00 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, patient_id, destination_entity_id, transaction_type,
+            gross_amount, commission_rate, net_payout, payment_status, settled_at,
+            platform_fee_deducted, payment_method, amount, pod_id
+        ) VALUES (
+            gen_random_uuid(),
+            v_invoice.id, v_patient_id, NULL, 'lab_diagnostic',
+            v_lab_fee, 0.00, v_lab_fee, 'cleared', NOW(),
+            0.00, p_payment_method, v_lab_fee, v_pod_id
+        );
+    END IF;
+
+    -- C. Pharmacy Dispensation Ledger (100% Direct Clinic Retention - 0% Platform Fee)
+    IF v_pharm_fee > 0.00 THEN
+        INSERT INTO public.financial_ledgers (
+            id, invoice_id, patient_id, destination_entity_id, transaction_type,
+            gross_amount, commission_rate, net_payout, payment_status, settled_at,
+            platform_fee_deducted, payment_method, amount, pod_id
+        ) VALUES (
+            gen_random_uuid(),
+            v_invoice.id, v_patient_id, NULL, 'pharmacy_dispensation',
+            v_pharm_fee, 0.00, v_pharm_fee, 'cleared', NOW(),
+            0.00, p_payment_method, v_pharm_fee, v_pod_id
+        );
+    END IF;
+
+    -- 4. Mark unified_invoices as cleared at clinic counter with 0 platform fee
+    UPDATE public.unified_invoices
+    SET payment_status = 'cleared',
+        status = 'paid',
+        payment_method = p_payment_method,
+        payment_mode = 'counter_direct',
+        billing_model = 'hospital_single_bucket',
+        platform_fee = 0.00,
+        updated_at = NOW()
+    WHERE id = v_invoice.id;
+
+    -- 5. Mark associated appointment as confirmed if pending
+    IF v_invoice.encounter_id IS NOT NULL THEN
+        UPDATE public.appointments
+        SET status = 'confirmed',
+            updated_at = NOW()
+        WHERE id::text = v_invoice.encounter_id::text AND status = 'pending_payment';
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'invoice_id', v_invoice.id::text,
+        'amount_settled', v_amount,
+        'doctor_fee', v_doc_fee,
+        'lab_fee', v_lab_fee,
+        'pharmacy_fee', v_pharm_fee,
+        'platform_fee', 0.00,
+        'billing_model', 'hospital_single_bucket',
+        'payment_mode', 'counter_direct',
+        'status', 'cleared'
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement_v2(TEXT, TEXT, NUMERIC, TEXT) TO authenticated, anon, service_role;
+
+-- Backwards Compatibility Alias: Ensure legacy callers to process_invoice_settlement resolve cleanly to v2
+CREATE OR REPLACE FUNCTION public.process_invoice_settlement(
+    p_invoice_id TEXT,
+    p_payment_method TEXT DEFAULT 'upi',
+    p_amount_paid NUMERIC DEFAULT NULL,
+    p_gateway_reference_id TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN public.process_invoice_settlement_v2(p_invoice_id, p_payment_method, p_amount_paid, p_gateway_reference_id);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_invoice_settlement(TEXT, TEXT, NUMERIC, TEXT) TO authenticated, anon, service_role;
+
+-- 3. Permanently neuter accumulate_platform_revenue into safe no-op
+DROP FUNCTION IF EXISTS public.accumulate_platform_revenue(UUID, NUMERIC, BOOLEAN) CASCADE;
+DROP FUNCTION IF EXISTS public.accumulate_platform_revenue(UUID, NUMERIC) CASCADE;
+
+CREATE OR REPLACE FUNCTION public.accumulate_platform_revenue(
+    p_pod_id UUID, 
+    p_amount NUMERIC, 
+    p_is_cash BOOLEAN DEFAULT FALSE
+)
+RETURNS JSONB AS $$
+BEGIN
+    -- Practo Model Invariant: Zero platform revenue cuts on clinical transactions
+    RETURN jsonb_build_object('success', true, 'platform_fee', 0.00);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.accumulate_platform_revenue(UUID, NUMERIC, BOOLEAN) TO authenticated, anon, service_role;
+
+-- 4. Permanently neuter debit_commission_pool into safe no-op
+DROP FUNCTION IF EXISTS public.debit_commission_pool(UUID, NUMERIC) CASCADE;
+DROP FUNCTION IF EXISTS public.debit_commission_pool(UUID, NUMERIC, TEXT, UUID) CASCADE;
+
+CREATE OR REPLACE FUNCTION public.debit_commission_pool(
+    p_pod_id UUID, 
+    p_amount NUMERIC,
+    p_reason TEXT DEFAULT 'legacy_fee',
+    p_reference_id UUID DEFAULT NULL
+)
+RETURNS JSONB AS $$
+BEGIN
+    -- Practo Model Invariant: Zero commission pool debits
+    RETURN jsonb_build_object('success', true, 'pool_balance', 0.00, 'debited', 0.00);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.debit_commission_pool(UUID, NUMERIC, TEXT, UUID) TO authenticated, anon, service_role;

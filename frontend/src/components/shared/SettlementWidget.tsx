@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Landmark, RefreshCw, CheckCircle2, X } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
-import { useSplitValidation, SplitValidationGate } from '../../hooks/useSplitValidation.tsx';
-import type { SplitNode } from '../../hooks/useSplitValidation.tsx';
+import { QrCode, CheckCircle2, X, Sparkles, Copy, Check, Building2, ShieldCheck, RefreshCw } from 'lucide-react';
+import { generateQRCodeDataURI } from '../../utils/qrCode';
+import { safeGetStorageJSON, safeSetStorageJSON } from '../../utils/storage';
 
 interface SettlementWidgetProps {
   entityId: string;
@@ -13,407 +12,304 @@ interface SettlementWidgetProps {
   theme?: 'light' | 'dark';
 }
 
+interface DirectPaymentConfig {
+  upiVpa: string;
+  payeeName: string;
+  regNumber?: string;
+  updatedAt: string;
+}
+
 export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
   entityId,
   podId,
   entityType,
-  displayName = 'Settlement Account',
+  displayName = 'Direct Settlement Account',
   theme = 'light'
 }) => {
-  const [activeVendor, setActiveVendor] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [vendorFormOpen, setVendorFormOpen] = useState(false);
-  const [vendorHolderName, setVendorHolderName] = useState('');
-  const [vendorAccountNumber, setVendorAccountNumber] = useState('');
-  const [vendorIfsc, setVendorIfsc] = useState('');
-  const [vendorEmail, setVendorEmail] = useState('');
-  const [vendorPhone, setVendorPhone] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isDark = theme === 'dark';
+  const storageKey = `vitalsync_direct_payment_${podId || 'global'}_${entityType}`;
 
-  // Fetch Cashfree vendor connection for the entity
-  const fetchVendor = async () => {
-    if (!podId || !entityId) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('cashfree_vendors')
-        .select('*')
-        .eq('pod_id', podId)
-        .eq('entity_id', entityId)
-        .maybeSingle();
+  // Default fallback VPA if not yet set
+  const defaultPayee = displayName.replace(/\s+/g, ' ') || 'Healthcare Clinic';
+  const [config, setConfig] = useState<DirectPaymentConfig | null>(() => {
+    return safeGetStorageJSON<DirectPaymentConfig | null>(storageKey, null);
+  });
 
-      if (!error) {
-        setActiveVendor(data || null);
-      }
-    } catch (err) {
-      console.error('[SettlementWidget] Failed to fetch vendor connection:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formVpa, setFormVpa] = useState('');
+  const [formName, setFormName] = useState('');
+  const [formReg, setFormReg] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetchVendor();
-  }, [podId, entityId]);
-
-  const handleDisconnect = async () => {
-    if (!activeVendor) return;
-    if (!window.confirm("Are you sure you want to disconnect this settlement bank account? Split settlements will revert to central system billing.")) {
-      return;
+    const loaded = safeGetStorageJSON<DirectPaymentConfig | null>(storageKey, null);
+    if (loaded) {
+      setConfig(loaded);
     }
+  }, [storageKey]);
 
+  const activeVpa = config?.upiVpa || 'vitalsync@upi';
+  const activeName = config?.payeeName || defaultPayee;
+
+  // Generate standard NPCI/UPI URI: upi://pay?pa=<vpa>&pn=<name>&cu=INR
+  const upiUri = useMemo(() => {
+    const cleanVpa = encodeURIComponent((activeVpa || '').trim());
+    const cleanName = encodeURIComponent((activeName || '').trim());
+    return `upi://pay?pa=${cleanVpa}&pn=${cleanName}&cu=INR`;
+  }, [activeVpa, activeName]);
+
+  const qrDataUri = useMemo(() => {
     try {
-      const { error } = await supabase
-        .from('cashfree_vendors')
-        .delete()
-        .eq('id', activeVendor.id);
-
-      if (error) {
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: 'Disconnection Failed',
-            message: error.message || 'Could not disconnect settlement account.',
-            type: 'error'
-          }
-        }));
-      } else {
-        setActiveVendor(null);
-        window.dispatchEvent(new CustomEvent('mediflow-toast', {
-          detail: {
-            title: 'Account Disconnected! 🔴',
-            message: 'Cashfree sub-account settlement channel detached successfully.',
-            type: 'info'
-          }
-        }));
-      }
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Disconnection Error',
-          message: err?.message || 'Failed to disconnect settlement account.',
-          type: 'error'
-        }
-      }));
-    }
-  };
-
-  const handleOnboardSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!vendorHolderName || !vendorAccountNumber || !vendorIfsc) {
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Missing Banking Information',
-          message: 'Please fill in account holder name, account number, and IFSC code.',
-          type: 'error'
-        }
-      }));
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      // Trigger the Edge Function cashfree-vendor-sync using Supabase invoke
-      const { data: resData, error: invokeErr } = await supabase.functions.invoke('cashfree-vendor-sync', {
-        body: {
-          holderName: vendorHolderName.trim(),
-          accountNumber: vendorAccountNumber.trim(),
-          ifsc: vendorIfsc.trim().toUpperCase(),
-          email: vendorEmail.trim() || undefined,
-          phone: vendorPhone.trim() || undefined,
-          entityId,
-          podId
-        }
+      return generateQRCodeDataURI(upiUri, {
+        size: 240,
+        color: isDark ? '#10b981' : '#0f172a',
+        bgColor: isDark ? '#090d16' : '#ffffff',
+        margin: 2
       });
+    } catch {
+      return '';
+    }
+  }, [upiUri, isDark]);
 
-      if (invokeErr || !resData || resData.error) {
-        throw new Error(invokeErr?.message ?? resData?.error ?? "Registration API failed.");
-      }
+  const handleOpenModal = () => {
+    setFormVpa(config?.upiVpa || '');
+    setFormName(config?.payeeName || defaultPayee);
+    setFormReg(config?.regNumber || '');
+    setModalOpen(true);
+  };
 
-      setActiveVendor(resData.record);
-      setVendorFormOpen(false);
-
-      // Clear fields
-      setVendorAccountNumber('');
-      setVendorIfsc('');
-      setVendorEmail('');
-      setVendorPhone('');
-
+  const handleSaveConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formVpa.trim()) {
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Bank Settlements Configured! 💳',
-          message: `Cashfree sub-account splits are now active for your ${entityType}.`,
-          type: 'success'
-        }
-      }));
-    } catch (err: any) {
-      window.dispatchEvent(new CustomEvent('mediflow-toast', {
-        detail: {
-          title: 'Bank Onboarding Failed',
-          message: err?.message || 'Bank onboarding registration failed. Please verify IFSC and account details.',
+          title: 'UPI ID Required',
+          message: 'Please provide a valid Clinic or Doctor UPI VPA (e.g. clinic@upi).',
           type: 'error'
         }
       }));
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+
+    setIsSaving(true);
+    const newConfig: DirectPaymentConfig = {
+      upiVpa: formVpa.trim().toLowerCase(),
+      payeeName: formName.trim() || defaultPayee,
+      regNumber: formReg.trim() || undefined,
+      updatedAt: new Date().toISOString()
+    };
+
+    safeSetStorageJSON(storageKey, newConfig);
+    setConfig(newConfig);
+    setIsSaving(false);
+    setModalOpen(false);
+
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: {
+        title: 'Direct UPI Settled! 💳',
+        message: 'Patient payments will now settle 100% directly to your registered UPI ID with 0% platform deductions.',
+        type: 'success'
+      }
+    }));
   };
 
-  const isDark = theme === 'dark';
-
-  // Build split nodes from active vendor for validation
-  // SettlementWidget represents a single entity's vendor — we validate its routing address
-  const splitNodes: SplitNode[] = activeVendor
-    ? [{
-        vendor_id: activeVendor.vendor_id ?? null,
-        amount:    1, // placeholder: actual amount comes from invoice; >0 means routing is live
-        label:     entityType === 'pharmacy'
-          ? 'PHARMACY_PARTNER_SETTLEMENT'
-          : entityType === 'lab'
-          ? 'LAB_PARTNER_SETTLEMENT'
-          : 'CLINIC_SETTLEMENT_ACCOUNT',
-      }]
-    : [];
-
-  // Only validate when a vendor is onboarded; 0 gross = no active payment
-  const splitValidation = useSplitValidation(splitNodes, activeVendor ? 1 : 0);
-
-  if (loading) {
-    return (
-      <div className={`p-6 rounded-2xl flex items-center justify-center ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
-        <RefreshCw className="animate-spin text-xl w-5 h-5 shrink-0" />
-        <span className="text-xs ml-2">Loading banking configurations...</span>
-      </div>
-    );
-  }
+  const handleCopyVpa = () => {
+    if (!activeVpa) return;
+    navigator.clipboard.writeText(activeVpa);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div className={`glass-panel p-6 shadow-sm rounded-2xl space-y-4 text-left border ${
-      isDark ? 'bg-surface-container border-outline-variant text-white' : 'bg-white border-slate-200/80 text-slate-800'
+    <div className={`p-6 shadow-sm rounded-2xl space-y-5 text-left border ${
+      isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200/80 text-slate-800'
     }`}>
-      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-3 ${
+      {/* Header */}
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4 ${
         isDark ? 'border-slate-800' : 'border-slate-100'
       }`}>
         <div>
-          <h2 className="text-sm font-bold flex items-center gap-1.5">
-            <Landmark className={`w-4 h-4 shrink-0 font-bold ${isDark ? 'text-secondary' : 'text-primary'}`} />
-            {displayName} Bank Onboarding (Cashfree splits)
-          </h2>
-          <p className={`text-[10px] mt-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-400'}`}>
-            Provide official bank credentials to activate automated UPI payment settlements.
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold flex items-center gap-1.5">
+              <Building2 className={`w-4 h-4 shrink-0 font-bold ${isDark ? 'text-teal-400' : 'text-indigo-600'}`} />
+              {displayName} — Direct Counter Collection (Practo Model)
+            </h2>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+              100% Direct Payout
+            </span>
+          </div>
+          <p className={`text-[11px] mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            NMC Ethics Code §6.4 & RBI Compliant: Patients pay your clinic account directly. Zero escrow custody, 0% platform transaction fees.
           </p>
         </div>
-        
-        {!activeVendor && (
-          <button
-            onClick={() => {
-              setVendorHolderName('');
-              setVendorFormOpen(true);
-            }}
-            className={`px-4 py-2 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer border-0 ${
-              isDark 
-                ? 'bg-gradient-to-r from-secondary to-primary text-black hover:scale-105 active:scale-95' 
-                : 'bg-primary hover:bg-primary-500 text-white text-white-force'
-            }`}
-          >
-            Configure Bank Account
-          </button>
-        )}
+
+        <button
+          type="button"
+          onClick={handleOpenModal}
+          className={`px-4 py-2 rounded-xl text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer border ${
+            isDark 
+              ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700' 
+              : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+          }`}
+        >
+          {config ? 'Edit UPI & Receipt Details' : 'Configure Clinic UPI'}
+        </button>
       </div>
 
-      {activeVendor ? (
-        <div className={`flex flex-col md:flex-row items-center justify-between gap-4 p-4 border rounded-2xl ${
-          isDark 
-            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-            : 'bg-emerald-50/50 border-emerald-100'
+      {/* Main Content Grid: Direct UPI QR + Settlement Status */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+        {/* Left Column: Direct QR Display */}
+        <div className={`p-4 rounded-2xl border flex flex-col items-center text-center ${
+          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50/70 border-slate-200'
         }`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold shadow-sm ${
-              isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100/60 text-emerald-600'
-            }`}>
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+          {qrDataUri ? (
+            <img 
+              src={qrDataUri} 
+              alt="Direct Clinic UPI QR" 
+              className="w-36 h-36 rounded-xl border border-slate-200 dark:border-slate-800 bg-white p-1.5 shadow-sm select-none"
+            />
+          ) : (
+            <div className="w-36 h-36 rounded-xl border border-dashed flex items-center justify-center text-slate-400">
+              <QrCode className="w-10 h-10" />
             </div>
+          )}
+          <span className="text-[10px] font-mono text-slate-500 font-bold mt-2">
+            Scan to Pay Directly (Any UPI App)
+          </span>
+        </div>
+
+        {/* Right 2 Columns: Credentials & Compliance Assurance */}
+        <div className="md:col-span-2 space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className={`text-xs font-bold ${isDark ? 'text-emerald-300' : 'text-slate-800'}`}>Verified Settlement Account</h3>
-                <span className={`text-[8px] font-bold font-mono px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                  isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700'
-                }`}>Active</span>
-              </div>
-              <div className={`text-[10px] font-mono mt-1 space-y-0.5 ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>
-                <div>Holder Name: <strong className={isDark ? 'text-white' : 'text-slate-700 font-sans'}>{activeVendor.holder_name || activeVendor.holderName || 'Verified Partner'}</strong></div>
-                <div>Vendor ID: <strong className={isDark ? 'text-white' : 'text-slate-600'}>{activeVendor.vendor_id || activeVendor.vendorId || 'N/A'}</strong> • Bank Account: <strong className={isDark ? 'text-white' : 'text-slate-600'}>XXXX-XXXX-XXXX-{activeVendor.bank_account_last4 || activeVendor.bankAccountLast4 || 'XXXX'}</strong></div>
-              </div>
+              <span className="text-[9.5px] uppercase font-black text-slate-400 block tracking-wider">
+                Active Receiving UPI VPA
+              </span>
+              <span className="text-xs font-mono font-bold text-indigo-600 dark:text-teal-400">
+                {activeVpa}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyVpa}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 cursor-pointer"
+            >
+              {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied VPA' : 'Copy VPA'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+              <span className="text-[9.5px] uppercase font-black text-slate-400 block">Registered Payee Name</span>
+              <span className="font-bold text-slate-800 dark:text-white truncate block mt-0.5">{activeName}</span>
+            </div>
+            <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+              <span className="text-[9.5px] uppercase font-black text-slate-400 block">Registration / GSTIN</span>
+              <span className="font-mono text-slate-700 dark:text-slate-300 truncate block mt-0.5">
+                {config?.regNumber || 'Self-Employed Clinical Establishment'}
+              </span>
             </div>
           </div>
-          <button
-            onClick={handleDisconnect}
-            className={`px-3.5 py-1.5 border rounded-xl text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-              isDark 
-                ? 'border-rose-500/30 text-rose-400 hover:bg-rose-500/10' 
-                : 'border-rose-200 text-rose-600 hover:bg-rose-50'
-            }`}
-          >
-            Disconnect Account
-          </button>
-        </div>
-      ) : (
-        <div className={`p-8 border border-dashed rounded-2xl text-center space-y-2 ${
-          isDark ? 'border-outline-variant bg-slate-800/20' : 'border-slate-200 bg-slate-50/50'
-        }`}>
-          <div className="flex justify-center">
-            <Landmark className={`w-10 h-10 ${isDark ? 'text-clinical-500' : 'text-slate-600'}`} />
-          </div>
-          <div>
-            <h4 className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-700'}`}>No Settlement Account Configured</h4>
-            <p className={`text-[10px] mt-1 max-w-sm mx-auto ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
-              Provide your official bank account credentials to activate split payout settlements. Direct earnings will bypass central platform balance reserves.
-            </p>
+
+          <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 text-[10.5px] text-emerald-800 dark:text-emerald-300 leading-relaxed flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+            <span>
+              <strong>Zero Payment Aggregator Liability:</strong> VitalSync never holds patient funds in escrow or takes transaction cuts. 100% of patient fees land instantly in your bank account, and any partner vendor settlement occurs offline via standard commercial B2B invoices.
+            </span>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Split Routing Validation Gate — shows inline error if vendor_id is null/missing */}
-      {activeVendor && !splitValidation.isValid && (
-        <SplitValidationGate validation={splitValidation} enforced={true}>
-          <div className="text-[10px] text-slate-400 dark:text-slate-600 text-center py-1">
-            Resolve routing errors above to re-enable payment processing for this vendor.
-          </div>
-        </SplitValidationGate>
-      )}
-      {activeVendor && splitValidation.isUnsplit && (
-        <SplitValidationGate validation={splitValidation} enforced={false}>
-          <div />
-        </SplitValidationGate>
-      )}
-
-      {/* Onboarding Modal */}
-      {vendorFormOpen && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-800/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
-          <div className={`glass-panel max-w-md w-full p-6 shadow-2xl relative overflow-hidden space-y-4 rounded-3xl ${
-            isDark ? 'bg-white border-slate-200/60 text-white' : 'bg-white border-slate-200 text-slate-800'
+      {/* Edit Direct UPI & Branding Modal */}
+      {modalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in text-slate-800">
+          <div className={`max-w-md w-full p-6 shadow-2xl relative overflow-hidden space-y-4 rounded-3xl border ${
+            isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'
           }`}>
-            <div className={`absolute top-0 left-0 w-full h-[3px] ${isDark ? 'bg-secondary' : 'bg-primary'}`} />
-            
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start border-b pb-3 border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className={`text-sm font-extrabold uppercase tracking-wider flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                  <Landmark className={`w-4 h-4 font-bold shrink-0 ${isDark ? 'text-secondary' : 'text-primary'}`} />
-                  Bank Settlements Setup
+                <h3 className="text-sm font-extrabold uppercase tracking-wider flex items-center gap-2 text-slate-800 dark:text-white">
+                  <Building2 className="w-4 h-4 text-indigo-600 dark:text-teal-400 shrink-0" />
+                  Clinic Direct UPI & Branding Setup
                 </h3>
-                <p className={`text-[11px] mt-1 ${isDark ? 'text-clinical-400' : 'text-slate-600'}`}>
-                  Configure Cashfree Marketplace vendor sub-account details.
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Set up your clinic's own receiving UPI VPA for patient bills and receipts.
                 </p>
               </div>
               <button
-                onClick={() => setVendorFormOpen(false)}
-                className={`p-1 rounded-lg border-0 bg-transparent transition-colors cursor-pointer ${
-                  isDark ? 'text-clinical-400 hover:text-white' : 'text-slate-600 hover:text-slate-600'
-                }`}
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="p-1 rounded-lg border-0 bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleOnboardSubmit} className="space-y-3.5 text-xs font-sans text-left">
+            <form onSubmit={handleSaveConfig} className="space-y-4 text-xs text-left">
               <div className="space-y-1">
-                <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>Account Holder Name</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Clinic Direct UPI ID (VPA) *
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="Official Bank Account Name"
-                  value={vendorHolderName}
-                  onChange={(e) => setVendorHolderName(e.target.value)}
-                  className={`w-full input-field py-2 px-3 text-xs ${
-                    isDark ? 'bg-surface-container border-outline-variant text-white focus:ring-secondary focus:border-secondary' : 'bg-white'
-                  }`}
+                  placeholder="e.g. drsharma@okaxis or clinicname@upi"
+                  value={formVpa}
+                  onChange={(e) => setFormVpa(e.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+                <span className="text-[10px] text-slate-400 block">
+                  Payments made by patients scan directly to this UPI address.
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Payee / Clinic Trade Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. City Care Polyclinic"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>Bank Account Number</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Account Number"
-                    value={vendorAccountNumber}
-                    onChange={(e) => setVendorAccountNumber(e.target.value)}
-                    className={`w-full input-field py-2 px-3 text-xs font-mono ${
-                      isDark ? 'bg-surface-container border-outline-variant text-white focus:ring-secondary focus:border-secondary' : 'bg-white'
-                    }`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>Bank IFSC Code</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="IFSC Code"
-                    value={vendorIfsc}
-                    onChange={(e) => setVendorIfsc(e.target.value)}
-                    className={`w-full input-field py-2 px-3 text-xs font-mono ${
-                      isDark ? 'bg-surface-container border-outline-variant text-white focus:ring-secondary focus:border-secondary' : 'bg-white'
-                    }`}
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Registration / GSTIN / Drug License No. (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. BR-CLN-2026-9041 or DL-20B-1142"
+                  value={formReg}
+                  onChange={(e) => setFormReg(e.target.value)}
+                  className="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
               </div>
 
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-1">
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>Business Email (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="email@example.com"
-                    value={vendorEmail}
-                    onChange={(e) => setVendorEmail(e.target.value)}
-                    className={`w-full input-field py-2 px-3 text-xs ${
-                      isDark ? 'bg-surface-container border-outline-variant text-white focus:ring-secondary focus:border-secondary' : 'bg-white'
-                    }`}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDark ? 'text-clinical-400' : 'text-slate-500'}`}>Contact Phone (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Phone number"
-                    value={vendorPhone}
-                    onChange={(e) => setVendorPhone(e.target.value)}
-                    className={`w-full input-field py-2 px-3 text-xs font-mono ${
-                      isDark ? 'bg-surface-container border-outline-variant text-white focus:ring-secondary focus:border-secondary' : 'bg-white'
-                    }`}
-                  />
-                </div>
-              </div>
-
-              <div className={`p-3 border rounded-xl text-[10px] leading-normal ${
-                isDark ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' : 'bg-blue-50/50 border-blue-100 text-slate-500'
-              }`}>
-                * By onboard saving these details, you agree to register this entity as a sub-account vendor. Payout settlements are run daily.
+              <div className="p-3 border rounded-xl text-[10.5px] leading-relaxed bg-blue-50/60 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-800/40 text-blue-900 dark:text-blue-300">
+                <strong>⚖️ Legal Shield:</strong> We do not collect bank account numbers or IFSC codes. Mediflow acts purely as a clinical ERP software providing unified billing and digital records.
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setVendorFormOpen(false)}
-                  className={`flex-1 py-2.5 rounded-xl text-center text-xs border cursor-pointer ${
-                    isDark ? 'bg-slate-800 border-slate-200/60 hover:bg-slate-700 text-white' : 'btn-secondary'
-                  }`}
+                  onClick={() => setModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl text-center text-xs border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className={`flex-1 py-2.5 rounded-xl text-center text-xs font-bold border-0 cursor-pointer ${
-                    isDark 
-                      ? 'bg-gradient-to-r from-secondary to-primary text-black hover:scale-102 active:scale-98' 
-                      : 'bg-primary hover:bg-primary-500 text-white text-white-force'
-                  }`}
+                  disabled={isSaving}
+                  className="flex-1 py-2.5 rounded-xl text-center text-xs font-bold border-0 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow"
                 >
-                  {isSubmitting ? 'Verifying...' : 'Verify & Onboard'}
+                  {isSaving ? 'Saving...' : 'Save & Activate Direct UPI'}
                 </button>
               </div>
             </form>
@@ -424,3 +320,4 @@ export const SettlementWidget: React.FC<SettlementWidgetProps> = React.memo(({
     </div>
   );
 });
+SettlementWidget.displayName = 'SettlementWidget';

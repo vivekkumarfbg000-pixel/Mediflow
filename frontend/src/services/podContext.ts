@@ -386,3 +386,89 @@ export function clearPodContext(): void {
   };
   _resolvePromise = null;
 }
+
+// ─── Phase 24: Sovereign Multi-Pod Mesh & Monotonic Clock ───────────────────
+
+let _logicalSequenceId = 0;
+let _cachedNodeId: string | null = null;
+
+/**
+ * Returns a strictly monotonic sequence ID for this terminal node.
+ * Guaranteed to increase monotonically across all local operations to ensure
+ * deterministic causal ordering during offline WAL outbox replays.
+ */
+export function getMonotonicSequenceId(): number {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = parseInt(localStorage.getItem('vitalsync_mesh_seq') || '0', 10);
+      _logicalSequenceId = Math.max(_logicalSequenceId, isNaN(stored) ? 0 : stored) + 1;
+      localStorage.setItem('vitalsync_mesh_seq', String(_logicalSequenceId));
+      return _logicalSequenceId;
+    } catch (_e) {
+      /* ignore storage error */
+    }
+  }
+  return ++_logicalSequenceId;
+}
+
+/**
+ * Returns the persistent unique node identifier for this physical terminal / browser instance.
+ */
+export function getMeshNodeId(): string {
+  if (_cachedNodeId) return _cachedNodeId;
+  if (typeof window !== 'undefined') {
+    try {
+      let id = localStorage.getItem('vitalsync_mesh_node_id');
+      if (!id) {
+        id = `node-${crypto.randomUUID().slice(0, 8)}`;
+        localStorage.setItem('vitalsync_mesh_node_id', id);
+      }
+      _cachedNodeId = id;
+      return id;
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+  _cachedNodeId = `node-${Math.random().toString(36).slice(2, 10)}`;
+  return _cachedNodeId;
+}
+
+/**
+ * Emits a local and cloud heartbeat for this mesh node.
+ */
+export async function broadcastMeshHeartbeat(role: string = 'counter'): Promise<void> {
+  const ctx = getPodContext();
+  const nodeId = getMeshNodeId();
+  const seq = getMonotonicSequenceId();
+
+  // 1. Broadcast locally across browser tabs on 0ms Mesh Bus
+  if (typeof window !== 'undefined' && typeof window.BroadcastChannel === 'function') {
+    try {
+      const bus = new BroadcastChannel('vitalsync_mesh_bus');
+      bus.postMessage({
+        type: 'MESH_HEARTBEAT',
+        podId: ctx.podId,
+        nodeId,
+        role,
+        sequenceId: seq,
+        timestamp: Date.now()
+      });
+      bus.close();
+    } catch (_e) { /* ignore */ }
+  }
+
+  // 2. Dual-write to Supabase mesh_node_heartbeats table asynchronously
+  try {
+    await supabase.from('mesh_node_heartbeats').upsert({
+      pod_id: ctx.podId,
+      node_id: nodeId,
+      node_role: role,
+      last_sequence_id: seq,
+      status: 'online',
+      last_seen: new Date().toISOString()
+    }, { onConflict: 'pod_id,node_id' });
+  } catch (_e) {
+    /* ignore offline write failure */
+  }
+}
+

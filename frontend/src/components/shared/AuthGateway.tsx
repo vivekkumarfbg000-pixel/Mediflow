@@ -1394,7 +1394,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
         clinicCode: finalCode,
         health_score: 100,
         is_verified_for_billing: true,
-        platform_fee_percent: 2.5
+        platform_fee_percent: 0.0
       }));
     }
 
@@ -2280,7 +2280,7 @@ export const AuthGateway: React.FC<AuthGatewayProps> = ({
                     clinicCode: registeredClinicCode,
                     health_score: 100,
                     is_verified_for_billing: true,
-                    platform_fee_percent: 2.5
+                    platform_fee_percent: 0.0
                   }));
                 }
 

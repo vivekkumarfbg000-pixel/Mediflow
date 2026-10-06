@@ -1717,70 +1717,42 @@ Dr. ${docLastName} se report review ke liye option chuniye:
             const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
             const podEntityId = getPodContext().entityId;
             const labDestinationEntityId = getPodContext().labEntityId || podEntityId;
-            const doorstepSplits: FinancialLedgerEntry[] = [
-              {
-                id: `tx-tech-${crypto.randomUUID().substring(0, 8)}`,
-                invoiceId: invoiceId,
-                sourceEntityId: podEntityId,
-                destinationEntityId: labDestinationEntityId,
-                transactionType: 'lab_commission',
-                grossAmount: 100,
-                commissionRate: 0.70,
-                netPayout: 70,
-                paymentStatus: 'cleared',
-                settledAt: new Date().toISOString(),
-                createdAt: new Date().toISOString()
-              },
-              {
-                id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
-                invoiceId: invoiceId,
-                sourceEntityId: podEntityId,
-                destinationEntityId: labDestinationEntityId,
-                transactionType: 'lab_commission',
-                grossAmount: 100,
-                commissionRate: 0.20,
-                netPayout: 20,
-                paymentStatus: 'cleared',
-                settledAt: new Date().toISOString(),
-                createdAt: new Date().toISOString()
-              },
-              {
-                id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
-                invoiceId: invoiceId,
-                sourceEntityId: podEntityId,
-                destinationEntityId: podEntityId,
-                transactionType: 'platform_fee',
-                grossAmount: 100,
-                commissionRate: 0.10,
-                netPayout: 10,
-                paymentStatus: 'cleared',
-                settledAt: new Date().toISOString(),
-                createdAt: new Date().toISOString()
-              }
-            ];
+            const doorstepEntry: FinancialLedgerEntry = {
+              id: crypto.randomUUID(),
+              invoiceId: invoiceId,
+              sourceEntityId: podEntityId,
+              destinationEntityId: labDestinationEntityId,
+              transactionType: 'lab_commission',
+              grossAmount: 100,
+              commissionRate: 0,
+              netPayout: 100,
+              paymentStatus: 'cleared',
+              settledAt: new Date().toISOString(),
+              createdAt: new Date().toISOString()
+            };
 
-            ledgerEntries.unshift(...doorstepSplits);
+            ledgerEntries.unshift(doorstepEntry);
             save('financial_ledgers', ledgerEntries);
 
-            const dbSplits = doorstepSplits.map(s => ({
-              id: s.id,
-              invoice_id: s.invoiceId,
-              source_entity_id: s.sourceEntityId,
-              destination_entity_id: s.destinationEntityId,
-              transaction_type: s.transactionType,
-              gross_amount: s.grossAmount,
-              commission_rate: s.commissionRate * 100,
-              net_payout: s.netPayout,
+            const dbEntry = {
+              id: doorstepEntry.id,
+              invoice_id: doorstepEntry.invoiceId,
+              source_entity_id: doorstepEntry.sourceEntityId,
+              destination_entity_id: doorstepEntry.destinationEntityId,
+              transaction_type: doorstepEntry.transactionType,
+              gross_amount: doorstepEntry.grossAmount,
+              commission_rate: 0,
+              net_payout: doorstepEntry.netPayout,
               payment_status: 'cleared',
               settled_at: new Date().toISOString(),
               pod_id: getPodContext().podId
-            }));
+            };
 
-            supabase.from('financial_ledgers').upsert(dbSplits, { onConflict: 'id' }).then(({ error }) => {
-              if (error) console.error('Error upserting doorstep splits in Supabase:', error);
+            supabase.from('financial_ledgers').upsert([dbEntry], { onConflict: 'id' }).then(({ error }) => {
+              if (error) console.error('Error upserting doorstep ledger entry in Supabase:', error);
             });
 
-            replyMessage = `Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah ${selectedSlot} par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢\n\n*Premium Collection Fee breakdown*:\n- Total: ₹100.00 Collection Fee added\n- Lab Tech fuel/incentive bonus: ₹70.00\n- Lab Partner split: ₹20.00\n- Platform commission: ₹10.00`;
+            replyMessage = `Home sample collection confirm ho gaya hai! 🔬 Hamare lab technician (Lalit Prasad) kal subah ${selectedSlot} par ghar aakar sample collect karenge. Dhyaan rahe ki test se 8 ghante pehle tak fasting rakhni hai. Slot lock ho gaya hai! 🟢\n\n*Doorstep Sample Collection*: ₹100.00 collection charge added to invoice.`;
           } else if (cleaned.includes('refill') || cleaned.includes('medicine') || cleaned.includes('reorder') || cleaned.includes('order') || cleaned.includes('dawai')) {
             const completed = EncounterService.getEncounters()
               .filter(e => e.patientId === currentPat?.id && e.status === 'completed');
@@ -2860,7 +2832,7 @@ When you visit ${this.getDynamicClinicName()} next time, please ask the compound
         referredToDoctorId: targetDoctorId,
         specialty,
         doctorName,
-        referralCommissionAmt: 50.00
+        referralCommissionAmt: 0.00
       };
 
       const sessionData = {

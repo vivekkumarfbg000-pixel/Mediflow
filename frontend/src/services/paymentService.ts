@@ -95,7 +95,17 @@ export class PaymentService {
    * Initiates a payment order across available gateways (Razorpay 0% Fee Handle, Paytm, PhonePe, Cashfree, or Cash Counter)
    */
   static async initiatePaymentOrder(params: PaymentOrderParams): Promise<UnifiedOrderResponse> {
-    const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'razorpay';
+    const selectedGateway = params.gateway || (import.meta.env.VITE_ACTIVE_PAYMENT_GATEWAY as PaymentGatewayProvider) || 'upi';
+
+    // 1. Direct Dynamic Clinic UPI Flow (0% Gateway Fee & Zero Aggregator Dependency)
+    if (selectedGateway === 'upi') {
+      const upiPayload = this.generateDirectUpiPayload(params.amount, params.invoiceId);
+      return {
+        success: true,
+        gateway: 'upi',
+        upiPayload
+      };
+    }
 
     // 15s timeout for Edge Function cold starts (Rule 90)
     const controller = new AbortController();

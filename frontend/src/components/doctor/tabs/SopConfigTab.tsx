@@ -193,7 +193,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       { delay: 800, log: '📄 Reading document structure and sections...' },
       { delay: 1200, log: '💊 Extracting doctor consultation fee from fee schedule...' },
       { delay: 1700, log: '🧪 Parsing pathology test price list (LOINC-code mapping)...' },
-      { delay: 2200, log: '💰 Detecting commission split instructions (Doctor / Lab / Platform)...' },
+      { delay: 2200, log: '💰 Verifying 0% SaaS direct clinic settlement parameters...' },
       { delay: 2700, log: '📋 Extracting clinical workflow guidelines and SOPs...' },
       { delay: 3200, log: '✅ Validating extracted config against VitalSync billing engine...' },
       { delay: 3600, log: '🔐 Encrypting and saving SOP config to your clinic profile...' },
@@ -220,9 +220,9 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const splitLabMatch = text.match(/(?:lab|laboratory|pathology)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i);
     const splitPharmaDocMatch = text.match(/(?:medicine|pharmacy|drug)\s*(?:commission|referral|split|share)[^0-9]*(\d+(?:\.\d+)?)\s*%/i);
 
-    const splitDoc = splitDocMatch ? parseFloat(splitDocMatch[1]) : activeSop?.extractedConfig?.splits?.doctor ?? 40;
-    const splitPlat = splitPlatMatch ? parseFloat(splitPlatMatch[1]) : activeSop?.extractedConfig?.splits?.platform ?? 5;
-    const splitLab = splitLabMatch ? parseFloat(splitLabMatch[1]) : activeSop?.extractedConfig?.splits?.lab ?? 55;
+    const splitDoc = splitDocMatch ? parseFloat(splitDocMatch[1]) : activeSop?.extractedConfig?.splits?.doctor ?? 100;
+    const splitPlat = 0; // Pure SaaS invariant (0% platform cut)
+    const splitLab = splitLabMatch ? parseFloat(splitLabMatch[1]) : activeSop?.extractedConfig?.splits?.lab ?? 100;
     const splitPharmaDoc = splitPharmaDocMatch ? parseFloat(splitPharmaDocMatch[1]) : (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 12;
 
     const upiMatch = text.match(/(?:upi|vpa|gpay|phonepe|paytm)\s*[:\-]?\s*([a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64})/i);
@@ -492,9 +492,9 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
 
             const categories = [
               { type: 'appointment_fee',      label: 'Clinic Consult Payout',       dot: 'bg-indigo-500',  bar: 'bg-gradient-to-r from-indigo-500 to-indigo-600' },
-              { type: 'lab_commission',        label: 'Lab Share Settlement',         dot: 'bg-teal-500',    bar: 'bg-gradient-to-r from-teal-400 to-teal-500'   },
-              { type: 'medicine_commission',   label: 'Pharmacy Share Settlement',    dot: 'bg-violet-500',  bar: 'bg-gradient-to-r from-violet-500 to-violet-600' },
-              { type: 'platform_fee',          label: 'Platform Commission Split',    dot: 'bg-slate-400',   bar: 'bg-gradient-to-r from-slate-400 to-slate-500'  },
+              { type: 'lab_diagnostic', label: 'Pathology Diagnostics', dot: 'bg-teal-500', bar: 'bg-gradient-to-r from-teal-400 to-teal-500' },
+              { type: 'pharmacy_dispensation', label: 'Pharmacy Dispensary', dot: 'bg-violet-500', bar: 'bg-gradient-to-r from-violet-500 to-violet-600' },
+              { type: 'platform_fee', label: 'Platform Fee (0% Pure SaaS)', dot: 'bg-emerald-400', bar: 'bg-gradient-to-r from-emerald-400 to-emerald-500' },
             ];
 
              return (
@@ -506,8 +506,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
                       <Coins className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">Professional Clinical Review Honorarium</h3>
-                      <p className="text-[10px] text-emerald-600 mt-0.5 font-bold">NMC Ethics 2023 Safe-Harbor · Anti-Kickback Compliant · Bihar Zone</p>
+                      <h3 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">Hospital Departmental Revenue Summary</h3>
+                      <p className="text-[10px] text-emerald-600 mt-0.5 font-bold">Practo Ray Single-Bucket Model · 100% Direct Clinic Settlement · 0% Platform Fee</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-850/30 rounded-xl text-[10px] font-bold text-amber-700 dark:text-amber-400">
@@ -601,7 +601,7 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
             <textarea
               value={sopText}
               onChange={e => setSopText(e.target.value)}
-              placeholder={`Paste your clinic SOP here. For example:\n\nDoctor Consultation Fee: INR 450\nHbA1c Test: INR 350\nSerum Creatinine Test: INR 250\nCommission Splits: Doctor 40%, Lab 57%, Platform 3%\n\nGuidelines:\n- Collect FEFO pharmacy batches first\n- Assign Lalit Prasad for all pathology tests\n- Allow home sample collection on request`}
+              placeholder={`Paste your clinic SOP here. For example:\n\nDoctor Consultation Fee: INR 450\nHbA1c Test: INR 350\nSerum Creatinine Test: INR 250\nSettlement: 100% Direct Clinic Settlement (0% Platform Cut)\n\nGuidelines:\n- Collect FEFO pharmacy batches first\n- Assign Lalit Prasad for all pathology tests\n- Allow home sample collection on request`}
               rows={10}
               className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/50 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 resize-none font-mono leading-relaxed"
             />

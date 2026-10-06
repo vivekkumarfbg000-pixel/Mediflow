@@ -217,10 +217,10 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   VitalSync operates in strict compliance with the National Medical Commission (Professional Conduct, Etiquette and Ethics) Regulations, the Clinical Establishments Act, and the Telemedicine Practice Guidelines (2020):
                 </p>
                 <ul className="list-disc pl-5 space-y-2 text-slate-300">
-                  <li><strong>Doctor Consultation Fee Immunity:</strong> 100% of the patient consultation fee is remitted directly to the treating doctor without platform revenue deductions.</li>
-                  <li><strong>Transparent Care Coordination Services:</strong> All ecosystem settlements for pharmacy fulfillment, diagnostic sample processing, and tele-monitoring follow standard commercial B2B Service Level Agreements (SLAs) for technical processing, drug dispensing, and electronic health record (EHR) data management.</li>
-                  <li><strong>No Illegal Commissions:</strong> Platform fee allocations represent legitimate digital infrastructure facilitation, WhatsApp automation, longitudinal health monitoring, and administrative coordination services.</li>
-                  <li><strong>Standard Payment Gateways:</strong> Payments are processed transparently via verified Indian banking gateways (Paytm PG, PhonePe, Cashfree, Direct Bank UPI) with digital invoice generation and GST compliance.</li>
+                  <li><strong>Doctor Consultation Fee Immunity:</strong> 100% of the patient consultation fee is remitted directly to the treating doctor or clinical establishment without platform revenue deductions.</li>
+                  <li><strong>Transparent Hospital Care Coordination:</strong> All billing and receipt generation for consultations, pharmacy dispensation, and diagnostic tests operate under a unified hospital healthcare provider model with zero commission splits.</li>
+                  <li><strong>Zero Commission / Referral Cuts:</strong> Strict compliance with NMC Medical Ethics §6.4. VitalSync charges flat B2B software subscription fees only and takes zero percentage cut from doctor consultations, medicine sales, or pathology investigations.</li>
+                  <li><strong>Direct Clinic Payments:</strong> Payments are settled directly with the clinic establishment via physical cash counter or direct UPI banking rails with automated digital invoice generation and GST compliance.</li>
                 </ul>
               </section>
 
@@ -315,7 +315,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                 <ul className="list-disc pl-5 space-y-1.5 text-slate-300">
                   <li>To allocate OPD Token numbers (#TK-001) and confirm doctor appointment slots.</li>
                   <li>To send automated WhatsApp checkup updates, PDF prescriptions, and lab report notifications.</li>
-                  <li>To process payment receipts and disaggregate vendor splits for clinic services.</li>
+                  <li>To generate unified hospital receipts and maintain transparent digital accounting ledgers for the clinic.</li>
                 </ul>
               </section>
 
@@ -333,7 +333,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   <span className="w-2 h-2 rounded-full bg-emerald-400"></span> 4. Sharing with Payment Gateways
                 </h4>
                 <p>
-                  Transaction metadata (Amount, Invoice ID, Customer Contact) is shared securely with licensed payment partners (Cashfree, Razorpay, Paytm, Banking Gateways) solely for processing transactions and preventing fraudulent activity. We strictly do NOT sell or monetize patient personal data to third-party advertisers.
+                  Transaction metadata (Amount, Invoice ID, Customer Contact) is handled securely in compliance with RBI digital payment standards solely for receipt verification and accounting ledger generation. We strictly do NOT sell or monetize patient personal data to third-party advertisers.
                 </p>
               </section>
 
@@ -412,7 +412,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
                   <li>Completed consultation sessions where the doctor has examined the patient or issued a prescription.</li>
                   <li>Completed pathology sample collections or processed laboratory diagnostic reports.</li>
                   <li>Dispensed pharmaceutical products or opened medicine strip packages.</li>
-                  <li>Online Convenience Platform Convenience Fee (₹15.00 / 3%) incurred for third-party gateway clearance.</li>
+                  <li>Payment gateway convenience fees (if charged by third-party payment gateways during online pre-booking).</li>
                 </ul>
               </section>
 
@@ -521,7 +521,7 @@ export const LegalPoliciesPage: React.FC<LegalPoliciesPageProps> = ({
             <span>•</span>
             <button onClick={() => handleTabChange('contact')} className="hover:text-cyan-400 transition-colors">Contact & Merchant Info</button>
           </div>
-          <p>© 2026 VitalSync Technologies. All Rights Reserved. Compliant with RBI, Razorpay & Cashfree Merchant Regulations.</p>
+          <p>© 2026 VitalSync Technologies. All Rights Reserved. Compliant with NMC Ethics Code §6.4 and RBI Digital Payment Standards.</p>
         </footer>
       </div>
     </div>

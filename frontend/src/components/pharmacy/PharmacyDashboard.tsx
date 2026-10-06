@@ -2659,30 +2659,38 @@ export const PharmacyDashboard: React.FC = () => {
               theme="dark"
             />
             
-            {/* Split rules display */}
+            {/* Departmental Revenue & Dispensation Summary (Practo Model) */}
             <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                Active SOP Split Configuration
-              </h3>
-              <p className="text-xs text-slate-500">
-                These percentages represent your shared payouts calculated dynamically on invoice clearance.
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <FileCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                    Departmental Revenue & Dispensation Summary
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Practo Ray / Hospital ERP Model: 100% direct clinic collection with offline B2B commercial settlement.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  0% Commission • Pure SaaS
+                </span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Your Split</p>
-                  <p className="text-xl font-extrabold text-white mt-1">Pharmacy Split</p>
-                  <p className="text-xs text-slate-400 mt-0.5 font-semibold">Calculated per product margin</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Collection Model</p>
+                  <p className="text-base font-extrabold text-slate-800 mt-1">100% Direct Counter</p>
+                  <p className="text-xs text-slate-500 mt-0.5 font-semibold">Hospital single-bucket receipt</p>
                 </div>
                 <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Doctor Split</p>
-                  <p className="text-xl font-extrabold text-white mt-1">Managed by SOP</p>
-                  <p className="text-xs text-slate-400 mt-0.5 font-semibold">Based on active agreements</p>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">B2B Settlement</p>
+                  <p className="text-base font-extrabold text-slate-800 mt-1">Offline Commercial Invoice</p>
+                  <p className="text-xs text-slate-500 mt-0.5 font-semibold">Periodic GST reconciliation</p>
                 </div>
                 <div className="p-4 bg-white border border-slate-200 rounded-xl text-center">
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Platform Fee</p>
-                  <p className="text-xl font-extrabold text-white mt-1">3%</p>
-                  <p className="text-xs text-slate-400 mt-0.5 font-semibold">Platform service charge</p>
+                  <p className="text-base font-extrabold text-emerald-600 mt-1">0% (NMC Compliant)</p>
+                  <p className="text-xs text-slate-500 mt-0.5 font-semibold">Zero transaction cuts or escrows</p>
                 </div>
               </div>
             </div>

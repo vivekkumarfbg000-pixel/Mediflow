@@ -33,16 +33,16 @@ export const VITALSYNC_SAAS_KNOWLEDGE_BASE: Record<string, { keywords: string[];
     answer: `🎫 *VITALSYNC QUEUE & TOKEN MANAGEMENT GUIDE*
 
 1. Compounder Desk lists all live tokens (e.g. MF-1001).
-2. Unpaid bookings remain in *'pending_payment'* status until Cashfree payment is confirmed.
+2. Unpaid bookings remain in *'pending_payment'* status until payment is confirmed at clinic counter or via direct UPI.
 3. Emergency SOS bookings (₹618.00) automatically move to *Priority #1 Position* with red pulsing alerts.`
   },
   payments_cashfree: {
     keywords: ['3', 'option 3', 'payment', 'paytm', 'phonepe', 'cashfree', 'razorpay', 'pending_payment', 'settlement', 'upi', 'cash'],
-    answer: `💳 *VITALSYNC MULTI-GATEWAY PAYMENT & SETTLEMENT GUIDE*
+    answer: `💳 *VITALSYNC DIRECT CLINIC BILLING & SETTLEMENT GUIDE*
 
-1. *Supported Gateways*: Direct Doctor UPI (\`upi://pay\`), Paytm PG (0% MDR), PhonePe (0% MDR), Razorpay, Cashfree, & Cash Counter.
+1. *Supported Payment Modes*: Direct Doctor UPI (\`upi://pay\`) & Cash Counter (Zero 3rd-party aggregator dependencies, 0% MDR).
 2. *100% Doctor Fee Immunity*: Doctor Consultation fees go 100% directly to the Doctor's bank account via Direct UPI or Cash with 0% platform fee and zero pool deductions.
-3. *Commission Pool Model*: Pathology Lab fee invoices deduct a 5% Platform Fee, and Pharmacy Counter invoices deduct a 2% Platform Fee, ledgered in the clinic's commission pool.
+3. *Hospital ERP Model*: Consultation, Pharmacy, and Diagnostics are billed as a Single Itemized Hospital Bill (Practo Ray Model) with 0% platform fee.
 4. *WhatsApp Online Booking*: Online chatbot appointments charge flat ₹500 directly to Doctor UPI (0% extra convenience fee) with instant token allocation.`
   },
   pharmacy_delivery: {
@@ -125,8 +125,8 @@ export class WhatsAppSupportBotService {
       textLower.includes('custom feature') ||
       textLower.includes('owner')
     ) {
-      const aiProposedFix = textLower.includes('cashfree')
-        ? 'Auto-provision Sandbox Cashfree App ID & Secret Key for pod.'
+      const aiProposedFix = textLower.includes('cashfree') || textLower.includes('gateway')
+        ? 'Transition pod to 100% Direct Clinic UPI QR and Counter Cash digital ledger.'
         : textLower.includes('domain')
         ? 'Whitelist custom clinic domain in Vercel & Supabase CORS settings.'
         : 'Grant Platform Admin access & generate API credentials.';
@@ -181,7 +181,7 @@ export class WhatsAppSupportBotService {
     }
 
     // ── DEFAULT RAG FALLBACK ──────────────────────────────────────────────────
-    const defaultResp = `🤖 *VITALSYNC AI SUPPORT BOT*\n\nNamaste ${senderInfo.name}! I am your 24/7 VitalSync Platform Assistant.\n\nI can help you with:\n1. *1-Tap Prescriptions & AI Scribe*\n2. *Tokens & Queue Management*\n3. *Cashfree Payments & Easy Split*\n4. *Pharmacy Refills & B2B Referrals*\n\nType your query or describe any issue to get instant assistance!`;
+    const defaultResp = `🤖 *VITALSYNC AI SUPPORT BOT*\n\nNamaste ${senderInfo.name}! I am your 24/7 VitalSync Platform Assistant.\n\nI can help you with:\n1. *1-Tap Prescriptions & AI Scribe*\n2. *Tokens & Queue Management*\n3. *Direct Clinic Payments & Receipts*\n4. *Pharmacy Refills & B2B Referrals*\n\nType your query or describe any issue to get instant assistance!`;
 
     await this.logEscalationTicket({
       clinic_name: senderInfo.clinicName || 'Clinic Pod',

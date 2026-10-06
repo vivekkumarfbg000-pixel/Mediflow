@@ -670,7 +670,7 @@ export const LabDashboard: React.FC = () => {
 
     const test = testCatalog.find(t => t.loincCode === req.testCode) || { price: 350 };
     const testPrice = test.price || 350;
-    const platformFee = Math.round(testPrice * 0.02);
+    const platformFee = 0.00;
     const total = testPrice + platformFee;
     const invoiceId = crypto.randomUUID();
 
@@ -683,7 +683,7 @@ export const LabDashboard: React.FC = () => {
       doctorFee: 0,
       labFee: testPrice,
       pharmacyFee: 0,
-      platformFee: platformFee,
+      platformFee: 0.00,
       totalAmount: total,
       upiQrPayload: PaymentService.generateDirectUpiPayload(total || 0, req.id || 'N/A').upiDeepLink,
       paymentStatus: 'pending' as const,
@@ -2830,7 +2830,7 @@ export const LabDashboard: React.FC = () => {
   <div class="section-title">Subscribed Lab Tests</div>
   <table><thead><tr><th>#</th><th>Test Name</th><th>LOINC Code</th><th>Price</th></tr></thead>
   <tbody><tr><td>1</td><td><b>${req.testName}</b></td><td>${req.testCode}</td><td>₹${inv.labFee}</td></tr></tbody></table>
-  <div class="total">Total Paid (incl. platform commission): ₹${inv.totalAmount}</div>
+  <div class="total">Total Paid (Direct Hospital Bill): ₹${inv.totalAmount}</div>
   <div class="footer">Diagnostics bill cleared at counter. Test results will sync to physician console. VitalSync Pod network &copy; ${new Date().getFullYear()}</div>
 </div><script>window.onload=function(){window.print()}<\/script></body></html>`;
                                       const win = window.open('','_blank','width=720,height=800');
@@ -3228,30 +3228,38 @@ export const LabDashboard: React.FC = () => {
                 theme="dark"
               />
               
-              {/* Split rules display */}
+              {/* Departmental Revenue & Diagnostic Summary (Practo Model) */}
               <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4 bg-white dark:bg-slate-900">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-                  Active SOP Split Configuration
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  These percentages represent your shared payouts calculated dynamically on invoice clearance.
-                </p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0" />
+                      Departmental Revenue & Diagnostic Summary
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Practo Ray / Hospital ERP Model: 100% direct clinic collection with offline B2B commercial settlement.
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    0% Commission • Pure SaaS
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center">
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Your Split</p>
-                    <p className="text-xl font-extrabold text-slate-800 dark:text-white mt-1">Lab Split</p>
-                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Calculated per test catalog price</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Collection Model</p>
+                    <p className="text-base font-extrabold text-slate-800 dark:text-white mt-1">100% Direct Counter</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Hospital single-bucket receipt</p>
                   </div>
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center">
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Doctor Split</p>
-                    <p className="text-xl font-extrabold text-slate-800 dark:text-white mt-1">Managed by SOP</p>
-                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Based on active agreements</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">B2B Settlement</p>
+                    <p className="text-base font-extrabold text-slate-800 dark:text-white mt-1">Offline Commercial Invoice</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Periodic GST reconciliation</p>
                   </div>
                   <div className="p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center">
                     <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Platform Fee</p>
-                    <p className="text-xl font-extrabold text-slate-800 dark:text-white mt-1">3%</p>
-                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Platform service charge</p>
+                    <p className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">0% (NMC Compliant)</p>
+                    <p className="text-xs text-slate-400 mt-0.5 font-semibold">Zero transaction cuts or escrows</p>
                   </div>
                 </div>
               </div>

@@ -731,11 +731,11 @@ export class LabService {
       const labDestId = getPodContext().labEntityId || podEntityId;
 
       const docLedger = {
-        id: `tx-doc-${crypto.randomUUID().substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: `inv-rep-${reportId}`,
         sourceEntityId: labDestId,
         destinationEntityId: podEntityId,
-        transactionType: 'lab_commission',
+        transactionType: 'lab_diagnostic',
         grossAmount: testPrice,
         commissionRate: splitDoc / 100, 
         netPayout: docAmt,
@@ -745,7 +745,7 @@ export class LabService {
       };
 
       const platformLedger = {
-        id: `tx-plat-${crypto.randomUUID().substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: `inv-rep-${reportId}`,
         sourceEntityId: labDestId,
         destinationEntityId: podEntityId,
@@ -759,11 +759,11 @@ export class LabService {
       };
 
       const labLedger = {
-        id: `tx-lab-${crypto.randomUUID().substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: `inv-rep-${reportId}`,
         sourceEntityId: labDestId,
         destinationEntityId: labDestId,
-        transactionType: 'lab_commission',
+        transactionType: 'lab_diagnostic',
         grossAmount: testPrice,
         commissionRate: splitLab / 100,
         netPayout: labAmt,

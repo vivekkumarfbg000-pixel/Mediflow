@@ -94,7 +94,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
         is_verified_for_billing: true,
         lifetime_platform_revenue: 0,
         pending_cash_balance: 0,
-        platform_fee_percent: 2.5
+        platform_fee_percent: 0.0
       };
 
       // Dual-write pod to Supabase pods table so it's instantly active in cloud & SaaS admin
@@ -266,7 +266,7 @@ export const DoctorRegistrationModal: React.FC<Props> = ({ isOpen, onClose, onSu
 
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 flex items-start gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-            <span>Includes 100% free sandbox workspace with Cashfree Payments & WhatsApp Bot active!</span>
+            <span>Includes 90-day free clinical workspace with WhatsApp Bot & AI Prescription OCR active!</span>
           </div>
 
           <button

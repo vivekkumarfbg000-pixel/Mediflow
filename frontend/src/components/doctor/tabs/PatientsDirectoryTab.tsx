@@ -990,7 +990,7 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
                   <div className="p-3 bg-emerald-50/50 border border-emerald-100/60 rounded-2xl flex gap-2.5 items-start text-emerald-800">
                     <Info className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                     <p className="text-[10px] leading-relaxed">
-                      <strong>💡 Monetization Hub:</strong> Virtual consultations are free for patients. Utilize your e-Prescription (e-Rx) or referral lab order buttons below to capture commissions on medicines and pathology tests.
+                      <strong>💡 Clinic Revenue:</strong> Virtual follow-up consults are free for patients. All clinical revenue from e-Prescriptions and lab orders is settled directly to your clinic with 100% earnings retention and 0% platform cuts.
                     </p>
                   </div>
                 </div>

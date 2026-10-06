@@ -249,7 +249,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
             clinic_code: podData.clinic_code,
             health_score: podData.health_score || 100,
             is_verified_for_billing: true,
-            platform_fee_percent: 3.0
+            platform_fee_percent: 0.0
           });
           (window as any).__mediflow_active_pod_id = podData.id;
 
@@ -644,7 +644,7 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode; activeProfile
           clinic_code: updatedPod.clinicCode,
           health_score: 100,
           is_verified_for_billing: true,
-          platform_fee_percent: 3.0
+          platform_fee_percent: 0.0
         });
         (window as any).__mediflow_active_pod_id = updatedPod.id;
 

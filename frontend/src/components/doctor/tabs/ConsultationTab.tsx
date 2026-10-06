@@ -507,6 +507,23 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
       api.saveRefractionDiagnostics(selectedPatient.id, { ...selectedPatient.vitals, ...updatedVitals });
     }
 
+    // 5. Persist Ambient Scribe Session to Supabase Audit Store (Phase 22)
+    if (selectedPatient && extractedScribeData.soapRecord) {
+      AmbientAudioScribeService.saveScribeSession({
+        patientId: selectedPatient.id,
+        transcript: extractedScribeData.rawTranscript,
+        soapRecord: extractedScribeData.soapRecord,
+        extractedEntities: {
+          chiefComplaints: extractedScribeData.chiefComplaints,
+          medications: extractedScribeData.medications,
+          suggestedTests: extractedScribeData.suggestedTests,
+          vitals: extractedScribeData.extractedVitals
+        },
+        durationSeconds: ambientTimer,
+        language: extractedScribeData.languageDetected
+      }).catch((_e) => { /* ignore */ });
+    }
+
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
         title: 'Prescription Worksheet Populated! ⚡',

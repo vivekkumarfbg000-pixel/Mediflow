@@ -972,7 +972,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         doctorFee: billingLedger.consultTotal,
         labFee: billingLedger.labSub,
         pharmacyFee: billingLedger.pharmacySub,
-        platformFee: isPureCounterConsult ? 0 : parseFloat(((billingLedger.labSub * 0.02) + (billingLedger.pharmacySub * 0.01)).toFixed(2)),
+        platformFee: 0.00,
         totalAmount: billingLedger.finalTotal,
         upiQrPayload: dynamicUpiPayload || PaymentService.generateDirectUpiPayload(billingLedger.finalTotal, unifiedInvoiceId).upiDeepLink,
         referralCode: referralCode ? referralCode.trim().toUpperCase() : undefined,
@@ -1428,20 +1428,20 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 </div>
               </div>
 
-              {/* Metric 4: Platform Commission Safe Buffer */}
+              {/* Metric 4: Direct Clinic Settlement & Retention */}
               <div className="glass-panel p-4 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-sm">
                 <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider">Commission Pool</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider">Direct Retention</span>
                   <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                 </div>
                 <div className="text-2xl font-black text-cyan-600 dark:text-cyan-400">
-                  ₹1,000.00
+                  100% Direct
                 </div>
                 <div className="flex items-center gap-1 mt-2 text-[10px] text-slate-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                  <span>Rule 6 Safety Buffer Active</span>
+                  <span>0% Platform Cut • Pure SaaS</span>
                 </div>
               </div>
             </div>

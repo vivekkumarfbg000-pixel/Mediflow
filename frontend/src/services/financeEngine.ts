@@ -114,19 +114,23 @@ export class FinanceEngine {
         // Only accrue platform debt here if no explicit platform_fee entries exist for this ledger set
         if (isCash && !hasPlatformFeeEntries) {
           const plat = platFee > 0 ? platFee : Math.round(gross * 0.01);
-          totalCashCommissionOwed += plat;
+          // Practo Invariant: 0% platform cut on counter cash
+          // totalCashCommissionOwed += 0;
         }
       } else if (type === 'lab_commission') {
         labTotalEarned += net;
         // Only accrue platform debt here if no explicit platform_fee entries exist for this ledger set
         if (isCash && !hasPlatformFeeEntries) {
           const plat = platFee > 0 ? platFee : Math.round(gross * 0.02);
-          totalCashCommissionOwed += plat;
+          // Practo Invariant: 0% platform cut on counter cash
+          // totalCashCommissionOwed += 0;
         }
       } else if (type === 'platform_fee') {
-        platformTotalEarned += net;
+        // Practo Invariant: 0% platform fee
+        platformTotalEarned += 0;
         if (isCash) {
-          totalCashCommissionOwed += net;
+          // Practo Invariant: 0% platform cut
+          // totalCashCommissionOwed += 0;
         }
       }
     });
@@ -181,9 +185,9 @@ export class FinanceEngine {
     const extracted = sop?.extractedConfig || (sop as any)?.extracted_config;
 
     const labDoctorSplit = Number(extracted?.splits?.doctor ?? 40);
-    const labPlatformSplit = Number(extracted?.splits?.platform ?? 2);
+    const labPlatformSplit = 0; // 0% Pure ERP Ledger
     const pharmDoctorSplit = Number((extracted?.splits as any)?.pharmacyDoctor ?? 20);
-    const pharmPlatformSplit = Number((extracted?.splits as any)?.pharmacyPlatform ?? 1);
+    const pharmPlatformSplit = 0; // 0% Pure ERP Ledger
 
     let doctorShare = 0;
     let labShare = 0;
@@ -195,12 +199,12 @@ export class FinanceEngine {
       doctorShare = gross;
       platformFee = 0;
     } else if (type === 'lab') {
-      platformFee = Math.round(gross * (labPlatformSplit / 100) * 100) / 100;
+      platformFee = 0;
       const remaining = gross - platformFee;
       doctorShare = Math.round(remaining * (labDoctorSplit / 100) * 100) / 100;
       labShare = Math.round((remaining - doctorShare) * 100) / 100;
     } else if (type === 'pharmacy') {
-      platformFee = Math.round(gross * (pharmPlatformSplit / 100) * 100) / 100;
+      platformFee = 0;
       const remaining = gross - platformFee;
       doctorShare = Math.round(remaining * (pharmDoctorSplit / 100) * 100) / 100;
       pharmacyShare = Math.round((remaining - doctorShare) * 100) / 100;
@@ -219,9 +223,9 @@ export class FinanceEngine {
       doctorShare: Math.round(doctorShare * 100) / 100,
       labShare: Math.round(labShare * 100) / 100,
       pharmacyShare: Math.round(pharmacyShare * 100) / 100,
-      platformFee: Math.round(platformFee * 100) / 100,
+      platformFee: 0.00,
       gatewayFee: 0,
-      netPlatformProfit: Math.round(platformFee * 100) / 100
+      netPlatformProfit: 0.00
     };
   }
 

@@ -3,13 +3,31 @@ import { load, save, writeAuditLog, notify } from './apiHelper';
 import { PatientService } from './patientService';
 import { PaymentService } from './paymentService';
 import { MASTER_TEST_CATALOG } from './labService';
-import type { UnifiedInvoice, FinancialLedgerEntry, Invoice, Appointment, Prescription, ClinicSop, Patient, PrescriptionTemplateConfig } from '../types';
+import type { 
+  UnifiedInvoice, 
+  FinancialLedgerEntry, 
+  Invoice, 
+  Appointment, 
+  Prescription, 
+  ClinicSop, 
+  Patient, 
+  PrescriptionTemplateConfig,
+  DoctorSettlementSummary,
+  LedgerReconciliationResult
+} from '../types';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_ENTITY_ID, FALLBACK_DOCTOR_ID, DEMO_PATIENT_ID_1, DEMO_PATIENT_ID_2, resolveSovereignPodId } from './podContext';
 import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { FinanceEngine } from './financeEngine';
 import { cloudStore } from './cloudStore';
 import { walDB } from './api';
+
+/**
+ * IEEE-754 Epsilon-safe currency precision rounder (Directive 151)
+ */
+export const toPrecisionCurrency = (val: number): number => {
+  return Math.round(((Number(val) || 0) + Number.EPSILON) * 100) / 100;
+};
 
 export class BillingService {
   static getUnifiedInvoices(): UnifiedInvoice[] {
@@ -835,8 +853,8 @@ export class BillingService {
       doctor_fee: consultFee,
       labFee: 0,
       pharmacyFee: 0,
-      platformFee: source === 'whatsapp' ? 15 : 0,
-      totalAmount: source === 'whatsapp' ? consultFee + 15 : consultFee,
+      platformFee: 0,
+      totalAmount: consultFee,
       paymentStatus: 'pending',
       paymentMethod: 'cash',
       podId: ctx.podId || FALLBACK_POD_ID,
@@ -1065,29 +1083,33 @@ export class BillingService {
     }
   }
 
-  // PHASE 19: Immutable Refund / Rollback Protocol (Event Sourcing)
+  // PHASE 19 & 23: Immutable Refund / Rollback Protocol (GAAP/IFRS Event Sourcing)
   static async issueRefundCreditMemo(invoiceId: string, amount: number, reason: string): Promise<void> {
     const uInvoices = this.getUnifiedInvoices();
     const uInv = uInvoices.find(u => u.id === invoiceId);
     if (!uInv) return;
 
+    const precAmount = toPrecisionCurrency(amount);
     const podEntityId = getPodContext().entityId;
+    const creditMemoId = `tx-refund-${invoiceId.substring(0, 8)}-${crypto.randomUUID().substring(0, 4)}`;
     const creditMemo: FinancialLedgerEntry = {
-      id: `tx-refund-${crypto.randomUUID().substring(0,8)}`,
+      id: creditMemoId,
       invoiceId: invoiceId,
       sourceEntityId: podEntityId,
       destinationEntityId: podEntityId,
       transactionType: 'refund_credit_memo' as any,
-      grossAmount: -Math.abs(amount),
+      grossAmount: -Math.abs(precAmount),
       commissionRate: 0,
-      netPayout: -Math.abs(amount),
+      netPayout: -Math.abs(precAmount),
       paymentStatus: 'cleared',
       settledAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       patientId: uInv.patientId,
       patientName: uInv.patientName,
-      paymentMethod: 'cash'
-    };
+      paymentMethod: 'cash',
+      idempotencyKey: `tx-refund-${invoiceId.substring(0, 8)}`,
+      reconciledAt: new Date().toISOString()
+    } as any;
 
     const ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
     ledgers.push(creditMemo);
@@ -1109,7 +1131,9 @@ export class BillingService {
         patient_id: creditMemo.patientId,
         patient_name: creditMemo.patientName,
         payment_method: creditMemo.paymentMethod,
-        pod_id: podEntityId || FALLBACK_POD_ID
+        pod_id: podEntityId || FALLBACK_POD_ID,
+        idempotency_key: creditMemo.id,
+        reconciled_at: new Date().toISOString()
       });
       
       uInv.paymentStatus = 'refunded';
@@ -1120,11 +1144,11 @@ export class BillingService {
       }).eq('id', invoiceId);
       
       notify();
-      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: `Refund processed. Immutable Credit Memo generated for ₹${amount}.`, type: 'success', title: 'Refund Completed' }}));
+      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: `Refund processed. Immutable Credit Memo generated for ₹${precAmount}.`, type: 'success', title: 'Refund Completed' }}));
     } catch (e) {
       console.error('[BillingService] Refund failed:', e);
       if (walDB && walDB.addEntry) {
-         await walDB.addEntry('issue_refund_credit_memo', { invoiceId, amount, reason, creditMemo });
+         await walDB.addEntry('issue_refund_credit_memo', { invoiceId, amount: precAmount, reason, creditMemo });
       }
     }
   }
@@ -1134,12 +1158,22 @@ export class BillingService {
     notify();
   }
 
+  /**
+   * PHASE 23: Precision Multi-Entity Split Engine & Deterministic Idempotency
+   */
   static async createLedgerSplitsForInvoiceFields(invoiceId: string, appointmentId: string, type: Invoice['type'], amount: number, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
     const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    const precAmount = toPrecisionCurrency(amount);
     
-    // Check if splits already exist for this invoiceId and target transaction type
+    // Check if splits already exist for this invoiceId and target transaction type (Deterministic Idempotency)
     const targetType = type === 'consult' ? 'appointment_fee' : (type === 'lab' ? 'lab_commission' : 'medicine_commission');
-    const existingIdx = ledgerEntries.findIndex(l => l.invoiceId === invoiceId && (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee')));
+    const idempotencyPrefix = `tx-${invoiceId.substring(0, 8)}-${type}`;
+    
+    const existingIdx = ledgerEntries.findIndex(l => 
+      l.invoiceId === invoiceId && 
+      (l.transactionType === targetType || (targetType === 'appointment_fee' && (l.transactionType as any) === 'doctor_consultation_fee'))
+    );
+
     if (existingIdx !== -1) {
       let updated = false;
       let platformAmt = 0;
@@ -1151,10 +1185,11 @@ export class BillingService {
           updated = true;
         }
         if (ledgerEntries[i].invoiceId === invoiceId && ledgerEntries[i].transactionType === 'platform_fee') {
-          platformAmt += ledgerEntries[i].netPayout;
+          platformAmt += toPrecisionCurrency(ledgerEntries[i].netPayout);
         }
       }
       if (updated) {
+        platformAmt = toPrecisionCurrency(platformAmt);
         save('financial_ledgers', ledgerEntries);
         supabase.from('financial_ledgers').update({
           payment_status: 'cleared',
@@ -1164,16 +1199,11 @@ export class BillingService {
            if (error) console.error('Error updating ledger status in Supabase:', error);
         });
 
-        const isCash = paymentMethod === 'cash';
         supabase.from('unified_invoices').update({
-          platform_fee: platformAmt,
+          platform_fee: 0,
           payment_method: paymentMethod
         }).eq('id', invoiceId).then(({ error }) => {
           if (error) console.error('Error updating platform_fee in unified_invoices:', error);
-        });
-
-        supabase.rpc('accumulate_platform_revenue', { p_pod_id: getPodContext().podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
-          if (error) console.error('Error updating pod platform revenue in Supabase:', error);
         });
       }
       return;
@@ -1196,7 +1226,7 @@ export class BillingService {
     const resolvedPatientName = resolvedPatient?.name || uInv?.patientName || (inv as any)?.patientName || (appt as any)?.patient_name || 'Walk-in Patient';
     const resolvedDoctorId = appt?.doctorId || (appt as any)?.doctor_id || (uInv as any)?.doctorId || getPodContext().doctorId || null;
 
-    // PHASE 19: Dynamic Autonomous Revenue Splits (Smart Contracts)
+    // Dynamic Autonomous Revenue Splits
     if (resolvedDoctorId && typeof window !== 'undefined') {
       try {
         const cached = localStorage.getItem('vitalsync_cached_profile');
@@ -1216,8 +1246,8 @@ export class BillingService {
       }
     }
 
-    const splitPlatLab = activeSop?.extractedConfig?.splits?.platform ?? 5.00;
-    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc - splitPlatLab);
+    const splitPlatLab = 0; // Phase 25: 0% Platform Fee (NMC Ethics Code 6.4 Compliant)
+    const splitLab = activeSop?.extractedConfig?.splits?.lab ?? (100 - splitDoc);
 
     const listToSave: FinancialLedgerEntry[] = [];
     let platformAmt = 0;
@@ -1228,14 +1258,16 @@ export class BillingService {
     const pharmDestId = getPodContext().pharmacyEntityId || podEntityId;
 
     if (type === 'consult') {
-      const docAmt = amount;
+      // Counter Doctor Consultation Fee Immunity Protocol (0% platform charge, 0 pool refill)
+      const docAmt = precAmount;
+      platformAmt = 0;
       const docLedger: FinancialLedgerEntry = {
-        id: `tx-doc-${invoiceId.substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
         transactionType: 'appointment_fee',
-        grossAmount: amount,
+        grossAmount: precAmount,
         commissionRate: 0,
         netPayout: docAmt,
         paymentStatus: 'cleared',
@@ -1244,41 +1276,24 @@ export class BillingService {
         patientId: patId,
         patientName: resolvedPatientName,
         doctorId: resolvedDoctorId,
-        paymentMethod
-      };
+        paymentMethod,
+        idempotencyKey: `${idempotencyPrefix}-doc`,
+        reconciledAt: new Date().toISOString()
+      } as any;
       listToSave.push(docLedger);
     } else if (type === 'lab') {
-      const splitPlat = splitPlatLab; // 5% VitalSync Platform Fee for Lab
-      platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-      
-      const remainingAmt = amount - platformAmt;
-      const docAmt = parseFloat((remainingAmt * (splitDoc / (splitDoc + splitLab))).toFixed(2));
-      const labAmt = parseFloat((remainingAmt - docAmt).toFixed(2));
-
-      const platformLedger: FinancialLedgerEntry = {
-        id: `tx-plat-${invoiceId.substring(0, 8)}`,
-        invoiceId: invoiceId,
-        sourceEntityId: podEntityId,
-        destinationEntityId: podEntityId,
-        transactionType: 'platform_fee',
-        grossAmount: amount,
-        commissionRate: splitPlat / 100,
-        netPayout: platformAmt,
-        paymentStatus: 'cleared',
-        settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        patientId: patId,
-        patientName: resolvedPatientName,
-        paymentMethod
-      };
+      platformAmt = 0;
+      const remainingAmt = precAmount;
+      const docAmt = toPrecisionCurrency(remainingAmt * (splitDoc / (splitDoc + splitLab)));
+      const labAmt = toPrecisionCurrency(remainingAmt - docAmt);
 
       const docLedger: FinancialLedgerEntry = {
-        id: `tx-doc-${invoiceId.substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
         transactionType: 'appointment_fee',
-        grossAmount: amount,
+        grossAmount: precAmount,
         commissionRate: splitDoc / 100,
         netPayout: docAmt,
         paymentStatus: 'cleared',
@@ -1287,16 +1302,18 @@ export class BillingService {
         patientId: patId,
         patientName: resolvedPatientName,
         doctorId: resolvedDoctorId,
-        paymentMethod
-      };
+        paymentMethod,
+        idempotencyKey: `${idempotencyPrefix}-doc`,
+        reconciledAt: new Date().toISOString()
+      } as any;
 
       const labLedger: FinancialLedgerEntry = {
-        id: `tx-lab-${invoiceId.substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: labDestId,
-        transactionType: 'lab_commission',
-        grossAmount: amount,
+        transactionType: 'lab_diagnostic',
+        grossAmount: precAmount,
         commissionRate: splitLab / 100,
         netPayout: labAmt,
         paymentStatus: 'cleared',
@@ -1305,42 +1322,25 @@ export class BillingService {
         patientId: patId,
         patientName: resolvedPatientName,
         doctorId: resolvedDoctorId,
-        paymentMethod
-      };
-      listToSave.push(platformLedger, docLedger, labLedger);
+        paymentMethod,
+        idempotencyKey: `${idempotencyPrefix}-lab`,
+        reconciledAt: new Date().toISOString()
+      } as any;
+      listToSave.push(docLedger, labLedger);
     } else if (type === 'pharmacy') {
-      const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20; // 20% SOP Doctor Referral Share
-      const splitPlat = (activeSop?.extractedConfig?.splits as any)?.pharmacyPlatform ?? 2.00; // 2% VitalSync Platform Fee for Pharmacy
-      platformAmt = parseFloat((amount * (splitPlat / 100)).toFixed(2));
-
-      const remainingAmt = amount - platformAmt;
-      const docMedAmt = parseFloat((remainingAmt * (medDoctorSplit / 100)).toFixed(2));
-      const pharmaAmt = parseFloat((remainingAmt - docMedAmt).toFixed(2));
-
-      const platformLedger: FinancialLedgerEntry = {
-        id: `tx-plat-${invoiceId.substring(0, 8)}`,
-        invoiceId: invoiceId,
-        sourceEntityId: podEntityId,
-        destinationEntityId: podEntityId,
-        transactionType: 'platform_fee',
-        grossAmount: amount,
-        commissionRate: splitPlat / 100,
-        netPayout: platformAmt,
-        paymentStatus: 'cleared',
-        settledAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        patientId: patId,
-        patientName: resolvedPatientName,
-        paymentMethod
-      };
+      const medDoctorSplit = (activeSop?.extractedConfig?.splits as any)?.pharmacyDoctor ?? 20;
+      platformAmt = 0;
+      const remainingAmt = precAmount;
+      const docMedAmt = toPrecisionCurrency(remainingAmt * (medDoctorSplit / 100));
+      const pharmaAmt = toPrecisionCurrency(remainingAmt - docMedAmt);
 
       const docMedLedger: FinancialLedgerEntry = {
-        id: `tx-doc-med-${invoiceId.substring(0, 8)}`,
+        id: crypto.randomUUID(),
         invoiceId: invoiceId,
         sourceEntityId: podEntityId,
         destinationEntityId: podEntityId,
         transactionType: 'medicine_commission',
-        grossAmount: amount,
+        grossAmount: precAmount,
         commissionRate: medDoctorSplit / 100,
         netPayout: docMedAmt,
         paymentStatus: 'cleared',
@@ -1349,8 +1349,10 @@ export class BillingService {
         patientId: patId,
         patientName: resolvedPatientName,
         doctorId: resolvedDoctorId,
-        paymentMethod
-      };
+        paymentMethod,
+        idempotencyKey: `${idempotencyPrefix}-docmed`,
+        reconciledAt: new Date().toISOString()
+      } as any;
 
       const pharmacyLedger: FinancialLedgerEntry = {
         id: `tx-pharma-${invoiceId.substring(0, 8)}`,
@@ -1358,8 +1360,8 @@ export class BillingService {
         sourceEntityId: podEntityId,
         destinationEntityId: pharmDestId,
         transactionType: 'medicine_commission',
-        grossAmount: amount,
-        commissionRate: (100 - splitPlat - medDoctorSplit) / 100,
+        grossAmount: precAmount,
+        commissionRate: (100 - medDoctorSplit) / 100,
         netPayout: pharmaAmt,
         paymentStatus: 'cleared',
         settledAt: new Date().toISOString(),
@@ -1367,9 +1369,11 @@ export class BillingService {
         patientId: patId,
         patientName: resolvedPatientName,
         doctorId: resolvedDoctorId,
-        paymentMethod
-      };
-      listToSave.push(platformLedger, docMedLedger, pharmacyLedger);
+        paymentMethod,
+        idempotencyKey: `${idempotencyPrefix}-pharm`,
+        reconciledAt: new Date().toISOString()
+      } as any;
+      listToSave.push(docMedLedger, pharmacyLedger);
     }
 
     if (listToSave.length > 0) {
@@ -1395,29 +1399,143 @@ export class BillingService {
         platform_fee_deducted: platformAmt,
         gateway_disbursed_net: isCash ? 0.00 : s.netPayout,
         payment_method: paymentMethod,
-        pod_id: getPodContext().podId
+        pod_id: getPodContext().podId,
+        idempotency_key: (s as any).idempotencyKey || s.id,
+        reconciled_at: new Date().toISOString()
       }));
 
       supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
         if (error) console.error('Error upserting cash ledger splits in Supabase:', error);
       });
 
-      // Update platform fee and payment method in unified_invoices in Supabase
+      // Update platform fee and payment method in unified_invoices in Supabase (Strictly 0% Platform Fee)
       supabase.from('unified_invoices').update({
-        platform_fee: platformAmt,
+        platform_fee: 0,
         payment_method: paymentMethod
       }).eq('id', invoiceId).then(({ error }) => {
         if (error) console.error('Error updating platform_fee in unified_invoices:', error);
       });
 
-      // Update lifetime revenue for this pod in Supabase
-      supabase.rpc('accumulate_platform_revenue', { p_pod_id: getPodContext().podId, p_amount: platformAmt, p_is_cash: isCash }).then(({ error }) => {
-        if (error) console.error('Error updating pod platform revenue in Supabase:', error);
-      });
-
       window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
     }
+  }
+
+  /**
+   * PHASE 23: Doctor Settlement Summary Engine
+   */
+  static calculateDoctorSettlementSummary(doctorId: string, timeframe: string = '30d'): DoctorSettlementSummary {
+    const ledgers = this.getFinancialLedgers();
+    const now = new Date();
+    const daysLimit = timeframe === '7d' ? 7 : (timeframe === '30d' ? 30 : (timeframe === '6m' ? 180 : 365));
+    const cutoffDate = new Date(now.getTime() - daysLimit * 24 * 3600 * 1000);
+
+    const docLedgers = ledgers.filter(entry => {
+      if (doctorId && entry.doctorId && entry.doctorId !== doctorId) return false;
+      if (!entry.createdAt) return true;
+      const d = new Date(entry.createdAt);
+      return isNaN(d.getTime()) || d >= cutoffDate;
+    });
+
+    let grossOpd = 0;
+    let netOpd = 0;
+    let pharmacyCut = 0;
+    let labCut = 0;
+    let totalRefunds = 0;
+    let platformDeductions = 0;
+    let unsettledCount = 0;
+
+    docLedgers.forEach(e => {
+      const gross = toPrecisionCurrency(e.grossAmount || 0);
+      const net = toPrecisionCurrency(e.netPayout || 0);
+      const tType = String(e.transactionType || (e as any).transaction_type || '');
+
+      if (tType === 'appointment_fee' || tType === 'doctor_consultation_fee') {
+        grossOpd = toPrecisionCurrency(grossOpd + gross);
+        netOpd = toPrecisionCurrency(netOpd + net);
+      } else if (tType === 'medicine_commission') {
+        pharmacyCut = toPrecisionCurrency(pharmacyCut + net);
+      } else if (tType === 'lab_commission') {
+        labCut = toPrecisionCurrency(labCut + net);
+      } else if (tType === 'refund_credit_memo') {
+        totalRefunds = toPrecisionCurrency(totalRefunds + Math.abs(net));
+      } else if (tType === 'platform_fee') {
+        platformDeductions = toPrecisionCurrency(platformDeductions + net);
+      }
+
+      if (e.paymentStatus !== 'cleared') {
+        unsettledCount++;
+      }
+    });
+
+    const totalGross = toPrecisionCurrency(grossOpd + pharmacyCut + labCut);
+    const totalNet = toPrecisionCurrency(netOpd + pharmacyCut + labCut - totalRefunds);
+    const retainedBuffer = Math.min(1000, Math.max(0, totalNet));
+    const transferable = toPrecisionCurrency(Math.max(0, totalNet - retainedBuffer));
+
+    return {
+      doctorId,
+      timeframe,
+      grossOpdConsults: grossOpd,
+      netOpdConsults: netOpd,
+      pharmacyReferralEarnings: pharmacyCut,
+      labReferralEarnings: labCut,
+      totalGrossRevenue: totalGross,
+      totalNetEarnings: totalNet,
+      totalRefunds,
+      platformDeductions,
+      transferableBalance: transferable,
+      retainedBuffer,
+      unsettledLedgerCount: unsettledCount,
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  /**
+   * PHASE 23: Autonomous Orphaned Invoices Reconciler
+   */
+  static async reconcileOrphanedInvoices(): Promise<LedgerReconciliationResult> {
+    const uInvoices = this.getUnifiedInvoices();
+    const ledgers = this.getFinancialLedgers();
+    const existingInvoiceIds = new Set(ledgers.map(l => l.invoiceId));
+    let healed = 0;
+    let totalVolume = 0;
+    const reconciledIds: string[] = [];
+
+    for (const inv of uInvoices) {
+      const invId = inv.id;
+      if (invId && !existingInvoiceIds.has(invId)) {
+        const payStatus = String(inv.paymentStatus || (inv as any).status || 'pending');
+        if (payStatus === 'paid' || payStatus === 'cleared') {
+          const apptId = inv.encounterId || 'counter-checkout';
+          const pMethod = (inv.paymentMethod as any) || 'upi';
+
+          if (inv.doctorFee > 0) {
+            await this.createLedgerSplitsForInvoiceFields(invId, apptId, 'consult', inv.doctorFee, pMethod);
+          }
+          if (inv.pharmacyFee > 0) {
+            await this.createLedgerSplitsForInvoiceFields(invId, apptId, 'pharmacy', inv.pharmacyFee, pMethod);
+          }
+          if (inv.labFee > 0) {
+            await this.createLedgerSplitsForInvoiceFields(invId, apptId, 'lab', inv.labFee, pMethod);
+          }
+
+          healed++;
+          totalVolume = toPrecisionCurrency(totalVolume + (inv.totalAmount || 0));
+          reconciledIds.push(invId);
+          existingInvoiceIds.add(invId);
+        }
+      }
+    }
+
+    return {
+      healedCount: healed,
+      orphanedInvoicesFound: healed,
+      reconciledInvoiceIds: reconciledIds,
+      totalVolumeReconciled: totalVolume,
+      status: healed > 0 ? 'ok' : 'clean',
+      timestamp: new Date().toISOString()
+    };
   }
 
   static async recordInvoicePayment(invoiceId: string, paymentMethod: 'cash' | 'upi' | 'card' | 'razorpay' | 'cashfree' | 'paytm' | 'phonepe' = 'upi'): Promise<void> {
@@ -1462,13 +1580,13 @@ export class BillingService {
           // Create and persist financial ledger entry for Doctor Consultation Fee
           const ledgerEntries = load<FinancialLedgerEntry[]>('financial_ledgers', []);
           const consultLedger: FinancialLedgerEntry = {
-            id: `tx-doc-${saasInv.id.substring(0, 8)}`,
+            id: crypto.randomUUID(),
             invoiceId: saasInv.id,
             appointmentId: appt.id,
             patientId: patId,
             doctorId: appt.doctorId || (appt as any).doctor_id,
-            sourceEntityId: getPodContext().entityId || 'clinic-admin-entity',
-            destinationEntityId: getPodContext().entityId || 'clinic-admin-entity',
+            sourceEntityId: getPodContext().entityId || FALLBACK_ENTITY_ID,
+            destinationEntityId: getPodContext().entityId || FALLBACK_ENTITY_ID,
             transactionType: 'appointment_fee',
             grossAmount: amount || 500,
             commissionRate: 0,
@@ -2189,6 +2307,93 @@ export class BillingService {
     } catch (e) {
        console.warn('[BillingService] Revenue Audit failed:', e);
     }
+  }
+
+  // ─── PHASE 26: 100% Legal 'Practo Ray' Hospital Digital Ledger & Offline Reconciliation ───
+  /**
+   * Returns a complete audit-grade breakdown of gross hospital collections,
+   * categorizing revenue by clinical department (OPD, Pharmacy, Pathology).
+   * Invariant: 100% of revenue settles directly to the clinic (0% platform cut).
+   */
+  static getHospitalRevenueSummary(podId?: string): {
+    grossTotal: number;
+    opdConsultationTotal: number;
+    pharmacyTotal: number;
+    pathologyTotal: number;
+    platformFeeTotal: number;
+    directClinicRetentionPercent: number;
+  } {
+    const invoices = this.getUnifiedInvoices();
+    const targetPod = podId || getPodContext().podId;
+    const filtered = invoices.filter(inv => {
+      const p = (inv as any).podId || (inv as any).pod_id;
+      if (p && targetPod && p !== targetPod) return false;
+      const status = String(inv.paymentStatus || (inv as any).status || '');
+      return status === 'paid' || status === 'cleared' || status === 'completed';
+    });
+
+    let opd = 0;
+    let pharm = 0;
+    let lab = 0;
+    filtered.forEach(inv => {
+      opd += Number(inv.doctorFee || 0);
+      pharm += Number(inv.pharmacyFee || 0);
+      lab += Number(inv.labFee || 0);
+    });
+
+    return {
+      grossTotal: opd + pharm + lab,
+      opdConsultationTotal: opd,
+      pharmacyTotal: pharm,
+      pathologyTotal: lab,
+      platformFeeTotal: 0,
+      directClinicRetentionPercent: 100
+    };
+  }
+
+  /**
+   * Generates an offline B2B reconciliation report for clinics that outsource
+   * diagnostic pathology or pharmacy items.
+   * Enables the clinic to settle with partners via monthly commercial B2B invoices
+   * instead of illegal on-the-fly checkout split cuts (NMC Ethics Code §6.4).
+   */
+  static getOfflineVendorReconciliation(podId?: string, monthString?: string): {
+    billingMonth: string;
+    totalPartnerInvoices: number;
+    outsourcedLabAmount: number;
+    outsourcedPharmacyAmount: number;
+    settlementMode: string;
+    complianceNote: string;
+  } {
+    const invoices = this.getUnifiedInvoices();
+    const targetPod = podId || getPodContext().podId;
+    const targetMonth = monthString || new Date().toISOString().slice(0, 7);
+
+    let labSum = 0;
+    let pharmSum = 0;
+    let count = 0;
+
+    invoices.forEach(inv => {
+      const p = (inv as any).podId || (inv as any).pod_id;
+      if (p && targetPod && p !== targetPod) return false;
+      const invDate = String((inv as any).createdAt || (inv as any).updatedAt || '').slice(0, 7);
+      if (invDate === targetMonth) {
+        if ((inv.labFee || 0) > 0 || (inv.pharmacyFee || 0) > 0) {
+          labSum += Number(inv.labFee || 0);
+          pharmSum += Number(inv.pharmacyFee || 0);
+          count++;
+        }
+      }
+    });
+
+    return {
+      billingMonth: targetMonth,
+      totalPartnerInvoices: count,
+      outsourcedLabAmount: labSum,
+      outsourcedPharmacyAmount: pharmSum,
+      settlementMode: 'OFFLINE_COMMERCIAL_B2B_INVOICE',
+      complianceNote: 'In accordance with NMC Ethics Code §6.4, clinic settles vendor accounts via monthly institutional B2B invoices.'
+    };
   }
 }
 

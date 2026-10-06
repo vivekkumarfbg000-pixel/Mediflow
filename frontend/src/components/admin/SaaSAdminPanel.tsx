@@ -79,6 +79,12 @@ interface PodInfo {
   daily_cost_budget: number;
   daily_spend: number;
   platform_fee_percent?: number;
+  saas_tier?: string;
+  monthly_fee_inr?: number;
+  ai_scans_used?: number;
+  ai_scans_limit?: number;
+  whatsapp_messages_used?: number;
+  whatsapp_messages_limit?: number;
   lifetime_platform_revenue?: number;
   pending_cash_balance?: number;
   is_verified_for_billing?: boolean;
@@ -444,9 +450,20 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
             const { data: spendData } = await supabase.rpc('get_pod_daily_spend', { p_pod_id: pod.id });
             spend = spendData || 0.00;
           } catch (_e) {}
+          let subData: any = null;
+          try {
+            const { data } = await supabase.rpc('get_pod_subscription_status', { p_pod_id: pod.id });
+            subData = data;
+          } catch (_e) {}
           return {
             ...pod,
-            platform_fee_percent: (pod.platform_fee_percent !== undefined && pod.platform_fee_percent !== null) ? Number(pod.platform_fee_percent) : 3.0,
+            platform_fee_percent: 0.0,
+            saas_tier: subData?.tier_name || '90-Day Free Clinical Pilot',
+            monthly_fee_inr: subData?.monthly_fee_inr || 0,
+            ai_scans_used: subData?.ai_scans_used || 0,
+            ai_scans_limit: subData?.ai_scans_limit ?? 1000,
+            whatsapp_messages_used: subData?.whatsapp_messages_used || 0,
+            whatsapp_messages_limit: subData?.whatsapp_messages_limit ?? 1000,
             daily_spend: spend
           };
         }));
@@ -1042,17 +1059,17 @@ export const SaaSAdminPanel: React.FC<SaaSAdminPanelProps> = ({ onSignOut }) => 
       return;
     }
 
-    const invoiceCode = `INV-COMM-${Math.floor(1000 + Math.random() * 9000)}`;
+    const docName = pod.doctor_name || (pod as any).doctorName || 'Doctor';
     const phone = pod.phone;
-    const doctorName = pod.doctor_name || 'Doctor';
-    const invoiceMsg = `🧾 *VITALSYNC PLATFORM COMMISSION INVOICE* 💳\n\nInvoice ID: *${invoiceCode}*\nDate: ${getIstDateDisplay()}\nTo: Dr. ${doctorName} (${pod.name})\n\n• *Pending Cash Split Balance*: ₹${pendingBalance.toFixed(2)}\n• *Revenue Commission Share Rate*: ${pod.platform_fee_percent || 3.0}%\n\nPlease settle via Cashfree QR or bank transfer. Contact Platform Administration for receipt confirmation.`;
+    const invoiceCode = `INV-COMM-${Math.floor(1000 + Math.random() * 9000)}`;
+    const invoiceMsg = `🧾 *VITALSYNC SAAS SUBSCRIPTION RECEIPT* 💳\n\nInvoice ID: *${invoiceCode}*\nDate: ${getIstDateDisplay()}\nTo: Dr. ${docName} (${pod.name})\n\n• *Software License Plan*: ${pod.saas_tier || 'Growth Plan'}\n• *Monthly License Fee*: ₹${pod.monthly_fee_inr || 999}/mo\n• *Direct Clinic Settlement*: 100% (0% Platform Fee Deductions)\n\nThank you for powering your clinic with VitalSync Core OS.`;
 
     try {
       api.pushWhatsAppMessageFromBot(phone, invoiceMsg);
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          title: 'Commission Invoice Generated 📄',
-          message: `Dispatched Invoice ${invoiceCode} for ₹${pendingBalance.toFixed(2)} to Dr. ${doctorName}.`,
+          title: 'SaaS Receipt Dispatched 📄',
+          message: `Dispatched Subscription Receipt ${invoiceCode} to Dr. ${docName}.`,
           type: 'success'
         }
       }));
@@ -1165,7 +1182,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
     for (const pod of podsList) {
       if ((pod.pending_cash_balance || 0) > 0 && pod.phone) {
         const phone = pod.phone;
-        const dunningMsg = `🏥 *VITALSYNC FINANCIAL SENTRY — PAYMENT REMINDER* 💳\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'}!\n\nThis is a friendly reminder that your clinic pod (*${pod.name}*) has a pending cash settlement balance of *₹${pod.pending_cash_balance?.toFixed(2)}*.\n\nPlease settle via Cashfree Split QR or contact accounting to avoid temporary feature limits. Thank you!`;
+        const dunningMsg = `🏥 *VITALSYNC FINANCIAL SENTRY — PAYMENT REMINDER* 💳\n\nNamaste Dr. ${pod.doctor_name || 'Doctor'}!\n\nThis is a friendly reminder that your clinic pod (*${pod.name}*) has a pending cash settlement balance of *₹${pod.pending_cash_balance?.toFixed(2)}*.\n\nManage your flat B2B SaaS subscription (₹999/mo Growth or ₹1,999/mo Pro) in your Admin Console. Thank you!`;
         try {
           api.pushWhatsAppMessageFromBot(phone, dunningMsg);
           remindedCount++;
@@ -2497,9 +2514,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
 
                           <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-white border border-slate-200/60 text-[10px]">
                             <div>
-                              <span className="text-[8.5px] font-bold uppercase text-slate-400 block">Fee %</span>
-                              <span className="font-mono font-bold text-slate-700">
-                                {pod.platform_fee_percent !== undefined && pod.platform_fee_percent !== null ? `${pod.platform_fee_percent}%` : '3.0%'}
+                              <span className="text-[8.5px] font-bold uppercase text-slate-400 block">SaaS Tier</span>
+                              <span className="font-mono font-bold text-indigo-600 truncate block">
+                                {pod.saas_tier || 'Pilot'}
                               </span>
                             </div>
                             <div>
@@ -2563,7 +2580,7 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                           <th className="pb-2">Clinic Code</th>
                           <th className="pb-2">Name</th>
                           <th className="pb-2">Tenant Health</th>
-                          <th className="pb-2">Platform Fee</th>
+                          <th className="pb-2">SaaS Plan</th>
                           <th className="pb-2">Lifetime Rev</th>
                           <th className="pb-2">Pending Cash</th>
                           <th className="pb-2">Billing Status</th>
@@ -2589,7 +2606,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                                 </span>
                               </td>
                               <td className="py-3 font-mono font-bold text-slate-700">
-                                {pod.platform_fee_percent !== undefined && pod.platform_fee_percent !== null ? `${pod.platform_fee_percent}%` : '3.0%'}
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                                  {pod.saas_tier || '90-Day Free Pilot'}
+                                </span>
                               </td>
                               <td className="py-3 font-mono font-bold text-emerald-600">
                                 ₹{pod.lifetime_platform_revenue !== undefined ? Number(pod.lifetime_platform_revenue).toFixed(2) : '0.00'}
@@ -2851,9 +2870,9 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                 {/* Stats Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
                   {[
-                    { label: 'Ecosystem sales (GMV)', value: `₹${revenueStats.total_gmv}`, desc: 'Total sales from clinics + medicine', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-                    { label: 'Platform Commissions', value: `₹${revenueStats.platform_commission}`, desc: 'Dynamic transaction-based revenue splits', icon: Coins, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-                    { label: 'Settled Invoices', value: revenueStats.paid_invoices, desc: 'Unified invoice checkouts paid', icon: CheckCircle, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+                    { label: 'Ecosystem sales (GMV)', value: `₹${revenueStats.total_gmv}`, desc: 'Total sales from clinics + medicine (100% direct clinic retention)', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                    { label: 'SaaS Software ARR/MRR', value: `₹${revenueStats.platform_commission}`, desc: 'Predictable B2B SaaS Subscriptions (₹0 Pilot / ₹999 / ₹1999)', icon: Coins, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                    { label: 'Settled Invoices', value: revenueStats.paid_invoices, desc: 'Unified invoice checkouts paid directly to clinics', icon: CheckCircle, color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
                   ].map(stat => {
                     const Icon = stat.icon;
                     return (
@@ -2996,16 +3015,16 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                    The platform's split payout logic distributes doctor fees, lab fees, and pharmacy fees synchronously. Cashfree Vendor splits are computed and routed directly from B2B clinic gateways on checkout.
+                    Practo Ray / Hospital ERP Model: 100% of patient payments are collected directly at the clinic counter. Zero commission fee-splitting or third-party escrow. Monetized purely via flat B2B SaaS subscriptions.
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-1">
                       <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Commission Rate</span>
-                      <span className="block text-sm font-extrabold text-slate-850">3% per B2B split checkout</span>
+                      <span className="block text-sm font-extrabold text-emerald-600">0% (NMC Compliant)</span>
                     </div>
                     <div className="p-3 bg-slate-50 border border-slate-200/50 rounded-xl space-y-1">
                       <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Split Limit Policy</span>
-                      <span className="block text-sm font-extrabold text-slate-850">Flat ₹10 low-value protection</span>
+                      <span className="block text-sm font-extrabold text-slate-850">90-Day Pilot • Flat ₹999/mo</span>
                     </div>
                   </div>
                 </div>
@@ -3515,8 +3534,8 @@ Status: 100% RESOLVED (Zero Collateral Data Loss)
                   <div className="font-bold text-emerald-700 mt-0.5 uppercase">OPERATIONAL</div>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
-                  <div className="text-[10px] text-slate-400 uppercase font-sans font-bold">Platform Fee</div>
-                  <div className="font-bold text-slate-700 mt-0.5">{selectedPodForInspection.platform_fee_percent || 2.5}%</div>
+                  <div className="text-[10px] text-slate-400 uppercase font-sans font-bold">SaaS Subscription</div>
+                  <div className="font-bold text-indigo-700 mt-0.5 uppercase">{selectedPodForInspection.saas_tier || '90-Day Free Pilot'}</div>
                 </div>
                 <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
                   <div className="text-[10px] text-slate-400 uppercase font-sans font-bold">Active Errors</div>

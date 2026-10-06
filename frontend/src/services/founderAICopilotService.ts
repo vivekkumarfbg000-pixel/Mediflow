@@ -51,11 +51,6 @@ export class FounderAICopilotService {
         const invoices = api.getUnifiedInvoices();
         const clearedInvoices = invoices.filter(i => i.paymentStatus === 'cleared' || (i.paymentStatus as string) === 'paid');
         const totalGross = clearedInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
-        const totalPlatformCommission = clearedInvoices.reduce((sum, i) => {
-          const lab = (i as any).labFee || (i as any).lab_amount || 0;
-          const pharm = (i as any).pharmacyFee || (i as any).pharmacy_amount || 0;
-          return sum + (lab * 0.02) + (pharm * 0.01);
-        }, 0);
         const pendingCashInvoices = invoices.filter(i => (i.paymentStatus as string) === 'pending_payment' || i.paymentStatus === 'pending');
         const totalPendingCash = pendingCashInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
 
@@ -63,14 +58,14 @@ export class FounderAICopilotService {
           id: messageId,
           sender: 'copilot',
           timestamp,
-          content: `### 💰 Financial & Revenue Intelligence Report\n\n- **Gross Invoiced Volume**: **₹${totalGross.toFixed(2)}** across **${clearedInvoices.length}** cleared invoices.\n- **VitalSync Platform Commission**: **₹${totalPlatformCommission.toFixed(2)}** earned (5% Lab / 2% Pharmacy).\n- **Pending / Uncollected Invoices**: **${pendingCashInvoices.length}** totaling **₹${totalPendingCash.toFixed(2)}**.\n- **Split Safety Buffer**: **₹1,000.00** reserve maintained across active pods.`,
+          content: `### 💰 Financial & Revenue Intelligence Report\n\n- **Gross Invoiced Volume**: **₹${totalGross.toFixed(2)}** across **${clearedInvoices.length}** cleared invoices.\n- **Direct Clinic Counter Revenue**: **₹${totalGross.toFixed(2)}** (100% direct retention, 0% platform cuts).`,
           dataCards: [
             { title: 'Gross Revenue', value: `₹${totalGross.toLocaleString('en-IN')}`, subtitle: `${clearedInvoices.length} cleared invoices`, type: 'financial' },
-            { title: 'Platform Fee (2-5%)', value: `₹${totalPlatformCommission.toFixed(2)}`, subtitle: 'VitalSync Commission Pool', type: 'financial' },
+            { title: 'Platform Fee', value: '0% (Pure SaaS)', subtitle: 'NMC Ethics §6.4 Compliant', type: 'financial' },
             { title: 'Pending Counter Cash', value: `₹${totalPendingCash.toFixed(2)}`, subtitle: `${pendingCashInvoices.length} invoices due`, type: 'financial' }
           ],
           actionChips: [
-            { id: 'act-retry-splits', label: 'Retry Failed Payouts 💸', actionType: 'retry_settlements', status: 'idle' },
+            
             { id: 'act-view-cfo', label: 'Open CFO Finance Tab ➔', actionType: 'open_tab', payload: { tab: 'revenue' }, status: 'idle' }
           ]
         };
@@ -162,7 +157,7 @@ export class FounderAICopilotService {
           id: messageId,
           sender: 'copilot',
           timestamp,
-          content: `### 🏥 Multi-Tenant Clinic Pods & SLA Intelligence\n\n- **Active Clinics**: **${activeCount} Pod(s)** active with full RLS data isolation.\n- **SLA Uptime**: **99.98% High Availability** across tenant databases.\n- **WhatsApp Self-Booking**: 1-Tap native booking active for all clinic phone handles.\n- **SOP Commission Splits**: Real-time 3-way disaggregation active for consult, pharmacy, and lab revenues.`,
+          content: `### 🏥 Multi-Tenant Clinic Pods & SLA Intelligence\n\n- **Active Clinics**: **${activeCount} Pod(s)** active with full RLS data isolation.\n- **SLA Uptime**: **99.98% High Availability** across tenant databases.\n- **WhatsApp Self-Booking**: 1-Tap native booking active for all clinic phone handles.\n- **Hospital ERP Ledger**: Practo Ray single-bucket unified billing active for consult, pharmacy, and lab.`,
           dataCards: [
             { title: 'Active Clinic Pods', value: `${activeCount} Clinics`, subtitle: 'Multi-Tenant Isolated', type: 'ops' },
             { title: 'SLA Uptime', value: '99.98%', subtitle: 'High Availability Verified', type: 'health' },

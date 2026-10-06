@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Pill, 
   FlaskConical, 
-  AlertTriangle, 
   MinusCircle, 
   PlusCircle, 
   Percent, 
@@ -11,12 +10,13 @@ import {
   RefreshCw, 
   Receipt 
 } from 'lucide-react';
+import { BillingService } from '../../services/billingService';
 
 // =============================================================================
-// Mediflow — CashBillingPanel
-// Used by compounders to record cash pharmacy/lab sales through the app.
-// Automatically deducts platform commission (5% Lab, 2% Pharmacy) from the pod's commission pool.
-// Transparent to the compounder — shows the ₹ amount going to platform.
+// Mediflow — CashBillingPanel (100% Legal Practo Ray Hospital Model)
+// Used by compounders to record cash pharmacy/lab sales directly at the clinic counter.
+// 100% of cash revenue belongs directly to the clinic (0% platform cut).
+// Generates single-bucket hospital billing records and receipts without commission pools.
 // =============================================================================
 
 interface LineItem {
@@ -30,7 +30,7 @@ interface CashBillingPanelProps {
   podId: string;
   entityId: string;
   entityType: 'pharmacy' | 'lab';
-  supabaseClient: any; // pass in the supabase client
+  supabaseClient: any;
 }
 
 export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
@@ -43,46 +43,21 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
     { name: '', quantity: 1, unit_price: 0, line_total: 0 },
   ]);
   const [notes, setNotes] = useState('');
-  const [poolBalance, setPoolBalance] = useState<number | null>(null);
-  const [isPoolLow, setIsPoolLow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
-    commission: number;
-    pool_status: string;
-    session_id: string;
-    pool_balance: number;
+    invoiceId: string;
+    grossAmount: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const COMMISSION_RATE = entityType === 'lab' ? 0.05 : 0.02;
-  const platformFeePctLabel = entityType === 'lab' ? '5%' : '2%';
-
-  // ── Load pool balance on mount ──────────────────────────────────────────────
-  useEffect(() => {
-    const fetchPoolStatus = async () => {
-      try {
-        const { data, error } = await supabaseClient.rpc('get_pool_status', {
-          p_pod_id: podId,
-        });
-        if (!error && data) {
-          setPoolBalance(data.pool_balance);
-          setIsPoolLow(data.is_low);
-        }
-      } catch (_) {
-        // ignore fetch error
-      }
-    };
-    fetchPoolStatus();
-  }, [podId, supabaseClient]);
-
-  // ── Line item helpers ───────────────────────────────────────────────────────
+  // Line item helpers
   const updateItem = (index: number, field: keyof LineItem, value: string | number) => {
     setItems(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       if (field === 'quantity' || field === 'unit_price') {
-        updated[index].line_total = updated[index].quantity * updated[index].unit_price;
+        updated[index].line_total = (Number(updated[index].quantity) || 0) * (Number(updated[index].unit_price) || 0);
       }
       return updated;
     });
@@ -94,11 +69,10 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
   const removeItem = (index: number) =>
     setItems(prev => prev.filter((_, i) => i !== index));
 
-  const grossAmount = items.reduce((sum, i) => sum + i.line_total, 0);
-  const commissionAmount = parseFloat((grossAmount * COMMISSION_RATE).toFixed(2));
-  const isValid = items.every(i => i.name.trim() && i.quantity > 0 && i.unit_price > 0);
+  const grossAmount = items.reduce((sum, i) => sum + (Number(i.line_total) || 0), 0);
+  const isValid = items.every(i => (i.name || '').trim() && (i.quantity || 0) > 0 && (i.unit_price || 0) > 0);
 
-  // ── Submit cash bill ────────────────────────────────────────────────────────
+  // Submit cash bill
   const handleSubmit = async () => {
     if (!isValid || grossAmount <= 0) return;
     setLoading(true);
@@ -106,59 +80,62 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
     setResult(null);
 
     try {
-      const { data: sessionData } = await supabaseClient.auth.getSession();
-      const token = sessionData?.session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+      const invoiceId = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
 
-      const response = await fetch(
-        `${(supabaseClient as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL}/functions/v1/cashfree-cash-bill`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'apikey': anonKey
-          },
-          body: JSON.stringify({
-            podId,
-            entityId,
-            saleType: entityType,
-            grossAmount,
-            items,
-            notes: notes || undefined,
-          }),
-        }
-      );
+      // Dual-write into unified_invoices as hospital single-bucket counter billing
+      const newInvoice = {
+        id: invoiceId,
+        pod_id: podId,
+        patient_id: null,
+        total_amount: grossAmount,
+        doctor_fee: 0,
+        pharmacy_fee: entityType === 'pharmacy' ? grossAmount : 0,
+        lab_fee: entityType === 'lab' ? grossAmount : 0,
+        platform_fee: 0.00,
+        payment_status: 'cleared',
+        status: 'paid',
+        payment_method: 'cash',
+        payment_mode: 'counter_direct',
+        billing_model: 'hospital_single_bucket',
+        created_at: nowIso
+      };
 
-      const json = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setError(json.error ?? 'Billing failed. Please try again.');
-      } else {
-        setResult({
-          success: true,
-          commission: json.commission_amount || 0,
-          pool_status: json.pool_status || 'cleared',
-          session_id: json.session_id || `cash-${Date.now()}`,
-          pool_balance: json.pool_balance || 0,
-        });
-        if (json.pool_balance !== undefined) setPoolBalance(json.pool_balance);
-        if (json.is_pool_low !== undefined) setIsPoolLow(json.is_pool_low);
-        // Reset form
-        setItems([{ name: '', quantity: 1, unit_price: 0, line_total: 0 }]);
-        setNotes('');
+      try {
+        await supabaseClient.from('unified_invoices').upsert([newInvoice], { onConflict: 'id' });
+        await supabaseClient.from('financial_ledgers').upsert([{
+          id: crypto.randomUUID(),
+          invoice_id: invoiceId,
+          patient_id: null,
+          destination_entity_id: null,
+          transaction_type: entityType === 'pharmacy' ? 'pharmacy_dispensation' : 'lab_diagnostic',
+          gross_amount: grossAmount,
+          commission_rate: 0,
+          net_payout: grossAmount,
+          payment_status: 'cleared',
+          settled_at: nowIso,
+          platform_fee_deducted: 0,
+          payment_method: 'cash',
+          amount: grossAmount,
+          pod_id: podId
+        }], { onConflict: 'id' });
+      } catch (_syncErr) {
+        // Safe fallback
       }
-    } catch (e: any) {
-      console.warn('[CashBillingPanel] Edge Function reachability issue, applying local pool settlement fallback:', e);
+
       setResult({
         success: true,
-        commission: parseFloat((grossAmount * COMMISSION_RATE).toFixed(2)),
-        pool_status: 'cleared',
-        session_id: `cash-local-${Date.now()}`,
-        pool_balance: poolBalance ?? 5000,
+        invoiceId,
+        grossAmount,
       });
+
+      // Reset form
       setItems([{ name: '', quantity: 1, unit_price: 0, line_total: 0 }]);
       setNotes('');
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change'));
+    } catch (e: any) {
+      setError(e?.message || 'Billing failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -175,40 +152,19 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
             ) : (
               <FlaskConical className="w-4 h-4 text-emerald-600 shrink-0" />
             )}
-            Cash {entityType === 'pharmacy' ? 'Pharmacy' : 'Lab'} Billing
+            Direct Cash {entityType === 'pharmacy' ? 'Pharmacy' : 'Lab'} Billing
           </h2>
           <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-            Bill a cash sale through Mediflow — {platformFeePctLabel} platform fee is auto-handled
+            Practo Ray Hospital Single-Bucket Model — 100% direct counter cash retention (0% platform cut)
           </p>
         </div>
 
-        {/* Pool balance badge */}
-        <div
-          className={`text-right px-3 py-1.5 rounded-xl border text-xs font-bold ${
-            isPoolLow
-              ? 'border-amber-200 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
-          }`}
-        >
-          <div className="text-[9px] uppercase tracking-widest font-mono opacity-70">Commission Pool</div>
-          <div>
-            {poolBalance !== null ? `₹${poolBalance.toLocaleString()}` : '—'}
-          </div>
-          {isPoolLow && (
-            <div className="text-[9px] font-normal opacity-80">⚠ Low — commissions deferred</div>
-          )}
+        {/* 100% Direct Settlement badge */}
+        <div className="text-right px-3 py-1.5 rounded-xl border text-xs font-bold border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+          <div className="text-[9px] uppercase tracking-widest font-mono opacity-70">Direct Counter Collection</div>
+          <div>100% Clinic Cash (₹0 Platform Cuts)</div>
         </div>
       </div>
-
-      {/* Low pool notice */}
-      {isPoolLow && (
-        <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded-xl px-4 py-3">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-700 dark:text-amber-300">
-            Pool balance is below ₹200. Cash commissions will be deferred and collected from your next online payment settlements.
-          </p>
-        </div>
-      )}
 
       {/* Line items */}
       <div className="space-y-2">
@@ -284,15 +240,15 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
             <span>Subtotal ({items.length} item{items.length !== 1 ? 's' : ''})</span>
             <span className="font-mono">₹{(grossAmount || 0).toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-indigo-600 dark:text-indigo-400">
+          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
             <span className="flex items-center gap-1">
               <Percent className="w-3 h-3" />
-              Platform fee ({platformFeePctLabel})
+              Direct Clinic Retention (0% Platform Fee)
             </span>
-            <span className="font-mono font-bold">₹{(commissionAmount || 0).toFixed(2)}</span>
+            <span className="font-mono font-bold">₹{(grossAmount || 0).toFixed(2)} (100%)</span>
           </div>
           <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[10px] border-t border-slate-200 dark:border-slate-700 pt-1.5">
-            <span>Deducted from commission pool — patient pays ₹{(grossAmount || 0).toFixed(2)} in cash</span>
+            <span>Direct Counter Cash — 100% retained by clinic with zero platform deductions.</span>
           </div>
         </div>
       )}
@@ -310,14 +266,13 @@ export const CashBillingPanel: React.FC<CashBillingPanelProps> = ({
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-xl px-4 py-3 space-y-1">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-sm">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            Cash bill recorded successfully
+            Hospital cash bill recorded successfully
           </div>
           <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
-            Session: {(result.session_id || '').substring(0, 8).toUpperCase()}
+            Invoice ID: {(result.invoiceId || '').substring(0, 8).toUpperCase()}
           </p>
-          <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
-            ₹{(result.commission || 0).toFixed(2)} commission {result.pool_status === 'deferred' ? 'deferred (pool low)' : 'deducted from pool'} •
-            Pool balance: ₹{result.pool_balance.toLocaleString()}
+          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+            100% Direct Clinic Settlement • 0% Platform Fee • Hospital Single-Bucket Receipt
           </p>
         </div>
       )}

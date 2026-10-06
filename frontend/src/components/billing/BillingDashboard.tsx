@@ -155,9 +155,9 @@ export const BillingDashboard: React.FC = () => {
       
       window.dispatchEvent(new CustomEvent('mediflow-toast', {
         detail: {
-          message: 'UPI transaction cleared successfully. Bank router splits settled in multi-vendor accounts.',
+          message: 'UPI payment cleared successfully. Recorded in direct clinic financial ledger with 0% platform cuts.',
           type: 'success',
-          title: 'UPI Split Settled'
+          title: 'Direct UPI Settled'
         }
       }));
       
@@ -514,8 +514,8 @@ export const BillingDashboard: React.FC = () => {
                           <Coins className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-bold block text-slate-800 text-xs">VitalSync SaaS Platform Fee</span>
-                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">SYSTEM_ESCROW_PROTECT</span>
+                          <span className="font-bold block text-slate-800 text-xs">Platform Fee (0% Pure ERP Ledger: ₹0.00)</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">0% PURE ERP DIRECT SETTLEMENT</span>
                         </div>
                       </div>
                       <span className="font-bold text-xs text-slate-800 flex items-center font-mono">
@@ -547,18 +547,18 @@ export const BillingDashboard: React.FC = () => {
                           ? 'text-amber-600 bg-amber-50 border-amber-200'
                           : 'text-emerald-600 bg-emerald-50 border-emerald-200'
                       }`}>
-                        {selectedInvoice.paymentStatus === 'pending' ? 'HELD_IN_ESCROW' : 'SETTLED_TO_ACCOUNTS'}
+                        {selectedInvoice.paymentStatus === 'pending' ? 'COUNTER_COLLECTION_PENDING' : 'RECORDED_IN_LEDGER'}
                       </span>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
                       <div className="p-2 bg-white border border-slate-100 rounded-lg">
-                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Gross Escrow</span>
+                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Gross Invoice</span>
                         <strong className="text-slate-800 font-mono">INR {selectedInvoice.totalAmount}.00</strong>
                       </div>
                       <div className="p-2 bg-white border border-slate-100 rounded-lg">
-                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Platform Take (5%)</span>
-                        <strong className="text-rose-600 font-mono">INR {selectedInvoice.platformFee}.00</strong>
+                        <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">Platform Fee (0% Pure ERP Ledger)</span>
+                        <strong className="text-emerald-600 font-mono">INR 0.00</strong>
                       </div>
                       <div className="p-2 bg-white border border-slate-100 rounded-lg">
                         <span className="text-slate-500 block mb-0.5 font-mono text-[9px] uppercase tracking-wider">TDS Reserved (10%)</span>
@@ -629,12 +629,12 @@ export const BillingDashboard: React.FC = () => {
                   {/* Gateway References */}
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-mono leading-relaxed space-y-1 text-slate-500">
                     <div className="flex justify-between">
-                      <span>Gateway Escrow Channel:</span>
-                      <span className="text-slate-800 font-semibold">DIRECT_BANK_UPI_SPLIT_ROUTING</span>
+                      <span>Payment Collection Mode:</span>
+                      <span className="text-emerald-700 font-semibold font-sans">DIRECT_CLINIC_COUNTER_PAYMENT (100% Direct)</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Bank Settlement Route ID:</span>
-                      <span className="text-slate-800 font-mono uppercase font-bold">TXN_UPI_SPLIT_REF_{(selectedInvoice.id || '').substring(0, 8).toUpperCase()}</span>
+                      <span>Hospital Receipt Ref:</span>
+                      <span className="text-slate-800 font-mono uppercase font-bold">HOSP_REC_{(selectedInvoice.id || '').substring(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
@@ -647,7 +647,7 @@ export const BillingDashboard: React.FC = () => {
                   <div className="p-5 border border-slate-200 shadow-lg relative overflow-hidden bg-slate-50/50 rounded-2xl">
                     <h4 className="font-extrabold text-slate-800 text-xs uppercase tracking-widest font-mono mb-4 flex items-center gap-1.5">
                       <BarChart3 className="w-4 h-4 text-emerald-600 shrink-0 animate-pulse" />
-                      Executive Clinic Revenue Splits & SaaS Commission
+                      Executive Clinic Revenue Ledger & Department Breakdown
                     </h4>
 
                     <div className="space-y-4">
@@ -657,7 +657,7 @@ export const BillingDashboard: React.FC = () => {
                           { label: 'Doctor Consulting share', val: selectedInvoice.doctorFee, color: 'from-purple-500 to-indigo-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.doctorFee) || 0) / totalAmt) * 100), 0), 100) },
                           { label: 'Pathology Lab testing share', val: selectedInvoice.labFee, color: 'from-blue-500 to-cyan-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.labFee) || 0) / totalAmt) * 100), 0), 100) },
                           { label: 'Pharmacy Medicine checkout share', val: selectedInvoice.pharmacyFee, color: 'from-emerald-500 to-teal-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.pharmacyFee) || 0) / totalAmt) * 100), 0), 100) },
-                          { label: 'VitalSync SaaS Platform Fee', val: selectedInvoice.platformFee, color: 'from-rose-500 to-red-600', pct: Math.min(Math.max(Math.round(((Number(selectedInvoice.platformFee) || 0) / totalAmt) * 100), 0), 100) }
+                          { label: 'Platform Fee (0% Pure ERP Ledger: ₹0.00)', val: 0, color: 'from-slate-400 to-slate-500', pct: 0 }
                         ].map((item, i) => (
                           <div key={`rev-split-${item.label}-${i}`} className="space-y-1">
                           <div className="flex justify-between text-[10px] font-bold text-slate-600">
@@ -758,32 +758,32 @@ export const BillingDashboard: React.FC = () => {
                   </div>
 
                   <p className="text-[10px] text-slate-500 font-medium text-center leading-relaxed">
-                    Scan with any UPI application (BHIM, GooglePay, PhonePe, Paytm). Payment splits dynamically inside bank routers.
+                    Scan with any UPI application (BHIM, GooglePay, PhonePe, Paytm). 100% of payment lands directly in clinic bank account with zero escrow hold.
                   </p>
 
                   <button
                     onClick={() => handleSimulatePayment(selectedInvoice.id)}
                     disabled={isSimulatingPayment}
-                    className="w-full font-bold flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer bg-gradient-to-r from-rose-500 to-indigo-600 text-white text-xs py-3 rounded-lg"
+                    className="w-full font-bold flex items-center justify-center gap-1.5 active:scale-95 shadow cursor-pointer bg-gradient-to-r from-emerald-600 to-indigo-600 text-white text-xs py-3 rounded-lg"
                   >
                     {isSimulatingPayment ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                        Processing Split Payout Routings...
+                        Verifying Direct Clinic Payment...
                       </>
                     ) : (
                       <>
-                        <QrCode className="h-4.5 w-4.5" /> Verify & Clear Outstanding Balance (Manual)
+                        <QrCode className="h-4.5 w-4.5" /> Verify & Settle Counter Payment (Direct)
                       </>
                     )}
                   </button>
                 </>
               ) : (
-                /* V2.0 INTERACTIVE SVG SPLIT PAYOUT WHEEL */
+                /* V2.0 INTERACTIVE SVG HOSPITAL REVENUE DISTRIBUTION */
                 <div className="text-center space-y-4 py-1 animate-fade-in w-full">
                   <div>
-                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest font-mono mb-2">B2B Split Routing Wheel</h4>
-                    <p className="text-[10px] text-slate-500">Interactive live payout map. Click any settlement node to audit.</p>
+                    <h4 className="font-bold text-slate-800 text-xs uppercase tracking-widest font-mono mb-2">Hospital Department Revenue Breakdown</h4>
+                    <p className="text-[10px] text-slate-500">Unified hospital billing (Practo Model). Click any department node to inspect.</p>
                   </div>
 
                   <div className="relative bg-slate-50 rounded-2xl border border-slate-200/60 p-4">
@@ -798,7 +798,7 @@ export const BillingDashboard: React.FC = () => {
                       {/* 1. Clinic (Top) */}
                       <g onClick={() => setSelectedNode('clinic')} className="cursor-pointer group">
                         <circle cx="150" cy="45" r="28" fill="#1e152a" stroke={selectedNode === 'clinic' ? '#a855f7' : '#a855f740'} strokeWidth="2.5" className="transition-all hover:scale-105" />
-                        <text x="150" y="42" textAnchor="middle" fill="#a855f7" className="text-[9px] font-black font-sans uppercase">Clinic</text>
+                        <text x="150" y="42" textAnchor="middle" fill="#a855f7" className="text-[9px] font-black font-sans uppercase">OPD</text>
                         <text x="150" y="53" textAnchor="middle" fill="#ffffff80" className="text-[8px] font-bold font-mono">₹{selectedInvoice.doctorFee}</text>
                       </g>
 
@@ -812,7 +812,7 @@ export const BillingDashboard: React.FC = () => {
                       {/* 3. Pharmacy (Bottom) */}
                       <g onClick={() => setSelectedNode('pharmacy')} className="cursor-pointer group">
                         <circle cx="150" cy="255" r="28" fill="#0a2118" stroke={selectedNode === 'pharmacy' ? '#10b981' : '#10b98140'} strokeWidth="2.5" className="transition-all hover:scale-105" />
-                        <text x="150" y="252" textAnchor="middle" fill="#10b981" className="text-[9px] font-black font-sans uppercase">POS</text>
+                        <text x="150" y="252" textAnchor="middle" fill="#10b981" className="text-[9px] font-black font-sans uppercase">Pharmacy</text>
                         <text x="150" y="263" textAnchor="middle" fill="#ffffff80" className="text-[8px] font-bold font-mono">₹{selectedInvoice.pharmacyFee}</text>
                       </g>
 
@@ -820,22 +820,22 @@ export const BillingDashboard: React.FC = () => {
                       <g onClick={() => setSelectedNode('platform')} className="cursor-pointer group">
                         <circle cx="45" cy="150" r="28" fill="#240f16" stroke={selectedNode === 'platform' ? '#f43f5e' : '#f43f5e40'} strokeWidth="2.5" className="transition-all hover:scale-105" />
                         <text x="45" y="147" textAnchor="middle" fill="#f43f5e" className="text-[9px] font-black font-sans uppercase">SaaS</text>
-                        <text x="45" y="158" textAnchor="middle" fill="#ffffff80" className="text-[8px] font-bold font-mono">₹{selectedInvoice.platformFee}</text>
+                        <text x="45" y="158" textAnchor="middle" fill="#ffffff80" className="text-[8px] font-bold font-mono">₹0.00</text>
                       </g>
 
-                      {/* Center Escrow Node */}
+                      {/* Center Node: Unified Hospital Collection */}
                       <g onClick={() => setSelectedNode('escrow')} className="cursor-pointer">
-                        <circle cx="150" cy="150" r="34" fill="#18181b" stroke={selectedNode === 'escrow' ? '#4f46e5' : 'rgba(79, 70, 229, 0.15)'} strokeWidth="3" />
+                        <circle cx="150" cy="150" r="34" fill="#064e3b" stroke={selectedNode === 'escrow' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'} strokeWidth="3" />
                         <circle cx="150" cy="150" r="30" fill="url(#escrowGrad)" />
-                        <text x="150" y="146" textAnchor="middle" fill="#ffffff" className="text-[9px] font-black font-sans uppercase tracking-tighter">Escrow</text>
+                        <text x="150" y="146" textAnchor="middle" fill="#ffffff" className="text-[9px] font-black font-sans uppercase tracking-tighter">Hospital</text>
                         <text x="150" y="157" textAnchor="middle" fill="#ffffffef" className="text-[8px] font-black font-mono">₹{selectedInvoice.totalAmount}</text>
                       </g>
 
                       {/* Gradient definition */}
                       <defs>
                         <linearGradient id="escrowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#4f46e5" />
-                          <stop offset="100%" stopColor="#c084fc" />
+                          <stop offset="0%" stopColor="#059669" />
+                          <stop offset="100%" stopColor="#10b981" />
                         </linearGradient>
                       </defs>
                     </svg>
@@ -844,41 +844,41 @@ export const BillingDashboard: React.FC = () => {
                     <div className="mt-4 p-3 bg-white rounded-xl text-left border border-slate-200 text-[10px]">
                       {selectedNode === 'escrow' && (
                         <div className="animate-fade-in">
-                          <strong className="text-slate-800 block font-bold">Central Bank Escrow (Gross Amount)</strong>
+                          <strong className="text-emerald-700 block font-bold">Unified Hospital Collection (100% Direct to Clinic)</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
-                            Aggregate amount ₹{selectedInvoice.totalAmount}.00 is currently held securely in banks UPI clearing channel awaiting final settlement to distributed accounts.
+                            Aggregate amount ₹{selectedInvoice.totalAmount}.00 is collected 100% directly by the clinic counter via Cash or Clinic UPI. Zero third-party escrow or platform take rate.
                           </p>
                         </div>
                       )}
                       {selectedNode === 'clinic' && (
                         <div className="animate-fade-in">
-                          <strong className="text-indigo-700 block font-bold">DR_CLINIC_SETTLEMENT_01 (Consultation Cut)</strong>
+                          <strong className="text-indigo-700 block font-bold">Doctor OPD Consultation Fee</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
-                            Doctor Consultation share: Gross amount ₹{selectedInvoice.doctorFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).docNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).docTds}.00 reserved).
+                            Consultation fee: ₹{selectedInvoice.doctorFee}.00. Settle directly to doctor with 100% retention under NMC Medical Ethics Code §6.4.
                           </p>
                         </div>
                       )}
                       {selectedNode === 'lab' && (
                         <div className="animate-fade-in">
-                          <strong className="text-cyan-700 block font-bold">LAB_PARTNER_SETTLEMENT_02 (Pathology Cut)</strong>
+                          <strong className="text-cyan-700 block font-bold">Pathology Diagnostics Charge</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
-                            Pathology Test share: Gross amount ₹{selectedInvoice.labFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).labNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).labTds}.00 reserved).
+                            Diagnostic testing charge: ₹{selectedInvoice.labFee}.00. Settle in-house or reconcile offline with partner lab via monthly B2B invoice.
                           </p>
                         </div>
                       )}
                       {selectedNode === 'pharmacy' && (
                         <div className="animate-fade-in">
-                          <strong className="text-emerald-600 block font-bold">PHARMACY_PARTNER_SETTLEMENT_03 (POS Cut)</strong>
+                          <strong className="text-emerald-600 block font-bold">Pharmacy Medication Dispensation</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
-                            Pharmacy Medicine share: Gross amount ₹{selectedInvoice.pharmacyFee}.00. Commission allocated: ₹{calcSplits(selectedInvoice).pharmaNet}.00 after 10% TDS deduction (₹{calcSplits(selectedInvoice).pharmaTds}.00 reserved).
+                            Medication retail amount: ₹{selectedInvoice.pharmacyFee}.00. Dispensed in-house or via partner dispensary with zero transaction cuts.
                           </p>
                         </div>
                       )}
                       {selectedNode === 'platform' && (
                         <div className="animate-fade-in">
-                          <strong className="text-rose-600 block font-bold">SYSTEM_ESCROW_PROTECT (Platform SaaS Fee)</strong>
+                          <strong className="text-rose-600 block font-bold">VitalSync B2B Software SaaS (0% Transaction Cut)</strong>
                           <p className="text-slate-500 mt-1 leading-normal">
-                            Mediflow SaaS standard B2B routing fee: ₹{selectedInvoice.platformFee}.00. Settled instantly to system admin account. GST compliance pool updated.
+                            Platform transaction fee: ₹0.00. VitalSync operates as a pure B2B SaaS software tool (90 Days Free Pilot • ₹999/mo). Zero commission taking.
                           </p>
                         </div>
                       )}
@@ -922,60 +922,60 @@ export const BillingDashboard: React.FC = () => {
               <div>Patient ID: {selectedInvoice.patientId}</div>
             </div>
             <div>
-              <h3 className="font-extrabold uppercase text-[10px] mb-2 tracking-wider">UPI Settlement Info</h3>
-              <div>Payment Gateway: <strong>DIRECT_BANK_UPI_SPLIT_ROUTING</strong></div>
+              <h3 className="font-extrabold uppercase text-[10px] mb-2 tracking-wider">Payment Collection Info</h3>
+              <div>Collection Channel: <strong>DIRECT_CLINIC_COUNTER_PAYMENT</strong></div>
               <div>Clearance Status: <strong className="uppercase">{selectedInvoice.paymentStatus}</strong></div>
-              <div>Escrow Ref Hash: <span className="font-mono text-[9px]">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</span></div>
+              <div>Receipt Ref: <span className="font-mono text-[9px]">HOSP-REC-{(selectedInvoice.id || '').substring(0, 8).toUpperCase()}</span></div>
             </div>
           </div>
 
           <div className="space-y-3">
-            <h3 className="font-extrabold uppercase text-[10px] tracking-wider">Multi-Vendor Ledger Splits Allocation</h3>
+            <h3 className="font-extrabold uppercase text-[10px] tracking-wider">Single Itemized Hospital Bill (Practo Model)</h3>
             <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto responsive-table-container">
               <table className="w-full text-[11px] border-collapse border border-black/30">
               <thead>
                 <tr className="bg-slate-800/5 text-[10px] font-bold border-b border-black">
-                  <th className="p-2 border-r border-black/30 text-left">Destination Account ID</th>
-                  <th className="p-2 border-r border-black/30 text-left">Entity Segment</th>
+                  <th className="p-2 border-r border-black/30 text-left">Clinical Department</th>
+                  <th className="p-2 border-r border-black/30 text-left">Description</th>
                   <th className="p-2 border-r border-black/30 text-right">Gross Amount</th>
-                  <th className="p-2 border-r border-black/30 text-right">10% TDS Res.</th>
-                  <th className="p-2 text-right">Net Payout</th>
+                  <th className="p-2 border-r border-black/30 text-right">Platform Fee</th>
+                  <th className="p-2 text-right">Direct Clinic Amount</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b border-black/30">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">DR_CLINIC_SETTLEMENT_01</td>
-                  <td className="p-2 border-r border-black/30">Clinic Consultation Fee</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">OPD_CONSULTATION</td>
+                  <td className="p-2 border-r border-black/30">Doctor Consultation Fee</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.doctorFee}.00</td>
-                  <td className="p-2 border-r border-black/30 text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).docTds}.00</td>
-                  <td className="p-2 text-right font-mono font-bold">₹{calcSplits(selectedInvoice).docNet}.00</td>
+                  <td className="p-2 border-r border-black/30 text-right font-mono text-emerald-700">₹0.00 (0%)</td>
+                  <td className="p-2 text-right font-mono font-bold">₹{selectedInvoice.doctorFee}.00</td>
                 </tr>
                 <tr className="border-b border-black/30">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">LAB_PARTNER_SETTLEMENT_02</td>
-                  <td className="p-2 border-r border-black/30">Pathology Diagnostics Charge</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">PATHOLOGY_LAB</td>
+                  <td className="p-2 border-r border-black/30">Diagnostic Pathology Tests</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.labFee}.00</td>
-                  <td className="p-2 border-r border-black/30 text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).labTds}.00</td>
-                  <td className="p-2 text-right font-mono font-bold">₹{calcSplits(selectedInvoice).labNet}.00</td>
+                  <td className="p-2 border-r border-black/30 text-right font-mono text-emerald-700">₹0.00 (0%)</td>
+                  <td className="p-2 text-right font-mono font-bold">₹{selectedInvoice.labFee}.00</td>
                 </tr>
                 <tr className="border-b border-black/30">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">PHARMACY_PARTNER_SETTLEMENT_03</td>
-                  <td className="p-2 border-r border-black/30">Pharmacy Medication Reserve</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">PHARMACY_POS</td>
+                  <td className="p-2 border-r border-black/30">Prescribed Medicine Dispensation</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.pharmacyFee}.00</td>
-                  <td className="p-2 border-r border-black/30 text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).pharmaTds}.00</td>
-                  <td className="p-2 text-right font-mono font-bold">₹{calcSplits(selectedInvoice).pharmaNet}.00</td>
+                  <td className="p-2 border-r border-black/30 text-right font-mono text-emerald-700">₹0.00 (0%)</td>
+                  <td className="p-2 text-right font-mono font-bold">₹{selectedInvoice.pharmacyFee}.00</td>
                 </tr>
                 <tr className="border-b-2 border-black">
-                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">SYSTEM_ESCROW_PROTECT</td>
-                  <td className="p-2 border-r border-black/30">Platform SaaS Fee</td>
-                  <td className="p-2 border-r border-black/30 text-right font-mono">₹{selectedInvoice.platformFee}.00</td>
+                  <td className="p-2 border-r border-black/30 font-mono text-[10px]">SAAS_SOFTWARE</td>
+                  <td className="p-2 border-r border-black/30">VitalSync ERP Platform Fee</td>
+                  <td className="p-2 border-r border-black/30 text-right font-mono">₹0.00</td>
                   <td className="p-2 border-r border-black/30 text-right font-mono">—</td>
-                  <td className="p-2 text-right font-mono font-bold">₹{selectedInvoice.platformFee}.00</td>
+                  <td className="p-2 text-right font-mono font-bold">₹0.00</td>
                 </tr>
                 <tr className="font-extrabold bg-slate-800/5 text-[12px]">
-                  <td colSpan={2} className="p-2 border-r border-black text-left uppercase">Total Settlements</td>
+                  <td colSpan={2} className="p-2 border-r border-black text-left uppercase">Total Hospital Collection</td>
                   <td className="p-2 border-r border-black text-right font-mono">₹{selectedInvoice.totalAmount}.00</td>
-                  <td className="p-2 border-r border-black text-right font-mono text-rose-700">-₹{calcSplits(selectedInvoice).totalTds}.00</td>
-                  <td className="p-2 text-right font-mono text-lg font-black">₹{selectedInvoice.totalAmount - calcSplits(selectedInvoice).totalTds}.00</td>
+                  <td className="p-2 border-r border-black text-right font-mono text-emerald-700">0% Cut</td>
+                  <td className="p-2 text-right font-mono text-lg font-black text-emerald-800">₹{selectedInvoice.totalAmount}.00</td>
                 </tr>
               </tbody>
             </table>
@@ -984,17 +984,17 @@ export const BillingDashboard: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-8 text-[10px] pt-8">
             <div className="space-y-4">
-              <div className="border-b border-black pb-1 uppercase font-bold text-[9px] tracking-wide">Gateway Settlement Audit Logs</div>
+              <div className="border-b border-black pb-1 uppercase font-bold text-[9px] tracking-wide">Direct Settlement & Audit Verification</div>
               <div className="font-mono space-y-1 text-[9px]">
-                <div>[OK] Cr Clinic Account: +₹{calcSplits(selectedInvoice).docNet}.00</div>
-                <div>[OK] Cr Lab Account: +₹{calcSplits(selectedInvoice).labNet}.00</div>
-                <div>[OK] Cr Pharmacy Account: +₹{calcSplits(selectedInvoice).pharmaNet}.00</div>
-                <div>[OK] Cr Platform Escrow: +₹{selectedInvoice.platformFee}.00</div>
+                <div>[OK] Direct Clinic Collection: 100% Settled</div>
+                <div>[OK] Platform Transaction Deduction: ₹0.00 (0%)</div>
+                <div>[OK] Escrow Status: Direct Counter (Zero Escrow Custody)</div>
+                <div>[OK] NMC Ethics Code §6.4 Compliance: Verified Active</div>
               </div>
             </div>
             <div className="flex flex-col justify-end items-end space-y-6">
-              <div className="w-40 border-b border-black text-center text-[10px] font-mono pb-1">MEDIFLOW_CLEARING_BANK</div>
-              <div className="text-[9px] uppercase tracking-wider font-extrabold text-black/60">Digital Signature and Clearing Seal</div>
+              <div className="w-40 border-b border-black text-center text-[10px] font-mono pb-1">AUTHORIZED_CLINIC_SIGNATURE</div>
+              <div className="text-[9px] uppercase tracking-wider font-extrabold text-black/60">Clinic Seal & Authorized Signatory</div>
             </div>
           </div>
         </div>

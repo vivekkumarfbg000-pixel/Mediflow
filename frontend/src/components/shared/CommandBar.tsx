@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../../services/api';
-import { Search, Terminal, CornerDownLeft, Shield, User, Activity, Beaker, ShoppingBag, QrCode } from 'lucide-react';
+import { Search, Terminal, CornerDownLeft, Shield, User, Activity, Beaker, ShoppingBag, QrCode, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 import type { UserRole } from './Navbar';
+import { SaaSSubscriptionService, type SaaSSubscription, type PodUsageQuota } from '../../services/saasSubscriptionService';
 
 interface CommandBarProps {
   isOpen: boolean;
@@ -23,6 +24,19 @@ export const CommandBar: React.FC<CommandBarProps> = ({
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // SaaS Subscription & Quota State (Phase 25)
+  const [saasSub, setSaasSub] = useState<SaaSSubscription>(() => SaaSSubscriptionService.getCachedSubscription());
+  const [saasQuota, setSaasQuota] = useState<PodUsageQuota>(() => SaaSSubscriptionService.getCachedQuota());
+
+  useEffect(() => {
+    if (isOpen) {
+      SaaSSubscriptionService.fetchLiveStatus().then(({ subscription, quota }) => {
+        setSaasSub(subscription);
+        setSaasQuota(quota);
+      });
+    }
+  }, [isOpen]);
 
   // Body scroll lock
   useEffect(() => {
@@ -46,6 +60,41 @@ export const CommandBar: React.FC<CommandBarProps> = ({
 
   // Unified actions list
   const actions = [
+    // SaaS Subscription & Quotas Actions
+    {
+      id: 'sub_view_plan',
+      title: `Plan: ${saasSub.tierName} (₹${saasSub.monthlyFeeInr}/mo) · Scans: ${saasQuota.aiScansUsed}/${saasQuota.aiScansLimit < 0 ? 'Unlimited' : saasQuota.aiScansLimit} · WhatsApp: ${saasQuota.whatsappMessagesUsed}/${saasQuota.whatsappMessagesLimit < 0 ? 'Unlimited' : saasQuota.whatsappMessagesLimit}`,
+      category: 'SaaS Subscription & Quotas',
+      icon: ShieldCheck,
+      action: () => {
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: `Plan: ${saasSub.tierName} 📋`,
+            message: `Monthly Quota: ${saasQuota.aiScansUsed} scans, ${saasQuota.whatsappMessagesUsed} WhatsApp care loops. Direct clinic settlement: 100%.`,
+            type: 'info'
+          }
+        }));
+      }
+    },
+    {
+      id: 'sub_upgrade_pro',
+      title: 'Upgrade to Unlimited Pro Plan (₹1,999/mo) — Unlimited AI Scans & WhatsApp Care Loops',
+      category: 'SaaS Subscription & Quotas',
+      icon: Sparkles,
+      action: () => {
+        SaaSSubscriptionService.upgradeTier('tier_2_unlimited_pro');
+      }
+    },
+    {
+      id: 'sub_switch_growth',
+      title: 'Switch to Growth Plan (₹999/mo) — 1,000 AI Vision Scans & 1,000 WhatsApp Care Loops',
+      category: 'SaaS Subscription & Quotas',
+      icon: Zap,
+      action: () => {
+        SaaSSubscriptionService.upgradeTier('tier_1_growth');
+      }
+    },
+
     // Modules/Roles
     { id: 'role_compounder', title: 'Switch to Compounder Workdesk', category: 'Roles / Modules', icon: User, action: () => onChangeRole('compounder') },
     { id: 'role_doctor', title: 'Switch to Doctor Care Dashboard', category: 'Roles / Modules', icon: Activity, action: () => onChangeRole('doctor') },
@@ -213,6 +262,33 @@ export const CommandBar: React.FC<CommandBarProps> = ({
               </div>
             ))
           )}
+        </div>
+
+        {/* Realtime SaaS Subscription & Quota Status Bar */}
+        <div className="bg-slate-50/90 border-t border-slate-100 px-5 py-2.5 flex flex-wrap items-center justify-between text-[10px] text-slate-600 font-mono">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <ShieldCheck className="h-3 w-3" />
+              {saasSub.tierName}
+            </span>
+            <span className="hidden sm:inline">
+              Scans: <strong className="text-indigo-600">{saasQuota.aiScansUsed}/{saasQuota.aiScansLimit < 0 ? 'Unlimited' : saasQuota.aiScansLimit}</strong>
+            </span>
+            <span className="hidden sm:inline">
+              WhatsApp: <strong className="text-teal-600">{saasQuota.whatsappMessagesUsed}/{saasQuota.whatsappMessagesLimit < 0 ? 'Unlimited' : saasQuota.whatsappMessagesLimit}</strong>
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const nextTier = saasSub.tier === 'tier_2_unlimited_pro' ? 'tier_1_growth' : 'tier_2_unlimited_pro';
+              SaaSSubscriptionService.upgradeTier(nextTier);
+            }}
+            className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+          >
+            {saasSub.tier === 'tier_2_unlimited_pro' ? 'Switch Plan' : '1-Click Upgrade (₹1,999/mo) →'}
+          </button>
         </div>
 
         {/* Global Footer shortcuts bar */}

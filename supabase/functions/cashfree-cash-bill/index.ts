@@ -94,9 +94,9 @@ serve(async (req) => {
       });
     }
 
-    // ── Calculate commission (5% lab, 2% pharmacy) ─────────────────────────
-    const commissionRate = saleType === "lab" ? 0.02 : 0.01;
-    const commissionAmount = parseFloat((grossAmount * commissionRate).toFixed(2));
+    // ── Pure SaaS Invariant: 0% Platform Commission (100% Direct Clinic Retention) ───
+    const commissionRate = 0;
+    const commissionAmount = 0.00;
 
     // ── Create cash_billing_session record ───────────────────────────────────
     const { data: session, error: sessionErr } = await supabase
@@ -108,9 +108,9 @@ serve(async (req) => {
         patient_id:        patientId ?? null,
         sale_type:         saleType,
         gross_amount:      grossAmount,
-        commission_rate:   COMMISSION_RATE,
-        commission_amount: commissionAmount,
-        pool_status:       "debited", // will be updated if deferred
+        commission_rate:   0,
+        commission_amount: 0,
+        pool_status:       "direct_settled",
         items:             items,
         notes:             notes ?? null,
       })
@@ -125,82 +125,44 @@ serve(async (req) => {
       });
     }
 
-    // ── Debit commission pool via atomic RPC ─────────────────────────────────
-    const { data: poolResult, error: poolErr } = await supabase.rpc(
-      "debit_commission_pool",
-      {
-        p_pod_id:       podId,
-        p_amount:       commissionAmount,
-        p_reason:       `Cash ${saleType} sale — ${items.length} item(s) — ₹${grossAmount}`,
-        p_reference_id: session.id,
-      }
-    );
-
-    if (poolErr) {
-      console.error("[cashfree-cash-bill] Pool debit RPC failed:", poolErr);
-      // Non-fatal: session is already recorded, commission is just not deducted
-    }
-
-    const poolStatus = poolResult?.status ?? "deferred";
-    const balanceAfter = poolResult?.balance_after ?? pod.commission_pool_balance;
-
-    // ── Update session pool_status if deferred ────────────────────────────────
-    if (poolStatus === "deferred") {
-      await supabase
-        .from("cash_billing_sessions")
-        .update({ pool_status: "deferred" })
-        .eq("id", session.id);
-    }
+    const poolStatus = "direct_settled";
+    const balanceAfter = pod.commission_pool_balance ?? 0;
 
     // ── Log to activity_logs ─────────────────────────────────────────────────
     await supabase.from("activity_logs").insert({
       pod_id:      podId,
       entity_id:   entityId,
-      action_type: "CASH_BILLING_COMMISSION",
+      action_type: "CASH_BILLING_RECORDED",
       details: {
         session_id:        session.id,
         sale_type:         saleType,
         gross_amount:      grossAmount,
-        commission_amount: commissionAmount,
+        commission_amount: 0,
         pool_status:       poolStatus,
-        balance_after:     balanceAfter,
         items_count:       items.length,
+        note:              "100% direct hospital cash settlement - 0% platform fee"
       },
     });
 
-    // ── Low pool warning: log for owner visibility ────────────────────────────
-    if (balanceAfter < POOL_LOW_THRESHOLD) {
-      await supabase.from("activity_logs").insert({
-        pod_id:      podId,
-        entity_id:   entityId,
-        action_type: "COMMISSION_POOL_LOW",
-        details: {
-          balance:   balanceAfter,
-          threshold: POOL_LOW_THRESHOLD,
-          message:   "Commission pool is below ₹200. Cash commissions are being deferred until pool is replenished via online payments.",
-        },
-      });
-    }
-
     console.log(
-      `[cashfree-cash-bill] ✅ Cash bill recorded — ` +
+      `[cashfree-cash-bill] ✅ Direct cash bill recorded — ` +
       `session_id=${session.id} sale_type=${saleType} ` +
-      `gross=₹${grossAmount} commission=₹${commissionAmount} pool_status=${poolStatus}`
+      `gross=₹${grossAmount} (0% commission direct clinic retention)`
     );
 
     return new Response(JSON.stringify({
       success:           true,
       session_id:        session.id,
       gross_amount:      grossAmount,
-      commission_amount: commissionAmount,
-      commission_rate:   (commissionRate * 100) + "%",
+      commission_amount: 0,
+      commission_rate:   "0%",
       pool_status:       poolStatus,
       pool_balance:      balanceAfter,
-      is_pool_low:       balanceAfter < POOL_LOW_THRESHOLD,
+      is_pool_low:       false,
       receipt: {
         items,
         subtotal:     grossAmount,
-        platform_fee: commissionAmount,
+        platform_fee: 0,
         billed_at:    new Date().toISOString(),
       },
     }), {

@@ -118,7 +118,7 @@ export const WhatsAppSupportModal: React.FC<Props> = ({
                 { label: '📋 Prescriptions Guide', query: 'How to use 1-Tap Prescriptions and AI Scribe?' },
                 { label: '🎫 Queue & Tokens', query: 'How to manage token queue and pending payments?' },
                 { label: '🛠️ Auto-Heal System', query: 'System stuck, please scan and auto-heal error' },
-                { label: '🚨 Owner Escalation', query: 'Need Cashfree credential approval from platform owner' },
+                { label: '🚨 Owner Escalation', query: 'Need direct clinic UPI QR and ledger support from platform owner' },
               ].map(pill => (
                 <button
                   key={pill.label}

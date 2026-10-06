@@ -1,5 +1,19 @@
 import { type BiometryData, type RefractionRx } from './ophthalmic';
 
+export type IoTDeviceType = 'blood_pressure' | 'pulse_oximeter' | 'glucometer' | 'weight_scale' | 'multipara_serial';
+
+export type IoTConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'streaming' | 'error';
+
+export interface IoTDeviceReading {
+  deviceType: IoTDeviceType;
+  deviceName?: string;
+  timestamp: string;
+  rawBufferHex?: string;
+  vitals: Partial<PatientVitals>;
+  batteryLevel?: number;
+  confidenceScore?: number;
+}
+
 export interface PatientVitals {
   temperature: string;       // °F
   bloodPressure: string;     // Systolic/Diastolic e.g. "120/80"
@@ -8,6 +22,9 @@ export interface PatientVitals {
   bloodSugar?: string;       // mg/dL (glucometer)
   spO2?: string;             // % oxygen saturation
   recordedAt: string;
+  deviceSource?: 'bluetooth' | 'serial' | 'manual' | 'simulated';
+  bmi?: string;
+  bloodSugarContext?: 'fasting' | 'postprandial' | 'random';
   dilationStatus?: 'not_started' | 'instilled' | 'dilated';
   dilationStartTime?: string; // ISO string
   dilationDropsUsed?: string;
@@ -33,6 +50,7 @@ export interface PatientVitals {
   surgeryBooking?: any;
   gpProcedureBooking?: any;
 }
+
 
 export interface Patient {
   id: string;
@@ -307,7 +325,7 @@ export interface FinancialLedgerEntry {
   invoiceId: string;
   sourceEntityId: string;
   destinationEntityId: string;
-  transactionType: 'appointment_fee' | 'medicine_commission' | 'lab_commission' | 'platform_fee';
+  transactionType: 'appointment_fee' | 'pharmacy_dispensation' | 'lab_diagnostic' | 'medicine_commission' | 'lab_commission' | 'platform_fee';
   grossAmount: number;
   commissionRate: number;
   netPayout: number;
@@ -701,4 +719,100 @@ export interface LabTestBill {
   source: 'encounter' | 'walkin';
   createdAt: string;
 }
+
+// ─── Phase 22: Ambient Clinical Scribe & Multi-Modal Types ─────────────
+export interface ScribeMedication {
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+  inStock?: boolean;
+  matchedStockName?: string;
+  matchedStockPrice?: number;
+}
+
+export interface SoapRecord {
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  icd10Suggestions?: string[];
+  fullFormattedText: string;
+}
+
+export interface ExtractedScribeData {
+  rawTranscript: string;
+  chiefComplaints: string;
+  clinicalAssessment: string;
+  extractedVitals: {
+    bloodPressure?: string;
+    pulseRate?: number;
+    temperature?: number;
+    spO2?: number;
+    bloodSugar?: number;
+    weight?: number;
+  };
+  medications: ScribeMedication[];
+  suggestedTests: Array<{
+    loincCode: string;
+    name: string;
+    category: string;
+    price?: number;
+  }>;
+  soapNotes: string;
+  soapRecord?: SoapRecord;
+  languageDetected: string;
+  audioDurationSeconds?: number;
+}
+
+export interface AmbientAudioRecordingState {
+  isRecording: boolean;
+  isProcessing: boolean;
+  audioBlob?: Blob | null;
+  audioDurationSeconds: number;
+  transcript: string;
+  lastError?: string | null;
+}
+
+// ─── Phase 23: Autonomous Financial Ledger & Settlement Types ─────────
+export interface DoctorSettlementSummary {
+  doctorId: string;
+  doctorName?: string;
+  timeframe: string;
+  grossOpdConsults: number;
+  netOpdConsults: number;
+  pharmacyReferralEarnings: number;
+  labReferralEarnings: number;
+  totalGrossRevenue: number;
+  totalNetEarnings: number;
+  totalRefunds: number;
+  platformDeductions: number;
+  transferableBalance: number;
+  retainedBuffer: number;
+  unsettledLedgerCount: number;
+  generatedAt: string;
+}
+
+export interface LedgerReconciliationResult {
+  healedCount: number;
+  orphanedInvoicesFound: number;
+  reconciledInvoiceIds: string[];
+  totalVolumeReconciled: number;
+  status: 'ok' | 'partial' | 'clean';
+  timestamp: string;
+}
+
+export interface ReconciliationAuditReport {
+  podId: string;
+  invoicesAudited: number;
+  ledgersAudited: number;
+  discrepanciesResolved: number;
+  cashDiscrepancies: number;
+  digitalDiscrepancies: number;
+  auditPassed: boolean;
+  timestamp: string;
+}
+
+
 
