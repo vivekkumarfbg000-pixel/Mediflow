@@ -193,16 +193,6 @@ export class PaymentService {
         }
       }
 
-      // 1. Direct Zero-Fee Dynamic UPI Flow (Scenario B - Default for Pilot)
-      if (selectedGateway === 'upi') {
-        const upiPayload = this.generateDirectUpiPayload(params.amount, params.invoiceId);
-        return {
-          success: true,
-          gateway: 'upi',
-          upiPayload
-        };
-      }
-
       // 2. Razorpay Gateway Order Flow
       if (selectedGateway === 'razorpay') {
         const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/razorpay-order`, {
