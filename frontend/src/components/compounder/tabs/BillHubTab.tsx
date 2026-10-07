@@ -1984,6 +1984,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                     <p className="text-[10px]">Use the catalog search above or tap "Speak Billing" to add items.</p>
                   </div>
                 )}
+              </div>
             </div>
 
             {/* FLOATING POS: Financial Summary & Checkout */}
