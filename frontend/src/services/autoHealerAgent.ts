@@ -50,19 +50,25 @@ class TelemetryIndexedDB {
         }
       };
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      request.onerror = (e) => {
+        e.preventDefault();
+        reject(request.error);
+      };
     });
   }
 
   async addEntry(entry: QueuedTelemetry): Promise<void> {
     try {
       const db = await this.getDB();
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         const transaction = db.transaction(this.storeName, 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.add(entry);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => {
+          e.preventDefault();
+          reject(request.error);
+        };
       });
     } catch (e) {
       console.warn('[Telemetry IndexedDB] Fallback to localStorage queue:', e);
@@ -81,14 +87,17 @@ class TelemetryIndexedDB {
   async getUnsyncedEntries(): Promise<QueuedTelemetry[]> {
     try {
       const db = await this.getDB();
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         const transaction = db.transaction(this.storeName, 'readonly');
         const store = transaction.objectStore(this.storeName);
         const request = store.getAll();
         request.onsuccess = () => {
           resolve(request.result as QueuedTelemetry[]);
         };
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => {
+          e.preventDefault();
+          reject(request.error);
+        };
       });
     } catch (e) {
       try {
@@ -103,12 +112,15 @@ class TelemetryIndexedDB {
   async deleteEntry(id: string): Promise<void> {
     try {
       const db = await this.getDB();
-      return new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         const transaction = db.transaction(this.storeName, 'readwrite');
         const store = transaction.objectStore(this.storeName);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
+        request.onerror = (e) => {
+          e.preventDefault();
+          reject(request.error);
+        };
       });
     } catch (e) {
       let memOutbox: QueuedTelemetry[] = [];

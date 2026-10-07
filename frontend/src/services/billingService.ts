@@ -21,7 +21,7 @@ import { safeGetStorageJSON } from '../utils/storage';
 import { getIstDateString, getEffectiveAppointmentDate } from '../utils/dateUtils';
 import { FinanceEngine } from './financeEngine';
 import { cloudStore } from './cloudStore';
-import { walDB } from './api';
+
 
 /**
  * IEEE-754 Epsilon-safe currency precision rounder (Directive 151)

@@ -44,7 +44,7 @@ function initConsoleHook() {
     if (document.getElementById('jarvis-red-alert')) return;
     const alertDiv = document.createElement('div');
     alertDiv.id = 'jarvis-red-alert';
-    alertDiv.className = "fixed bottom-6 right-6 max-w-md w-full bg-[#0a0f1c]/95 backdrop-blur-2xl border border-rose-500/50 rounded-2xl shadow-[0_0_40px_-10px_rgba(225,29,72,0.5)] z-[999999] overflow-hidden text-slate-200 font-sans transition-all duration-300 transform translate-y-0 opacity-100";
+    alertDiv.className = "fixed bottom-6 right-6 max-w-md w-full bg-[#0a0f1c]/95 backdrop-blur-2xl border border-rose-500/50 rounded-2xl shadow-[0_0_40px_-10px_rgba(225,29,72,0.5)] z-[999999] overflow-hidden text-slate-200 font-sans transition-all duration-300 transform translate-y-0 opacity-100 cursor-pointer hover:border-rose-400";
     alertDiv.innerHTML = `
       <div class="bg-gradient-to-r from-rose-950/90 to-[#0a0f1c]/90 px-5 py-3 border-b border-rose-500/30 flex items-center gap-3 relative overflow-hidden">
         <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-80 shadow-[0_0_10px_#f43f5e]"></div>
@@ -75,6 +75,15 @@ function initConsoleHook() {
       alertDiv.style.transform = 'translateY(0)';
       alertDiv.style.opacity = '1';
     });
+
+    // Auto-dismiss and click-to-dismiss logic
+    const dismissAlert = () => {
+      alertDiv.style.opacity = '0';
+      alertDiv.style.transform = 'translateY(100px)';
+      setTimeout(() => alertDiv.remove(), 300);
+    };
+    alertDiv.onclick = dismissAlert;
+    setTimeout(dismissAlert, 8000);
   }
 
   window.addEventListener('unhandledrejection', async (e) => {

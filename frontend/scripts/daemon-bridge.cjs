@@ -756,6 +756,18 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ──────────────────────────────────────────────
+  // ENGINE 7: Performance Monitor Push (from browser vitals observer)
+  // ──────────────────────────────────────────────
+  if (req.method === 'POST' && pathname === '/push-performance') {
+    req.on('data', () => {}); // consume body
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok' }));
+    });
+    return;
+  }
+
+  // ──────────────────────────────────────────────
   // ENGINE 8: CONSOLE ERROR INGESTION (from browser)
   // POST /push-console-error   — Browser sends errors here
   // GET  /api/console-errors   — PromptGuard reads them
