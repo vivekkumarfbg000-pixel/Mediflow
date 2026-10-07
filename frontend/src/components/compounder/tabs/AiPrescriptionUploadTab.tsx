@@ -27,6 +27,7 @@ import { PatientService } from '../../../services/patientService';
 import { EncounterService } from '../../../services/encounterService';
 import { BillingService } from '../../../services/billingService';
 import { PaperModeService } from '../../../services/paperModeService';
+import { fuzzyCorrectMedicineName, fuzzyCorrectLabTest } from '../../../utils/ocrFuzzyCorrector';
 import { getPodContext, FALLBACK_DOCTOR_ID } from '../../../services/podContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../../utils/dateUtils';
 
@@ -92,6 +93,57 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       return () => clearTimeout(scrollTimer);
     }
   }, [currentStep, extractedPatient]);
+
+  const [activeVoiceField, setActiveVoiceField] = useState<string | null>(null);
+
+  const handleVoiceCorrect = (fieldId: string, index?: number) => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { title: 'Not Supported', message: 'Voice dictation requires Google Chrome.', type: 'error' }}));
+      return;
+    }
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRec();
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    setActiveVoiceField(fieldId);
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (fieldId === 'name' && extractedPatient) {
+        setExtractedPatient({ ...extractedPatient, name: transcript });
+      } else if (fieldId === 'address' && extractedPatient) {
+        setExtractedPatient({ ...extractedPatient, address: transcript });
+        setInputAddress(transcript);
+      } else if (fieldId.startsWith('medicine_') && typeof index === 'number') {
+        const nm = [...extractedMeds];
+        const fuzzyResult = fuzzyCorrectMedicineName(transcript);
+        const finalName = fuzzyResult.corrected;
+        if (transcript.toLowerCase() !== finalName.toLowerCase()) {
+          import('../../../utils/ocrFuzzyCorrector').then(m => m.learnOcrAlias(transcript, finalName)).catch(e => console.warn(e));
+        }
+        nm[index].medicineName = finalName;
+        nm[index].name = finalName;
+        setExtractedMeds(nm);
+      } else if (fieldId.startsWith('lab_') && typeof index === 'number') {
+        const nl = [...extractedLabs];
+        const fuzzyResult = fuzzyCorrectLabTest(transcript);
+        const finalName = fuzzyResult.name;
+        if (transcript.toLowerCase() !== finalName.toLowerCase()) {
+          import('../../../utils/ocrFuzzyCorrector').then(m => m.learnOcrAlias(transcript, finalName)).catch(e => console.warn(e));
+        }
+        nl[index].name = finalName;
+        setExtractedLabs(nl);
+      }
+      setActiveVoiceField(null);
+    };
+
+    recognition.onerror = () => setActiveVoiceField(null);
+    recognition.onend = () => setActiveVoiceField(null);
+    
+    recognition.start();
+  };
 
   // 🌟 ZERO-DATA-ENTRY DOCTRINE: Autonomous non-blocking cloud sync trigger
   useEffect(() => {
@@ -301,14 +353,38 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
 
       api.setActivePatient(patientData);
       setExtractedPatient({ ...patientData });
-      setExtractedMeds(meds);
+
+      // 🌟 GHOST PRESCRIPTION INJECTION
+      // If OCR couldn't read meds, but patient has chronic badges, prefill their last known meds.
+      let finalMeds = meds;
+      if (finalMeds.length === 0 && identifiedBadges.length > 0) {
+        try {
+          const pastEncounters = EncounterService.getEncounters().filter(e => 
+            e.patientId === patientData.id || 
+            ((e as any).patient_id === patientData.id)
+          );
+          if (pastEncounters.length > 0) {
+            pastEncounters.sort((a,b) => new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime());
+            const lastEncounter = pastEncounters[0];
+            if (lastEncounter.medications && lastEncounter.medications.length > 0) {
+              finalMeds = lastEncounter.medications;
+              console.log('[OCR] Injected Ghost Prescriptions from past encounter');
+              window.dispatchEvent(new CustomEvent('mediflow-toast', {
+                detail: { title: 'Ghost Prescriptions Loaded', message: 'Pre-filled maintenance medications for chronic patient.', type: 'info' }
+              }));
+            }
+          }
+        } catch (_e) {}
+      }
+
+      setExtractedMeds(finalMeds);
       setChronicBadges(identifiedBadges);
       setExtractedLabs(labs);
 
       // 🌟 IMMEDIATE REAL-TIME SUPABASE PERSISTENCE GATE:
       // Pass freshly extracted objects directly in memory to bypass React 18 state closure delays
       hasAutoCommitted.current = true;
-      persistClinicOsPipeline(patientData, meds, labs, identifiedBadges);
+      persistClinicOsPipeline(patientData, finalMeds, labs, identifiedBadges);
 
       window.dispatchEvent(new CustomEvent('mediflow-state-change'));
       setCurrentStep('done');
@@ -438,11 +514,23 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       }
 
       // 1. 🌟 ATOMIC SYNCHRONOUS PERSISTENCE: Strict await with timeout on Supabase DB write
-      const realPatientId = await withTimeout(
-        PatientService.savePatientAsync(patientData),
-        5000,
-        patientData.id || crypto.randomUUID()
-      );
+      let realPatientId = patientData.id || crypto.randomUUID();
+      try {
+        if (!navigator.onLine) throw new Error('Offline Mode');
+        realPatientId = await withTimeout(
+          PatientService.savePatientAsync(patientData),
+          5000,
+          realPatientId
+        );
+      } catch (err: any) {
+        console.warn('[OCR] DB Write failed, dropping to WAL Outbox:', err);
+        PatientService.savePatient(patientData); // Local synchronous fallback
+        // Explicit WAL Fallback
+        import('../../../services/api').then(m => {
+          if (m.walDB) m.walDB.addEntry('upsert_patient', patientData);
+        }).catch(() => {});
+      }
+
       patientData.id = realPatientId;
       setSavedPatientId(realPatientId);
       setExtractedPatient({ ...patientData });
@@ -1051,7 +1139,7 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
             {(currentStep === 'done' || currentStep === 'committing' || currentStep === 'completed') && extractedPatient && (
               <div className="flex-1 flex flex-col min-h-0">
 
-                {/* Patient Demographic Card */}
+                {/* Patient Demographic Card (Premium Single-Row) */}
                 <div 
                   onClick={() => {
                     if (!isEditingAll) {
@@ -1061,83 +1149,83 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                     }
                   }}
                   className={`shrink-0 flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/80 border border-slate-100 dark:border-slate-800 ${!isEditingAll ? 'hover:border-cyan-500/50 hover:bg-cyan-50/30 dark:hover:bg-cyan-950/20 cursor-pointer group' : ''} transition-all`}
-                  title={!isEditingAll ? "Click to view full 360° patient profile" : ""}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md group-hover:scale-105 transition-transform">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-md group-hover:scale-105 transition-transform shrink-0">
                     {extractedPatient.name?.charAt(0) || 'P'}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      {isEditingAll ? (
+                  
+                  <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {/* Name */}
+                    {isEditingAll ? (
+                      <div className="relative flex items-center">
                         <input
                           type="text"
                           value={extractedPatient.name || ''}
                           onChange={(e) => setExtractedPatient({ ...extractedPatient, name: e.target.value })}
-                          className="text-sm font-black text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 py-1 w-full max-w-[200px]"
-                          placeholder="Patient Name"
+                          className="text-sm font-black text-slate-900 dark:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-2 pr-7 py-1 w-36 sm:w-48 outline-none focus:border-cyan-500"
+                          placeholder="Name"
                           onClick={(e) => e.stopPropagation()}
                         />
-                      ) : (
-                        <h4 className="text-sm font-black text-slate-900 dark:text-white truncate group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
-                          {extractedPatient.name || 'Unknown Patient'}
-                        </h4>
-                      )}
-                      {!isEditingAll && (
-                        <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                          View Profile →
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <button onClick={(e) => { e.stopPropagation(); handleVoiceCorrect('name'); }} title="Voice Correct" className={`absolute right-1.5 cursor-pointer text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 transition-transform ${activeVoiceField === 'name' ? 'animate-ping scale-125' : 'hover:scale-110'}`}>
+                          <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
+                        </button>
+                      </div>
+                    ) : (
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white truncate group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">
+                        {extractedPatient.name || 'Unknown Patient'}
+                      </h4>
+                    )}
+
+                    {/* Age & Gender */}
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 shrink-0">
                       {isEditingAll ? (
                         <>
                           <input
                             type="number"
                             value={extractedPatient.age || ''}
                             onChange={(e) => setExtractedPatient({ ...extractedPatient, age: parseInt(e.target.value) || 0 })}
-                            className="w-12 px-1 py-0.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-center"
+                            className="w-12 px-1 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-center font-bold outline-none focus:border-cyan-500"
                             placeholder="Age"
                             onClick={(e) => e.stopPropagation()}
                           />
-                          <span>Yrs</span>
-                          <span>•</span>
                           <select
                             value={extractedPatient.gender || 'Male'}
                             onChange={(e) => setExtractedPatient({ ...extractedPatient, gender: e.target.value as any })}
-                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5"
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-1 py-1 font-bold outline-none focus:border-cyan-500"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
+                            <option value="Male">M</option>
+                            <option value="Female">F</option>
+                            <option value="Other">O</option>
                           </select>
                         </>
                       ) : (
-                        <>
-                          <span>{extractedPatient.age} Yrs</span>
-                          <span>•</span>
-                          <span>{extractedPatient.gender}</span>
-                        </>
+                        <span className="font-semibold bg-slate-200/50 dark:bg-slate-800 px-2 py-0.5 rounded-full">{extractedPatient.age}Y • {extractedPatient.gender?.charAt(0)}</span>
                       )}
-                      <span>•</span>
-                      <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold">
-                        Token: {extractedPatient.tokenNumber || 'T-01'}
-                      </span>
-                      {extractedPatient.patientCode && (
-                        <>
-                          <span>•</span>
-                          <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">
-                            PID: {extractedPatient.patientCode}
-                          </span>
-                        </>
-                      )}
-                      {extractedPatient.abhaId && (
-                        <>
-                          <span>•</span>
-                          <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-                            ABHA: {extractedPatient.abhaId}
-                          </span>
-                        </>
+                    </div>
+
+                    {/* Phone */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {(isEditingPhone || isEditingAll) ? (
+                        <div className="relative">
+                          <input
+                            type="tel"
+                            maxLength={10}
+                            placeholder="Mobile"
+                            value={inputMobileNumber}
+                            onChange={(e) => {
+                              setInputMobileNumber(e.target.value.replace(/\D/g, ''));
+                              if (isEditingAll) setExtractedPatient({ ...extractedPatient, phone: e.target.value.replace(/\D/g, '') });
+                            }}
+                            className="w-28 pl-7 pr-2 py-1 rounded-lg border border-amber-300 dark:border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Phone className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500" />
+                        </div>
+                      ) : (
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 text-xs">
+                          <Phone className="w-3 h-3 text-emerald-500" /> +91 {extractedPatient.phone || '—'}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1213,55 +1301,28 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   <div className="py-2 border-b border-slate-100 dark:border-slate-800/80">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-slate-500 font-medium">Residential Address</span>
-                      {extractedPatient.address && !isEditingAddress && !isEditingAll && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setInputAddress(extractedPatient.address || '');
-                            setIsEditingAddress(true);
-                          }}
-                          className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold hover:underline cursor-pointer"
-                        >
-                          Change
-                        </button>
-                      )}
                     </div>
                     {(!extractedPatient.address || isEditingAddress || isEditingAll) ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="relative flex-1">
-                          <input
-                            type="text"
-                            placeholder="Enter patient locality / address (e.g. Line Bazar, Purnea)"
-                            value={inputAddress}
-                            onChange={(e) => {
-                              setInputAddress(e.target.value);
-                              if (isEditingAll) {
-                                setExtractedPatient({ ...extractedPatient, address: e.target.value });
-                              }
-                            }}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleSavePatientAddress(inputAddress); }}
-                            className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          />
-                        </div>
-                        {!isEditingAll && (
-                          <button
-                            type="button"
-                            onClick={() => handleSavePatientAddress(inputAddress)}
-                            disabled={!inputAddress.trim()}
-                            className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-300 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
-                          >
-                            Save
-                          </button>
-                        )}
+                      <div className="relative flex items-center w-full mt-1">
+                        <input
+                          type="text"
+                          placeholder="Locality / address (e.g. Line Bazar, Purnea)"
+                          value={inputAddress}
+                          onChange={(e) => {
+                            setInputAddress(e.target.value);
+                            if (isEditingAll) setExtractedPatient({ ...extractedPatient, address: e.target.value });
+                          }}
+                          className="w-full px-2.5 pr-8 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                        <button onClick={(e) => { e.stopPropagation(); handleVoiceCorrect('address'); }} title="Voice Correct" className={`absolute right-2 cursor-pointer text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 transition-transform ${activeVoiceField === 'address' ? 'animate-ping scale-125' : 'hover:scale-110'}`}>
+                          <Sparkles className="w-4 h-4 text-cyan-500" />
+                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-xs truncate max-w-[220px]">
                           <MapPin className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
                           {extractedPatient.address}
-                        </span>
-                        <span className="text-[10px] font-semibold text-cyan-600 bg-cyan-50 dark:bg-cyan-950/50 px-2 py-0.5 rounded-full border border-cyan-200 dark:border-cyan-800">
-                          Captured
                         </span>
                       </div>
                     )}
@@ -1318,7 +1379,12 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                         >
                           {isEditingAll ? (
                             <div className="flex flex-col gap-1 w-full">
-                              <input type="text" value={m.medicineName || m.name || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].medicineName = e.target.value; nm[idx].name = e.target.value; setExtractedMeds(nm); }} className="w-full text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1.5 py-0.5" placeholder="Medicine Name" />
+                              <div className="relative flex items-center w-full">
+                                <input type="text" value={m.medicineName || m.name || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].medicineName = e.target.value; nm[idx].name = e.target.value; setExtractedMeds(nm); }} className="w-full text-xs font-bold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1.5 py-1 pr-6" placeholder="Medicine Name" />
+                                <button onClick={(e) => { e.stopPropagation(); handleVoiceCorrect(`medicine_${idx}`, idx); }} title="Voice Correct" className={`absolute right-1.5 cursor-pointer text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 transition-transform ${activeVoiceField === `medicine_${idx}` ? 'animate-ping scale-125' : 'hover:scale-110'}`}>
+                                  <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
+                                </button>
+                              </div>
                               <div className="flex items-center gap-1">
                                 <input type="text" value={m.dosage || ''} onChange={(e) => { const nm = [...extractedMeds]; nm[idx].dosage = e.target.value; setExtractedMeds(nm); }} className="w-16 text-[11px] border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 rounded px-1 py-0.5" placeholder="Dosage" />
                                 <span className="text-slate-400">•</span>
@@ -1375,16 +1441,19 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                         >
                           <Stethoscope className="w-3 h-3" />
                           {isEditingAll ? (
-                            <>
+                            <div className="relative flex items-center">
                               <input 
                                 type="text" 
                                 value={lab.name || ''} 
                                 onChange={(e) => { const nl = [...extractedLabs]; nl[lIdx].name = e.target.value; setExtractedLabs(nl); }} 
-                                className="bg-transparent border-b border-indigo-300 dark:border-indigo-700 outline-none w-24" 
+                                className="bg-transparent border-b border-indigo-300 dark:border-indigo-700 outline-none w-32 pr-6" 
                                 placeholder="Test Name" 
                               />
+                              <button onClick={(e) => { e.stopPropagation(); handleVoiceCorrect(`lab_${lIdx}`, lIdx); }} title="Voice Correct" className={`absolute right-1 cursor-pointer text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-500 transition-transform ${activeVoiceField === `lab_${lIdx}` ? 'animate-ping scale-125' : 'hover:scale-110'}`}>
+                                <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
+                              </button>
                               <button type="button" onClick={() => { const nl = [...extractedLabs]; nl.splice(lIdx, 1); setExtractedLabs(nl); }} className="text-rose-500 hover:text-rose-600 ml-1">X</button>
-                            </>
+                            </div>
                           ) : (
                             lab.name || 'Diagnostic Panel'
                           )}

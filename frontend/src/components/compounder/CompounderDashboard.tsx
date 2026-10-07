@@ -4919,7 +4919,7 @@ export const CompounderDashboard: React.FC = () => {
                   </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-2.5">
                   {(() => {
                     const confirmedAppts = opdQueueFilter === 'today' 
                       ? activeOpdAppointments 
@@ -5007,7 +5007,7 @@ export const CompounderDashboard: React.FC = () => {
                       return (
                         <div 
                           key={appt.id} 
-                          className={`p-4 border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 ${
+                          className={`px-5 py-3.5 border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all duration-300 w-full ${
                             isSOS
                               ? 'border-rose-500 bg-rose-500/10 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30'
                               : vitalsPatient?.id === patient.id 

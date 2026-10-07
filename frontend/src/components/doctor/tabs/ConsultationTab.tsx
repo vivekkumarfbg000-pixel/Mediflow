@@ -1917,7 +1917,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
             })()}
             
             {/* Compact Patient Cards List */}
-            <div className="space-y-2 lg:max-h-[260px] max-h-none lg:overflow-y-auto pr-1">
+            <div className="space-y-1.5 lg:max-h-[260px] max-h-none lg:overflow-y-auto pr-1">
               {(() => {
                 const cleanPhone = (ph?: string) => {
                   if (!ph) return '';
@@ -2063,7 +2063,7 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
                         setSelectedPatient(p);
                         setIsQueueExpanded(false);
                       }}
-                      className={`w-full text-left p-2.5 rounded-xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
+                      className={`w-full text-left px-4 py-3 rounded-2xl border transition-all duration-200 relative group overflow-hidden cursor-pointer ${
                         isEmergencySos
                           ? 'bg-rose-50 border-rose-400 shadow-sm ring-1 ring-rose-400/40'
                           : (isSelected 

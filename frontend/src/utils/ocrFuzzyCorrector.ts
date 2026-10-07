@@ -11,6 +11,29 @@ import { MEDICINE_ALIASES, INDIAN_LAB_TESTS } from '../data/indianMedicalContext
 import { PharmacyService } from '../services/pharmacyService';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CONTINUOUS LEARNING: OCR ALIAS MEMORY CACHE
+// ─────────────────────────────────────────────────────────────────────────────
+export function getOcrAliasMemory(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem('vitalsync_ocr_aliases');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {};
+}
+
+export function learnOcrAlias(mistake: string, correction: string) {
+  if (typeof window === 'undefined') return;
+  if (!mistake || !correction || mistake.trim().toLowerCase() === correction.trim().toLowerCase()) return;
+  try {
+    const mem = getOcrAliasMemory();
+    mem[mistake.trim().toLowerCase()] = correction.trim();
+    localStorage.setItem('vitalsync_ocr_aliases', JSON.stringify(mem));
+    console.log(`[OCR Learning] Learned mapping: "${mistake}" -> "${correction}"`);
+  } catch (e) {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // LEVENSHTEIN DISTANCE (Edit Distance Algorithm)
 // Lower score = more similar strings
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,6 +169,14 @@ function matchClinicInventory(stem: string, raw: string): { corrected: string; w
 export function fuzzyCorrectMedicineName(extractedName: string): { corrected: string; wasFixed: boolean; confidence: number } {
   if (!extractedName || extractedName.trim().length < 2) {
     return { corrected: extractedName, wasFixed: false, confidence: 0 };
+  }
+
+  // 0. TIER 0: Local Continuous Learning Memory (Self-Healing)
+  const aliasMemory = getOcrAliasMemory();
+  const cleanRaw = extractedName.trim().toLowerCase();
+  if (aliasMemory[cleanRaw]) {
+    console.log(`[OCR Learning] Tier 0 Memory Match: "${extractedName}" → "${aliasMemory[cleanRaw]}"`);
+    return { corrected: aliasMemory[cleanRaw], wasFixed: true, confidence: 100 };
   }
 
   const { cleanStem, strength, raw } = splitDrugNameAndStrength(extractedName);
