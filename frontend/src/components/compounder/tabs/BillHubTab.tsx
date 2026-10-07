@@ -573,10 +573,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     words.forEach(word => {
       if (word.length < 3) return;
       const fuzzyMedMatch = fuzzyCorrectMedicineName(word);
-      const exactMatch = inventory.find(i => (i.name || '').toLowerCase() === fuzzyMedMatch);
+      const exactMatch = inventory.find(i => (i.name || '').toLowerCase() === fuzzyMedMatch.corrected);
       
-      if (exactMatch || textLower.includes(fuzzyMedMatch)) {
-        const item = exactMatch || inventory.find(i => (i.name || '').toLowerCase().includes(fuzzyMedMatch));
+      if (exactMatch || textLower.includes(fuzzyMedMatch.corrected)) {
+        const item = exactMatch || inventory.find(i => (i.name || '').toLowerCase().includes(fuzzyMedMatch.corrected));
         if (item) {
           const nameLower = (item.name || '').toLowerCase();
           if (!newMedsList.some(m => (m.name || '').toLowerCase() === nameLower)) {
@@ -605,7 +605,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       if (word.length < 3) return;
       const fuzzyLabMatch = fuzzyCorrectLabTest(word);
       if (fuzzyLabMatch) {
-        const test = LabService.getTestCatalog().find(t => (t.name || '').toLowerCase().includes(fuzzyLabMatch.toLowerCase()) || (t.loincCode || '').toLowerCase() === fuzzyLabMatch.toLowerCase());
+        const test = LabService.getTestCatalog().find(t => (t.name || '').toLowerCase().includes(fuzzyLabMatch.name.toLowerCase()) || (t.loincCode || '').toLowerCase() === fuzzyLabMatch.name.toLowerCase());
         if (test) {
           if (!newTestsList.some(t => t.loincCode === test.loincCode)) {
             newTestsList.push(test);
@@ -1111,7 +1111,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           if (state?.selected) {
             const itemInInv = activeInventory.find(inv => (inv.name || '').toLowerCase() === mNameLower);
             if (itemInInv) {
-              itemInInv.stock = Math.max(0, itemInInv.stock - state.qty);
+              itemInInv.stock = Math.max(0, itemInInv.stock - (Number(state.qty) || 0));
               invUpdated = true;
               billItems.push({
                 inventoryItemId: itemInInv.id,
@@ -1121,7 +1121,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 quantity: state.qty,
                 mrp: itemInInv.mrp,
                 sellingPrice: itemInInv.price,
-                lineTotal: itemInInv.price * state.qty
+                lineTotal: itemInInv.price * (Number(state.qty) || 0)
               });
             }
           }
