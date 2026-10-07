@@ -7,8 +7,30 @@
  * ╚════════════════════════════════════════════════════════════════╝
  */
 
-import { MEDICINE_ALIASES, INDIAN_LAB_TESTS } from '../data/indianMedicalContext';
+import { MEDICINE_ALIASES, INDIAN_LAB_TESTS, COMMON_INDIAN_SURNAMES } from '../data/indianMedicalContext';
 import { PharmacyService } from '../services/pharmacyService';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHONETIC CORRECTOR (Soundex-style for Hinglish misspellings)
+// ─────────────────────────────────────────────────────────────────────────────
+export function getSoundex(s: string): string {
+  const a = s.toLowerCase().split('');
+  const f = a.shift();
+  if (!f) return '';
+  const r = f + a
+    .map(v => {
+      if (/[bfpv]/.test(v)) return '1';
+      if (/[cgjkqsxz]/.test(v)) return '2';
+      if (/[dt]/.test(v)) return '3';
+      if ('l' === v) return '4';
+      if (/[mn]/.test(v)) return '5';
+      if ('r' === v) return '6';
+      return '';
+    })
+    .filter((v, i, arr) => v !== '' && v !== arr[i - 1])
+    .join('');
+  return (r + '000').slice(0, 4);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTINUOUS LEARNING: OCR ALIAS MEMORY CACHE
@@ -205,6 +227,20 @@ export function fuzzyCorrectMedicineName(extractedName: string): { corrected: st
     }
   }
 
+  // 2.5. TIER 2.5: Phonetic Hybrid (Soundex) for Hinglish Misspellings
+  const targetSoundex = getSoundex(cleanStem);
+  if (targetSoundex && targetSoundex !== '0000') {
+    for (const [brand, full] of Object.entries(MEDICINE_ALIASES)) {
+      if (getSoundex(brand) === targetSoundex) {
+        const score = similarityScore(cleanStem, brand.toLowerCase());
+        if (score >= 65) {
+          console.log(`[OCR Fuzzy] Phonetic Hybrid Match: "${extractedName}" → "${full}" (Soundex: ${targetSoundex}, Sim: ${score}%)`);
+          return { corrected: full, wasFixed: true, confidence: Math.max(score, 85) };
+        }
+      }
+    }
+  }
+
   // 3. TIER 3: National Lexicon Matching on Clean Stem and Raw Name
   let bestMatch = { brand: '', full: '', score: 0 };
 
@@ -244,6 +280,35 @@ export function fuzzyCorrectMedicineName(extractedName: string): { corrected: st
   }
 
   return { corrected: extractedName, wasFixed: false, confidence: bestMatch.score };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATIENT NAME DEMOGRAPHIC CORRECTOR
+// ─────────────────────────────────────────────────────────────────────────────
+export function fuzzyCorrectPatientName(name: string): string {
+  if (!name || name.length < 3) return name;
+  const parts = name.trim().split(' ');
+  if (parts.length < 2) return name; // Needs at least a first name and surname
+  const surname = parts[parts.length - 1];
+  
+  let bestMatch = surname;
+  let highestScore = 0;
+  
+  for (const commonSurname of COMMON_INDIAN_SURNAMES) {
+    const score = similarityScore(surname, commonSurname.toLowerCase());
+    if (score > highestScore) {
+      highestScore = score;
+      bestMatch = commonSurname;
+    }
+  }
+  
+  // High threshold for names to avoid overwriting valid rare names
+  if (highestScore >= 80 && highestScore < 100) {
+    console.log(`[OCR Fuzzy] Demographic Surname Snap: "${surname}" -> "${bestMatch}" (${highestScore}%)`);
+    parts[parts.length - 1] = bestMatch;
+    return parts.join(' ');
+  }
+  return name;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,6 +411,16 @@ export function applyOcrFuzzyCorrections(parsedResult: any): any {
 
   let correctionCount = 0;
   const corrected = { ...parsedResult };
+
+  // ── Correct Patient Name ─────────────────────────────────────────
+  if (corrected.patientName && typeof corrected.patientName === 'string') {
+    const originalName = corrected.patientName;
+    const fixedName = fuzzyCorrectPatientName(originalName);
+    if (fixedName !== originalName) {
+      corrected.patientName = fixedName;
+      correctionCount++;
+    }
+  }
 
   // ── Correct Medications ──────────────────────────────────────────
   const rawMeds = parsedResult.medications || parsedResult.medicines || [];

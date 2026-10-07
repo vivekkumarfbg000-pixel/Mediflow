@@ -229,9 +229,56 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
   const processPrescriptionFiles = async (files: File[]) => {
     if (!files || files.length === 0) return;
 
+    // Phase 3: Canvas Pre-Flight Binarization (Cost-Neutral Contrast Enhancement)
+    const applyCanvasBinarization = (file: File): Promise<File> => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return resolve(file); // Fallback
+
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          const threshold = 140; // Binarization threshold
+
+          for (let i = 0; i < data.length; i += 4) {
+            // Grayscale
+            const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+            // High contrast binarization
+            const value = gray >= threshold ? 255 : 0;
+            data[i] = value;
+            data[i + 1] = value;
+            data[i + 2] = value;
+          }
+
+          ctx.putImageData(imageData, 0, 0);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+            } else {
+              resolve(file); // Fallback
+            }
+          }, 'image/jpeg', 0.85);
+        };
+        img.onerror = () => resolve(file);
+        img.src = URL.createObjectURL(file);
+      });
+    };
+
+    setCurrentStep('scanning');
+    setTelemetryStep(1);
+    setStatusText('Digitizing Prescription...');
+
+    const processedFile = await applyCanvasBinarization(files[0]);
+    const processedFiles = [processedFile];
+
     // Display first image in scanner HUD
-    setUploadedFile(files[0]);
-    const objectUrl = URL.createObjectURL(files[0]);
+    setUploadedFile(processedFiles[0]);
+    const objectUrl = URL.createObjectURL(processedFiles[0]);
     setUploadedImageUrl(objectUrl);
     setErrorMessage(null);
     setExtractedPatient(null);
@@ -241,28 +288,24 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     setIsAssistedReview(false);
 
     try {
-      setCurrentStep('scanning');
-      setTelemetryStep(1);
-      setStatusText('Aligning document & enhancing contrast bounds...');
-
       const stepTimer1 = setTimeout(() => {
         setTelemetryStep(2);
-        setStatusText('AI Vision OCR: Reading handwriting & clinical tokens...');
+        setStatusText('Building Patient Profile...');
       }, 1200);
 
       const stepTimer2 = setTimeout(() => {
         setTelemetryStep(3);
-        setStatusText('Structuring dosages, durations & chronic cohorts...');
+        setStatusText('Extracting Medicines & Dosages...');
       }, 2600);
 
-      const result = await api.ocrScan(files);
+      const result = await api.ocrScan(processedFiles);
 
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
 
       setTelemetryStep(4);
       setCurrentStep('extracting');
-      setStatusText('Cross-referencing sovereign drug & LOINC catalog...');
+      setStatusText('Calculating POS Billing...');
       await new Promise(r => setTimeout(r, 600));
 
       // Extract from digitizedPrescription, structured_data, or directly from result
@@ -994,30 +1037,45 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
                   <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-cyan-400" />
                 </div>
 
-                {/* Floating Telemetry Capsule */}
-                <div className="relative z-30 px-6 py-5 rounded-3xl bg-slate-900/90 backdrop-blur-2xl border border-cyan-500/30 shadow-2xl flex flex-col items-center max-w-md text-center w-full mx-4">
-                  <div className="relative w-12 h-12 mb-3 flex items-center justify-center">
-                    <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
-                    <Sparkles className="w-4 h-4 text-cyan-300 absolute" />
+                {/* Premium Progressive Checklist Capsule */}
+                <div className="relative z-30 px-6 py-6 rounded-3xl bg-slate-900/90 backdrop-blur-2xl border border-cyan-500/30 shadow-[0_0_40px_rgba(34,211,238,0.15)] flex flex-col max-w-md w-full mx-4 overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-slate-700/50 pb-3 mb-4">
+                    <h3 className="text-white font-black text-lg">Processing Prescription</h3>
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                      <Sparkles className="w-4 h-4 text-cyan-400" />
+                    </div>
                   </div>
-                  <p className="text-white font-black text-sm sm:text-base">
-                    {statusText}
-                  </p>
 
-                  {/* 4-Step Telemetry Indicator */}
-                  <div className="flex items-center gap-1.5 mt-4 w-full justify-center">
-                    {[1, 2, 3, 4].map((step) => (
-                      <div
-                        key={step}
-                        className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                          step <= telemetryStep ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-slate-800'
-                        }`}
-                      />
-                    ))}
+                  <div className="flex flex-col gap-4">
+                    {/* Step 1 */}
+                    <div className={`flex items-center gap-3 transition-all duration-500 ${telemetryStep >= 1 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`}>
+                      <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center bg-[#060a14] border border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                        {telemetryStep > 1 ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />}
+                      </div>
+                      <span className={`text-sm font-bold ${telemetryStep > 1 ? 'text-slate-400' : 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]'}`}>Digitizing Prescription...</span>
+                    </div>
+                    {/* Step 2 */}
+                    <div className={`flex items-center gap-3 transition-all duration-500 ${telemetryStep >= 2 ? 'opacity-100 translate-x-0' : 'opacity-30 -translate-x-4'}`}>
+                      <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center bg-[#060a14] border border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                        {telemetryStep > 2 ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : (telemetryStep === 2 ? <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" /> : <div className="w-2 h-2 rounded-full bg-slate-700" />)}
+                      </div>
+                      <span className={`text-sm font-bold ${telemetryStep > 2 ? 'text-slate-400' : (telemetryStep === 2 ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]' : 'text-slate-600')}`}>Building Patient Profile...</span>
+                    </div>
+                    {/* Step 3 */}
+                    <div className={`flex items-center gap-3 transition-all duration-500 ${telemetryStep >= 3 ? 'opacity-100 translate-x-0' : 'opacity-30 -translate-x-4'}`}>
+                      <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center bg-[#060a14] border border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                        {telemetryStep > 3 ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : (telemetryStep === 3 ? <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" /> : <div className="w-2 h-2 rounded-full bg-slate-700" />)}
+                      </div>
+                      <span className={`text-sm font-bold ${telemetryStep > 3 ? 'text-slate-400' : (telemetryStep === 3 ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]' : 'text-slate-600')}`}>Extracting Medicines & Dosages...</span>
+                    </div>
+                    {/* Step 4 */}
+                    <div className={`flex items-center gap-3 transition-all duration-500 ${telemetryStep >= 4 ? 'opacity-100 translate-x-0' : 'opacity-30 -translate-x-4'}`}>
+                      <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center bg-[#060a14] border border-cyan-500/30 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                        {telemetryStep > 4 ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : (telemetryStep === 4 ? <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" /> : <div className="w-2 h-2 rounded-full bg-slate-700" />)}
+                      </div>
+                      <span className={`text-sm font-bold ${telemetryStep > 4 ? 'text-slate-400' : (telemetryStep === 4 ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]' : 'text-slate-600')}`}>Calculating POS Billing...</span>
+                    </div>
                   </div>
-                  <span className="text-[11px] font-mono text-cyan-300/80 mt-2">
-                    Step {telemetryStep} of 4 • Processing...
-                  </span>
                 </div>
               </div>
             )}

@@ -1099,8 +1099,22 @@ Dhyan rakhein aur jaldi theek hon!`;
 
       // 🦅 EAGLE-EYE OCR: Stage 2 — Inject hyper-localized Bihar/India regional context
       const regionalContext = buildRegionalContextInjection();
+
+      // Phase 3: Cost-Neutral Pre-Extraction Prompt Anchoring
+      let inventoryAnchor = '';
+      try {
+        const inv = PharmacyService.getPharmacyInventory() || [];
+        const topMeds = inv.slice(0, 50).map((m: any) => m.medicineName).join(', ');
+        const topLabs = (MASTER_TEST_CATALOG || []).slice(0, 20).map((t: any) => t.name).join(', ');
+        if (topMeds || topLabs) {
+          inventoryAnchor = `\nCLINIC INVENTORY ANCHOR (Strictly prefer matching OCR results to these exact names if fuzzy/handwritten):\nTop Clinic Medicines: ${topMeds}\nTop Clinic Lab Tests: ${topLabs}\n`;
+        }
+      } catch (e) {
+        console.warn('Failed to build inventory anchor', e);
+      }
+
       const directVisionPrompt = `You are an expert Indian clinical pharmacist and medical AI reading a handwritten doctor's prescription slip. Your accuracy is paramount.
-${regionalContext}
+${regionalContext}${inventoryAnchor}
 
 CRITICAL RULES FOR DEMOGRAPHICS (ZERO HALLUCINATION):
 1. You MUST extract exactly what is visibly written on the paper for name, age, gender, phone, address.

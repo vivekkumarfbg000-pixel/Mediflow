@@ -168,27 +168,9 @@ export class PatientService {
         // Phase 11: FLE — Encrypt PHI fields before writing to Supabase
         const encryptedUpsertPayload = await CryptoService.encryptPatientPHI(upsertPayload);
 
-        const { error: upsertErr } = await supabase.from('patient_registry').upsert(encryptedUpsertPayload, { onConflict: 'id' });
-        
-        if (upsertErr) {
-          if (upsertErr.code === '23505') {
-            await supabase.from('patient_registry').update(encryptedUpsertPayload).eq('id', targetId);
-          } else {
-            console.error('[PatientService] savePatient upsert error:', upsertErr);
-            // Plain INSERT fallback to bypass RETURNING strict RLS
-            try {
-              await supabase.from('patient_registry').insert(upsertPayload).throwOnError();
-            } catch (e: any) {
-               if (e.code === '23505') {
-                 try {
-                   await supabase.from('patient_registry').update(upsertPayload).eq('id', targetId).throwOnError();
-                 } catch (_updateErr) {}
-               } else {
-                 await walDB.addEntry('upsert_patient', upsertPayload);
-               }
-            }
-          }
-        }
+        // PILLAR 2: STRICT OFFLINE-FIRST WAL ENFORCEMENT
+        // All mutations route strictly through WAL DB to prevent CDC race conditions and ensure 100% offline resilience
+        await walDB.addEntry('upsert_patient', encryptedUpsertPayload);
 
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('mediflow-state-change'));

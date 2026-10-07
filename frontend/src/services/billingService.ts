@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { load, save, writeAuditLog, notify } from './apiHelper';
+import { walDB } from './api';
 import { PatientService } from './patientService';
 import { PaymentService } from './paymentService';
 import { MASTER_TEST_CATALOG } from './labService';
@@ -887,9 +888,9 @@ export class BillingService {
         console.warn('[BillingService] Failed to dynamically look up doctor for consult:', err);
       }
 
-      // Sync initial appointment and unified invoice into Supabase
+      // PILLAR 2: STRICT OFFLINE-FIRST WAL ENFORCEMENT
       try {
-        await supabase.from('appointments').upsert({
+        walDB.addEntry('upsert_appointment', {
           id: apptId,
           patient_id: patientId,
           patient_name: pat?.name || 'Patient',
@@ -906,7 +907,7 @@ export class BillingService {
           pod_id: ctx.podId || FALLBACK_POD_ID
         });
 
-        await supabase.from('unified_invoices').upsert({
+        walDB.addEntry('upsert_invoice', {
           id: newInvoice.id,
           encounter_id: apptId,
           patient_id: patientId,
@@ -920,7 +921,7 @@ export class BillingService {
           pod_id: ctx.podId || FALLBACK_POD_ID
         });
       } catch (_dbSyncErr) {
-        console.warn('[BillingService] Initial consult Supabase upsert note:', _dbSyncErr);
+        console.warn('[BillingService] Initial consult WAL enqueue note:', _dbSyncErr);
       }
 
       const patient = PatientService.getPatients().find(p => p.id === patientId);
@@ -1116,15 +1117,14 @@ export class BillingService {
     save('financial_ledgers', ledgers);
 
     try {
-      await supabase.from('financial_ledgers').insert({
+      // PILLAR 2: STRICT OFFLINE-FIRST WAL ENFORCEMENT
+      walDB.addEntry('upsert_financial_ledger', {
         id: creditMemo.id,
         invoice_id: creditMemo.invoiceId,
         source_entity_id: creditMemo.sourceEntityId,
         destination_entity_id: creditMemo.destinationEntityId,
         transaction_type: creditMemo.transactionType,
         gross_amount: creditMemo.grossAmount,
-        commission_rate: creditMemo.commissionRate,
-        net_payout: creditMemo.netPayout,
         payment_status: creditMemo.paymentStatus,
         settled_at: creditMemo.settledAt,
         created_at: creditMemo.createdAt,
@@ -1139,9 +1139,10 @@ export class BillingService {
       uInv.paymentStatus = 'refunded';
       save('unified_invoices', uInvoices);
       
-      await supabase.from('unified_invoices').update({
+      walDB.addEntry('upsert_invoice', {
+        id: invoiceId,
         payment_status: 'refunded'
-      }).eq('id', invoiceId);
+      });
       
       notify();
       window.dispatchEvent(new CustomEvent('mediflow-toast', { detail: { message: `Refund processed. Immutable Credit Memo generated for ₹${precAmount}.`, type: 'success', title: 'Refund Completed' }}));
@@ -1404,16 +1405,14 @@ export class BillingService {
         reconciled_at: new Date().toISOString()
       }));
 
-      supabase.from('financial_ledgers').upsert(dbEntries, { onConflict: 'id' }).then(({ error }) => {
-        if (error) console.error('Error upserting cash ledger splits in Supabase:', error);
-      });
+      // PILLAR 2: STRICT OFFLINE-FIRST WAL ENFORCEMENT
+      dbEntries.forEach(entry => walDB.addEntry('upsert_financial_ledger', entry));
 
-      // Update platform fee and payment method in unified_invoices in Supabase (Strictly 0% Platform Fee)
-      supabase.from('unified_invoices').update({
+      // PILLAR 2: WAL ENFORCEMENT
+      walDB.addEntry('upsert_invoice', {
+        id: invoiceId,
         platform_fee: 0,
         payment_method: paymentMethod
-      }).eq('id', invoiceId).then(({ error }) => {
-        if (error) console.error('Error updating platform_fee in unified_invoices:', error);
       });
 
       window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
@@ -1620,9 +1619,8 @@ export class BillingService {
             payment_method: paymentMethod,
             pod_id: getPodContext().podId || FALLBACK_POD_ID
           };
-          supabase.from('financial_ledgers').upsert([dbDocLedger], { onConflict: 'id' }).then(({ error }) => {
-            if (error) console.error('[BillingService] Error upserting consult ledger in Supabase:', error);
-          });
+          // PILLAR 2: STRICT OFFLINE-FIRST WAL ENFORCEMENT
+          walDB.addEntry('upsert_financial_ledger', dbDocLedger);
 
           window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
           window.dispatchEvent(new CustomEvent('mediflow-state-change'));

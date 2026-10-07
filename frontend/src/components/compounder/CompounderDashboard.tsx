@@ -1215,14 +1215,15 @@ export const CompounderDashboard: React.FC = () => {
     setDataRevision(prev => prev + 1);
 
     try {
-      await supabase
+      // PILLAR 2: STRICT OFFLINE-FIRST WAL ENFORCEMENT
+      PatientService.savePatient(updatedPatient); /*
         .from('patient_registry')
         .update({
           eye_dilation_status: 'in_progress',
           dilation_timestamp: nowIso
         })
         .eq('id', patient.id);
-    } catch (_e) { /* ignore */ }
+    */ } catch (_e) { /* ignore */ }
 
     window.dispatchEvent(new CustomEvent('mediflow-toast', {
       detail: {
