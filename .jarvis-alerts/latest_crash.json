@@ -1,8 +1,8 @@
 {
-  "id": "crash-1791383767071",
-  "timestamp": "2026-10-07T14:36:07.071Z",
+  "id": "crash-1791384929421",
+  "timestamp": "2026-10-07T14:55:29.421Z",
   "level": "unhandledrejection",
-  "url": "http://localhost:5173/?_heal=1791382445481",
+  "url": "http://localhost:5173/promptguard",
   "message": "Key already exists in the object store.",
   "stack": "",
   "suggestedAction": "Awaiting IDE AI (Antigravity) Review for safe patch generation."

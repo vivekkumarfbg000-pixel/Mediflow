@@ -930,7 +930,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
 
     // Totals Calculation
-    const consultTotal = includeConsult ? consultFee : 0;
+    const consultTotal = consultFee;
     let pharmacySub = 0;
     let labSub = 0;
 
@@ -1749,16 +1749,10 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               </div>
 
               {/* Scrollable Cart List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar text-left">
+              <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 pb-32 no-scrollbar text-left">
                 {/* 1. Doctor Consultation Fee */}
-                <div className="p-3.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeConsult}
-                      onChange={(e) => setIncludeConsult(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
-                    />
+                <div className="p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
                     <div>
                       <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
                         <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
@@ -1767,9 +1761,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                           {(billingLedger as any)?.consultFeeType || 'OPD'}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400">100% Doctor Direct Account (Rule 58)</span>
                     </div>
-                  </label>
+                  </div>
                   <span className="text-xs font-black text-slate-900 dark:text-white">
                     ₹{(billingLedger?.consultFee || 500).toFixed(2)}
                   </span>
@@ -1777,7 +1770,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
                 {/* Ophthalmology Minor OT / Eye Procedure Fee */}
                 {isOphthalmology && (
-                  <div className="p-3.5 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-100 dark:border-rose-900/30 flex justify-between items-center">
+                  <div className="p-2 bg-rose-50/50 dark:bg-rose-950/20 rounded-xl border border-rose-100 dark:border-rose-900/30 flex justify-between items-center">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -1826,7 +1819,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                         return (
                           <div 
                             key={i} 
-                            className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                            className={`p-1.5 rounded-xl border flex items-center justify-between transition-all ${
                               state.selected 
                                 ? 'bg-emerald-50/70 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800/40' 
                                 : 'bg-slate-50/40 border-slate-100 dark:bg-slate-900/20 opacity-60'
@@ -1930,7 +1923,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                         return (
                           <div 
                             key={i} 
-                            className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                            className={`p-1.5 rounded-xl border flex items-center justify-between transition-all ${
                               isSelected 
                                 ? 'bg-teal-50/70 border-teal-200 dark:bg-teal-950/20 dark:border-teal-800/40' 
                                 : 'bg-slate-50/40 border-slate-100 dark:bg-slate-900/20 opacity-60'
@@ -1988,7 +1981,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             </div>
 
             {/* FLOATING POS: Financial Summary & Checkout */}
-            <div className={`fixed bottom-0 left-0 right-0 lg:left-[calc(25%+1.5rem)] lg:right-6 bg-slate-900/95 dark:bg-slate-950/95 text-white shadow-[0_-15px_40px_rgba(0,0,0,0.4)] rounded-t-[2rem] border-t border-slate-700/50 backdrop-blur-xl transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] z-50 flex flex-col ${isPosExpanded ? 'max-h-[85vh] p-5 sm:p-6' : 'max-h-[110px] p-4 cursor-pointer hover:bg-slate-800/95 group'}`} onClick={() => !isPosExpanded && setIsPosExpanded(true)}>
+            <div className={`fixed bottom-0 left-0 right-0 lg:left-[calc(25%+1.5rem)] lg:right-6 bg-slate-900/95 dark:bg-slate-950/95 text-white shadow-[0_-15px_40px_rgba(0,0,0,0.4)] rounded-t-[2rem] border-t border-slate-700/50 backdrop-blur-xl transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] z-50 flex flex-col ${isPosExpanded ? 'max-h-[50vh] p-5 sm:p-6' : 'max-h-[110px] p-4 cursor-pointer hover:bg-slate-800/95 group'}`} onClick={() => !isPosExpanded && setIsPosExpanded(true)}>
               {/* Drag Handle */}
               <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-600/50 rounded-full" />
               
@@ -2097,67 +2090,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                         <div className="flex justify-between items-baseline">
                           <div>
                             <span className="text-sm font-bold text-slate-300">Total Net Amount</span>
-                            {selectedPatient.isPremiumMember && (
-                              <span className="block text-[9px] text-amber-400 font-bold mt-1">✨ Premium VIP Refill Discount Applied</span>
-                            )}
                           </div>
                           <span className="text-3xl font-black text-emerald-400 tracking-tight">
                             ₹{billingLedger.finalTotal.toFixed(2)}
                           </span>
                         </div>
 
-                        {/* Payment Method Selector */}
-                        <div className="grid grid-cols-2 gap-3 mt-4">
-                          <button 
-                            type="button"
-                            onClick={() => setPaymentMethod('upi')}
-                            className={`py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-2 flex items-center justify-center gap-2 ${
-                              paymentMethod === 'upi' 
-                                ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg' 
-                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                            }`}
-                          >
-                            <QrCode className="w-4 h-4" />
-                            UPI / QR Standee
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setPaymentMethod('cash')}
-                            className={`py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer border-2 flex items-center justify-center gap-2 ${
-                              paymentMethod === 'cash' 
-                                ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg' 
-                                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
-                            }`}
-                          >
-                            <Check className="w-4 h-4" />
-                            Cash Counter
-                          </button>
-                        </div>
-
-                        {/* Direct Doctor Dynamic UPI QR Standee Card */}
-                        {paymentMethod === 'upi' && dynamicUpiPayload && (
-                          <div className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center gap-4 mt-2">
-                            <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 flex items-center justify-center shadow-md">
-                              <img 
-                                src={generateQRCodeDataURI(dynamicUpiPayload)} 
-                                alt="Dynamic UPI QR" 
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                            <div className="text-left space-y-1">
-                              <span className="block text-[10px] font-mono font-bold text-indigo-300 uppercase tracking-widest">Doctor Direct UPI QR</span>
-                              <p className="text-xs text-slate-300 leading-snug">Patient scans with GPay, PhonePe, Paytm or BHIM for instant ₹{billingLedger.finalTotal.toFixed(2)} settlement.</p>
-                            </div>
-                          </div>
-                        )}
-
                         <button 
                           type="button"
                           onClick={() => { setIsPosExpanded(false); handleClearBill(); }}
                           disabled={isClearing}
-                          className={`w-full py-4 mt-2 rounded-2xl text-white font-black text-sm sm:text-base shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border-0 ${isWhatsAppOffline ? 'bg-gradient-to-r from-rose-500 to-orange-500 hover:shadow-rose-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-emerald-500/30'}`}
+                          className="w-full py-4 mt-4 rounded-2xl text-white font-black text-sm sm:text-base shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border border-white/10 bg-gradient-to-r from-emerald-500 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 hover:shadow-indigo-500/30 backdrop-blur-md"
                         >
-                          {isClearing ? 'Settling & Clearing...' : (isWhatsAppOffline ? `Clear & Print Physical Bill (${paymentMethod.toUpperCase()})` : `Clear & Dispatch Bill (${paymentMethod.toUpperCase()})`)}
+                          {isClearing ? 'Settling & Clearing...' : (isWhatsAppOffline ? 'Clear & Print Physical Bill' : 'Submit & Dispatch')}
                           {!isClearing && (isWhatsAppOffline ? <Printer className="w-5 h-5" /> : <Send className="w-5 h-5" />)}
                         </button>
                       </div>

@@ -194,7 +194,7 @@ class WALIndexedDB {
       return new Promise((resolve, reject) => {
         const transaction = db.transaction(this.storeName, 'readwrite');
         const store = transaction.objectStore(this.storeName);
-        const request = store.add(entry);
+        const request = store.put(entry);
         request.onsuccess = () => resolve(entry);
         request.onerror = () => reject(request.error);
       });
