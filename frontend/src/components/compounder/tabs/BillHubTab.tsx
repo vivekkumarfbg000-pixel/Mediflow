@@ -863,7 +863,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
 
     const feeResult = PatientService.calculateDynamicOPDFee(selectedPatient.id);
-    let consultFee = baseConsultFee; // Always include doctor fee
+    let consultFee = feeResult.amount;
 
     let medicinesList: Array<{ name: string; mrp: number; price: number; batch: string; stock: number }> = [];
     let testsList: DiagnosticTest[] = [];

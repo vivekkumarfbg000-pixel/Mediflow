@@ -788,11 +788,6 @@ export class BillingService {
     // Calculate dynamic fee type based on patient visit history (First Visit vs. Follow-up vs. Free Review)
     const dynamicFeeResult = PatientService.calculateDynamicOPDFee(patientId);
     let consultFee = dynamicFeeResult.amount;
-    if (dynamicFeeResult.type === 'First Visit') {
-      consultFee = baseFee;
-    } else if (dynamicFeeResult.type === 'Follow-up') {
-      consultFee = Math.round(baseFee * 0.4); // 40% of base fee (e.g. ₹200 for ₹500 base)
-    }
  
     const newInvoice: Invoice = {
       id: crypto.randomUUID(),
