@@ -863,12 +863,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     }
 
     const feeResult = PatientService.calculateDynamicOPDFee(selectedPatient.id);
-    let consultFee = feeResult.amount;
-    if (feeResult.type === 'First Visit') {
-      consultFee = baseConsultFee;
-    } else if (feeResult.type === 'Follow-up') {
-      consultFee = Math.round(baseConsultFee * 0.4);
-    }
+    let consultFee = baseConsultFee; // Always include doctor fee
 
     let medicinesList: Array<{ name: string; mrp: number; price: number; batch: string; stock: number }> = [];
     let testsList: DiagnosticTest[] = [];
@@ -975,13 +970,13 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     const isQualifyingFirstPurchase = hasPharmacyItems && hasLabTests && !selectedPatient.isPremiumMember;
     const isRefillPurchase = selectedPatient.isPremiumMember === true;
 
-    // 10% discount on refills only (applied on pharmacy subtotal)
-    const pharmacyDiscount = isRefillPurchase ? parseFloat((pharmacySub * 0.1).toFixed(2)) : 0;
+    // Automatic discounts removed as requested
+    const pharmacyDiscount = 0;
     
     // POS Polish: Remove legacy referral and GST logic. Keep only discount.
     const b2bReferralDiscount = 0; // Legacy 
 
-    const totalDiscount = pharmacyDiscount + discountInput;
+    const totalDiscount = discountInput;
 
     const pharmGst = 0;
     const labGst = 0;
@@ -1749,9 +1744,9 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               </div>
 
               {/* Scrollable Cart List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 pb-32 no-scrollbar text-left">
+              <div className="flex-1 overflow-y-auto pr-1 space-y-1 pb-32 no-scrollbar text-left">
                 {/* 1. Doctor Consultation Fee */}
-                <div className="p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <div className="p-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-1.5">
@@ -1794,8 +1789,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
                 {/* 2. Prescribed / Added Medicines in Cart (Toggleable & Editable) */}
                 {(billingLedger?.medicinesList?.length || 0) > 0 && (
-                  <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 p-2">
-                    <div className="flex items-center justify-between mb-2 px-2 pt-1">
+                  <div className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 p-1.5">
+                    <div className="flex items-center justify-between mb-1 px-1.5 pt-1">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input 
                           type="checkbox" 
@@ -1981,7 +1976,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
             </div>
 
             {/* FLOATING POS: Financial Summary & Checkout */}
-            <div className={`fixed bottom-0 left-0 right-0 lg:left-[calc(25%+1.5rem)] lg:right-6 bg-slate-900/95 dark:bg-slate-950/95 text-white shadow-[0_-15px_40px_rgba(0,0,0,0.4)] rounded-t-[2rem] border-t border-slate-700/50 backdrop-blur-xl transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] z-50 flex flex-col ${isPosExpanded ? 'max-h-[50vh] p-5 sm:p-6' : 'max-h-[110px] p-4 cursor-pointer hover:bg-slate-800/95 group'}`} onClick={() => !isPosExpanded && setIsPosExpanded(true)}>
+            <div className={`fixed bottom-[72px] lg:bottom-0 left-0 right-0 lg:left-[calc(25%+1.5rem)] lg:right-6 bg-slate-900/95 dark:bg-slate-950/95 text-white shadow-[0_-15px_40px_rgba(0,0,0,0.4)] rounded-t-[2rem] border-t border-slate-700/50 backdrop-blur-xl transition-all duration-[400ms] ease-[cubic-bezier(0.23,1,0.32,1)] z-50 flex flex-col ${isPosExpanded ? 'max-h-[50vh] p-5 sm:p-6' : 'max-h-[110px] p-4 cursor-pointer hover:bg-slate-800/95 group'}`} onClick={() => !isPosExpanded && setIsPosExpanded(true)}>
               {/* Drag Handle */}
               <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-600/50 rounded-full" />
               
