@@ -3458,208 +3458,264 @@ export const CompounderDashboard: React.FC = () => {
       {/* TAB CONTENT SPACES — vs-tab-content scopes repaints to this area only */}
       <div className="vs-tab-content vs-main-scroll space-y-6 w-full touch-pan-y">
         {/* ══════════════════════════════════════════════════════════
-            TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
+            TAB: OVERVIEW COCKPIT (PERFECT MATCH - IMAGE 1)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
-          <div className="space-y-4 animate-fade-in text-left pb-32 max-w-[440px] md:max-w-none mx-auto font-sans bg-[#F5F5F7] md:bg-transparent dark:bg-transparent min-h-screen md:px-6">
+          <div className="space-y-4 animate-fade-in text-left pb-32 max-w-[440px] md:max-w-none mx-auto font-sans bg-[#F9FAFB] md:bg-transparent dark:bg-transparent min-h-screen">
             
             {/* 1. TOP HEADER */}
             <div className="flex items-center justify-between pt-6 px-4 md:hidden">
-              <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Today's Clinic</div>
-              <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <div>
+                <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Today's Clinic</div>
+                <div className="text-xs text-slate-400 font-medium mt-0.5">
+                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-500/20 shadow-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">Live</span>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Live</span>
               </div>
             </div>
 
-            {/* 2. THE 4 METRICS - COMPACT APPLE-LIKE GRID */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 px-4 md:px-0 mb-4 md:mb-8 md:pt-4">
+            {/* 2. THE 4 METRICS - HORIZONTAL SCROLLING ROW */}
+            <div className="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 pt-2 md:grid md:grid-cols-4 md:px-0 md:overflow-visible snap-x">
+              
               {/* PATIENTS */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between h-[90px] md:h-[110px]">
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <Users className="w-3.5 h-3.5" />
-                  <span className="text-xs font-semibold">Patients</span>
+              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden">
+                <div className="flex items-center gap-1 text-blue-500 bg-blue-50 dark:bg-blue-500/10 w-fit px-1.5 py-0.5 rounded-md">
+                  <Users className="w-3 h-3" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Patients</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {(() => {
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 0;
-                  })()}
+                <div className="flex items-center justify-between mt-3 z-10">
+                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {(() => {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 0;
+                    })()}
+                  </div>
+                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 15 Q10 20, 20 10 T40 5" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
+                <div className="mt-auto flex justify-center pb-1 z-10">
+                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-blue-500 border-r-blue-500 transform rotate-45" />
+                </div>
+                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-blue-50/50 rounded-full blur-xl" />
               </div>
 
               {/* SCANNED */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between h-[90px] md:h-[110px]">
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <Camera className="w-3.5 h-3.5" />
-                  <span className="text-xs font-semibold">Scanned</span>
+              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden">
+                <div className="flex items-center gap-1 text-purple-500 bg-purple-50 dark:bg-purple-500/10 w-fit px-1.5 py-0.5 rounded-md">
+                  <Camera className="w-3 h-3" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Scanned</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {appointments.length || 0}
+                <div className="flex items-center justify-between mt-3 z-10">
+                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {appointments.length || 0}
+                  </div>
+                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 10 Q10 5, 20 15 T40 5" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
+                <div className="mt-auto flex justify-center pb-1 z-10">
+                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-purple-500 transform -rotate-12" />
+                </div>
+                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-purple-50/50 rounded-full blur-xl" />
               </div>
 
               {/* DIGITIZED */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between h-[90px] md:h-[110px]">
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <FileCheck className="w-3.5 h-3.5" />
-                  <span className="text-xs font-semibold">Digitized</span>
+              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden">
+                <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 w-fit px-1.5 py-0.5 rounded-md">
+                  <FileCheck className="w-3 h-3" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Digitized</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {appointments.filter(a => a.status === 'completed' || a.status === 'in_consultation').length || 0}
+                <div className="flex items-center justify-between mt-3 z-10">
+                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {appointments.filter(a => a.status === 'completed' || a.status === 'in_consultation').length || 0}
+                  </div>
+                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 15 Q15 0, 25 10 T40 5" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
+                <div className="mt-auto flex justify-center pb-1 z-10">
+                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-emerald-500 border-l-emerald-500 transform rotate-45" />
+                </div>
+                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-emerald-50/50 rounded-full blur-xl" />
               </div>
 
               {/* BILLED */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between h-[90px] md:h-[110px]">
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <Receipt className="w-3.5 h-3.5" />
-                  <span className="text-xs font-semibold">Billed</span>
+              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.08)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden scale-[1.02] border-amber-100">
+                <div className="flex items-center gap-1 text-amber-500 bg-amber-50 dark:bg-amber-500/10 w-fit px-1.5 py-0.5 rounded-md">
+                  <Receipt className="w-3 h-3" />
+                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Billed</span>
                 </div>
-                <div className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  {appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id)).length || 0}
+                <div className="flex items-center justify-between mt-3 z-10">
+                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id)).length || 0}
+                  </div>
+                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 20 L10 10 L20 15 L30 5 L40 0" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
+                <div className="mt-auto flex justify-center pb-1 z-10">
+                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-amber-400 border-r-amber-400 border-b-amber-400 transform rotate-12" />
+                </div>
+                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-amber-50/50 rounded-full blur-xl" />
               </div>
             </div>
 
             {/* TWO COLUMN DESKTOP GRID */}
             <div className="md:grid md:grid-cols-2 md:gap-6 px-4 md:px-0">
               
-              {/* 3. TODAY'S WORK - IOS SETTINGS STYLE */}
+              {/* 3. TODAY'S WORK - THE MAIN CARD */}
               <div>
-                <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today's Work</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)] overflow-hidden">
                   
-                  {/* Prescriptions to Review */}
-                  <div onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))} className="flex items-center justify-between p-3.5 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer active:bg-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-4 border-b border-slate-50 dark:border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
                         <FileText className="w-4 h-4" />
                       </div>
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Prescriptions to Review</span>
+                      <div>
+                        <h3 className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight">Today's Work</h3>
+                        <p className="text-[10px] text-slate-400 font-medium">Summary of daily tasks and updates.</p>
+                      </div>
                     </div>
-                    {appointments.filter(a => a.status === 'completed' && !(a as any).prescriptionId).length > 0 ? (
-                      <span className="bg-blue-500 text-white min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center text-[11px] font-bold">
-                        {appointments.filter(a => a.status === 'completed' && !(a as any).prescriptionId).length}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-600 text-xs font-medium">0</span>
-                    )}
+                    <span className="text-[10px] font-bold text-slate-400 cursor-pointer hover:text-slate-600 transition">View all &gt;</span>
                   </div>
 
-                  {/* Bills to Confirm */}
-                  <div onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }} className="flex items-center justify-between p-3.5 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer active:bg-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white">
-                        <DollarSign className="w-4 h-4" />
+                  <div className="p-2 space-y-1">
+                    {/* Prescriptions to Review */}
+                    <div onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Prescriptions to Review</div>
+                          <div className="text-[10px] text-slate-400">AI extraction completed</div>
+                        </div>
                       </div>
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Bills to Confirm</span>
+                      <div className="min-w-7 h-7 px-2 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[11px] font-bold">
+                        {appointments.filter(a => a.status === 'completed' && !(a as any).prescriptionId).length || 0}
+                      </div>
                     </div>
-                    {appointments.filter(a => a.status === 'pending_payment').length > 0 ? (
-                      <span className="bg-indigo-500 text-white min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center text-[11px] font-bold">
-                        {appointments.filter(a => a.status === 'pending_payment').length}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-600 text-xs font-medium">0</span>
-                    )}
-                  </div>
 
-                  {/* Pharmacy Orders */}
-                  <div onClick={() => { setClinicalSubTab('pharmacy'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-3.5 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer active:bg-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white">
-                        <Pill className="w-4 h-4" />
+                    {/* Bills to Confirm */}
+                    <div onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                          <DollarSign className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Bills to Confirm</div>
+                          <div className="text-[10px] text-slate-400">Confirm and approve billing details</div>
+                        </div>
                       </div>
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Pharmacy Orders</span>
+                      <div className="min-w-7 h-7 px-2 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[11px] font-bold">
+                        {appointments.filter(a => a.status === 'pending_payment').length || 0}
+                      </div>
                     </div>
-                    {PharmacyService.getMedicineBills().filter(b => b.status === 'draft').length > 0 ? (
-                      <span className="bg-emerald-500 text-white min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center text-[11px] font-bold">
-                        {PharmacyService.getMedicineBills().filter(b => b.status === 'draft').length}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-600 text-xs font-medium">0</span>
-                    )}
-                  </div>
 
-                  {/* Pathology Orders */}
-                  <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-3.5 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer active:bg-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-fuchsia-500 flex items-center justify-center text-white">
-                        <FlaskConical className="w-4 h-4" />
+                    {/* Pharmacy Orders */}
+                    <div onClick={() => { setClinicalSubTab('pharmacy'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                          <Pill className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Pharmacy Orders</div>
+                          <div className="text-[10px] text-slate-400">Awaiting fulfillment</div>
+                        </div>
                       </div>
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Pathology Orders</span>
+                      <div className="min-w-7 h-7 px-2 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[11px] font-bold">
+                        {PharmacyService.getMedicineBills().filter(b => b.status === 'draft').length || 0}
+                      </div>
                     </div>
-                    {LabService.getLabRequisitions().filter(r => r.status === 'pending').length > 0 ? (
-                      <span className="bg-fuchsia-500 text-white min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center text-[11px] font-bold">
-                        {LabService.getLabRequisitions().filter(r => r.status === 'pending').length}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-600 text-xs font-medium">0</span>
-                    )}
-                  </div>
 
-                  {/* Lab Reports Arrived */}
-                  <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 cursor-pointer active:bg-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-teal-500 flex items-center justify-center text-white">
-                        <FileText className="w-4 h-4" />
+                    {/* Pathology Orders */}
+                    <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-fuchsia-50 flex items-center justify-center text-fuchsia-600">
+                          <FlaskConical className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Pathology Orders</div>
+                          <div className="text-[10px] text-slate-400">Awaiting fulfillment</div>
+                        </div>
                       </div>
-                      <span className="text-sm font-semibold text-slate-800 dark:text-white">Lab Reports Arrived</span>
+                      <div className="min-w-7 h-7 px-2 rounded-full bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center text-[11px] font-bold">
+                        {LabService.getLabRequisitions().filter(r => r.status === 'pending').length || 0}
+                      </div>
                     </div>
-                    {LabService.getLabRequisitions().filter(r => r.status === 'completed').length > 0 ? (
-                      <span className="bg-teal-500 text-white min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center text-[11px] font-bold">
-                        {LabService.getLabRequisitions().filter(r => r.status === 'completed').length}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-600 text-xs font-medium">0</span>
-                    )}
+
+                    {/* Lab Reports Arrived */}
+                    <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Lab Reports Arrived</div>
+                          <div className="text-[10px] text-slate-400">Requires patient routing</div>
+                        </div>
+                      </div>
+                      <div className="min-w-7 h-7 px-2 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[11px] font-bold">
+                        {LabService.getLabRequisitions().filter(r => r.status === 'completed').length || 0}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* 4. FOLLOW-UP / DISPATCH */}
-              <div className="mt-6 md:mt-0">
-                <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Outbound</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  
-                  {/* Follow Up */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between h-[90px] md:h-[110px]">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-md bg-amber-500 flex items-center justify-center text-white">
-                        <Calendar className="w-3 h-3" />
+              {/* 4. FOLLOW-UP / DISPATCH CARDS */}
+              <div className="grid grid-cols-2 gap-3 mt-4 md:mt-0">
+                {/* Follow Up */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] p-4 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)] flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-7 h-7 rounded bg-blue-50 flex items-center justify-center">
+                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
                       </div>
-                      <span className="text-xs font-semibold text-slate-800 dark:text-white">Follow-up</span>
+                      <span className="text-[12px] font-bold text-slate-800 dark:text-white">Follow-up</span>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                      <span className="text-[10px] text-slate-500 font-medium">Evening</span>
-                      <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">1</span>
-                    </div>
+                    <span className="text-[9px] text-slate-400">View all &gt;</span>
                   </div>
                   
-                  {/* Dispatch */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-4 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.03)] flex flex-col justify-between h-[90px] md:h-[110px]">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-md bg-rose-500 flex items-center justify-center text-white">
-                        <Send className="w-3 h-3" />
+                  <div className="flex flex-col gap-3 flex-1 justify-center">
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        <div>
+                          <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Review Arrived</div>
+                          <div className="text-[9px] text-slate-400">Evening queue</div>
+                        </div>
                       </div>
-                      <span className="text-xs font-semibold text-slate-800 dark:text-white">Dispatch</span>
+                      <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">1</span>
                     </div>
-                    <div className="flex items-center justify-between mt-auto">
-                      <span className="text-[10px] text-slate-500 font-medium">Digital Rx</span>
-                      <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+                  </div>
+                </div>
+                
+                {/* Dispatch */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] p-4 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)] flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center">
+                        <Send className="w-3.5 h-3.5 text-emerald-500" />
+                      </div>
+                      <span className="text-[12px] font-bold text-slate-800 dark:text-white">Dispatch</span>
+                    </div>
+                    <span className="text-[9px] text-slate-400">View all &gt;</span>
+                  </div>
+                  
+                  <div className="flex flex-col gap-3 flex-1 justify-center">
+                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5 text-emerald-500" />
+                        <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Digital Rx</div>
+                      </div>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">
                         {appointments.filter(a => (a as any).prescriptionId).length || 0}
                       </span>
                     </div>
                   </div>
-
                 </div>
               </div>
+
             </div>
-            
           </div>
         )}
 
