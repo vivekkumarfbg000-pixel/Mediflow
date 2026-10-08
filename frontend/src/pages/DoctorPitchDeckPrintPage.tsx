@@ -52,7 +52,7 @@ import {
   Send,
   Bot
 } from 'lucide-react';
-import { BrandMark } from '../components/shared/BrandMark';
+import { BrandMark, VitalSyncWordmark } from '../components/shared/BrandMark';
 
 export const DoctorPitchDeckPrintPage: React.FC = () => {
   const [activeSlide, setActiveSlide] = useState<number>(1);
@@ -241,7 +241,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
             <div>
               <div className="text-sm font-black tracking-tight text-slate-900 flex items-center gap-2">
                 <span className="font-black text-slate-900 leading-none">
-                  <span className="text-[#1A7B8F]">Vital</span><span className="text-[#7AC47F]">Sync</span>
+                  <VitalSyncWordmark fontSize="14px" />
                 </span>
                 <span className="text-[10px] uppercase font-extrabold tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
                   Doctor Partnership Pitch
@@ -336,7 +336,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-base md:text-xl font-black tracking-tight text-slate-900 leading-none">
-                        <span className="text-[#1A7B8F]">Vital</span><span className="text-[#7AC47F]">Sync</span>
+                        <VitalSyncWordmark fontSize="18px" />
                       </span>
                       <span className="text-[10px] uppercase font-black tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
                         The Virtual Hospital Network
@@ -1582,7 +1582,7 @@ export const DoctorPitchDeckPrintPage: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <BrandMark size={22} title="VitalSync Logo" />
                 <span className="font-black text-teal-950">
-                  <span className="text-[#1A7B8F]">Vital</span><span className="text-[#7AC47F]">Sync</span>: Virtual Hospital Network — "Your Clinic. Now a Hospital."
+                  <VitalSyncWordmark fontSize="13px" />: Virtual Hospital Network — "Your Clinic. Now a Hospital."
                 </span>
               </div>
               <div className="flex items-center gap-4">

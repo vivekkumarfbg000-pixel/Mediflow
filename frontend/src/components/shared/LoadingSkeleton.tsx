@@ -199,8 +199,8 @@ export function FullPageLoader({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-6 animate-fade-in transition-opacity duration-300">
       {/* Animated VitalSync logo mark */}
       <div className="relative">
-        <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-900 p-1 shadow-lg shadow-indigo-500/20 ring-1 ring-slate-200/70 dark:ring-slate-800">
-          <BrandMark size={56} title="VitalSync loading mark" />
+        <div className="w-16 h-16 rounded-2xl bg-white p-2 shadow-lg shadow-teal-500/15 border border-slate-200/80 flex items-center justify-center">
+          <BrandMark size={46} title="VitalSync loading mark" />
         </div>
         {/* Orbiting pulse ring */}
         <div className="absolute inset-0 rounded-2xl border-2 border-indigo-400/30 animate-ping" />

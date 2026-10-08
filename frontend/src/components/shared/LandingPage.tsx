@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrandMark } from './BrandMark';
+import { BrandMark, VitalSyncWordmark } from './BrandMark';
 import { AppInstallBanner } from './AppInstallBanner';
 import { FounderNotificationService } from '../../services/founderNotificationService';
 import {
@@ -387,16 +387,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
       <header className="fixed top-0 left-0 right-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl shadow-xs transition-all duration-300">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand — Circular VitalSync Branding Widget */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0 mr-8">
             <div className="flex items-center justify-center h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-200/60 shadow-sm">
               <BrandMark size={34} title="VitalSync logo" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-lg font-black tracking-tight font-sans">
-                <span className="text-[#1A7B8F]">Vital</span>
-                <span className="text-[#7AC47F]">Sync</span>
-              </span>
-              <span className="text-[8.5px] text-teal-700 font-bold tracking-wider uppercase mt-0.5">Virtual Hospital Network</span>
+              <VitalSyncWordmark fontSize="21px" />
+
+
+
+
             </div>
           </div>
 
@@ -6202,7 +6202,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAuthSuccess }) => {
             <div className="flex flex-col space-y-4 text-left max-w-xs">
               <div className="flex items-center gap-2">
                 <BrandMark size={22} title="VitalSync" />
-                <span className="text-sm font-black text-white tracking-tight">VitalSync</span>
+                <VitalSyncWordmark theme="dark" fontSize="14px" />
                 <span className="text-[9px] font-mono bg-teal-500/20 text-teal-400 border border-teal-500/30 px-2 py-0.5 rounded-full">v1.0</span>
               </div>
               <p className="text-xs text-slate-400 font-medium leading-relaxed">

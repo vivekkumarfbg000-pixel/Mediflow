@@ -1,71 +1,212 @@
-import React, { useId } from 'react';
+import React from 'react';
 
-interface BrandMarkProps {
+export interface BrandMarkProps {
+  /** Size in pixels (height for logo lockups, width/height for square icon) */
   size?: number;
+  /** Custom CSS classes */
   className?: string;
+  /** Accessible title attribute */
   title?: string;
+  /** Layout variant */
+  variant?: 'icon' | 'horizontal' | 'stacked' | 'monochrome';
+  /** Show the official brand tagline: "Smarter Clinics. Healthier Lives." */
+  showTagline?: boolean;
+  /** Theme styling override */
+  theme?: 'dark' | 'light' | 'auto';
+  /** Render inside the official squircle app-icon tile */
+  isSquircle?: boolean;
 }
 
-export function BrandMark({ size = 40, className = '', title = 'VitalSync' }: BrandMarkProps) {
-  const instanceId = useId().replace(/:/g, '');
-  const tealGradId = `vitalsync-brand-teal-grad-${instanceId}`;
-  const greenGradId = `vitalsync-brand-green-grad-${instanceId}`;
-  const shadowId = `vitalsync-brand-shadow-${instanceId}`;
-
+/**
+ * 🔤 Official VitalSync Custom Wordmark
+ * Features:
+ * - Full Geometric Bold UPPERCASE: "VIT∧LSYNC"
+ * - Signature Crossbar-less Inverted Chevron / Lambda "∧" for the letter 'A'
+ * - Dual-Tone: "VIT∧L" in #0E7A8A (dark:text-white) + "SYNC" in #4CC26B
+ * - Expanded optical tracking: 0.14em
+ */
+export function VitalSyncWordmark({
+  className = '',
+  theme = 'auto',
+  fontSize = '1em'
+}: {
+  className?: string;
+  theme?: 'dark' | 'light' | 'auto';
+  fontSize?: string;
+}) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
+    <span 
+      className={`inline-flex items-center font-extrabold tracking-tight uppercase font-sans select-none leading-none ${className}`}
+      style={{ fontSize }}
+    >
+      <span className={`${theme === 'dark' ? 'text-white' : 'text-[#0E7A8A] dark:text-white'} inline-flex items-center`}>
+        VIT
+        <svg 
+          className="inline-block mx-[0.01em]" 
+          width="0.68em" 
+          height="0.82em" 
+          viewBox="0 0 16 18" 
+          fill="none" 
+          stroke="currentColor" 
+          strokeWidth="3.2" 
+          strokeLinecap="round" 
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M 1.5 16.5 L 8 2.5 L 14.5 16.5" />
+        </svg>
+        L
+      </span>
+      <span className="text-[#4CC26B] ml-[0.02em]">SYNC</span>
+    </span>
+  );
+}
+
+/**
+ * 🏛️ VitalSync Enterprise Brand Mark (Official Master Specification)
+ * 
+ * Renders the exact 3D Origami Ribbon "VS" Monogram alongside
+ * the custom "VIT∧LSYNC" chevron-A typography.
+ */
+export function BrandMark({
+  size = 40,
+  className = '',
+  title = 'VitalSync',
+  variant = 'icon',
+  showTagline = false,
+  theme = 'auto',
+  isSquircle = false
+}: BrandMarkProps) {
+  // ─────────────────────────────────────────────────────────────
+  // 1. SQUIRCLE APP ICON (App Icon / Favicon Tile)
+  // ─────────────────────────────────────────────────────────────
+  if (isSquircle) {
+    return (
+      <div
+        className={`relative inline-flex items-center justify-center rounded-[22%] bg-white border border-[#E2EDF0] shadow-xs overflow-hidden select-none shrink-0 ${className}`}
+        style={{ width: size, height: size, padding: `${Math.round(size * 0.12)}px` }}
+        title={title}
+        role="img"
+        aria-label={title}
+      >
+        <img
+          src="/brand/vitalsync-mark.png"
+          alt={title}
+          className="w-full h-full object-contain pointer-events-none drop-shadow-xs"
+          loading="eager"
+        />
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. HORIZONTAL LOCKUP (VS Mark + Custom VIT∧LSYNC Wordmark)
+  // ─────────────────────────────────────────────────────────────
+  if (variant === 'horizontal') {
+    return (
+      <div 
+        className={`inline-flex items-center gap-2.5 select-none shrink-0 ${className}`} 
+        style={{ height: size }}
+        title={title}
+        role="img"
+        aria-label={title}
+      >
+        <img
+          src="/brand/vitalsync-mark.png"
+          alt={title}
+          style={{ height: size, width: 'auto' }}
+          className="object-contain pointer-events-none shrink-0 drop-shadow-xs"
+          loading="eager"
+        />
+        <div className="flex flex-col justify-center leading-none">
+          <VitalSyncWordmark 
+            theme={theme} 
+            fontSize={`${Math.max(15, Math.round(size * 0.46))}px`} 
+          />
+          {showTagline && (
+            <span className="text-[8px] font-bold tracking-wider text-[#0E7A8A] dark:text-[#14C3D0] uppercase mt-1">
+              Smarter Clinics. Healthier Lives.
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. STACKED LOGO (Mark Centered Above VIT∧LSYNC Wordmark)
+  // ─────────────────────────────────────────────────────────────
+  if (variant === 'stacked') {
+    return (
+      <div 
+        className={`inline-flex flex-col items-center select-none text-center shrink-0 ${className}`}
+        title={title}
+        role="img"
+        aria-label={title}
+      >
+        <img
+          src="/brand/vitalsync-mark.png"
+          alt={title}
+          style={{ height: size, width: 'auto' }}
+          className="object-contain pointer-events-none drop-shadow-xs"
+          loading="eager"
+        />
+        <div className="mt-2.5">
+          <VitalSyncWordmark 
+            theme={theme} 
+            fontSize={`${Math.max(16, Math.round(size * 0.38))}px`} 
+          />
+        </div>
+        {showTagline && (
+          <span className="text-[9px] font-bold tracking-wider text-[#0E7A8A] dark:text-[#14C3D0] uppercase mt-1">
+            Smarter Clinics. Healthier Lives.
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 4. MONOCHROME / GRAYSCALE
+  // ─────────────────────────────────────────────────────────────
+  if (variant === 'monochrome') {
+    return (
+      <div 
+        className={`inline-flex items-center justify-center select-none shrink-0 grayscale opacity-80 ${className}`}
+        style={{ width: size, height: size }}
+        title={title}
+        role="img"
+        aria-label={title}
+      >
+        <img
+          src="/brand/vitalsync-mark.png"
+          alt={title}
+          style={{ width: size, height: size }}
+          className="object-contain pointer-events-none"
+          loading="eager"
+        />
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 5. DEFAULT ICON (Exact Authentic VS Ribbon Monogram)
+  // ─────────────────────────────────────────────────────────────
+  return (
+    <div 
+      className={`inline-flex items-center justify-center select-none shrink-0 ${className}`}
+      style={{ width: size, height: size }}
+      title={title}
       role="img"
       aria-label={title}
     >
-      <title>{title}</title>
-      <defs>
-        {/* Teal Gradient (Teal to Deep Teal) */}
-        <linearGradient id={tealGradId} x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#0EA5E9" />
-          <stop offset="100%" stopColor="#0D9488" />
-        </linearGradient>
-
-        {/* Green Gradient (Light Green to Leaf Green) */}
-        <linearGradient id={greenGradId} x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#34D399" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-
-        {/* Drop Shadow for ECG Line */}
-        <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2.5" stdDeviation="1.8" floodColor="#0F172A" floodOpacity="0.22" />
-        </filter>
-      </defs>
-
-      <g transform="translate(1, 1) scale(0.98)">
-        {/* Left Shield Half — Green */}
-        <path
-          d="M 50 84 C 26 80 18 55 18 35 L 18 18 C 30 18 42 22 50 24 L 50 84 Z"
-          fill={`url(#${greenGradId})`}
-        />
-
-        {/* Right Shield Half — Teal */}
-        <path
-          d="M 50 84 C 74 80 82 55 82 35 L 82 18 C 70 18 58 22 50 24 L 50 84 Z"
-          fill={`url(#${tealGradId})`}
-        />
-
-        {/* ECG Heartbeat Line — white, centered across shield */}
-        <path
-          d="M 14 52 L 36 52 L 40 66 L 45 22 L 51 80 L 56 36 L 60 56 L 64 52 L 86 52"
-          stroke="#FFFFFF"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          filter={`url(#${shadowId})`}
-        />
-      </g>
-    </svg>
+      <img
+        src="/brand/vitalsync-mark.png"
+        alt={title}
+        style={{ width: size, height: size }}
+        className="object-contain pointer-events-none drop-shadow-xs"
+        loading="eager"
+      />
+    </div>
   );
 }

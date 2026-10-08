@@ -1,7 +1,7 @@
 {
-  "name": "VitalSync Clinical Dashboard",
+  "name": "VitalSync Clinic OS",
   "short_name": "VitalSync",
-  "description": "VitalSync Hyper-Local Multi-Tenant Clinical Dashboard & Care Pod Network",
+  "description": "VitalSync AI Clinic OS & Intelligent Healthcare Practice Management",
   "id": "/?source=pwa",
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -13,7 +13,7 @@
   ],
   "orientation": "any",
   "background_color": "#090d16",
-  "theme_color": "#090d16",
+  "theme_color": "#0E7A8A",
   "categories": [
     "medical",
     "productivity",

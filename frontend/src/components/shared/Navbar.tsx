@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
-import { BrandMark } from './BrandMark';
+import { BrandMark, VitalSyncWordmark } from './BrandMark';
 import { SyncStatusPill } from './SyncStatusPill';
 import { safeGetStorageJSON } from '../../utils/storage';
 
@@ -493,11 +493,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
             {!isSidebarCollapsed && (
               <div className="animate-fade-in flex flex-col">
-                <h1 className="text-base font-black tracking-tight leading-none font-sans">
-                  <span className="text-[#1A7B8F]">Vital</span>
-                  <span className="text-[#7AC47F]">Sync</span>
-                </h1>
-                <span className="text-[7.5px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 mt-0.5">Virtual Hospital Network</span>
+                <VitalSyncWordmark fontSize="17px" />
+
+
+
+
                 <div className="flex items-center gap-2 mt-1">
                   <SyncStatusPill compact={false} />
                 </div>
@@ -878,10 +878,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <BrandMark size={32} title="VitalSync logo" />
                   </div>
                   <div>
-                    <h2 className="font-black text-sm tracking-tight leading-none font-sans">
-                      <span className="text-[#1A7B8F]">Vital</span>
-                      <span className="text-[#7AC47F]">Sync</span>
-                    </h2>
+                    <VitalSyncWordmark fontSize="15px" />
+
+
+
                     <span className="text-[9px] font-semibold text-emerald-600 mt-1 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Live

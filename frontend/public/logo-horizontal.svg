@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="480" height="120" viewBox="0 0 480 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Scaled VS Ribbon Mark -->
+  <g transform="translate(10, 10) scale(0.5)">
+    
+    <defs>
+      <!-- V-arm primary: Vital Blue to Sync Teal -->
+      <linearGradient id="horiz-light-grad-v1" x1="15%" y1="10%" x2="55%" y2="90%">
+        <stop offset="0%" stop-color="#0E7A8A" />
+        <stop offset="60%" stop-color="#10A5B5" />
+        <stop offset="100%" stop-color="#14C3D0" />
+      </linearGradient>
+
+      <!-- V inner fold & shadow under turn -->
+      <linearGradient id="horiz-light-grad-v2" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#07444D" />
+        <stop offset="40%" stop-color="#0A5B66" />
+        <stop offset="100%" stop-color="#14C3D0" />
+      </linearGradient>
+
+      <!-- S top arch: Sync Teal into Health Green -->
+      <linearGradient id="horiz-light-grad-s1" x1="20%" y1="50%" x2="90%" y2="10%">
+        <stop offset="0%" stop-color="#12B5C3" />
+        <stop offset="50%" stop-color="#28C98B" />
+        <stop offset="100%" stop-color="#4CC26B" />
+      </linearGradient>
+
+      <!-- S diagonal sweep: Health Green with vibrant dimension -->
+      <linearGradient id="horiz-light-grad-s2" x1="10%" y1="20%" x2="80%" y2="90%">
+        <stop offset="0%" stop-color="#4CC26B" />
+        <stop offset="65%" stop-color="#36B357" />
+        <stop offset="100%" stop-color="#258E40" />
+      </linearGradient>
+
+      <!-- S bottom loop ribbon return: Health Green to Light Green highlight -->
+      <linearGradient id="horiz-light-grad-s3" x1="0%" y1="100%" x2="100%" y2="20%">
+        <stop offset="0%" stop-color="#1F7535" />
+        <stop offset="45%" stop-color="#4CC26B" />
+        <stop offset="85%" stop-color="#80E99E" />
+        <stop offset="100%" stop-color="#B7F6C9" />
+      </linearGradient>
+
+      <!-- Ambient volumetric shadow for 3D ribbon overlap -->
+      <filter id="horiz-light-ribbon-shadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="3" dy="6" stdDeviation="5" flood-color="#042327" flood-opacity="0.32" />
+      </filter>
+    </defs>
+    
+    <g transform="translate(15, 8)">
+      <!-- 1. V Left Downward Wing -->
+      <path
+        d="M 28 22 
+           C 24 22, 20 25, 22 30 
+           L 70 148 
+           C 72 153, 78 156, 84 153 
+           L 116 134 
+           C 120 131, 120 126, 117 122 
+           L 66 28 
+           C 64 24, 60 22, 55 22 
+           Z"
+        fill="url(#horiz-light-grad-v1)"
+        filter="url(#horiz-light-ribbon-shadow)"
+      />
+
+      <!-- 2. V Vertex Fold & Inner Turn (Twisting upward into the center) -->
+      <path
+        d="M 70 148 
+           C 75 160, 92 162, 102 152 
+           L 132 122 
+           C 136 118, 134 112, 129 110 
+           L 100 100 
+           C 95 98, 90 101, 88 106 
+           L 76 132 
+           Z"
+        fill="url(#horiz-light-grad-v2)"
+      />
+
+      <!-- 3. S Bottom Reverse Loop (Folded underside ribbon) -->
+      <path
+        d="M 126 126 
+           C 134 136, 148 150, 168 150 
+           C 192 150, 204 135, 204 118 
+           C 204 98, 185 86, 162 78 
+           L 142 71 
+           C 136 69, 132 64, 134 58 
+           L 144 26 
+           C 146 22, 151 20, 156 22 
+           L 182 32 
+           C 176 42, 170 54, 166 60 
+           C 188 68, 220 82, 220 118 
+           C 220 148, 196 168, 162 168 
+           C 132 168, 112 148, 104 134 
+           Z"
+        fill="url(#horiz-light-grad-s3)"
+        filter="url(#horiz-light-ribbon-shadow)"
+      />
+
+      <!-- 4. S Top Loop Arch -->
+      <path
+        d="M 144 26 
+           C 152 18, 166 12, 184 12 
+           C 208 12, 222 24, 222 40 
+           C 222 46, 218 50, 212 50 
+           L 186 48 
+           C 182 48, 180 44, 180 40 
+           C 180 34, 174 30, 165 30 
+           C 156 30, 149 34, 146 40 
+           L 134 76 
+           C 130 88, 120 92, 110 86 
+           L 116 66 
+           Z"
+        fill="url(#horiz-light-grad-s1)"
+      />
+
+      <!-- 5. Central Dynamic Diagonal Bridge (Connecting the ribbon flow) -->
+      <path
+        d="M 112 80 
+           C 120 74, 128 72, 138 75 
+           L 164 84 
+           C 182 90, 194 98, 194 112 
+           C 194 122, 186 130, 174 130 
+           C 160 130, 146 118, 138 108 
+           L 118 82 
+           Z"
+        fill="url(#horiz-light-grad-s2)"
+      />
+    </g>
+  
+  
+  </g>
+
+  <!-- Typography: VITALSYNC Wordmark -->
+  <text x="145" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif" font-size="44" font-weight="900" letter-spacing="3">
+    <tspan fill="#0E7A8A">VITAL</tspan><tspan fill="#4CC26B">SYNC</tspan>
+  </text>
+
+  <!-- Subtitle Tagline -->
+  <text x="148" y="94" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif" font-size="12" font-weight="600" fill="#52797F" letter-spacing="1.8">
+    SMARTER CLINICS. HEALTHIER LIVES.
+  </text>
+</svg>
