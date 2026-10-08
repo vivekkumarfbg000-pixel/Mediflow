@@ -3533,7 +3533,7 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
                 <div className="flex items-end justify-between mt-auto">
                   <div className="text-2xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
-                    {appointments.filter(a => isAppointmentPaid(a)).length || 0}
+                    {appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id)).length || 0}
                   </div>
                   {/* Faux Sparkline */}
                   <svg className="w-8 h-4 md:w-12 md:h-6 opacity-50" viewBox="0 0 40 20" fill="none"><path d="M0 20 L10 10 L20 15 L30 5 L40 0" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"/></svg>
@@ -3574,7 +3574,7 @@ export const CompounderDashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="min-w-6 h-6 px-1.5 rounded-full bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center justify-center text-[10px] font-black">
-                        {appointments.filter(a => a.status === 'completed' && !a.prescriptionId).length || 0}
+                        {appointments.filter(a => a.status === 'completed' && !(a as any).prescriptionId).length || 0}
                       </div>
                     </div>
 
@@ -3606,7 +3606,7 @@ export const CompounderDashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="min-w-6 h-6 px-1.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-[10px] font-black">
-                        {PharmacyService.getMedicineBills().filter(b => b.status === 'pending').length || 0}
+                        {PharmacyService.getMedicineBills().filter(b => b.status === 'draft').length || 0}
                       </div>
                     </div>
 
@@ -3686,7 +3686,7 @@ export const CompounderDashboard: React.FC = () => {
                         <div className="text-[10px] md:text-xs font-bold text-slate-700 dark:text-slate-200">Prescriptions</div>
                       </div>
                       <span className="text-[10px] md:text-xs font-bold bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 px-1.5 md:px-2 py-0.5 rounded-full">
-                        {appointments.filter(a => a.prescriptionId).length || 0}
+                        {appointments.filter(a => (a as any).prescriptionId).length || 0}
                       </span>
                     </div>
                   </div>
