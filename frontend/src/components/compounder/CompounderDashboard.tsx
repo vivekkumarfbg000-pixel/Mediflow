@@ -3557,8 +3557,8 @@ export const CompounderDashboard: React.FC = () => {
                       const invoices = BillingService.getInvoices();
                       const todayStr = new Date().toISOString().split('T')[0];
                       const todayTotal = invoices
-                        .filter(inv => (inv.createdAt || (inv as any).created_at || '').startsWith(todayStr) && (inv.status === 'paid' || (inv as any).paymentStatus === 'paid'))
-                        .reduce((sum, inv) => sum + Number((inv as any).totalAmount || (inv as any).total_amount || inv.amount || 0), 0);
+                        .filter(inv => (inv.createdAt || (inv as any)['created_at'] || '').startsWith(todayStr) && (inv.status === 'paid' || (inv as any)['paymentStatus'] === 'paid'))
+                        .reduce((sum, inv) => sum + Number((inv as any)['totalAmount'] || (inv as any)['total_amount'] || inv.amount || 0), 0);
                       return todayTotal ? todayTotal.toLocaleString() : '24,500';
                     })()}
                   </div>
