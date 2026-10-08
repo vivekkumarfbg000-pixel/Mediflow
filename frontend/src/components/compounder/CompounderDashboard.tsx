@@ -3473,15 +3473,31 @@ export const CompounderDashboard: React.FC = () => {
 
   // Dynamic clinical computations (100% reactive, zero mock fallbacks)
   const todayInvoices = BillingService.getInvoices() || [];
-  const consultTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.doctor_fee) || 0), 0);
-  const pharmTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.pharmacy_fee) || 0), 0);
-  const labTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.lab_fee) || 0), 0);
-  const grossTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
+  const consultTotal = todayInvoices.reduce((sum, inv) => {
+    const raw = inv as any;
+    const amount = Number(raw.doctor_fee || (inv.type === 'consult' ? inv.amount : 0)) || 0;
+    return sum + amount;
+  }, 0);
+  const pharmTotal = todayInvoices.reduce((sum, inv) => {
+    const raw = inv as any;
+    const amount = Number(raw.pharmacy_fee || (inv.type === 'pharmacy' ? inv.amount : 0)) || 0;
+    return sum + amount;
+  }, 0);
+  const labTotal = todayInvoices.reduce((sum, inv) => {
+    const raw = inv as any;
+    const amount = Number(raw.lab_fee || (inv.type === 'lab' ? inv.amount : 0)) || 0;
+    return sum + amount;
+  }, 0);
+  const grossTotal = todayInvoices.reduce((sum, inv) => {
+    const raw = inv as any;
+    const amount = Number(raw.total_amount || inv.amount) || 0;
+    return sum + amount;
+  }, 0);
 
-  const pendingBillsCount = todayInvoices.filter(i => i.payment_status === 'pending').length;
-  const dispensaryOrdersCount = (PharmacyService.getMedicineBills() || []).filter(b => b.status === 'dispensed' || (b as any).status === 'pending').length;
+  const pendingBillsCount = todayInvoices.filter(i => (i as any).payment_status === 'pending' || i.status === 'unpaid').length;
+  const dispensaryOrdersCount = (PharmacyService.getMedicineBills() || []).filter(b => b.status === 'confirmed' || b.status === 'paid' || (b as any).status === 'pending').length;
   const pendingLabReqs = (LabService.getLabRequisitions() || []).filter(r => r.status === 'pending' || (r as any).status === 'requested').length;
-  const readyLabReports = (LabService.getFullLabReports() || []).filter(r => r.status === 'completed' || r.status === 'ready');
+  const readyLabReports = (LabService.getFullLabReports() || []).filter(r => r.status === 'approved' || (r as any).status === 'completed');
   const chronicFollowUpCount = patients.filter(p => p.isChronic || (p as any).is_chronic).length;
 
   const scannedCount = patients.filter(p => (p as any).source === 'paper_scan' || p.queueStatus === 'awaiting_consultation').length || activeOpdAppointments.length;
@@ -3927,7 +3943,7 @@ export const CompounderDashboard: React.FC = () => {
               <div key={lab.id || idx} className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 transition-colors">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-6.5 h-6.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[10.5px] font-bold flex items-center justify-center shrink-0 tabular-nums">
-                    #{lab.tokenNumber || (lab as any).token_number || idx + 1}
+                    #{(lab as any).tokenNumber || (lab as any).token_number || idx + 1}
                   </div>
                   <div className="truncate">
                     <div className="flex items-center gap-1.5 truncate">
@@ -3935,19 +3951,19 @@ export const CompounderDashboard: React.FC = () => {
                         {lab.patientName || 'Patient'}
                       </span>
                       <span className="text-[9.5px] font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/70">
-                        {lab.testName || 'Diagnostic Profile'}
+                        {(lab as any).testName || 'Diagnostic Profile'}
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-400 font-medium">
                       <span className="font-mono tabular-nums">
-                        {lab.completedAt ? new Date(lab.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Synced'}
+                        {lab.approvedAt ? new Date(lab.approvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (lab.createdAt ? new Date(lab.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Synced')}
                       </span> • Attached to Token
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="font-mono text-[9.5px] font-bold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    {lab.status === 'completed' ? 'Ready' : 'Doctor Rev'}
+                    {lab.status === 'approved' ? 'Ready' : 'Doctor Rev'}
                   </span>
                   <button 
                     onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
