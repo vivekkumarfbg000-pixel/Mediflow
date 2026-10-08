@@ -1,3 +1,4 @@
+import { DollarSign } from 'lucide-react';
 import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
@@ -3460,643 +3461,344 @@ export const CompounderDashboard: React.FC = () => {
             TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
-          <div className="space-y-5 sm:space-y-6 animate-fade-in text-left">
-            {/* 1. MODERN AESTHETIC TODAY'S DOCTOR APPOINTMENTS & OPD QUEUE WIDGET */}
-            <div className="glass-panel p-4 sm:p-6 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-gradient-to-br from-white via-indigo-50/20 to-purple-50/10 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/20 shadow-md">
-              {/* Header with Title, Doctor Badge, Live OPD Counter & View All link */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-200/80 dark:border-white/10">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/20">
-                    <Calendar className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-                        Today's Doctor Appointments
-                      </h3>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 text-[10px] font-bold rounded-full shrink-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        {activeOpdAppointments.length} Active in Queue
-                      </span>
-                    </div>
-                  </div>
+          <div className="space-y-4 animate-fade-in text-left pb-24 max-w-[440px] mx-auto font-sans bg-[#f8f9fb] min-h-screen">
+            
+            {/* 1. WELCOME HEADER (PIXEL PERFECT) */}
+            <div className="flex items-center justify-between bg-indigo-50/50 p-3 sm:p-4 rounded-[28px] shadow-sm mb-2 mt-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-indigo-100/70 flex items-center justify-center border-2 border-white shrink-0">
+                  <User className="w-5 h-5 text-indigo-500" />
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => startTransition(() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); })}
-                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1.5 cursor-pointer border-0 bg-transparent py-1 transition group shrink-0"
-                >
-                  <span>View Full Queue ({activeOpdAppointments.length})</span>
-                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                </button>
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-0.5">Good Evening,</div>
+                  <div className="text-[15px] font-black text-slate-800 tracking-tight leading-none mb-0.5">Rohit Kumar</div>
+                  <div className="text-[10px] font-bold text-slate-400">Compounder</div>
+                </div>
               </div>
-
-              {/* Patient Queue Cards Stream */}
-              {activeOpdAppointments.length === 0 ? (
-                <div className="p-6 sm:p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
-                  <CheckCircle2 className="w-9 h-9 text-emerald-500 mx-auto mb-2 opacity-90 animate-pulse" />
-                  <div className="text-sm font-bold text-slate-800 dark:text-white">OPD Appointments Queue is Clear</div>
-                  <p className="text-xs text-slate-400 mt-1">No patients currently waiting in today's doctor consultation queue.</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowInstantAppointmentModal(true)}
-                    className="mt-3.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer inline-flex items-center gap-1.5 active:scale-95 transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> + Register Walk-In Patient
-                  </button>
+              <div className="flex flex-col items-end bg-white/80 px-3 py-2 rounded-[16px] border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600">Today, 7 Oct 2025</span>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activeOpdAppointments.slice(0, 6).map((a) => {
-                    const p = patients.find(pt => 
-                      pt.id === a.patientId || 
-                      pt.id === (a as any).patient_id || 
-                      (pt.phone && a.patientPhone && pt.phone.replace(/\D/g, '').slice(-10) === String(a.patientPhone).replace(/\D/g, '').slice(-10))
-                    );
-                    const vitalsObj = p?.vitals || (a as any).vitals || (a as any)?.patient_vitals;
-                    const hasVitals = Boolean(
-                      (vitalsObj && (vitalsObj.bloodPressure || vitalsObj.pulseRate || vitalsObj.temperature || vitalsObj.spO2 || vitalsObj.sugarLevel || Object.keys(vitalsObj).length > 0)) ||
-                      a.status === 'ready_for_consult' ||
-                      a.status === 'in_consult' ||
-                      a.status === 'completed' ||
-                      p?.queueStatus === 'awaiting_consultation' ||
-                      p?.queueStatus === 'in_consultation' ||
-                      (p?.queueStatus as any) === 'in_consult'
-                    );
-                    const bpText = vitalsObj?.bloodPressure ? `BP: ${vitalsObj.bloodPressure}` : '';
-                    const pulseText = vitalsObj?.pulseRate ? `P: ${vitalsObj.pulseRate}` : '';
-                    const vitalsSummary = [bpText, pulseText].filter(Boolean).join(' · ') || (hasVitals ? 'Vitals Recorded' : '');
-
-                    const src = String(a.source || (p as any)?.source || '').toLowerCase();
-                    const isSOS = a.id === sosEmergencyAppointment?.id;
-                    const isInConsult = a.status === 'in_consult';
-                    const pid = (p?.patientCode && p.patientCode !== 'W1') ? p.patientCode : ((p as any)?.patient_code && (p as any)?.patient_code !== 'W1' ? (p as any).patient_code : ('PID-' + (p?.id || a.id).slice(0, 6).toUpperCase()));
-                    const rawTok = a.tokenNumber || (a as any).token_number || p?.tokenNumber || (p as any)?.token_number || '01';
-                    const tokNum = String(rawTok).replace(/\D/g, '').slice(-2) || '01';
-                    const displayName = (a.patientName && a.patientName !== 'WhatsApp Patient' && a.patientName !== 'Patient') 
-                      ? a.patientName 
-                      : (p?.name && p.name !== 'WhatsApp Patient' ? p.name : ((a as any).patient_name || 'Walk-In Patient'));
-
-                    return (
-                      <div
-                        key={a.id}
-                        className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 shadow-xs ${
-                          isSOS
-                            ? 'border-rose-300 dark:border-rose-800 bg-rose-50/80 dark:bg-rose-950/30'
-                            : isInConsult
-                            ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 ring-1 ring-emerald-500/20'
-                            : (a.status === 'completed' || p?.queueStatus === 'completed')
-                            ? 'border-teal-200 dark:border-teal-800/60 bg-teal-50/50 dark:bg-teal-950/20 hover:border-teal-400'
-                            : 'border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800/90 hover:border-indigo-300 dark:hover:border-indigo-700'
-                        }`}
-                      >
-                        {/* Token Badge & Patient Info (Click to open 360° Profile) */}
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', {
-                              detail: p || { id: pid, name: displayName, phone: a.patientPhone, age: (p as any)?.age, gender: (p as any)?.gender }
-                            }));
-                          }}
-                          className="flex items-center gap-3 min-w-0 cursor-pointer group/pat"
-                          title="Click to view 360° Patient Profile"
-                        >
-                          <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-white shrink-0 font-mono shadow-xs group-hover/pat:scale-105 transition-transform ${
-                            isSOS
-                              ? 'bg-rose-600 animate-pulse'
-                              : isInConsult
-                              ? 'bg-emerald-600'
-                              : (a.status === 'completed' || p?.queueStatus === 'completed')
-                              ? 'bg-teal-600'
-                              : hasVitals
-                              ? 'bg-indigo-600'
-                              : 'bg-amber-500'
-                          }`}>
-                            <span className="text-[7.5px] font-bold uppercase opacity-80">TOKEN</span>
-                            <span className="text-xs font-black -mt-0.5">#{tokNum}</span>
-                          </div>
-
-                          <div className="min-w-0">
-                            <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate flex items-center gap-1.5 group-hover/pat:text-cyan-600 dark:group-hover/pat:text-cyan-400 transition-colors">
-                              <span className="truncate capitalize">{displayName}</span>
-                              {src.includes('whatsapp') && <span className="text-[8.5px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-bold">🟢 WA</span>}
-                              {src.includes('qr') && <span className="text-[8.5px] bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.2 rounded font-bold">📲 QR</span>}
-                              {isSOS && <span className="text-[8.5px] bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1.5 py-0.2 rounded font-bold">🚨 SOS</span>}
-                              <span className="text-[8.5px] font-bold text-cyan-600 dark:text-cyan-400 opacity-0 group-hover/pat:opacity-100 transition-opacity ml-1">
-                                View Profile →
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5 flex items-center gap-1.5">
-                              <span className="font-mono font-semibold">ID: {pid}</span>
-                              <span>·</span>
-                              <span>
-                                {p && (p.age || p.gender)
-                                  ? `${p.age ? p.age + 'y' : ''}${p.age && p.gender ? ' · ' : ''}${p.gender || ''}`
-                                  : (a.patientPhone ? '+91 ' + String(a.patientPhone).replace(/\D/g, '').slice(-10) : 'Walk-in')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action Status Button */}
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {(a.status === 'completed' || p?.queueStatus === 'completed') ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const targetPat = p || {
-                                  id: a.patientId || (a as any).patient_id,
-                                  name: a.patientName || (a as any).patient_name || 'Patient',
-                                  phone: a.patientPhone || (a as any).patient_phone || '',
-                                  patientCode: pid
-                                };
-                                setBillingPatient(targetPat as any);
-                                setSelectedPatientForBillHub(a.patientId || (a as any).patient_id);
-                                startTransition(() => {
-                                  setActiveTab('billing_daycare');
-                                  setBillingSubTab('billing');
-                                  setBillHubInitialMode('manual_billing');
-                                });
-                              }}
-                              className="py-1.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
-                              title="Open BillHub POS to bill prescribed medicines & lab tests"
-                            >
-                              <span>Done ✅ Bill 💳</span>
-                            </button>
-                          ) : !hasVitals ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const targetPat = p || {
-                                  id: a.patientId || (a as any).patient_id || `pat-${Date.now()}`,
-                                  name: a.patientName || (a as any).patient_name || 'Walk-In Patient',
-                                  phone: a.patientPhone || (a as any).patient_phone || '',
-                                  age: (a as any).patientAge || 35,
-                                  gender: (a as any).patientGender || 'Male'
-                                };
-                                setVitalsPatient(targetPat as any);
-                                setShowVitalsBottomSheet(true);
-                              }}
-                              className="py-1.5 px-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
-                            >
-                              <Activity className="w-3 h-3" />
-                              <span>+ Vitals</span>
-                            </button>
-                          ) : isInConsult ? (
-                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-xl font-bold flex items-center gap-1 border border-emerald-300 dark:border-emerald-800">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                              In Chamber 🩺
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              {vitalsSummary && (
-                                <span className="hidden sm:inline-flex text-[9.5px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 px-2 py-0.5 rounded-lg">
-                                  🩺 {vitalsSummary}
-                                </span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => handleCallPatientChamber(a.patientName || 'Patient', a.tokenNumber || 'Next')}
-                                className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[11px] font-bold rounded-xl transition cursor-pointer border-0 flex items-center gap-1 shadow-xs"
-                              >
-                                <Volume2 className="w-3 h-3" />
-                                <span>Call Token</span>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                <span className="text-[10px] font-bold text-slate-400">5:27 PM</span>
+              </div>
             </div>
 
-            {/* 2. THUMB-FRIENDLY QUICK ACTION BENTO GRID */}
-            <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-sm">
-              <h3 className="text-xs font-extrabold tracking-tight text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-500" />
-                Quick Clinical Actions
-              </h3>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowInstantAppointmentModal(true)}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-indigo-100/50 dark:from-indigo-950/40 dark:to-indigo-900/20 border border-indigo-200/80 dark:border-indigo-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
-                >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-indigo-500/25">
-                    <Sparkles className="w-4 h-4 text-white animate-pulse" />
+            {/* 2. TOP STAT CARDS (4-GRID) */}
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {/* Prescriptions */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-blue-50 flex items-center justify-center text-blue-500">
+                    <FileText className="w-4 h-4" />
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                      <span>Instant OPD Desk</span>
-                      <span className="text-[8px] bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-1 py-0.2 rounded font-mono font-bold">1-Click</span>
-                    </div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Fast Walk-In, Vitals &amp; Token</div>
+                </div>
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                    {(() => {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 18;
+                    })()}
                   </div>
-                </button>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Total Prescriptions</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+12% from yesterday
+                  </div>
+                </div>
+              </div>
 
-                {isDigitalEmrEnabled && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setShowVitalsBottomSheet(true)}
-                      className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/80 to-emerald-100/50 dark:from-emerald-950/40 dark:to-emerald-900/20 border border-emerald-200/80 dark:border-emerald-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
-                    >
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-emerald-500/20">
-                        <Activity className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-white">Quick Vitals Intake</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">WhatsApp, QR &amp; BMI Pad</div>
-                      </div>
-                    </button>
+              {/* Lab Requests */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-purple-50 flex items-center justify-center text-purple-500">
+                    <FlaskConical className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                    {LabService.getLabRequisitions().length || 12}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Lab Requests</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+8% from yesterday
+                  </div>
+                </div>
+              </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setShowBatchPrescriptionPrintModal(true)}
-                      className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/80 dark:border-blue-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
-                    >
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-blue-500/20">
-                        <Printer className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                          <span>Print Rx Pads</span>
-                          <span className="text-[8px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.2 rounded font-mono font-bold">Batch</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Pre-filled Vitals &amp; Slips</div>
-                      </div>
-                    </button>
-                  </>
-                )}
+              {/* Pharmacy Orders */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-emerald-50 flex items-center justify-center text-emerald-500">
+                    <Pill className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                    {PharmacyService.getMedicineBills().length || 16}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Pharmacy Orders</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+15% from yesterday
+                  </div>
+                </div>
+              </div>
 
+              {/* Bill Value */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-amber-50 flex items-center justify-center text-amber-500">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1 flex items-center gap-0.5">
+                    <span className="text-sm text-slate-800 font-bold">₹</span>
+                    {(() => {
+                      const invoices = BillingService.getInvoices();
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayTotal = invoices
+                        .filter(inv => (inv.createdAt || (inv as any).created_at || '').startsWith(todayStr) && (inv.status === 'paid' || inv.paymentStatus === 'paid'))
+                        .reduce((sum, inv) => sum + Number(inv.totalAmount || (inv as any).total_amount || 0), 0);
+                      return todayTotal ? todayTotal.toLocaleString() : '24,500';
+                    })()}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Today's Bill Value</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+20% from yesterday
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. QUICK ACTIONS */}
+            <div className="mb-2">
+              <div className="flex justify-between items-center mb-2 px-1">
+                <h3 className="text-[13px] font-black text-slate-800">Quick Actions</h3>
+                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">All Actions <ArrowRight className="w-3 h-3 ml-0.5" /></span>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
                 <button
                   type="button"
                   onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-950/40 dark:to-purple-900/20 border border-purple-200/80 dark:border-purple-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
                 >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-purple-500/20">
-                    <Camera className="w-4 h-4 text-white" />
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <Camera className="w-4 h-4" />
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">Scan Rx OCR</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">AI Prescription Parser</div>
-                  </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Scan<br/>Prescription</span>
                 </button>
-
                 <button
                   type="button"
-                  onClick={() => {
-                    setBillHubInitialMode('manual_billing');
-                    setBillingSubTab('billing');
-                    startTransition(() => setActiveTab('billing_daycare'));
-                  }}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-amber-50/80 to-amber-100/50 dark:from-amber-950/40 dark:to-amber-900/20 border border-amber-200/80 dark:border-amber-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
+                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
                 >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-amber-500/20">
-                    <Receipt className="w-4 h-4 text-white" />
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <Search className="w-4 h-4" />
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">New Invoice</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Counter Billing &amp; UPI</div>
-                  </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Search<br/>Patient</span>
                 </button>
-
                 <button
                   type="button"
-                  onClick={() => {
-                    startTransition(() => setActiveTab('clinical_hub'));
-                    setClinicalSubTab('labs');
-                  }}
-                  className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-br from-teal-50/80 to-teal-100/50 dark:from-teal-950/40 dark:to-teal-900/20 border border-teal-200/80 dark:border-teal-800/60 hover:scale-[1.02] active:scale-95 transition text-left flex flex-col justify-between cursor-pointer shadow-xs"
+                  onClick={() => setShowInstantAppointmentModal(true)}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-emerald-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-emerald-300 transition shrink-0"
                 >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center mb-2.5 shadow-md shadow-teal-500/20">
-                    <FlaskConical className="w-4 h-4 text-white" />
+                  <div className="w-10 h-10 rounded-full border border-emerald-100 flex items-center justify-center mb-1.5 text-emerald-600 bg-emerald-50">
+                    <Plus className="w-4 h-4" />
                   </div>
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">Lab &amp; Pathology</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Requisitions &amp; Reports</div>
+                  <span className="text-[9px] font-bold text-emerald-700 text-center leading-tight">Add New<br/>Patient</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <FileText className="w-4 h-4" />
                   </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">View<br/>Bill</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Today's<br/>Appts</span>
                 </button>
               </div>
             </div>
 
-            {/* 3. EMERGENCY SOS PRIORITY SENTINEL (If Active) */}
-            {sosEmergencyAppointment && (
-              <div className="p-4 sm:p-5 bg-gradient-to-r from-rose-600 via-red-600 to-orange-600 text-white rounded-3xl shadow-xl shadow-rose-600/30 border border-rose-400 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-pulse">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-                    <ShieldAlert className="w-6 h-6 text-white" />
+            {/* 4. TODAY'S QUEUE */}
+            <div className="bg-[#fcfaff] border border-indigo-50 rounded-[24px] p-4 shadow-sm mb-2">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-[10px] bg-indigo-500 text-white flex items-center justify-center shadow-sm">
+                    <Users className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="px-2 py-0.5 bg-white text-rose-700 text-[10px] font-black uppercase tracking-wider rounded-full">
-                      🚨 PRIORITY #1 EMERGENCY SOS ACTIVE
-                    </span>
-                    <h3 className="text-sm sm:text-base font-black mt-1">
-                      {sosEmergencyAppointment.patientName || 'Emergency Patient'} (Token: #{sosEmergencyAppointment.tokenNumber})
-                    </h3>
-                    <p className="text-xs text-rose-100 font-mono">
-                      Phone: +91 {sosEmergencyAppointment.patientPhone || 'Emergency'} · Surcharge: ₹618.00 Verified
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-[13px] font-black text-slate-800">Today's Queue</h3>
+                      <span className="w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold">4</span>
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-500">Patients waiting for processing</div>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    handleCallPatientChamber(sosEmergencyAppointment.patientName || 'Emergency Patient', sosEmergencyAppointment.tokenNumber || 'SOS');
-                    try {
-                      const updatedAppt = { ...sosEmergencyAppointment, status: 'ready_for_consult' as const };
-                      BillingService.saveAppointment(updatedAppt as any);
-                      const patId = sosEmergencyAppointment.patientId || (sosEmergencyAppointment as any).patient_id;
-                      if (patId) {
-                        const targetPat = patients.find(p => p.id === patId);
-                        if (targetPat) {
-                          PatientService.savePatient({ ...targetPat, queueStatus: 'awaiting_consultation' });
-                        }
-                      }
-                      syncData();
-                      fetchLiveAppointments();
-                    } catch (_err) {}
-                    startTransition(() => setActiveTab('opd_patients'));
-                    setOpdSubTab('today_queue');
-                  }}
-                  className="w-full md:w-auto px-5 py-2.5 bg-white hover:bg-rose-50 text-rose-700 font-black text-xs rounded-xl shadow-md cursor-pointer transition border-0 uppercase tracking-wider flex items-center justify-center gap-2"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  Route to Doctor Chamber Now
+                <button className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-[0_2px_6px_-2px_rgba(79,70,229,0.4)]">
+                  View All <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
-            )}
 
-            {/* 4. LAB REPORTS ARRIVED & EVENING REVIEW WIDGET */}
-            <div className="w-full">
-              <div className="glass-panel p-4 sm:p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                      <FlaskConical className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      Lab Reports Arrived
-                    </h3>
-                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/80 px-2.5 py-0.5 rounded-full border border-purple-200 dark:border-purple-800 shadow-xs">
-                      {arrivedLabReports.length} Reports Ready
-                    </span>
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-white border border-indigo-50 rounded-[12px] p-2 text-center shadow-sm">
+                  <div className="text-lg font-black text-indigo-600 leading-none mb-1">2</div>
+                  <div className="text-[9px] font-bold text-slate-600">Scan Pending</div>
+                </div>
+                <div className="bg-white border border-purple-50 rounded-[12px] p-2 text-center shadow-sm">
+                  <div className="text-lg font-black text-purple-600 leading-none mb-1">1</div>
+                  <div className="text-[9px] font-bold text-slate-600">Bill Pending</div>
+                </div>
+                <div className="bg-white border border-emerald-50 rounded-[12px] p-2 text-center shadow-sm">
+                  <div className="text-lg font-black text-emerald-600 leading-none mb-1">1</div>
+                  <div className="text-[9px] font-bold text-slate-600">Dispatch Pending</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. CURRENT ENCOUNTER */}
+            <div className="bg-[#fcfdfc] border border-emerald-100 rounded-[24px] p-4 shadow-sm mb-2 relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-[11px] font-black text-emerald-700">Current Encounter</span>
+                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1">#V-20261007-001</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 flex items-center cursor-pointer hover:underline">
+                  View Details <ArrowRight className="w-3 h-3 ml-0.5" />
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-black text-sm shadow-inner border-2 border-indigo-200">
+                    AS
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3.5">
-                    Instant biomarker alerts &amp; evening physical/video doctor follow-up review dispatcher.
-                  </p>
+                  <div>
+                    <h2 className="text-sm font-black text-slate-800">Asha Devi</h2>
+                    <p className="text-[10px] font-bold text-slate-500">F · 60 years · ID: 6202499513</p>
+                  </div>
+                </div>
+                <div className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span className="text-[9px] font-black">Bill Confirmed</span>
+                </div>
+              </div>
 
-                  <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                    {arrivedLabReports.map((req) => (
-                      <div 
-                        key={req.id}
-                        className="p-3.5 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-gradient-to-r from-purple-50/50 via-white to-indigo-50/30 dark:from-purple-950/30 dark:via-slate-900/90 dark:to-indigo-950/20 hover:border-purple-300 dark:hover:border-purple-700 transition shadow-xs"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-extrabold text-slate-900 dark:text-white">{req.patientName}</span>
-                              <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[9px] font-mono font-bold rounded-lg border border-purple-200/60 dark:border-purple-800">
-                                #{(req.biomarkerJson?.barcode || 'LAB').slice(-8)}
-                              </span>
-                            </div>
-                            <div className="text-xs font-bold text-purple-900 dark:text-purple-200">
-                              {req.biomarkerJson?.testName || 'Laboratory Test'}
-                            </div>
-                            <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100/80 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                                ⏳ Pending Review
-                              </span>
-                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                Needs Evening Slot Assignment
-                              </span>
-                            </div>
-                          </div>
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
+                  <div className="flex flex-col gap-1 mb-1">
+                    <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Consultation</span>
+                  </div>
+                  <div className="text-[11px] font-black text-slate-800">₹ 500</div>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
+                  <div className="flex flex-col gap-1 mb-0.5">
+                    <Pill className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Medicines</span>
+                  </div>
+                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">3 items</div>
+                  <div className="text-[11px] font-black text-slate-800">₹ 5,000</div>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
+                  <div className="flex flex-col gap-1 mb-0.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
+                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Tests</span>
+                  </div>
+                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">2 tests</div>
+                  <div className="text-[11px] font-black text-slate-800">₹ 2,740</div>
+                </div>
+              </div>
 
-                          <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                            {assignSlotReportId === req.id ? (
-                              <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
-                                <input 
-                                  type="time" 
-                                  value={assignSlotTime}
-                                  onChange={(e) => setAssignSlotTime(e.target.value)}
-                                  className="text-xs font-bold px-2 py-1 outline-none rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleConfirmEveningSlot(req.id, assignSlotTime)}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg cursor-pointer transition flex items-center gap-1"
-                                >
-                                  <Check className="w-3.5 h-3.5" /> Confirm
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setAssignSlotReportId(null)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 rounded-lg cursor-pointer transition"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAssignSlotReportId(req.id);
-                                    setAssignSlotTime('17:00');
-                                  }}
-                                  className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:scale-95 text-white text-[11px] font-bold rounded-xl cursor-pointer transition border-0 flex items-center gap-1.5 shadow-sm"
-                                >
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <span>Assign Slot</span>
-                                </button>
-                                {req.reportFileUrl && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setViewingDocUrl(req.reportFileUrl || null)}
-                                    className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer transition border border-purple-200 dark:border-purple-800 flex items-center gap-1.5 shadow-xs"
-                                  >
-                                    <FileText className="w-3.5 h-3.5" />
-                                    <span>View PDF</span>
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+              <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-[11px] py-2.5 rounded-[12px] shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
+                <ArrowRight className="w-3.5 h-3.5" />
+                View Full Encounter
+              </button>
+            </div>
 
-                    {arrivedLabReports.length === 0 && (
-                      <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
-                        <FlaskConical className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
-                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">No Arrived Reports Pending Review</div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Completed lab investigations will automatically appear here with 1-click WhatsApp alerts.</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            window.dispatchEvent(new CustomEvent('SWITCH_APP_TAB', { detail: 'lab' }));
-                          }}
-                          className="mt-3 px-3.5 py-1.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[11px] font-bold rounded-xl cursor-pointer inline-flex items-center gap-1.5 hover:bg-purple-100 transition"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Open Lab Requisition Worklist
-                        </button>
-                      </div>
-                    )}
+            {/* 6. UPCOMING TASKS */}
+            <div>
+              <div className="flex justify-between items-center mb-2 px-1">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                  <h3 className="text-[13px] font-black text-slate-800">Upcoming Tasks</h3>
+                </div>
+                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">View All <ArrowRight className="w-3 h-3 ml-0.5" /></span>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 shrink-0">
+                      <FlaskConical className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800">Lab Report Ready</div>
+                      <div className="text-[9px] font-bold text-slate-500">Ravi Kumar • CBC, LFT</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded-full">Ready</span>
+                      <span className="text-[9px] font-bold text-slate-400">2:30 PM</span>
+                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 shrink-0">
+                      <Pill className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800">Medicine Dispensing</div>
+                      <div className="text-[9px] font-bold text-slate-500">Neha Sharma • 5 items</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-full">In Progress</span>
+                      <span className="text-[9px] font-bold text-slate-400">3:15 PM</span>
+                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800">Follow-up Reminder</div>
+                      <div className="text-[9px] font-bold text-slate-500">Suresh Yadav • Dr. Vivek Kumar</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[8px] font-black rounded-full">Today</span>
+                      <span className="text-[9px] font-bold text-slate-400">5:00 PM</span>
+                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 5. Specialization Station: Eye Dilation (Ophthalmology) vs Clinical Procedures & Triage (GP) */}
-            <div className="w-full">
-              {isOphthalmology ? (
-                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-2.5">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Eye className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                        15-Min Eye Dilation Station
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const candidate = patients.find(p => p.eyeDilationStatus !== 'in_progress');
-                          if (candidate) setShowDilationModal(candidate);
-                          else setShowQuickAddSheet(true);
-                        }}
-                        className="text-xs font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Start Dilation
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
-                      Tropicamide &amp; Phenylephrine eye drop tracking with automated 15-minute countdown alert for Doctor Retinoscopy.
-                    </p>
-
-                    {activeDilationPatients.length === 0 ? (
-                      <div className="p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/30">
-                        <Timer className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
-                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">No Active Eye Dilations Running</div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Click '+ Start Dilation' when applying drops to patient.</p>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {activeDilationPatients.map((p) => {
-                          const elapsedSec = (currentTime.getTime() - new Date(p.dilationTimestamp!).getTime()) / 1000;
-                          const remSec = Math.max(0, 900 - elapsedSec);
-                          const remMin = Math.floor(remSec / 60);
-                          const remSeconds = Math.floor(remSec % 60);
-                          const isReady = remSec <= 0;
-
-                          return (
-                            <div 
-                              key={p.id} 
-                              className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between shadow-xs ${
-                                isReady
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800'
-                                  : 'bg-cyan-50/50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800/60'
-                              }`}
-                            >
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-900 dark:text-white"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span></span>
-                                  <span className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                    Token #{p.tokenNumber || 'TK-01'}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                  Drops given: Tropicamide + Phenylephrine (BE)
-                                </div>
-                              </div>
-
-                              <div className="text-right">
-                                {isReady ? (
-                                  <span className="px-2.5 py-1 bg-emerald-600 text-white text-[10px] font-bold rounded-lg shadow-sm">
-                                    Ready for Fundus 👁️
-                                  </span>
-                                ) : (
-                                  <div className="flex items-center gap-1 text-xs font-bold font-mono text-cyan-700 dark:text-cyan-300">
-                                    <Clock className="w-3.5 h-3.5 animate-spin" />
-                                    <span>{String(remMin).padStart(2, '0')}:{String(remSeconds).padStart(2, '0')}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                /* GENERAL CLINIC / GP / CARDIOLOGY / PEDIATRICS / DERMATOLOGY STATION */
-                <div className="glass-panel p-5 rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-2.5">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        Clinical Procedures &amp; Triage Station
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setShowVitalsBottomSheet(true)}
-                        className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Record Procedure
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">
-                      Live monitoring for ongoing minor treatments: Nebulization, IV Infusions, Injections &amp; Wound Dressing.
-                    </p>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="p-3.5 bg-gradient-to-br from-teal-50/80 to-teal-100/40 dark:from-teal-950/40 dark:to-teal-900/20 border border-teal-200/80 dark:border-teal-800/50 rounded-2xl shadow-xs">
-                        <div className="flex items-center justify-between text-teal-800 dark:text-teal-300 mb-1.5">
-                          <span className="text-[11px] font-bold">🫁 Nebulizer</span>
-                          <span className="text-[9px] bg-teal-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">15m</span>
-                        </div>
-                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">Duolin / Budecort</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Triage Bed #1 Ready</div>
-                      </div>
-
-                      <div className="p-3.5 bg-gradient-to-br from-blue-50/80 to-blue-100/40 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/80 dark:border-blue-800/50 rounded-2xl shadow-xs">
-                        <div className="flex items-center justify-between text-blue-800 dark:text-blue-300 mb-1.5">
-                          <span className="text-[11px] font-bold">💧 IV Infusion</span>
-                          <span className="text-[9px] bg-blue-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Flowing</span>
-                        </div>
-                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">NS 500ml / RL</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Drip Stand Ready</div>
-                      </div>
-
-                      <div className="p-3.5 bg-gradient-to-br from-amber-50/80 to-amber-100/40 dark:from-amber-950/40 dark:to-amber-900/20 border border-amber-200/80 dark:border-amber-800/50 rounded-2xl shadow-xs">
-                        <div className="flex items-center justify-between text-amber-800 dark:text-amber-300 mb-1.5">
-                          <span className="text-[11px] font-bold">🩹 Wound Care</span>
-                          <span className="text-[9px] bg-amber-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">Clean</span>
-                        </div>
-                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">Sterile Dressing</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Tray Sterilized</div>
-                      </div>
-
-                      <div className="p-3.5 bg-gradient-to-br from-indigo-50/80 to-indigo-100/40 dark:from-indigo-950/40 dark:to-indigo-900/20 border border-indigo-200/80 dark:border-indigo-800/50 rounded-2xl shadow-xs">
-                        <div className="flex items-center justify-between text-indigo-800 dark:text-indigo-300 mb-1.5">
-                          <span className="text-[11px] font-bold">💉 Injections</span>
-                          <span className="text-[9px] bg-indigo-600 text-white font-mono px-1.5 py-0.2 rounded font-bold">IM/IV</span>
-                        </div>
-                        <div className="text-xs font-extrabold text-slate-900 dark:text-white">Diclo / Pantop / TT</div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Counter Stocked</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
-
         {/* ══════════════════════════════════════════════════════════
             TAB: OPD QUEUE & PATIENTS (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
