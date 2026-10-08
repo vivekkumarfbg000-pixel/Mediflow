@@ -3458,267 +3458,347 @@ export const CompounderDashboard: React.FC = () => {
       {/* TAB CONTENT SPACES — vs-tab-content scopes repaints to this area only */}
       <div className="vs-tab-content vs-main-scroll space-y-6 w-full touch-pan-y">
         {/* ══════════════════════════════════════════════════════════
-            TAB: OVERVIEW COCKPIT (PERFECT MATCH - IMAGE 1)
+            TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
-          <div className="space-y-4 animate-fade-in text-left pb-32 max-w-[440px] md:max-w-none mx-auto font-sans bg-[#F9FAFB] md:bg-transparent dark:bg-transparent min-h-screen">
+          <div className="space-y-4 animate-fade-in text-left pb-24 max-w-[440px] mx-auto font-sans bg-[#f8f9fb] min-h-screen">
             
-            {/* 1. TOP HEADER */}
-            <div className="flex items-center justify-between pt-6 px-4 md:hidden">
-              <div>
-                <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Today's Clinic</div>
-                <div className="text-xs text-slate-400 font-medium mt-0.5">
-                  {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+            {/* 1. WELCOME HEADER (PIXEL PERFECT) */}
+            <div className="flex items-center justify-between bg-indigo-50/50 p-3 sm:p-4 rounded-[28px] shadow-sm mb-2 mt-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-indigo-100/70 flex items-center justify-center border-2 border-white shrink-0">
+                  <User className="w-5 h-5 text-indigo-500" />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-slate-500 mb-0.5">Good Evening,</div>
+                  <div className="text-[15px] font-black text-slate-800 tracking-tight leading-none mb-0.5">Rohit Kumar</div>
+                  <div className="text-[10px] font-bold text-slate-400">Compounder</div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-500/20 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Live</span>
+              <div className="flex flex-col items-end bg-white/80 px-3 py-2 rounded-[16px] border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-600">Today, 7 Oct 2025</span>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400">5:27 PM</span>
               </div>
             </div>
 
-            {/* 2. THE 4 METRICS - HORIZONTAL SCROLLING ROW */}
-            <div className="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 pt-2 md:grid md:grid-cols-4 md:px-0 md:overflow-visible snap-x">
-              
-              {/* PATIENTS */}
-              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden">
-                <div className="flex items-center gap-1 text-blue-500 bg-blue-50 dark:bg-blue-500/10 w-fit px-1.5 py-0.5 rounded-md">
-                  <Users className="w-3 h-3" />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Patients</span>
+            {/* 2. TOP STAT CARDS (4-GRID) */}
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              {/* Prescriptions */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-blue-50 flex items-center justify-center text-blue-500">
+                    <FileText className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between mt-3 z-10">
-                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
                     {(() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 0;
+                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 18;
                     })()}
                   </div>
-                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 15 Q10 20, 20 10 T40 5" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round"/></svg>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Total Prescriptions</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+12% from yesterday
+                  </div>
                 </div>
-                <div className="mt-auto flex justify-center pb-1 z-10">
-                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-blue-500 border-r-blue-500 transform rotate-45" />
-                </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-blue-50/50 rounded-full blur-xl" />
               </div>
 
-              {/* SCANNED */}
-              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden">
-                <div className="flex items-center gap-1 text-purple-500 bg-purple-50 dark:bg-purple-500/10 w-fit px-1.5 py-0.5 rounded-md">
-                  <Camera className="w-3 h-3" />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Scanned</span>
-                </div>
-                <div className="flex items-center justify-between mt-3 z-10">
-                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
-                    {appointments.length || 0}
+              {/* Lab Requests */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-purple-50 flex items-center justify-center text-purple-500">
+                    <FlaskConical className="w-4 h-4" />
                   </div>
-                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 10 Q10 5, 20 15 T40 5" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
-                <div className="mt-auto flex justify-center pb-1 z-10">
-                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-purple-500 transform -rotate-12" />
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                    {LabService.getLabRequisitions().length || 12}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Lab Requests</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+8% from yesterday
+                  </div>
                 </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-purple-50/50 rounded-full blur-xl" />
               </div>
 
-              {/* DIGITIZED */}
-              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.04)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden">
-                <div className="flex items-center gap-1 text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 w-fit px-1.5 py-0.5 rounded-md">
-                  <FileCheck className="w-3 h-3" />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Digitized</span>
-                </div>
-                <div className="flex items-center justify-between mt-3 z-10">
-                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
-                    {appointments.filter(a => a.status === 'completed' || a.status === 'in_consultation').length || 0}
+              {/* Pharmacy Orders */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-emerald-50 flex items-center justify-center text-emerald-500">
+                    <Pill className="w-4 h-4" />
                   </div>
-                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 15 Q15 0, 25 10 T40 5" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
-                <div className="mt-auto flex justify-center pb-1 z-10">
-                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-emerald-500 border-l-emerald-500 transform rotate-45" />
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                    {PharmacyService.getMedicineBills().length || 16}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Pharmacy Orders</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+15% from yesterday
+                  </div>
                 </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-emerald-50/50 rounded-full blur-xl" />
               </div>
 
-              {/* BILLED */}
-              <div className="flex-shrink-0 w-[110px] md:w-auto bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 shadow-[0_4px_16px_-4px_rgba(0,0,0,0.08)] flex flex-col justify-between h-[120px] md:h-[130px] snap-start relative overflow-hidden scale-[1.02] border-amber-100">
-                <div className="flex items-center gap-1 text-amber-500 bg-amber-50 dark:bg-amber-500/10 w-fit px-1.5 py-0.5 rounded-md">
-                  <Receipt className="w-3 h-3" />
-                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Billed</span>
-                </div>
-                <div className="flex items-center justify-between mt-3 z-10">
-                  <div className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter">
-                    {appointments.filter(a => isAppointmentPaid(a.patientId || (a as any).patient_id)).length || 0}
+              {/* Bill Value */}
+              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-9 h-9 rounded-[12px] bg-amber-50 flex items-center justify-center text-amber-500">
+                    <DollarSign className="w-4 h-4" />
                   </div>
-                  <svg className="w-7 h-4 opacity-70" viewBox="0 0 40 20" fill="none"><path d="M0 20 L10 10 L20 15 L30 5 L40 0" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round"/></svg>
                 </div>
-                <div className="mt-auto flex justify-center pb-1 z-10">
-                  <div className="w-7 h-7 rounded-full border-[3px] border-slate-100 dark:border-slate-800 border-t-amber-400 border-r-amber-400 border-b-amber-400 transform rotate-12" />
+                <div>
+                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1 flex items-center gap-0.5">
+                    <span className="text-sm text-slate-800 font-bold">₹</span>
+                    {(() => {
+                      const invoices = BillingService.getInvoices();
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      const todayTotal = invoices
+                        .filter(inv => (inv.createdAt || (inv as any)['created_at'] || '').startsWith(todayStr) && (inv.status === 'paid' || (inv as any)['paymentStatus'] === 'paid'))
+                        .reduce((sum, inv) => sum + Number((inv as any)['totalAmount'] || (inv as any)['total_amount'] || inv.amount || 0), 0);
+                      return todayTotal ? todayTotal.toLocaleString() : '24,500';
+                    })()}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Today's Bill Value</div>
+                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
+                    ↑+20% from yesterday
+                  </div>
                 </div>
-                <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-amber-50/50 rounded-full blur-xl" />
               </div>
             </div>
 
-            {/* TWO COLUMN DESKTOP GRID */}
-            <div className="md:grid md:grid-cols-2 md:gap-6 px-4 md:px-0">
-              
-              {/* 3. TODAY'S WORK - THE MAIN CARD */}
-              <div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)] overflow-hidden">
-                  
-                  {/* Header */}
-                  <div className="flex items-center justify-between p-4 border-b border-slate-50 dark:border-slate-800">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-[13px] font-bold text-slate-800 dark:text-white leading-tight">Today's Work</h3>
-                        <p className="text-[10px] text-slate-400 font-medium">Summary of daily tasks and updates.</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 cursor-pointer hover:text-slate-600 transition">View all &gt;</span>
-                  </div>
-
-                  <div className="p-2 space-y-1">
-                    {/* Prescriptions to Review */}
-                    <div onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-purple-50 flex items-center justify-center text-purple-600">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Prescriptions to Review</div>
-                          <div className="text-[10px] text-slate-400">AI extraction completed</div>
-                        </div>
-                      </div>
-                      <div className="min-w-7 h-7 px-2 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[11px] font-bold">
-                        {appointments.filter(a => a.status === 'completed' && !(a as any).prescriptionId).length || 0}
-                      </div>
-                    </div>
-
-                    {/* Bills to Confirm */}
-                    <div onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                          <DollarSign className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Bills to Confirm</div>
-                          <div className="text-[10px] text-slate-400">Confirm and approve billing details</div>
-                        </div>
-                      </div>
-                      <div className="min-w-7 h-7 px-2 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[11px] font-bold">
-                        {appointments.filter(a => a.status === 'pending_payment').length || 0}
-                      </div>
-                    </div>
-
-                    {/* Pharmacy Orders */}
-                    <div onClick={() => { setClinicalSubTab('pharmacy'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                          <Pill className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Pharmacy Orders</div>
-                          <div className="text-[10px] text-slate-400">Awaiting fulfillment</div>
-                        </div>
-                      </div>
-                      <div className="min-w-7 h-7 px-2 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[11px] font-bold">
-                        {PharmacyService.getMedicineBills().filter(b => b.status === 'draft').length || 0}
-                      </div>
-                    </div>
-
-                    {/* Pathology Orders */}
-                    <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-fuchsia-50 flex items-center justify-center text-fuchsia-600">
-                          <FlaskConical className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Pathology Orders</div>
-                          <div className="text-[10px] text-slate-400">Awaiting fulfillment</div>
-                        </div>
-                      </div>
-                      <div className="min-w-7 h-7 px-2 rounded-full bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center text-[11px] font-bold">
-                        {LabService.getLabRequisitions().filter(r => r.status === 'pending').length || 0}
-                      </div>
-                    </div>
-
-                    {/* Lab Reports Arrived */}
-                    <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-[13px] font-bold text-slate-800 dark:text-white">Lab Reports Arrived</div>
-                          <div className="text-[10px] text-slate-400">Requires patient routing</div>
-                        </div>
-                      </div>
-                      <div className="min-w-7 h-7 px-2 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[11px] font-bold">
-                        {LabService.getLabRequisitions().filter(r => r.status === 'completed').length || 0}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            {/* 3. QUICK ACTIONS */}
+            <div className="mb-2">
+              <div className="flex justify-between items-center mb-2 px-1">
+                <h3 className="text-[13px] font-black text-slate-800">Quick Actions</h3>
+                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">All Actions <ArrowRight className="w-3 h-3 ml-0.5" /></span>
               </div>
-
-              {/* 4. FOLLOW-UP / DISPATCH CARDS */}
-              <div className="grid grid-cols-2 gap-3 mt-4 md:mt-0">
-                {/* Follow Up */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] p-4 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)] flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-7 h-7 rounded bg-blue-50 flex items-center justify-center">
-                        <Calendar className="w-3.5 h-3.5 text-blue-500" />
-                      </div>
-                      <span className="text-[12px] font-bold text-slate-800 dark:text-white">Follow-up</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400">View all &gt;</span>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <Camera className="w-4 h-4" />
                   </div>
-                  
-                  <div className="flex flex-col gap-3 flex-1 justify-center">
-                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-blue-500" />
-                        <div>
-                          <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Review Arrived</div>
-                          <div className="text-[9px] text-slate-400">Evening queue</div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">1</span>
-                    </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Scan<br/>Prescription</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <Search className="w-4 h-4" />
                   </div>
-                </div>
-                
-                {/* Dispatch */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[24px] p-4 shadow-[0_4px_24px_-8px_rgba(0,0,0,0.04)] flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center">
-                        <Send className="w-3.5 h-3.5 text-emerald-500" />
-                      </div>
-                      <span className="text-[12px] font-bold text-slate-800 dark:text-white">Dispatch</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400">View all &gt;</span>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Search<br/>Patient</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowInstantAppointmentModal(true)}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-emerald-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-emerald-300 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-emerald-100 flex items-center justify-center mb-1.5 text-emerald-600 bg-emerald-50">
+                    <Plus className="w-4 h-4" />
                   </div>
-                  
-                  <div className="flex flex-col gap-3 flex-1 justify-center">
-                    <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                        <div className="text-[11px] font-bold text-slate-700 dark:text-slate-200">Digital Rx</div>
-                      </div>
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full">
-                        {appointments.filter(a => (a as any).prescriptionId).length || 0}
-                      </span>
-                    </div>
+                  <span className="text-[9px] font-bold text-emerald-700 text-center leading-tight">Add New<br/>Patient</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <FileText className="w-4 h-4" />
                   </div>
-                </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">View<br/>Bill</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
+                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
+                >
+                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Today's<br/>Appts</span>
+                </button>
               </div>
-
             </div>
+
+            {/* 4. TODAY'S QUEUE */}
+            <div className="bg-[#fcfaff] border border-indigo-50 rounded-[24px] p-4 shadow-sm mb-2">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-[10px] bg-indigo-500 text-white flex items-center justify-center shadow-sm">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-[13px] font-black text-slate-800">Today's Queue</h3>
+                      <span className="w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold">4</span>
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-500">Patients waiting for processing</div>
+                  </div>
+                </div>
+                <button className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-[0_2px_6px_-2px_rgba(79,70,229,0.4)]">
+                  View All <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                <div className="bg-white border border-indigo-50 rounded-[12px] p-2 text-center shadow-sm">
+                  <div className="text-lg font-black text-indigo-600 leading-none mb-1">2</div>
+                  <div className="text-[9px] font-bold text-slate-600">Scan Pending</div>
+                </div>
+                <div className="bg-white border border-purple-50 rounded-[12px] p-2 text-center shadow-sm">
+                  <div className="text-lg font-black text-purple-600 leading-none mb-1">1</div>
+                  <div className="text-[9px] font-bold text-slate-600">Bill Pending</div>
+                </div>
+                <div className="bg-white border border-emerald-50 rounded-[12px] p-2 text-center shadow-sm">
+                  <div className="text-lg font-black text-emerald-600 leading-none mb-1">1</div>
+                  <div className="text-[9px] font-bold text-slate-600">Dispatch Pending</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. CURRENT ENCOUNTER */}
+            <div className="bg-[#fcfdfc] border border-emerald-100 rounded-[24px] p-4 shadow-sm mb-2 relative">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-[11px] font-black text-emerald-700">Current Encounter</span>
+                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1">#V-20261007-001</span>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-600 flex items-center cursor-pointer hover:underline">
+                  View Details <ArrowRight className="w-3 h-3 ml-0.5" />
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-black text-sm shadow-inner border-2 border-indigo-200">
+                    AS
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black text-slate-800">Asha Devi</h2>
+                    <p className="text-[10px] font-bold text-slate-500">F · 60 years · ID: 6202499513</p>
+                  </div>
+                </div>
+                <div className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span className="text-[9px] font-black">Bill Confirmed</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
+                  <div className="flex flex-col gap-1 mb-1">
+                    <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Consultation</span>
+                  </div>
+                  <div className="text-[11px] font-black text-slate-800">₹ 500</div>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
+                  <div className="flex flex-col gap-1 mb-0.5">
+                    <Pill className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Medicines</span>
+                  </div>
+                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">3 items</div>
+                  <div className="text-[11px] font-black text-slate-800">₹ 5,000</div>
+                </div>
+                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
+                  <div className="flex flex-col gap-1 mb-0.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
+                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Tests</span>
+                  </div>
+                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">2 tests</div>
+                  <div className="text-[11px] font-black text-slate-800">₹ 2,740</div>
+                </div>
+              </div>
+
+              <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-[11px] py-2.5 rounded-[12px] shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
+                <ArrowRight className="w-3.5 h-3.5" />
+                View Full Encounter
+              </button>
+            </div>
+
+            {/* 6. UPCOMING TASKS */}
+            <div>
+              <div className="flex justify-between items-center mb-2 px-1">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                  <h3 className="text-[13px] font-black text-slate-800">Upcoming Tasks</h3>
+                </div>
+                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">View All <ArrowRight className="w-3 h-3 ml-0.5" /></span>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 shrink-0">
+                      <FlaskConical className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800">Lab Report Ready</div>
+                      <div className="text-[9px] font-bold text-slate-500">Ravi Kumar • CBC, LFT</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded-full">Ready</span>
+                      <span className="text-[9px] font-bold text-slate-400">2:30 PM</span>
+                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 shrink-0">
+                      <Pill className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800">Medicine Dispensing</div>
+                      <div className="text-[9px] font-bold text-slate-500">Neha Sharma • 5 items</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-full">In Progress</span>
+                      <span className="text-[9px] font-bold text-slate-400">3:15 PM</span>
+                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[11px] font-black text-slate-800">Follow-up Reminder</div>
+                      <div className="text-[9px] font-bold text-slate-500">Suresh Yadav • Dr. Vivek Kumar</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[8px] font-black rounded-full">Today</span>
+                      <span className="text-[9px] font-bold text-slate-400">5:00 PM</span>
+                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
-
         {/* ══════════════════════════════════════════════════════════
             TAB: OPD QUEUE & PATIENTS (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
