@@ -23,6 +23,47 @@ You are operating under the **Absolute Zero-Bug Self-Preservation Protocol**. Yo
 3. **Single-Attempt Minimal Diff**: Never rewrite entire files. Provide exactly the minimal surgical diff required to fix a bug in ONE attempt.
 4. **Daemon Bridge Context Validation**: You must always cross-reference the live DOM via the Daemon Bridge (`localhost:9000/context`) or visually if a screenshot is provided before acting on the UI.
 
+## 🛡️ RULE 00: THE J.A.R.V.I.S. ABSOLUTE ZERO-BREAKAGE WEB FORTRESS SHIELD (NON-NEGOTIABLE) 🛡️
+**ATTENTION ALL AI AGENTS:**
+You are operating under the STRICT ZERO-BREAKAGE FRONTEND SHIELD. The J.A.R.V.I.S. / VitalSync web application must NEVER crash, white-screen, or throw Vite transform errors under ANY circumstance. You are strictly forbidden from taking shortcuts, assuming file paths, or pasting unverified code.
+
+YOU MUST OBEY THESE 7 INVIOLABLE SHIELD PROTOCOLS BEFORE & AFTER EVERY CODE CHANGE:
+
+1. **Protocol 1: Disk-Verified Import Invariant (Zero Phantom Imports)**
+   - NEVER write `import { X } from './Y'` without FIRST verifying via `view_file` or `list_dir` that `./Y` exists on disk.
+   - If introducing a new component, you MUST create the file on disk FIRST before importing it.
+   - Never inject duplicate imports at the top of a file.
+
+2. **Protocol 2: JSX Grammar & Parser Shield**
+   - NEVER double-wrap expressions inside JSX:
+     ❌ ILLEGAL: `{activeTab === 'x' && ( {(() => { ... })()} )}`
+     ✅ LEGAL:   `{activeTab === 'x' && (() => { ... })()}`
+   - Every curly brace `{`, bracket `[`, and parenthesis `(` MUST be mathematically balanced.
+
+3. **Protocol 3: Zero-Data-Entry & Live Reactive Invariant (No Fake Mocks)**
+   - NEVER overwrite dynamic database queries with static hardcoded names ("Asha Devi", "Ramesh Kumar").
+   - NEVER inject fake numeric fallbacks (`|| 5`, `|| 32`). Wire strictly to actual array lengths.
+   - All tab and role switches MUST use React 18 `startTransition`.
+
+4. **Protocol 4: Defensive Access Guarantee (Zero Runtime Crashes)**
+   - EVERY array operation MUST be guarded: `(items || []).map(...)`
+   - EVERY string operation MUST be guarded: `(str || '').toLowerCase()`
+   - EVERY numeric calculation MUST be guarded: `(Number(val) || 0).toFixed(2)`
+
+5. **Protocol 5: Blast-Radius & Single-Attempt Minimal Diff**
+   - NEVER rewrite an entire file. Apply ONLY minimal, targeted line-range diffs.
+   - Cross-check consumers across all 5 consoles before editing shared services.
+
+6. **Protocol 6: Mandatory Compiler Gate (Auto-Revert Invariant)**
+   - After modifying ANY `.ts` or `.tsx` file, you MUST immediately run `npx tsc --noEmit` locally.
+   - If Exit Code > 0, you MUST immediately run `git checkout -- <file>` to revert to the safe state.
+
+7. **Protocol 7: Live Daemon Bridge DOM Verification**
+   - Before completing your turn, query `http://localhost:9000/context` and verify `nodeCount > 0`.
+   - The Vite dev server MUST be 100% free of compile errors and red overlays.
+
+---
+
 ## ⚠️ RULE ZERO: THE IMMUTABLE CLINIC OS MANIFESTO (NEVER SELF-DESTRUCT) ⚠️
 **ATTENTION TO ALL FUTURE AI AGENTS**: These 5 core principles are the absolute foundation of the VitalSync Clinic OS. You MUST NEVER bypass, alter, or degrade these systems under any circumstances, even if the user asks for a "quick fix", unless explicitly instructed to "OVERRIDE RULE ZERO".
 

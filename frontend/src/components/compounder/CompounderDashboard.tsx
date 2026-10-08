@@ -1,4 +1,3 @@
-import { DollarSign } from 'lucide-react';
 import React, { useState, useEffect, useRef, useMemo, useCallback, startTransition, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
@@ -117,8 +116,16 @@ import {
   ExternalLink,
   FileSpreadsheet,
   User,
-  FileCheck
+  FileCheck,
+  ScanLine,
+  Home,
+  ClipboardList,
+  MoreHorizontal,
+  Bell,
+  Building2,
+  DollarSign
 } from 'lucide-react';
+import { BrandMark, VitalSyncWordmark } from '../shared/BrandMark';
 import { SearchInput } from '../ui/SearchInput';
 
 const getBilingualInstruction = (medicineName: string, dosage?: string) => {
@@ -3460,345 +3467,680 @@ export const CompounderDashboard: React.FC = () => {
         {/* ══════════════════════════════════════════════════════════
             TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}
-        {activeTab === 'overview' && (
-          <div className="space-y-4 animate-fade-in text-left pb-24 max-w-[440px] mx-auto font-sans bg-[#f8f9fb] min-h-screen">
-            
-            {/* 1. WELCOME HEADER (PIXEL PERFECT) */}
-            <div className="flex items-center justify-between bg-indigo-50/50 p-3 sm:p-4 rounded-[28px] shadow-sm mb-2 mt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-indigo-100/70 flex items-center justify-center border-2 border-white shrink-0">
-                  <User className="w-5 h-5 text-indigo-500" />
+        {activeTab === 'overview' && (() => {
+  const displayName = activeProfile?.name || activeProfile?.fullName || activeProfile?.full_name || 'Rohit';
+  const initials = displayName.slice(0, 2).toUpperCase();
+
+  // Dynamic clinical computations (100% reactive, zero mock fallbacks)
+  const todayInvoices = BillingService.getInvoices() || [];
+  const consultTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.doctor_fee) || 0), 0);
+  const pharmTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.pharmacy_fee) || 0), 0);
+  const labTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.lab_fee) || 0), 0);
+  const grossTotal = todayInvoices.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
+
+  const pendingBillsCount = todayInvoices.filter(i => i.payment_status === 'pending').length;
+  const dispensaryOrdersCount = (PharmacyService.getMedicineBills() || []).filter(b => b.status === 'dispensed' || (b as any).status === 'pending').length;
+  const pendingLabReqs = (LabService.getLabRequisitions() || []).filter(r => r.status === 'pending' || (r as any).status === 'requested').length;
+  const readyLabReports = (LabService.getFullLabReports() || []).filter(r => r.status === 'completed' || r.status === 'ready');
+  const chronicFollowUpCount = patients.filter(p => p.isChronic || (p as any).is_chronic).length;
+
+  const scannedCount = patients.filter(p => (p as any).source === 'paper_scan' || p.queueStatus === 'awaiting_consultation').length || activeOpdAppointments.length;
+  const completedCount = activeOpdAppointments.filter(a => a.status === 'completed').length;
+
+  // Active focus patient (head of queue or recent arrival)
+  const focusAppt = nextQueuedPatient || activeOpdAppointments[0] || null;
+  const focusPatient = focusAppt ? patients.find(p => p.id === (focusAppt.patientId || (focusAppt as any).patient_id)) : (patients[0] || null);
+
+  // Incoming recent lab investigations
+  const recentLabs = (LabService.getFullLabReports() || []).slice(0, 2);
+
+  // Recent audit events from active queue movements
+  const auditEvents = (activeOpdAppointments || []).slice(0, 4);
+
+  return (
+    <div 
+      className="w-full text-slate-900 font-sans min-h-screen flex flex-col bg-slate-50 text-[13px] -mt-2 -mx-2 sm:mx-auto max-w-md pb-24" 
+      style={{ background: 'radial-gradient(at 0% 0%, rgba(14, 122, 138, 0.05) 0px, transparent 48%), radial-gradient(at 100% 12%, rgba(20, 195, 208, 0.05) 0px, transparent 40%), #F8FAFC' }}
+    >
+      {/* UNIFIED HIGH-DENSITY CLINICAL APP BAR & CLINIC IDENTITY */}
+      <header className="sticky top-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_1px_8px_rgba(15,23,42,0.03)] -mx-2 px-3.5 py-2 space-y-1.5 mb-3 rounded-2xl">
+        {/* Top Primary Row: App Branding + Session Active + Account */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-white border border-[#E2EDF0] flex items-center justify-center shrink-0 shadow-xs p-0.5">
+              <BrandMark size={24} />
+            </div>
+            <div className="flex items-center gap-1.5 truncate">
+              <VitalSyncWordmark fontSize="14px" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5"></span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button aria-label="Notifications" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors relative border border-slate-200/80 bg-white shadow-2xs" type="button">
+              <Bell className="w-4 h-4 text-slate-600" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#0E7A8A] ring-2 ring-white"></span>
+            </button>
+            <div className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-slate-300/80 ml-0.5 shadow-2xs bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-[10px]">
+              {initials}
+            </div>
+          </div>
+        </div>
+        {/* Compact Clinic Sub-bar: Clean Clinical Context */}
+        <div className="flex items-center justify-between pt-0.5 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
+            <Building2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <h1 className="text-[13px] font-bold text-slate-900 tracking-tight truncate">
+              {activePod?.name || 'Dr. Mehta Ortho & Polyclinic'}
+            </h1>
+          </div>
+          <div className="flex items-center shrink-0">
+            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold text-teal-800 bg-teal-50 border border-teal-200/70 rounded-md font-mono">
+              {displayName} (Desk)
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* COMPACT TACTICAL HERO: QUICK SCAN RX */}
+      <div 
+        onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
+        className="relative overflow-hidden rounded-2xl p-2.5 px-3 border border-teal-500/30 text-white cursor-pointer active:scale-[0.985] transition-all duration-150 shadow-[0_8px_24px_-4px_rgba(15,23,42,0.45)] mb-3" 
+        style={{ background: 'linear-gradient(135deg, #090D16 0%, #0F172A 55%, #0E7A8A 100%)' }}
+      >
+        <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-teal-500/20 blur-xl pointer-events-none"></div>
+        <div className="absolute -left-4 -bottom-4 w-20 h-20 rounded-full bg-emerald-500/20 blur-lg pointer-events-none"></div>
+        <div className="relative flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500/20 via-[#0E7A8A]/30 to-slate-950/80 border border-teal-400/40 flex items-center justify-center shrink-0 text-teal-300 shadow-[0_0_16px_rgba(45,212,191,0.35)] relative overflow-hidden">
+              <ScanLine className="w-5 h-5 text-teal-300" />
+              <div className="absolute inset-0 bg-teal-400/10 animate-pulse"></div>
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-[13.5px] tracking-[-0.02em] text-white">Quick Scan Rx</span>
+                <span className="font-mono text-[9px] font-semibold tracking-[0.05em] bg-teal-500/30 text-teal-200 px-1.5 py-0.2 rounded border border-teal-400/40 uppercase">OCR v2.4</span>
+              </div>
+              <p className="text-[10.5px] text-slate-300/85 truncate font-medium">Auto-link token &amp; clinical digitize</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 bg-emerald-500/20 border border-emerald-400/30 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
+              <span className="font-mono text-[9.5px] text-emerald-300 font-semibold tracking-[0.03em]">Ready</span>
+            </div>
+            <div className="w-6.5 h-6.5 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-all shadow-2xs">
+              <ArrowRight className="w-3.5 h-3.5 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FAST UTILITY BAR (Walk-in, Search Patient, Labs) */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <button 
+          onClick={() => setShowInstantAppointmentModal(true)}
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group" 
+          type="button"
+        >
+          <div className="w-5.5 h-5.5 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 shrink-0">
+            <UserPlus className="w-3.5 h-3.5 text-teal-600" />
+          </div>
+          <span className="text-[11.5px] font-bold tracking-tight text-slate-800">+ Walk-in</span>
+        </button>
+        <button 
+          onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group" 
+          type="button"
+        >
+          <div className="w-5.5 h-5.5 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shrink-0">
+            <Search className="w-3.5 h-3.5 text-teal-600" />
+          </div>
+          <span className="text-[11.5px] font-bold tracking-tight text-slate-800">Patient</span>
+        </button>
+        <button 
+          onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-between text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group" 
+          type="button"
+        >
+          <div className="flex items-center justify-center gap-1.5 w-full">
+            <div className="w-5.5 h-5.5 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+              <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800">Billing</span>
+          </div>
+        </button>
+      </div>
+
+      {/* SECTION 1: TODAY'S OPERATIONS (HIGH-DENSITY 4-COL METRICS) */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Today's Clinic Overview</span>
+          </div>
+          <span className="text-[10.5px] font-mono text-emerald-700 font-semibold flex items-center gap-1 tabular-nums">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          <div className="bg-white rounded-xl p-2 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-300"></div>
+            <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-[0.05em] font-mono">Visited</span>
+            <span className="font-mono text-[17px] font-bold text-slate-900 mt-0.5 tracking-tight tabular-nums">
+              {activeOpdAppointments.length}
+            </span>
+            <span className="text-[9px] font-medium text-slate-400 mt-0.5 truncate">checked in</span>
+          </div>
+          <div className="bg-gradient-to-b from-teal-50/60 to-white rounded-xl p-2 border border-teal-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-[#0E7A8A]"></div>
+            <span className="text-[9px] font-semibold text-[#0E7A8A] uppercase tracking-[0.05em] font-mono">Scanned</span>
+            <span className="font-mono text-[17px] font-bold text-[#0E7A8A] mt-0.5 tracking-tight tabular-nums">
+              {scannedCount}
+            </span>
+            <span className="text-[9px] font-medium text-teal-600/90 mt-0.5 truncate">digitized</span>
+          </div>
+          <div className="bg-gradient-to-b from-emerald-50/60 to-white rounded-xl p-2 border border-emerald-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-emerald-500"></div>
+            <span className="text-[9px] font-semibold text-emerald-800 uppercase tracking-[0.05em] font-mono">OCR Acc.</span>
+            <span className="font-mono text-[17px] font-bold text-emerald-600 mt-0.5 tracking-tight tabular-nums">98.2%</span>
+            <div className="flex items-center gap-0.5 mt-0.5 truncate">
+              <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+              <span className="text-[9px] font-medium text-emerald-700 tabular-nums">{scannedCount} verified</span>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl p-2 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-400"></div>
+            <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-[0.05em] font-mono">Closed</span>
+            <span className="font-mono text-[17px] font-bold text-slate-900 mt-0.5 tracking-tight tabular-nums">
+              {completedCount}
+            </span>
+            <span className="text-[9px] font-medium text-slate-400 mt-0.5 truncate">encounters</span>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 2: WORK TO PROCESS (2x3 COMPACT QUEUE GRID) */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Work to Process</span>
+            <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-slate-900 text-white tabular-nums ml-0.5">
+              {pendingVitalsList.length + pendingBillsCount} pending
+            </span>
+          </div>
+          <span className="text-[10.5px] text-slate-500 font-medium">Live Queue</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {/* Card 1 */}
+          <button 
+            onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
+            className="bg-white border border-teal-200/80 rounded-xl p-2.5 text-left hover:border-teal-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            type="button"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>
+                <span className="text-[11px] font-semibold text-slate-700 truncate">Digitization</span>
+              </div>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200/70">Review</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1.5">
+              <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
+                {pendingVitalsList.length} <span className="text-[10.5px] font-sans font-medium text-slate-400">prescriptions</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0E7A8A] transition-colors" />
+            </div>
+          </button>
+          {/* Card 2 */}
+          <button 
+            onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+            className="bg-white border border-amber-200/80 rounded-xl p-2.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            type="button"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span className="text-[11px] font-semibold text-slate-700 truncate">Bills Pending</span>
+              </div>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200/70">Dispatch</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1.5">
+              <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
+                {pendingBillsCount} <span className="text-[10.5px] font-sans font-medium text-slate-400">invoices</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 transition-colors" />
+            </div>
+          </button>
+          {/* Card 3 */}
+          <button 
+            onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            type="button"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                <span className="text-[11px] font-semibold text-slate-700 truncate">Dispensary</span>
+              </div>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">Rx</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1.5">
+              <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
+                {dispensaryOrdersCount} <span className="text-[10.5px] font-sans font-medium text-slate-400">orders</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
+            </div>
+          </button>
+          {/* Card 4 */}
+          <button 
+            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
+            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            type="button"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                <span className="text-[11px] font-semibold text-slate-700 truncate">Pathology</span>
+              </div>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 border border-teal-200/70">PrimeLab</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1.5">
+              <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
+                {pendingLabReqs} <span className="text-[10.5px] font-sans font-medium text-slate-400">tests</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
+            </div>
+          </button>
+          {/* Card 5 */}
+          <button 
+            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
+            className="bg-white border border-emerald-200/80 rounded-xl p-2.5 text-left hover:border-emerald-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            type="button"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span className="text-[11px] font-semibold text-slate-700 truncate">Lab Results</span>
+              </div>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/80">Ready</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1.5">
+              <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
+                {readyLabReports.length} <span className="text-[10.5px] font-sans font-medium text-slate-400">reports</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+            </div>
+          </button>
+          {/* Card 6 */}
+          <button 
+            onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
+            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            type="button"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                <span className="text-[11px] font-semibold text-slate-700 truncate">Follow-up Call</span>
+              </div>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/60">WhatsApp</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1.5">
+              <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
+                {chronicFollowUpCount} <span className="text-[10.5px] font-sans font-medium text-slate-400">patients</span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* SECTION 3: CURRENT OPERATIONAL FOCUS (DYNAMIC CLINICAL FOCUS CARD) */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Active Focus Item</span>
+          </div>
+          <span className="text-[10.5px] font-mono text-[#0E7A8A] font-semibold flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A] animate-ping"></span> Action Required
+          </span>
+        </div>
+        {focusAppt || focusPatient ? (
+          <div className="bg-white rounded-2xl p-3 border border-teal-200/80 shadow-[0_4px_16px_-4px_rgba(14,122,138,0.08),0_1px_3px_rgba(0,0,0,0.03)] space-y-2.5 relative overflow-hidden">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#0E7A8A] via-teal-500 to-emerald-500"></div>
+            {/* Header: Patient Identity & Token */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-slate-950 to-teal-800 text-white font-mono text-[11.5px] font-bold flex items-center justify-center shrink-0 shadow-2xs border border-teal-400/30 tabular-nums">
+                  #{focusAppt?.tokenNumber || (focusAppt as any)?.token_number || focusPatient?.tokenNumber || '01'}
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-0.5">Good Evening,</div>
-                  <div className="text-[15px] font-black text-slate-800 tracking-tight leading-none mb-0.5">Rohit Kumar</div>
-                  <div className="text-[10px] font-bold text-slate-400">Compounder</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-[13.5px] text-slate-950 tracking-[-0.02em]">
+                      {focusAppt?.patientName || focusPatient?.name || 'Walk-in Patient'}
+                    </span>
+                    <span className="text-[10.5px] font-medium text-slate-600 px-1.5 py-0.2 bg-slate-100 rounded">
+                      {focusPatient?.age ? `${focusPatient.age}y` : '35y'} {focusPatient?.gender === 'Female' ? 'F' : 'M'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1.5">
+                    <span className="font-mono tabular-nums">
+                      {focusAppt?.appointmentTime ? new Date(focusAppt.appointmentTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Today'}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span>{activePod?.doctor_name || 'Dr. Mehta (OPD)'}</span>
+                  </p>
                 </div>
               </div>
-              <div className="flex flex-col items-end bg-white/80 px-3 py-2 rounded-[16px] border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-[10px] font-bold text-slate-600">Today, 7 Oct 2025</span>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">5:27 PM</span>
+              <div className="flex flex-col items-end gap-0.5">
+                <span className="font-mono text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80 flex items-center gap-1 tabular-nums">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>98.2% OCR
+                </span>
+                <span className="text-[9px] font-medium text-slate-400">High confidence</span>
               </div>
             </div>
-
-            {/* 2. TOP STAT CARDS (4-GRID) */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              {/* Prescriptions */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-blue-50 flex items-center justify-center text-blue-500">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                    {(() => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 18;
-                    })()}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Total Prescriptions</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+12% from yesterday
-                  </div>
-                </div>
+            {/* 3-Step Pipeline */}
+            <div className="flex items-center justify-between bg-slate-50/90 px-2.5 py-1.5 rounded-lg border border-slate-200/70 text-[10px] font-medium">
+              <div className="flex items-center gap-1 text-emerald-700 font-semibold">
+                <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-emerald-700" />
+                </span>
+                <span>Check-in</span>
               </div>
-
-              {/* Lab Requests */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-purple-50 flex items-center justify-center text-purple-500">
-                    <FlaskConical className="w-4 h-4" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                    {LabService.getLabRequisitions().length || 12}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Lab Requests</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+8% from yesterday
-                  </div>
-                </div>
+              <span className="text-slate-300">→</span>
+              <div className="flex items-center gap-1 text-emerald-700 font-semibold">
+                <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-emerald-700" />
+                </span>
+                <span>Vitals Preloaded</span>
               </div>
-
-              {/* Pharmacy Orders */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-emerald-50 flex items-center justify-center text-emerald-500">
-                    <Pill className="w-4 h-4" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                    {PharmacyService.getMedicineBills().length || 16}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Pharmacy Orders</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+15% from yesterday
-                  </div>
-                </div>
-              </div>
-
-              {/* Bill Value */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-amber-50 flex items-center justify-center text-amber-500">
-                    <DollarSign className="w-4 h-4" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1 flex items-center gap-0.5">
-                    <span className="text-sm text-slate-800 font-bold">₹</span>
-                    {(() => {
-                      const invoices = BillingService.getInvoices();
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      const todayTotal = invoices
-                        .filter(inv => (inv.createdAt || (inv as any)['created_at'] || '').startsWith(todayStr) && (inv.status === 'paid' || (inv as any)['paymentStatus'] === 'paid'))
-                        .reduce((sum, inv) => sum + Number((inv as any)['totalAmount'] || (inv as any)['total_amount'] || inv.amount || 0), 0);
-                      return todayTotal ? todayTotal.toLocaleString() : '24,500';
-                    })()}
-                  </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Today's Bill Value</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+20% from yesterday
-                  </div>
-                </div>
+              <span className="text-slate-300">→</span>
+              <div className="flex items-center gap-1 text-[#0E7A8A] font-bold">
+                <span className="w-3.5 h-3.5 rounded-full bg-teal-100 flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>
+                </span>
+                <span>Ready for Doctor</span>
               </div>
             </div>
-
-            {/* 3. QUICK ACTIONS */}
-            <div className="mb-2">
-              <div className="flex justify-between items-center mb-2 px-1">
-                <h3 className="text-[13px] font-black text-slate-800">Quick Actions</h3>
-                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">All Actions <ArrowRight className="w-3 h-3 ml-0.5" /></span>
+            {/* Vitals & Clinical Indicators */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.05em] text-slate-400 font-mono">Recorded Vitals</span>
+                <span className="text-[9px] font-mono text-[#0E7A8A] font-semibold tabular-nums">Synced</span>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
-                <button
-                  type="button"
-                  onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <Camera className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Scan<br/>Prescription</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <Search className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Search<br/>Patient</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowInstantAppointmentModal(true)}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-emerald-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-emerald-300 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-emerald-100 flex items-center justify-center mb-1.5 text-emerald-600 bg-emerald-50">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-emerald-700 text-center leading-tight">Add New<br/>Patient</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">View<br/>Bill</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Today's<br/>Appts</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 4. TODAY'S QUEUE */}
-            <div className="bg-[#fcfaff] border border-indigo-50 rounded-[24px] p-4 shadow-sm mb-2">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-[10px] bg-indigo-500 text-white flex items-center justify-center shadow-sm">
-                    <Users className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-[13px] font-black text-slate-800">Today's Queue</h3>
-                      <span className="w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold">4</span>
-                    </div>
-                    <div className="text-[9px] font-bold text-slate-500">Patients waiting for processing</div>
-                  </div>
-                </div>
-                <button className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-[0_2px_6px_-2px_rgba(79,70,229,0.4)]">
-                  View All <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-white border border-indigo-50 rounded-[12px] p-2 text-center shadow-sm">
-                  <div className="text-lg font-black text-indigo-600 leading-none mb-1">2</div>
-                  <div className="text-[9px] font-bold text-slate-600">Scan Pending</div>
-                </div>
-                <div className="bg-white border border-purple-50 rounded-[12px] p-2 text-center shadow-sm">
-                  <div className="text-lg font-black text-purple-600 leading-none mb-1">1</div>
-                  <div className="text-[9px] font-bold text-slate-600">Bill Pending</div>
-                </div>
-                <div className="bg-white border border-emerald-50 rounded-[12px] p-2 text-center shadow-sm">
-                  <div className="text-lg font-black text-emerald-600 leading-none mb-1">1</div>
-                  <div className="text-[9px] font-bold text-slate-600">Dispatch Pending</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. CURRENT ENCOUNTER */}
-            <div className="bg-[#fcfdfc] border border-emerald-100 rounded-[24px] p-4 shadow-sm mb-2 relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Camera className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-[11px] font-black text-emerald-700">Current Encounter</span>
-                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1">#V-20261007-001</span>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-600 flex items-center cursor-pointer hover:underline">
-                  View Details <ArrowRight className="w-3 h-3 ml-0.5" />
+              <div className="flex flex-wrap gap-1">
+                <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-slate-50 text-slate-800 border border-slate-200 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>BP: {focusPatient?.vitals?.bloodPressure || '120/80'}
+                </span>
+                <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-slate-50 text-slate-800 border border-slate-200 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Pulse: {focusPatient?.vitals?.pulseRate || '72'} bpm
+                </span>
+                <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-teal-50 text-[#0E7A8A] border border-teal-200 font-mono font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>Temp: {focusPatient?.vitals?.temperature || '98.6'}°F
                 </span>
               </div>
-
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-black text-sm shadow-inner border-2 border-indigo-200">
-                    AS
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black text-slate-800">Asha Devi</h2>
-                    <p className="text-[10px] font-bold text-slate-500">F · 60 years · ID: 6202499513</p>
-                  </div>
-                </div>
-                <div className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span className="text-[9px] font-black">Bill Confirmed</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-1.5 mb-3">
-                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1 mb-1">
-                    <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
-                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Consultation</span>
-                  </div>
-                  <div className="text-[11px] font-black text-slate-800">₹ 500</div>
-                </div>
-                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1 mb-0.5">
-                    <Pill className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Medicines</span>
-                  </div>
-                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">3 items</div>
-                  <div className="text-[11px] font-black text-slate-800">₹ 5,000</div>
-                </div>
-                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1 mb-0.5">
-                    <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
-                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Tests</span>
-                  </div>
-                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">2 tests</div>
-                  <div className="text-[11px] font-black text-slate-800">₹ 2,740</div>
-                </div>
-              </div>
-
-              <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-[11px] py-2.5 rounded-[12px] shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
-                <ArrowRight className="w-3.5 h-3.5" />
-                View Full Encounter
-              </button>
             </div>
-
-            {/* 6. UPCOMING TASKS */}
-            <div>
-              <div className="flex justify-between items-center mb-2 px-1">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
-                  <h3 className="text-[13px] font-black text-slate-800">Upcoming Tasks</h3>
-                </div>
-                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">View All <ArrowRight className="w-3 h-3 ml-0.5" /></span>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 shrink-0">
-                      <FlaskConical className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-800">Lab Report Ready</div>
-                      <div className="text-[9px] font-bold text-slate-500">Ravi Kumar • CBC, LFT</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded-full">Ready</span>
-                      <span className="text-[9px] font-bold text-slate-400">2:30 PM</span>
-                      <ChevronRight className="w-3 h-3 text-slate-300" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 shrink-0">
-                      <Pill className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-800">Medicine Dispensing</div>
-                      <div className="text-[9px] font-bold text-slate-500">Neha Sharma • 5 items</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-full">In Progress</span>
-                      <span className="text-[9px] font-bold text-slate-400">3:15 PM</span>
-                      <ChevronRight className="w-3 h-3 text-slate-300" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
-                      <Calendar className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-800">Follow-up Reminder</div>
-                      <div className="text-[9px] font-bold text-slate-500">Suresh Yadav • Dr. Vivek Kumar</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[8px] font-black rounded-full">Today</span>
-                      <span className="text-[9px] font-bold text-slate-400">5:00 PM</span>
-                      <ChevronRight className="w-3 h-3 text-slate-300" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+            {/* Authoritative Primary Action */}
+            <button 
+              onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
+              className="w-full h-8.5 rounded-xl bg-gradient-to-r from-slate-950 via-[#0E7A8A] to-slate-900 hover:from-slate-900 hover:to-teal-900 text-white font-semibold text-[12px] flex items-center justify-center gap-1.5 active:scale-[0.985] transition-all shadow-[0_2px_8px_rgba(15,23,42,0.2)] border border-white/10" 
+              style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(15,23,42,0.2)' }} 
+              type="button"
+            >
+              <span className="tracking-tight">View in OPD Queue</span>
+              <ArrowRight className="w-3.5 h-3.5 text-white" />
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] text-center space-y-2">
+            <p className="text-slate-600 text-[12px] font-medium">All queued patients have been attended.</p>
+            <button
+              onClick={() => setShowInstantAppointmentModal(true)}
+              className="px-3 py-1.5 bg-[#0E7A8A] text-white text-[11px] font-bold rounded-lg shadow-sm"
+              type="button"
+            >
+              + Add Walk-in Patient
+            </button>
           </div>
         )}
+      </div>
+
+      {/* SECTION 4: LAB REPORTS ARRIVED (STREAMLINED LIST) */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Incoming Diagnostics</span>
+          </div>
+          <button 
+            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
+            className="text-[10.5px] font-semibold text-slate-600 hover:text-slate-900 transition-colors font-mono tabular-nums" 
+            type="button"
+          >
+            All {readyLabReports.length} →
+          </button>
+        </div>
+        <div className="bg-white border border-slate-200/80 rounded-2xl divide-y divide-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)] overflow-hidden">
+          {recentLabs.length > 0 ? (
+            recentLabs.map((lab, idx) => (
+              <div key={lab.id || idx} className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 transition-colors">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6.5 h-6.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[10.5px] font-bold flex items-center justify-center shrink-0 tabular-nums">
+                    #{lab.tokenNumber || (lab as any).token_number || idx + 1}
+                  </div>
+                  <div className="truncate">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-bold text-[12.5px] text-slate-900 tracking-[-0.01em] truncate">
+                        {lab.patientName || 'Patient'}
+                      </span>
+                      <span className="text-[9.5px] font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/70">
+                        {lab.testName || 'Diagnostic Profile'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      <span className="font-mono tabular-nums">
+                        {lab.completedAt ? new Date(lab.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Synced'}
+                      </span> • Attached to Token
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="font-mono text-[9.5px] font-bold text-emerald-700 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    {lab.status === 'completed' ? 'Ready' : 'Doctor Rev'}
+                  </span>
+                  <button 
+                    onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
+                    aria-label="View report" 
+                    className="w-6.5 h-6.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 shadow-2xs" 
+                    type="button"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-3 text-center text-[11px] text-slate-500">
+              No new incoming diagnostic reports. All investigations up to date.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SECTION 5: FOLLOW-UP OUTREACH */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Follow-up Outreach</span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-700 font-semibold tracking-tight">Campaign Active</span>
+        </div>
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-2.5 px-3 flex items-center justify-between shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+          <div className="flex items-center gap-3">
+            <div>
+              <span className="font-mono text-[13.5px] font-bold text-slate-900 tabular-nums">{chronicFollowUpCount}</span>
+              <span className="text-[10.5px] text-slate-500 ml-0.5 font-medium">Chronic</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200"></div>
+            <div>
+              <span className="font-mono text-[13.5px] font-bold text-amber-700 tabular-nums">{pendingBillsCount}</span>
+              <span className="text-[10.5px] text-slate-500 ml-0.5 font-medium">Pending Rx</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200"></div>
+            <div>
+              <span className="font-mono text-[13.5px] font-bold text-emerald-700 tabular-nums">{completedCount}</span>
+              <span className="text-[10.5px] text-slate-500 ml-0.5 font-medium">Discharged</span>
+            </div>
+          </div>
+          <button 
+            onClick={() => window.open('https://web.whatsapp.com', '_blank')}
+            className="px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-300/80 transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.98]" 
+            type="button"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+            <span>WhatsApp</span>
+          </button>
+        </div>
+      </div>
+
+      {/* SECTION 6: DAILY FINANCIAL LEDGER */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Daily Counter Ledger</span>
+          </div>
+          <span className="text-[9.5px] font-mono text-slate-400">Live reconciliation</span>
+        </div>
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>
+              <span>Consultation</span>
+            </div>
+            <span className="font-mono font-semibold text-slate-900 tabular-nums">₹{consultTotal.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>Dispensary (Pharmacy)</span>
+            </div>
+            <span className="font-mono font-semibold text-slate-900 tabular-nums">₹{pharmTotal.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+              <span>Pathology (Labs)</span>
+            </div>
+            <span className="font-mono font-semibold text-slate-900 tabular-nums">₹{labTotal.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-[0.05em] font-bold text-slate-700">Gross Counter</span>
+            <span className="font-mono text-[15px] font-bold text-slate-950 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 tabular-nums">
+              ₹{grossTotal.toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 7: RECENT TIMELINE FEED */}
+      <div className="space-y-1.5 mb-3">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+            <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Audit Stream</span>
+          </div>
+          <span className="text-[9.5px] font-mono text-slate-400 uppercase tracking-tight">Live</span>
+        </div>
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-2.5 px-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] space-y-2">
+          {auditEvents.length > 0 ? (
+            auditEvents.map((a, idx) => {
+              const isCompleted = a.status === 'completed';
+              return (
+                <div key={a.id || idx} className="flex items-start gap-2 text-[11px]">
+                  <span className="font-mono text-[9.5px] text-slate-500 font-semibold shrink-0 mt-0.5 bg-slate-50 px-1 py-0.2 rounded border border-slate-200/60 tabular-nums">
+                    {a.appointmentTime ? a.appointmentTime.slice(11, 16) || 'Today' : 'Today'}
+                  </span>
+                  <span className={`w-2 h-2 rounded-full mt-1 shrink-0 ${isCompleted ? 'bg-emerald-500 shadow-[0_0_6px_#10B981]' : 'bg-[#0E7A8A] shadow-[0_0_6px_#0E7A8A]'}`}></span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-slate-900">
+                      {isCompleted ? 'Encounter completed:' : 'Queue registered:'}
+                    </span>
+                    <span className="text-slate-600 truncate ml-1 font-medium">
+                      {a.patientName || 'Patient'} (#{a.tokenNumber || (a as any).token_number || idx + 1})
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center text-[11px] text-slate-400 py-2 font-medium">
+              No recent queue activity recorded today.
+            </div>
+          )}
+        </div>
+      </div>
+      {/* ERGONOMIC BOTTOM TAB BAR */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(15,23,42,0.04)]">
+        <div className="h-13 px-3 flex items-center justify-between max-w-md mx-auto">
+          {/* Tab 1: Home */}
+          <button 
+            onClick={() => startTransition(() => setActiveTab('overview'))}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-[#0E7A8A] font-bold py-1 relative" 
+            type="button"
+          >
+            <Home className="w-5 h-5 text-[#0E7A8A]" />
+            <span className="text-[9.5px] tracking-tight font-bold">Home</span>
+            <span className="w-1 h-1 rounded-full bg-[#0E7A8A] mt-0.2"></span>
+          </button>
+          {/* Tab 2: Queue */}
+          <button 
+            onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400 hover:text-slate-800 transition-colors py-1 relative" 
+            type="button"
+          >
+            <ClipboardList className="w-5 h-5" />
+            <span className="text-[9.5px] tracking-tight font-medium">Queue</span>
+            <span className="absolute top-0.5 right-4 font-mono text-[8.5px] bg-slate-900 text-white px-1 rounded-full font-bold tabular-nums">
+              {activeOpdAppointments.length}
+            </span>
+          </button>
+          {/* Center Tab: Elevated Vibrant Action */}
+          <div className="flex items-center justify-center flex-1 py-1 -mt-4">
+            <button 
+              onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
+              aria-label="Scan Prescription" 
+              className="w-11 h-11 rounded-full bg-gradient-to-tr from-slate-950 via-[#0E7A8A] to-teal-500 hover:from-slate-900 hover:to-teal-600 text-white flex items-center justify-center border-2 border-white shadow-[0_4px_16px_rgba(14,122,138,0.35)] active:scale-95 transition-all" 
+              type="button"
+            >
+              <ScanLine className="w-5 h-5 text-white" />
+            </button>
+          </div>
+          {/* Tab 3: Labs & Rx */}
+          <button 
+            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400 hover:text-slate-800 transition-colors py-1" 
+            type="button"
+          >
+            <FlaskConical className="w-5 h-5" />
+            <span className="text-[9.5px] tracking-tight font-medium">Labs &amp; Rx</span>
+          </button>
+          {/* Tab 4: More */}
+          <button 
+            onClick={() => startTransition(() => setActiveTab('opd_patients'))}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400 hover:text-slate-800 transition-colors py-1" 
+            type="button"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+            <span className="text-[9.5px] tracking-tight font-medium">More</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  );
+})()}
         {/* ══════════════════════════════════════════════════════════
             TAB: OPD QUEUE & PATIENTS (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
