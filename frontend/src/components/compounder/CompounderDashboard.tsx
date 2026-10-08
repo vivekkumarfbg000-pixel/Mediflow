@@ -3461,336 +3461,233 @@ export const CompounderDashboard: React.FC = () => {
             TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (
-          <div className="space-y-4 animate-fade-in text-left pb-24 max-w-[440px] mx-auto font-sans bg-[#f8f9fb] min-h-screen">
+          <div className="space-y-4 animate-fade-in text-left pb-32 max-w-[440px] md:max-w-none mx-auto font-sans bg-[#f8f9fb] md:bg-transparent dark:bg-transparent min-h-screen md:px-6">
             
-            {/* 1. WELCOME HEADER (PIXEL PERFECT) */}
-            <div className="flex items-center justify-between bg-indigo-50/50 p-3 sm:p-4 rounded-[28px] shadow-sm mb-2 mt-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-indigo-100/70 flex items-center justify-center border-2 border-white shrink-0">
-                  <User className="w-5 h-5 text-indigo-500" />
-                </div>
-                <div>
-                  <div className="text-[11px] font-bold text-slate-500 mb-0.5">Good Evening,</div>
-                  <div className="text-[15px] font-black text-slate-800 tracking-tight leading-none mb-0.5">Rohit Kumar</div>
-                  <div className="text-[10px] font-bold text-slate-400">Compounder</div>
-                </div>
-              </div>
-              <div className="flex flex-col items-end bg-white/80 px-3 py-2 rounded-[16px] border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="text-[10px] font-bold text-slate-600">Today, 7 Oct 2025</span>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">5:27 PM</span>
+            {/* 1. TOP HEADER - CLEAN BRANDING ONLY */}
+            <div className="flex items-center justify-between pt-6 px-4 md:hidden">
+              <div className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Today's Clinic</div>
+              <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">Live</span>
               </div>
             </div>
 
-            {/* 2. TOP STAT CARDS (4-GRID) */}
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              {/* Prescriptions */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-blue-50 flex items-center justify-center text-blue-500">
-                    <FileText className="w-4 h-4" />
-                  </div>
+            {/* 2. THE 4 BENTO METRICS (Patients, Scanned, Digitized, Billed) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 px-4 md:px-0 mb-4 md:mb-8 md:pt-4">
+              {/* PATIENTS */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 md:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] flex flex-col justify-between h-[110px] md:h-[140px]">
+                <div className="flex items-center gap-1.5 text-blue-500 bg-blue-50 dark:bg-blue-500/10 w-fit px-2 md:px-3 py-1 md:py-1.5 rounded-lg">
+                  <Users className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="text-[9px] md:text-[11px] font-bold text-slate-600 dark:text-slate-400">Patients</span>
                 </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
+                <div className="flex items-end justify-between mt-auto">
+                  <div className="text-2xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
                     {(() => {
                       const todayStr = new Date().toISOString().split('T')[0];
-                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 18;
+                      return patients.filter(p => (p.createdAt || (p as any).created_at || '').startsWith(todayStr)).length || 0;
                     })()}
                   </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Total Prescriptions</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+12% from yesterday
-                  </div>
+                  {/* Faux Sparkline */}
+                  <svg className="w-8 h-4 md:w-12 md:h-6 opacity-50" viewBox="0 0 40 20" fill="none"><path d="M0 10 Q10 20, 20 10 T40 5" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round"/></svg>
                 </div>
+                <div className="hidden md:block w-5 h-5 rounded-full border-2 border-slate-100 dark:border-slate-800 border-t-blue-500 mt-2 transform -rotate-45" />
               </div>
 
-              {/* Lab Requests */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-purple-50 flex items-center justify-center text-purple-500">
-                    <FlaskConical className="w-4 h-4" />
-                  </div>
+              {/* SCANNED */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 md:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] flex flex-col justify-between h-[110px] md:h-[140px]">
+                <div className="flex items-center gap-1.5 text-purple-500 bg-purple-50 dark:bg-purple-500/10 w-fit px-2 md:px-3 py-1 md:py-1.5 rounded-lg">
+                  <Camera className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="text-[9px] md:text-[11px] font-bold text-slate-600 dark:text-slate-400">Scanned</span>
                 </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                    {LabService.getLabRequisitions().length || 12}
+                <div className="flex items-end justify-between mt-auto">
+                  <div className="text-2xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {appointments.length || 0}
                   </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Lab Requests</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+8% from yesterday
-                  </div>
+                  {/* Faux Sparkline */}
+                  <svg className="w-8 h-4 md:w-12 md:h-6 opacity-50" viewBox="0 0 40 20" fill="none"><path d="M0 15 Q10 5, 20 15 T40 5" stroke="#a855f7" strokeWidth="2" strokeLinecap="round"/></svg>
                 </div>
+                <div className="hidden md:block w-5 h-5 rounded-full border-2 border-slate-100 dark:border-slate-800 border-t-purple-500 mt-2 transform rotate-45" />
               </div>
 
-              {/* Pharmacy Orders */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-emerald-50 flex items-center justify-center text-emerald-500">
-                    <Pill className="w-4 h-4" />
-                  </div>
+              {/* DIGITIZED */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 md:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] flex flex-col justify-between h-[110px] md:h-[140px]">
+                <div className="flex items-center gap-1.5 text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 w-fit px-2 md:px-3 py-1 md:py-1.5 rounded-lg">
+                  <FileCheck className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="text-[9px] md:text-[11px] font-bold text-slate-600 dark:text-slate-400">Digitized</span>
                 </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">
-                    {PharmacyService.getMedicineBills().length || 16}
+                <div className="flex items-end justify-between mt-auto">
+                  <div className="text-2xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {appointments.filter(a => a.status === 'completed' || a.status === 'in_consultation').length || 0}
                   </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Pharmacy Orders</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+15% from yesterday
-                  </div>
+                  {/* Faux Sparkline */}
+                  <svg className="w-8 h-4 md:w-12 md:h-6 opacity-50" viewBox="0 0 40 20" fill="none"><path d="M0 18 Q15 0, 25 10 T40 2" stroke="#10b981" strokeWidth="2" strokeLinecap="round"/></svg>
                 </div>
+                <div className="hidden md:block w-5 h-5 rounded-full border-2 border-slate-100 dark:border-slate-800 border-t-emerald-500 mt-2 transform rotate-12" />
               </div>
 
-              {/* Bill Value */}
-              <div className="bg-white border border-slate-100 rounded-[20px] p-3 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="w-9 h-9 rounded-[12px] bg-amber-50 flex items-center justify-center text-amber-500">
-                    <DollarSign className="w-4 h-4" />
-                  </div>
+              {/* BILLED */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 md:p-5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.05)] z-10 scale-105 shadow-xl border-amber-200/50 flex flex-col justify-between h-[110px] md:h-[140px]">
+                <div className="flex items-center gap-1.5 text-amber-500 bg-amber-50 dark:bg-amber-500/10 w-fit px-2 md:px-3 py-1 md:py-1.5 rounded-lg">
+                  <Receipt className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                  <span className="text-[9px] md:text-[11px] font-bold text-slate-600 dark:text-slate-400">Billed</span>
                 </div>
-                <div>
-                  <div className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1 flex items-center gap-0.5">
-                    <span className="text-sm text-slate-800 font-bold">₹</span>
-                    {(() => {
-                      const invoices = BillingService.getInvoices();
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      const todayTotal = invoices
-                        .filter(inv => (inv.createdAt || (inv as any)['created_at'] || '').startsWith(todayStr) && (inv.status === 'paid' || (inv as any)['paymentStatus'] === 'paid'))
-                        .reduce((sum, inv) => sum + Number((inv as any)['totalAmount'] || (inv as any)['total_amount'] || inv.amount || 0), 0);
-                      return todayTotal ? todayTotal.toLocaleString() : '24,500';
-                    })()}
+                <div className="flex items-end justify-between mt-auto">
+                  <div className="text-2xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tighter">
+                    {appointments.filter(a => isAppointmentPaid(a)).length || 0}
                   </div>
-                  <div className="text-[10px] font-bold text-slate-500 mb-1.5">Today's Bill Value</div>
-                  <div className="text-[8px] font-bold text-emerald-600 tracking-wide">
-                    ↑+20% from yesterday
-                  </div>
+                  {/* Faux Sparkline */}
+                  <svg className="w-8 h-4 md:w-12 md:h-6 opacity-50" viewBox="0 0 40 20" fill="none"><path d="M0 20 L10 10 L20 15 L30 5 L40 0" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"/></svg>
                 </div>
+                <div className="hidden md:block w-5 h-5 rounded-full border-2 border-amber-100 dark:border-amber-900 border-t-amber-500 mt-2 transform -rotate-12" />
               </div>
             </div>
 
-            {/* 3. QUICK ACTIONS */}
-            <div className="mb-2">
-              <div className="flex justify-between items-center mb-2 px-1">
-                <h3 className="text-[13px] font-black text-slate-800">Quick Actions</h3>
-                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">All Actions <ArrowRight className="w-3 h-3 ml-0.5" /></span>
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x">
-                <button
-                  type="button"
-                  onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <Camera className="w-4 h-4" />
+            {/* TWO COLUMN DESKTOP GRID */}
+            <div className="md:grid md:grid-cols-2 md:gap-6 px-4 md:px-0">
+              
+              {/* 3. TODAY'S WORK TRIAGE LIST */}
+              <div>
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-4 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] h-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+                        <FileText className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm md:text-base font-bold text-slate-800 dark:text-white leading-tight">Today's Work</h3>
+                        <p className="text-[10px] md:text-xs text-slate-400">Summary of daily tasks and updates.</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] md:text-xs font-bold text-slate-400 cursor-pointer">View all &gt;</span>
                   </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Scan<br/>Prescription</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <Search className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Search<br/>Patient</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowInstantAppointmentModal(true)}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-emerald-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-emerald-300 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-emerald-100 flex items-center justify-center mb-1.5 text-emerald-600 bg-emerald-50">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-emerald-700 text-center leading-tight">Add New<br/>Patient</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">View<br/>Bill</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
-                  className="snap-start flex flex-col items-center justify-center p-3 bg-white border border-slate-100 rounded-[16px] w-[84px] shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition shrink-0"
-                >
-                  <div className="w-10 h-10 rounded-full border border-indigo-50 flex items-center justify-center mb-1.5 text-indigo-500 bg-indigo-50/50">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-600 text-center leading-tight">Today's<br/>Appts</span>
-                </button>
-              </div>
-            </div>
 
-            {/* 4. TODAY'S QUEUE */}
-            <div className="bg-[#fcfaff] border border-indigo-50 rounded-[24px] p-4 shadow-sm mb-2">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-[10px] bg-indigo-500 text-white flex items-center justify-center shadow-sm">
-                    <Users className="w-4 h-4" />
+                  <div className="space-y-1 md:space-y-2">
+                    {/* Prescriptions to Review */}
+                    <div onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))} className="flex items-center justify-between p-2.5 md:p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-500/10 flex items-center justify-center text-purple-500">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[12px] md:text-sm font-bold text-slate-800 dark:text-white">Prescriptions to Review</div>
+                          <div className="text-[9px] md:text-[11px] text-slate-400">AI extraction completed</div>
+                        </div>
+                      </div>
+                      <div className="min-w-6 h-6 px-1.5 rounded-full bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center justify-center text-[10px] font-black">
+                        {appointments.filter(a => a.status === 'completed' && !a.prescriptionId).length || 0}
+                      </div>
+                    </div>
+
+                    {/* Bills to Confirm */}
+                    <div onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }} className="flex items-center justify-between p-2.5 md:p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500">
+                          <DollarSign className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[12px] md:text-sm font-bold text-slate-800 dark:text-white">Bills to Confirm</div>
+                          <div className="text-[9px] md:text-[11px] text-slate-400">Confirm and approve billing details</div>
+                        </div>
+                      </div>
+                      <div className="min-w-6 h-6 px-1.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center text-[10px] font-black">
+                        {appointments.filter(a => a.status === 'pending_payment').length || 0}
+                      </div>
+                    </div>
+
+                    {/* Pharmacy Orders */}
+                    <div onClick={() => { setClinicalSubTab('pharmacy'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2.5 md:p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                          <Pill className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[12px] md:text-sm font-bold text-slate-800 dark:text-white">Pharmacy Orders</div>
+                          <div className="text-[9px] md:text-[11px] text-slate-400">Awaiting fulfillment</div>
+                        </div>
+                      </div>
+                      <div className="min-w-6 h-6 px-1.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-[10px] font-black">
+                        {PharmacyService.getMedicineBills().filter(b => b.status === 'pending').length || 0}
+                      </div>
+                    </div>
+
+                    {/* Pathology Orders */}
+                    <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2.5 md:p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-fuchsia-50 dark:bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-500">
+                          <FlaskConical className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[12px] md:text-sm font-bold text-slate-800 dark:text-white">Pathology Orders</div>
+                          <div className="text-[9px] md:text-[11px] text-slate-400">Awaiting fulfillment</div>
+                        </div>
+                      </div>
+                      <div className="min-w-6 h-6 px-1.5 rounded-full bg-fuchsia-100 dark:bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300 flex items-center justify-center text-[10px] font-black">
+                        {LabService.getLabRequisitions().filter(r => r.status === 'pending').length || 0}
+                      </div>
+                    </div>
+
+                    {/* Lab Reports Arrived */}
+                    <div onClick={() => { setClinicalSubTab('labs'); startTransition(() => setActiveTab('clinical_hub')); }} className="flex items-center justify-between p-2.5 md:p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl cursor-pointer transition">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-[12px] md:text-sm font-bold text-slate-800 dark:text-white">Lab Reports Arrived</div>
+                          <div className="text-[9px] md:text-[11px] text-slate-400">Requires patient routing</div>
+                        </div>
+                      </div>
+                      <div className="min-w-6 h-6 px-1.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-[10px] font-black">
+                        {LabService.getLabRequisitions().filter(r => r.status === 'completed').length || 0}
+                      </div>
+                    </div>
                   </div>
-                  <div>
+                </div>
+              </div>
+
+              {/* 4. BOTTOM FOLLOW-UP / DISPATCH CARDS */}
+              <div className="grid grid-cols-2 gap-3 mt-4 md:mt-0">
+                {/* Follow Up */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-4 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] h-full">
+                  <div className="flex items-center justify-between mb-3 md:mb-5">
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-[13px] font-black text-slate-800">Today's Queue</h3>
-                      <span className="w-3.5 h-3.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[8px] font-bold">4</span>
+                      <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                      <span className="text-[11px] md:text-sm font-bold text-slate-800 dark:text-white">Follow-up</span>
                     </div>
-                    <div className="text-[9px] font-bold text-slate-500">Patients waiting for processing</div>
+                    <span className="text-[9px] md:text-xs text-slate-400">View all &gt;</span>
                   </div>
-                </div>
-                <button className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-[0_2px_6px_-2px_rgba(79,70,229,0.4)]">
-                  View All <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-3 gap-1.5">
-                <div className="bg-white border border-indigo-50 rounded-[12px] p-2 text-center shadow-sm">
-                  <div className="text-lg font-black text-indigo-600 leading-none mb-1">2</div>
-                  <div className="text-[9px] font-bold text-slate-600">Scan Pending</div>
-                </div>
-                <div className="bg-white border border-purple-50 rounded-[12px] p-2 text-center shadow-sm">
-                  <div className="text-lg font-black text-purple-600 leading-none mb-1">1</div>
-                  <div className="text-[9px] font-bold text-slate-600">Bill Pending</div>
-                </div>
-                <div className="bg-white border border-emerald-50 rounded-[12px] p-2 text-center shadow-sm">
-                  <div className="text-lg font-black text-emerald-600 leading-none mb-1">1</div>
-                  <div className="text-[9px] font-bold text-slate-600">Dispatch Pending</div>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. CURRENT ENCOUNTER */}
-            <div className="bg-[#fcfdfc] border border-emerald-100 rounded-[24px] p-4 shadow-sm mb-2 relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1.5">
-                  <Camera className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-[11px] font-black text-emerald-700">Current Encounter</span>
-                  <span className="text-[9px] font-mono font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-1">#V-20261007-001</span>
-                </div>
-                <span className="text-[10px] font-bold text-emerald-600 flex items-center cursor-pointer hover:underline">
-                  View Details <ArrowRight className="w-3 h-3 ml-0.5" />
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-black text-sm shadow-inner border-2 border-indigo-200">
-                    AS
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black text-slate-800">Asha Devi</h2>
-                    <p className="text-[10px] font-bold text-slate-500">F · 60 years · ID: 6202499513</p>
-                  </div>
-                </div>
-                <div className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  <span className="text-[9px] font-black">Bill Confirmed</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-1.5 mb-3">
-                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1 mb-1">
-                    <Stethoscope className="w-3.5 h-3.5 text-indigo-500" />
-                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Consultation</span>
-                  </div>
-                  <div className="text-[11px] font-black text-slate-800">₹ 500</div>
-                </div>
-                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1 mb-0.5">
-                    <Pill className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Medicines</span>
-                  </div>
-                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">3 items</div>
-                  <div className="text-[11px] font-black text-slate-800">₹ 5,000</div>
-                </div>
-                <div className="bg-white border border-slate-100 rounded-[12px] p-2 flex flex-col justify-between">
-                  <div className="flex flex-col gap-1 mb-0.5">
-                    <FlaskConical className="w-3.5 h-3.5 text-purple-500" />
-                    <span className="text-[9px] font-bold text-slate-600 leading-tight">Tests</span>
-                  </div>
-                  <div className="text-[8px] text-slate-400 font-bold mb-0.5">2 tests</div>
-                  <div className="text-[11px] font-black text-slate-800">₹ 2,740</div>
-                </div>
-              </div>
-
-              <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-[11px] py-2.5 rounded-[12px] shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
-                <ArrowRight className="w-3.5 h-3.5" />
-                View Full Encounter
-              </button>
-            </div>
-
-            {/* 6. UPCOMING TASKS */}
-            <div>
-              <div className="flex justify-between items-center mb-2 px-1">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
-                  <h3 className="text-[13px] font-black text-slate-800">Upcoming Tasks</h3>
-                </div>
-                <span className="text-[10px] font-bold text-indigo-600 cursor-pointer flex items-center">View All <ArrowRight className="w-3 h-3 ml-0.5" /></span>
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 shrink-0">
-                      <FlaskConical className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-800">Lab Report Ready</div>
-                      <div className="text-[9px] font-bold text-slate-500">Ravi Kumar • CBC, LFT</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black rounded-full">Ready</span>
-                      <span className="text-[9px] font-bold text-slate-400">2:30 PM</span>
-                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                  <div className="space-y-2 md:space-y-3">
+                    <div className="flex items-center justify-between p-1.5 md:p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400" />
+                        <div>
+                          <div className="text-[10px] md:text-xs font-bold text-slate-700 dark:text-slate-200">Review Arrived</div>
+                          <div className="text-[8px] md:text-[10px] text-slate-400">Evening queue</div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] md:text-xs font-bold bg-blue-50 dark:bg-blue-500/20 text-blue-600 px-1.5 md:px-2 py-0.5 rounded-full">1</span>
                     </div>
                   </div>
                 </div>
-
-                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 shrink-0">
-                      <Pill className="w-3.5 h-3.5" />
+                
+                {/* Dispatch */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl p-4 shadow-[0_4px_24px_-12px_rgba(0,0,0,0.05)] h-full">
+                  <div className="flex items-center justify-between mb-3 md:mb-5">
+                    <div className="flex items-center gap-1.5">
+                      <Send className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                      <span className="text-[11px] md:text-sm font-bold text-slate-800 dark:text-white">Dispatch</span>
                     </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-800">Medicine Dispensing</div>
-                      <div className="text-[9px] font-bold text-slate-500">Neha Sharma • 5 items</div>
-                    </div>
+                    <span className="text-[9px] md:text-xs text-slate-400">View all &gt;</span>
                   </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-black rounded-full">In Progress</span>
-                      <span className="text-[9px] font-bold text-slate-400">3:15 PM</span>
-                      <ChevronRight className="w-3 h-3 text-slate-300" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-100 rounded-[16px] p-2.5 flex items-center justify-between shadow-sm hover:bg-slate-50 transition cursor-pointer">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100 shrink-0">
-                      <Calendar className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] font-black text-slate-800">Follow-up Reminder</div>
-                      <div className="text-[9px] font-bold text-slate-500">Suresh Yadav • Dr. Vivek Kumar</div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[8px] font-black rounded-full">Today</span>
-                      <span className="text-[9px] font-bold text-slate-400">5:00 PM</span>
-                      <ChevronRight className="w-3 h-3 text-slate-300" />
+                  <div className="space-y-2 md:space-y-3">
+                    <div className="flex items-center justify-between p-1.5 md:p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5 md:w-4 md:h-4 text-emerald-500" />
+                        <div className="text-[10px] md:text-xs font-bold text-slate-700 dark:text-slate-200">Prescriptions</div>
+                      </div>
+                      <span className="text-[10px] md:text-xs font-bold bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 px-1.5 md:px-2 py-0.5 rounded-full">
+                        {appointments.filter(a => a.prescriptionId).length || 0}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -3799,6 +3696,7 @@ export const CompounderDashboard: React.FC = () => {
 
           </div>
         )}
+
         {/* ══════════════════════════════════════════════════════════
             TAB: OPD QUEUE & PATIENTS (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
