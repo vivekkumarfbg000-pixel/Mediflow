@@ -259,6 +259,10 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
     const careProgram6mFee = care6mMatch ? parseFloat(care6mMatch[1]) : (activeSop?.extractedConfig?.care_program_6m_fee ?? 6000);
     const careProgramName = activeSop?.extractedConfig?.care_program_name || 'DiabeteCare & CardioShield 365';
 
+    const freeReviewMatch = text.match(/(?:free|complimentary)\s*(?:review|follow-up|followup|re-visit|visit)\s*(?:period|within|for)?\s*(\d+)\s*(?:days?|hrs?)/i) || 
+                            text.match(/(\d+)\s*(?:days?|hrs?)\s*(?:free|complimentary)\s*(?:review|follow-up|followup|re-visit|visit)/i);
+    const freeReviewDays = freeReviewMatch ? parseInt(freeReviewMatch[1]) : (activeSop?.extractedConfig?.free_review_days ?? 3);
+
     const config = {
       doctor_fee: docFee,
       emergency_sos_fee: emergencySosFee,
@@ -269,7 +273,8 @@ export const SopConfigTab: React.FC<SopConfigTabProps> = React.memo(({
       google_review_link: googleReviewLink,
       test_prices: testPrices,
       splits: { doctor: splitDoc, platform: splitPlat, lab: splitLab, pharmacyDoctor: splitPharmaDoc, pharmacyPlatform: 2 },
-      guidelines: guidelineLines.length > 0 ? guidelineLines : activeSop?.extractedConfig?.guidelines ?? []
+      guidelines: guidelineLines.length > 0 ? guidelineLines : activeSop?.extractedConfig?.guidelines ?? [],
+      free_review_days: freeReviewDays
     };
 
     setExtractedConfig(config);

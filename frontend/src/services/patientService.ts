@@ -1997,7 +1997,12 @@ Respond in plain text (no bullet points, no markdown, no JSON). Keep it under 80
     const sorted = [...patientEncounters].sort((a, b) => new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime());
     const lastVisitDate = new Date(sorted[0]?.created_at || sorted[0]?.createdAt || Date.now());
     const diffDays = Math.floor((Date.now() - lastVisitDate.getTime()) / (24 * 3600 * 1000));
-    if (diffDays <= 10) {
+    
+    const freeReviewDays = activeSop?.extractedConfig?.free_review_days ?? activeSop?.extracted_config?.free_review_days ?? 3;
+    
+    if (diffDays <= freeReviewDays) {
+      return { amount: 0, type: 'Free Review', baseAmount: baseFee };
+    } else if (diffDays <= 10) {
       return { amount: Math.round(baseFee * 0.4), type: 'Follow-up', baseAmount: baseFee };
     } else {
       return { amount: baseFee, type: 'First Visit', baseAmount: baseFee };
