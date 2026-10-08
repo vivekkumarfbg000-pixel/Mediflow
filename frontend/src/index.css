@@ -4,7 +4,6 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
-@config "../tailwind.config.js";
 
 /* Static @font-face fallback definitions for Material Symbols and Icons */
 @font-face {

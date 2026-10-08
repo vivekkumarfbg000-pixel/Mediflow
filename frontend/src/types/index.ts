@@ -538,6 +538,7 @@ export interface ClinicSop {
     };
     guidelines: string[];
     prescriptionTemplate?: PrescriptionTemplateConfig;
+    free_review_days?: number;
   };
   isActive: boolean;
   createdAt: string;
