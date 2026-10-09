@@ -1,36 +1,42 @@
 # 🏛️ J.A.R.V.I.S. v6.0 Big Tech Implementation Plan
-## Compounder Desk: OPD Queue Header Streamlining & Visual Hierarchy Refinement
+## Compounder Desk: OPD Header Streamlining & Pathology Dashboard Crash / Access Fix
 
 ### 📋 Overview & Problem Statement
-In the Compounder Desk **OPD Queue** tab (`activeTab === 'opd_patients'`), two separate header containers are vertically stacked:
-1. **Outer Tab Header (L4330-L4346)**: `"Live Chamber Queue & Tokens"` with subtitle `"Real-time doctor chamber token sequence, vitals clearance, and clinical flow"`.
-2. **Inner Card Header (L5027-L5040)**: `"Today's Appointments Queue"` with subtitle `"Active OPD patient token stream, clinical vitals intake, and chamber triage."`
-3. **Redundant & Cluttered Print Action (L5044-L5056)**: Contains duplicate printer emojis (`<Printer /> 🖨️ Print OPD Register (PDF)`), cluttering the active consultation triage workspace.
+1. **OPD Header Clutter**: The `[👥 EHR Registry →]` and `[📖 SOPs]` shortcut buttons in the `OPD Chamber Flow` top ribbon are completely redundant because EHR Registry and SOPs are already canonically housed in the **More Hub** bottom dock.
+2. **Pathology Dashboard Access & Rendering Failure**:
+   - In `CompounderDashboard.tsx`, `<ClinicalHubTab />` is lazily mounted without an `<ErrorBoundary>`, leaving it vulnerable to silent white-screens.
+   - In `ClinicalHubTab.tsx`, `report.biomarkerJson` parsing does not defend against stringified JSON or null values, causing runtime `TypeError` crashes during render.
+   - In `Navbar.tsx`, `allowedRolesMap['compounder']` excludes `'lab'`, preventing clinical staff from switching to the full dedicated Pathology Laboratory Console (`LabDashboard.tsx`).
+
+---
 
 ### 🎯 Optimization Goals
-1. **Eliminate Word & Header Duplication**: Remove the redundant inner `<h2>` and repetitive phrasing ("Queue", "Tokens", "Chamber", "Appointments").
-2. **Google/Meta-Tier Executive Command Ribbon**:
-   - Title: **"OPD Chamber Flow"** with live CDC indicator (`● Live Chamber Sync`) and clean pill badge (`{activeOpdAppointments.length} Active Patients`).
-   - Clean, purposeful subtitle without generic AI filler words.
-3. **Integrated Segmented View Switcher**:
-   - Embed the `Today's Stream` vs `Advance Bookings` switcher directly into the operational strip.
-   - Retain fast `Export CSV` with sleek Google-tier styling.
-4. **Relocate Print Register to More Hub**:
-   - Remove the cluttered `Print OPD Register` button and double printer emoji from the active queue header.
-   - Canonical home is verified in More Hub (`more_hub` -> Tile 4: **Clinical Print Center** with dedicated 1-tap PDF generation).
+1. **Purge Redundant OPD Header Shortcuts**: Remove `[👥 EHR Registry →]` and `[📖 SOPs]` from the `OPD Chamber Flow` header ribbon in `CompounderDashboard.tsx`.
+2. **Defensive Pathology Rendering**:
+   - Harden biomarker JSON parsing in `ClinicalHubTab.tsx` with `try/catch` and defensive object coercion.
+   - Wrap `<ClinicalHubTab />` in `CompounderDashboard.tsx` with `<ErrorBoundary fallbackTitle="Diagnostic Pathology Hub">`.
+3. **Pathology Role Map Permission**:
+   - Add `'lab'` to `allowedRolesMap['compounder']`, `receptionist`, and `staff` in `Navbar.tsx` so staff can open both the quick Pathology worklist tab and switch into the full Pathology Console.
 
 ---
 
 ### 📂 Proposed File Changes
 
-#### [MODIFY] `frontend/src/components/compounder/CompounderDashboard.tsx`
-- **Lines 4330-4390**: Refine outer tab header into the unified **"OPD Chamber Flow"** executive control bar with real-time status and quick links.
-- **Lines 5027-5070**: Replace duplicate inner header with an integrated segmented control bar (`Active Today` vs `Scheduled Advance`) and clean export tool. Remove the duplicate `Print OPD Register` button.
+#### 1. [MODIFY] `frontend/src/components/compounder/CompounderDashboard.tsx`
+- **Lines 4348-4380**: Remove redundant `[EHR Registry →]` and `[SOPs]` buttons. Retain only `← Chamber Flow` when drilled down into a subtab.
+- **Lines 5811-5821**: Wrap `<ClinicalHubTab />` in `<ErrorBoundary fallbackTitle="Diagnostic Pathology Hub">`.
+- **Imports**: Import `ErrorBoundary` from `../shared/ErrorBoundary`.
+
+#### 2. [MODIFY] `frontend/src/components/compounder/tabs/ClinicalHubTab.tsx`
+- **Lines 196-245**: Harden `report.biomarkerJson` parsing against stringified JSON, null, and non-object shapes. Ensure all array and object iterations are guarded defensively.
+
+#### 3. [MODIFY] `frontend/src/components/shared/Navbar.tsx`
+- **Lines 378-380**: Add `'lab'` to `allowedRolesMap['compounder']`, `receptionist`, and `staff`.
 
 ---
 
 ### 🛡️ Safety & Verification Strategy
 - **Rule 1.8 & Rule Zero Guard**: Eagle-Eye OCR, Prescription Scanning, and CDC sync remain 100% untouched.
-- **Defensive Access**: All array counts (`activeOpdAppointments.length`, `upcomingAppointments.length`) guarded defensively.
+- **Defensive Access**: Every biomarker access and report property defensively guarded.
 - **Compiler Gate**: Run `npx tsc --noEmit` and verify Exit Code 0.
 - **Daemon Bridge Sync**: Shadow compile and update memory vault at port 9000.

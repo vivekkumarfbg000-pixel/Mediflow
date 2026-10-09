@@ -92,6 +92,8 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       }, 150);
       return () => clearTimeout(scrollTimer);
     }
+  }, [currentStep, extractedPatient]);
+
   // 1-Tap Direct Camera Trigger: Open device camera immediately from elevated FAB or dashboard hero
   useEffect(() => {
     const triggerCamera = () => {

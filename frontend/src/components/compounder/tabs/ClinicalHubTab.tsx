@@ -194,7 +194,7 @@ export const ClinicalHubTab: React.FC<ClinicalHubTabProps> = ({
 
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 {(() => {
-                  const approved = fullLabReports.filter(r => r.status === 'approved');
+                  const approved = (fullLabReports || []).filter(r => r && (r.status === 'approved' || (r as any).status === 'completed'));
                   if (approved.length === 0) {
                     return (
                       <div className="p-8 bg-slate-50/50 dark:bg-slate-800/30 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -204,12 +204,26 @@ export const ClinicalHubTab: React.FC<ClinicalHubTabProps> = ({
                   }
 
                   return approved.map((report) => {
-                    const biomarkers = report.biomarkerJson?.biomarkers || {};
+                    let biomarkers: Record<string, any> = {};
+                    try {
+                      if (typeof report.biomarkerJson === 'string') {
+                        const parsed = JSON.parse(report.biomarkerJson);
+                        biomarkers = parsed?.biomarkers || parsed || {};
+                      } else if (report.biomarkerJson && typeof report.biomarkerJson === 'object') {
+                        biomarkers = report.biomarkerJson.biomarkers || report.biomarkerJson;
+                      }
+                    } catch (_e) {
+                      biomarkers = {};
+                    }
+                    if (typeof biomarkers !== 'object' || biomarkers === null) {
+                      biomarkers = {};
+                    }
+
                     return (
                       <div key={report.id} className="p-3.5 border border-slate-200/80 dark:border-white/10 rounded-2xl bg-slate-50/60 dark:bg-slate-800/60 space-y-2.5 shadow-xs">
                         <div className="flex justify-between items-center border-b border-slate-200/60 dark:border-white/10 pb-2">
                           <div>
-                            <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">{report.patientName}</h4>
+                            <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">{report.patientName || 'Patient'}</h4>
                             <span className="text-[9px] text-slate-400 font-mono block">ID: {(report.patientId || '').substring(0, 8)}</span>
                           </div>
                           <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full font-mono font-bold uppercase">
@@ -225,7 +239,7 @@ export const ClinicalHubTab: React.FC<ClinicalHubTabProps> = ({
                               const unit = biomarkers[`${key}_unit`] || biomarkers.unit || '';
                               return (
                                 <span key={key} className="bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-[10px] px-2 py-0.5 rounded-lg font-mono font-bold">
-                                  {key}: {val} {unit}
+                                  {key}: {String(val)} {unit}
                                 </span>
                               );
                             })}
@@ -242,7 +256,6 @@ export const ClinicalHubTab: React.FC<ClinicalHubTabProps> = ({
                     );
                   });
                 })()}
-              </div>
             </div>
           </div>
         </div>

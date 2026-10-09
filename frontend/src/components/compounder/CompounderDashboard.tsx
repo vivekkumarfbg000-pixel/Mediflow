@@ -20,6 +20,7 @@ import { cloudStore } from '../../services/cloudStore';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID, resolveSovereignPodId } from '../../services/podContext';
 import { ZeroQueueState, InlineEmptyState } from '../shared/EmptyState';
 import { DashboardSkeleton } from '../shared/LoadingSkeleton';
+import { ErrorBoundary } from '../shared/ErrorBoundary';
 import { useEphemeralVault } from '../../context/EphemeralVaultProvider';
 import { getIstDateString, getEffectiveAppointmentDate, getIstOffsetDateString } from '../../utils/dateUtils';
 import { categorizeAppointments, isVipBooking, compareAppointmentsForQueue } from '../../services/appointmentPipeline';
@@ -4349,7 +4350,7 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 {opdSubTab !== 'today_queue' && (
                   <button
                     type="button"
@@ -4359,37 +4360,6 @@ export const CompounderDashboard: React.FC = () => {
                     ← Chamber Flow
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    startTransition(() => {
-                      setActiveTab('more_hub');
-                      setMoreHubActiveView('directory');
-                    });
-                  }}
-                  className="px-3 py-1.5 text-[11px] font-bold rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                  title="Search master patient registry in More Hub"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>EHR Registry</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    startTransition(() => {
-                      setActiveTab('more_hub');
-                      setMoreHubActiveView('sops');
-                    });
-                  }}
-                  className="px-2.5 py-1.5 text-[11px] font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
-                  title="View clinical SOPs in More Hub"
-                >
-                  <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="hidden xs:inline">SOPs</span>
-                </button>
               </div>
             </div>
 
@@ -5809,15 +5779,17 @@ export const CompounderDashboard: React.FC = () => {
             TAB: PATHOLOGY & DIAGNOSTICS WORKLIST (100% VIEWPORT)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'clinical_hub' && (
-          <Suspense fallback={<DashboardSkeleton />}>
-            <ClinicalHubTab 
-              isOphthalmology={isOphthalmology}
-              patients={patients}
-              activePod={activePod}
-              clinicTitle={clinicTitle}
-              fullLabReports={fullLabReports}
-            />
-          </Suspense>
+          <ErrorBoundary fallbackTitle="Diagnostic Pathology Hub">
+            <Suspense fallback={<DashboardSkeleton />}>
+              <ClinicalHubTab 
+                isOphthalmology={isOphthalmology}
+                patients={patients}
+                activePod={activePod}
+                clinicTitle={clinicTitle}
+                fullLabReports={fullLabReports}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
         {/* ══════════════════════════════════════════════════════════
             TAB: BILLING & MINOR OT (CONSOLIDATED)
@@ -6468,10 +6440,10 @@ export const CompounderDashboard: React.FC = () => {
                               {getEffectiveAppointmentDate(appt) || '—'}
                             </td>
                             <td className="p-3 capitalize text-slate-500">
-                              {appt.type || 'In-Person'}
+                              {(appt as any).type || (appt as any).appointmentType || 'In-Person'}
                             </td>
                             <td className="p-3 text-slate-700 dark:text-slate-300">
-                              {appt.doctorName || 'Attending Physician'}
+                              {(appt as any).doctorName || (appt as any).doctor_name || 'Attending Physician'}
                             </td>
                             <td className="p-3">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 uppercase">
@@ -6480,7 +6452,7 @@ export const CompounderDashboard: React.FC = () => {
                             </td>
                             <td className="p-3 text-right">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
-                                ₹{appt.fee || 500} Paid ✅
+                                ₹{(appt as any).fee || (appt as any).doctorFee || 500} Paid ✅
                               </span>
                             </td>
                           </tr>
