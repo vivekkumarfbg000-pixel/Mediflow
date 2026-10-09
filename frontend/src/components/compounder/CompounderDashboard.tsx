@@ -5887,10 +5887,9 @@ export const CompounderDashboard: React.FC = () => {
                 document.body
               )}
             </div>
-          </div>
-        )}
-      </div>
-    )}
+          )}
+        </div>
+      )}
 
         {/* ══════════════════════════════════════════════════════════
             TAB: PATHOLOGY & DIAGNOSTICS WORKLIST (100% VIEWPORT)
