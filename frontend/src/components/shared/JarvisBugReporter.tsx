@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Bug, Target, Copy, X, Camera } from 'lucide-react';
+import { Bug, Target, Copy, X, Camera, Crosshair, Activity, Cpu, Radio, Terminal, Sparkles } from 'lucide-react';
 
 export const JarvisBugReporter: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -312,92 +312,187 @@ ${networkErrors.join('\n') || 'No network failures captured.'}
   if (!isOpen && !isTargeting) return null;
 
   const content = isTargeting ? (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-rose-600 to-rose-500 text-white px-8 py-3 rounded-full font-bold shadow-[0_10px_40px_-10px_rgba(225,29,72,0.6)] z-[99999] flex items-center gap-3 animate-bounce cursor-pointer border border-rose-400/50 backdrop-blur-xl" onClick={() => setIsTargeting(false)}>
-      <Target className="h-5 w-5 animate-[spin_3s_linear_infinite]" />
-      <span className="tracking-wide">JARVIS TARGETING ACTIVE: Click Element</span>
-      <X className="h-4 w-4 opacity-70 hover:opacity-100 transition-opacity ml-2" />
+    <div 
+      className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] flex items-center gap-3.5 px-6 py-2.5 rounded-xl bg-[#020617]/95 backdrop-blur-2xl border border-cyan-400/60 shadow-[0_0_40px_rgba(6,182,212,0.45),inset_0_0_15px_rgba(6,182,212,0.15)] text-cyan-300 font-mono text-xs font-bold tracking-wider cursor-pointer group hover:border-cyan-300 transition-all select-none animate-pulse"
+      onClick={() => setIsTargeting(false)}
+    >
+      <div className="relative flex h-3 w-3 items-center justify-center">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></span>
+      </div>
+      <Crosshair className="h-4 w-4 text-cyan-400 animate-[spin_6s_linear_infinite]" />
+      <span className="tracking-[0.18em] uppercase text-cyan-200">
+        STARK VISOR // TARGET LOCK ACTIVE <span className="text-cyan-400/70 font-normal">| CLICK ANY ELEMENT</span>
+      </span>
+      <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono">
+        ESC / CANCEL
+      </span>
     </div>
   ) : (
-    <div ref={overlayRef} className="fixed bottom-6 left-6 w-[420px] bg-[#0a0f1c]/90 backdrop-blur-2xl border border-cyan-500/30 rounded-3xl shadow-[0_0_50px_-12px_rgba(6,182,212,0.25)] z-[99999] overflow-hidden text-slate-200 font-sans transition-all duration-500 ease-out translate-y-0 opacity-100 scale-100">
+    <div ref={overlayRef} className="fixed bottom-6 left-6 w-[420px] bg-[#020617]/95 backdrop-blur-3xl border border-cyan-500/40 rounded-2xl shadow-[0_0_60px_-10px_rgba(6,182,212,0.35),inset_0_0_25px_rgba(6,182,212,0.06)] z-[99999] overflow-hidden text-slate-200 font-sans transition-all duration-300 ease-out select-none">
+      {/* CORNER RETICLES */}
+      <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-cyan-400 pointer-events-none z-20"></div>
+      <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-cyan-400 pointer-events-none z-20"></div>
+      <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-cyan-400 pointer-events-none z-20"></div>
+      <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-cyan-400 pointer-events-none z-20"></div>
+
+      {/* SCANLINE OVERLAY */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.25)_51%)] bg-[length:100%_4px] pointer-events-none opacity-20 z-0"></div>
       
-      {/* HEADER */}
-      <div className="bg-gradient-to-r from-cyan-950/80 to-[#0a0f1c]/90 px-5 py-4 border-b border-cyan-500/20 flex items-center justify-between relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50"></div>
-        <div className="flex items-center gap-3 text-cyan-400 font-bold text-sm tracking-[0.2em] uppercase z-10">
-          <div className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+      {/* ARC REACTOR HEADER */}
+      <div className="relative bg-gradient-to-r from-cyan-950/90 via-[#030712]/95 to-slate-950/90 px-4 py-3 border-b border-cyan-500/30 flex items-center justify-between overflow-hidden z-10">
+        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent"></div>
+        <div className="flex items-center gap-2.5 z-10">
+          <div className="relative flex items-center justify-center w-6 h-6">
+            <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-[spin_8s_linear_infinite]"></div>
+            <div className="absolute inset-1 rounded-full border border-dashed border-cyan-400/70 animate-[spin_4s_linear_infinite_reverse]"></div>
+            <div className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></div>
           </div>
-          J.A.R.V.I.S. Command Center
+          <div>
+            <div className="flex items-center gap-1.5 font-mono text-xs font-black tracking-[0.22em] text-cyan-300 uppercase drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">
+              J.A.R.V.I.S. HUD
+            </div>
+            <div className="font-mono text-[9px] tracking-widest text-cyan-400/60 uppercase">
+              MARK IX // TACTICAL OMNI-SYSTEM
+            </div>
+          </div>
         </div>
-        <button onClick={() => setIsOpen(false)} className="text-cyan-600 hover:text-cyan-300 transition-colors z-10 p-1 hover:bg-cyan-950/50 rounded-full">
-          <X className="h-5 w-5" />
-        </button>
+
+        <div className="flex items-center gap-2 z-10">
+          <span className="font-mono text-[9px] px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-semibold tracking-wider flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            24-ENG
+          </span>
+          <button 
+            onClick={() => setIsOpen(false)} 
+            className="text-cyan-500 hover:text-cyan-200 transition-colors p-1 hover:bg-cyan-900/40 rounded-lg border border-transparent hover:border-cyan-500/40"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <div className="p-5 space-y-5">
-        {/* FPS & PERFORMANCE */}
-        {performanceWarning ? (
-          <div className="bg-rose-950/40 border border-rose-500/50 rounded-xl p-3 text-xs text-rose-400 font-bold flex items-center justify-between animate-pulse shadow-[0_0_15px_rgba(244,63,94,0.15)]">
-            <span className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-rose-500 animate-ping"></div> {performanceWarning}</span>
-            <span className="uppercase tracking-wider opacity-80 border border-rose-500/30 px-2 py-1 rounded">Action Required</span>
+      <div className="relative p-4 space-y-3.5 z-10">
+        {/* TACTICAL TELEMETRY STRIP */}
+        <div className="grid grid-cols-3 gap-2 font-mono text-[10px]">
+          <div className="bg-[#010409]/90 border border-cyan-900/50 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+            <span className="text-slate-400 text-[9px] tracking-wider uppercase">REFRESH</span>
+            <span className={`font-bold flex items-center gap-1 ${
+              fps >= 50 ? 'text-emerald-400' : fps >= 30 ? 'text-amber-400' : 'text-rose-400'
+            }`}>
+              <Activity className="h-3 w-3" />
+              {fps} FPS
+            </span>
           </div>
-        ) : (
-          <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-3 text-xs text-emerald-400 font-bold flex items-center justify-between shadow-inner">
-            <span className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div> SYSTEM HEALTHY</span>
-            <span className="font-mono tracking-widest">{fps} FPS</span>
+          <div className="bg-[#010409]/90 border border-cyan-900/50 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+            <span className="text-slate-400 text-[9px] tracking-wider uppercase">CORE</span>
+            <span className="text-cyan-400 font-bold flex items-center gap-1">
+              <Cpu className="h-3 w-3 text-cyan-400" />
+              24/24
+            </span>
           </div>
-        )}
-
-        {/* INPUT */}
-        <div className="space-y-2 group">
-          <label className="text-[10px] text-cyan-500/70 font-bold uppercase tracking-[0.15em] group-focus-within:text-cyan-400 transition-colors">Mission Directive / Bug Description</label>
-          <textarea 
-            value={bugDescription}
-            onChange={(e) => setBugDescription(e.target.value)}
-            placeholder="E.g., 'Make this button glow on hover' or 'Fix the overlapping text'"
-            className="w-full bg-[#050810]/80 border border-slate-700/60 rounded-xl p-3 text-sm text-cyan-50 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 resize-none h-20 transition-all shadow-inner font-medium"
-          />
+          <div className="bg-[#010409]/90 border border-cyan-900/50 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+            <span className="text-slate-400 text-[9px] tracking-wider uppercase">BRIDGE</span>
+            <span className="text-emerald-400 font-bold flex items-center gap-1">
+              <Radio className="h-3 w-3 text-emerald-400 animate-pulse" />
+              :9000
+            </span>
+          </div>
         </div>
 
-        {/* TARGETING */}
+        {/* DIRECTIVE INPUT */}
+        <div className="space-y-1.5 group">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] text-cyan-400/80 font-mono font-bold uppercase tracking-[0.18em] flex items-center gap-1.5">
+              <Terminal className="h-3 w-3 text-cyan-400" />
+              TACTICAL DIRECTIVE
+            </label>
+            <span className="text-[9px] text-slate-400 font-mono tracking-widest">[AUTO-REVERT ARMED]</span>
+          </div>
+          <div className="relative">
+            <textarea 
+              value={bugDescription}
+              onChange={(e) => setBugDescription(e.target.value)}
+              placeholder="Enter directive: e.g., 'Make this button glow on hover' or 'Fix POS cart alignment'..."
+              className="w-full bg-[#010409]/90 border border-cyan-900/60 rounded-xl p-3 text-xs text-cyan-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 resize-none h-16 transition-all shadow-[inset_0_2px_8px_rgba(0,0,0,0.6)] font-sans font-medium"
+            />
+            <div className="absolute bottom-2 right-2.5 text-[9px] font-mono text-cyan-500/40 pointer-events-none">
+              STARK-AI
+            </div>
+          </div>
+        </div>
+
+        {/* TARGETING TRIGGER */}
         <button 
           onClick={() => { setIsOpen(false); setIsTargeting(true); }}
-          className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_-5px_rgba(79,70,229,0.5)] border border-indigo-400/30 group hover:scale-[1.02]"
+          className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-950/60 via-blue-950/50 to-slate-900/80 hover:from-cyan-900/60 hover:to-blue-900/60 rounded-xl font-mono text-xs font-bold flex items-center justify-between transition-all duration-200 border border-cyan-500/40 hover:border-cyan-300 shadow-[0_0_20px_-5px_rgba(6,182,212,0.25)] hover:shadow-[0_0_25px_rgba(6,182,212,0.45)] group cursor-pointer"
         >
-          <Target className="h-4 w-4 group-hover:rotate-90 transition-transform duration-500" /> 
-          <span className="tracking-wide text-white">Select UI Element to Modify</span>
+          <div className="flex items-center gap-2 text-cyan-300 group-hover:text-cyan-100">
+            <Crosshair className="h-4 w-4 text-cyan-400 group-hover:rotate-90 transition-transform duration-300" /> 
+            <span className="tracking-[0.14em] uppercase text-[11px]">LOCK TARGET ELEMENT</span>
+          </div>
+          <span className="text-[9px] tracking-wider text-cyan-400/80 bg-cyan-950/80 border border-cyan-500/30 px-2 py-0.5 rounded font-mono">
+            FIBER INTROSPECT
+          </span>
         </button>
 
-        {/* CAPTURED */}
+        {/* CAPTURED TARGET */}
         {capturedElement && (
-          <div className="bg-[#050810]/80 rounded-xl p-4 text-xs space-y-2 overflow-hidden border border-emerald-500/40 relative group shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]">
-            <div className="absolute top-0 left-0 w-1 bg-emerald-500 h-full shadow-[0_0_10px_#10b981]"></div>
-            <div className="text-emerald-400 font-black mb-2 flex items-center gap-2 tracking-wider"><Camera className="h-3.5 w-3.5"/> DOM CAPTURED LOCKED</div>
-            <p className="flex justify-between border-b border-slate-800/80 pb-1"><span className="text-slate-500 font-semibold uppercase tracking-wider">ID</span> <span className="font-mono text-slate-300">{capturedElement.id}</span></p>
-            <p className="flex flex-col gap-1 pt-1"><span className="text-slate-500 font-semibold uppercase tracking-wider">Classes</span> <span className="font-mono text-slate-300 truncate opacity-80">{capturedElement.className}</span></p>
+          <div className="bg-[#010409]/90 rounded-xl p-3 text-xs space-y-1.5 border border-cyan-500/50 relative overflow-hidden shadow-[inset_0_0_20px_rgba(6,182,212,0.08)] font-mono">
+            <div className="flex items-center justify-between text-cyan-300 text-[10px] font-black tracking-wider pb-1 border-b border-cyan-900/50">
+              <span className="flex items-center gap-1.5"><Camera className="h-3 w-3 text-cyan-400"/> TARGET LOCKED</span>
+              <button 
+                onClick={() => setCapturedElement(null)} 
+                className="text-[9px] text-slate-400 hover:text-rose-400 transition-colors uppercase cursor-pointer"
+              >
+                CLEAR
+              </button>
+            </div>
+            <div className="text-[11px] text-emerald-400 font-bold truncate">
+              {capturedElement.fiber?.componentName ? `<${capturedElement.fiber.componentName} />` : 'DOM Node'}
+            </div>
+            {capturedElement.fiber?.sourceFile && (
+              <div className="text-[9px] text-slate-400 truncate">
+                <span className="text-cyan-500/70">SRC:</span> {capturedElement.fiber.sourceFile}
+              </div>
+            )}
+            <div className="flex justify-between text-[9px] text-slate-400 pt-0.5">
+              <span>ID: <span className="text-slate-300">{capturedElement.id}</span></span>
+              <span className="truncate max-w-[180px]">CLS: <span className="text-slate-300">{capturedElement.className}</span></span>
+            </div>
           </div>
         )}
 
-        {/* LOGS */}
-        <div className="bg-[#050810]/80 border border-slate-800/80 rounded-xl p-3 text-[11px] space-y-2 h-28 overflow-y-auto font-mono relative">
-          <div className="text-slate-500 font-bold mb-2 uppercase tracking-widest sticky top-0 bg-[#050810]/90 py-1 backdrop-blur-md z-10 border-b border-slate-800/50">System Logs</div>
+        {/* SYSTEM LOGS TERMINAL */}
+        <div className="bg-[#010409]/95 border border-cyan-950 rounded-xl p-2.5 text-[10px] font-mono space-y-1 h-24 overflow-y-auto relative shadow-inner">
+          <div className="text-cyan-500/70 font-bold text-[9px] uppercase tracking-widest sticky top-0 bg-[#010409]/95 py-0.5 backdrop-blur-md z-10 border-b border-cyan-950 flex items-center justify-between">
+            <span className="flex items-center gap-1"><Terminal className="h-2.5 w-2.5 text-cyan-400"/> TELEMETRY LOGS</span>
+            <span className="text-[8px] text-slate-500">REALTIME</span>
+          </div>
           {logs.length === 0 ? (
-            <div className="text-emerald-500/50 flex items-center gap-2 mt-4"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500/50"></span> Zero anomalies detected.</div>
+            <div className="text-cyan-500/50 flex items-center gap-1.5 pt-2 text-[10px]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>
+              Telemetry nominal. Zero anomalies.
+            </div>
           ) : (
             logs.map((log, i) => (
-              <div key={i} className="text-rose-400 break-words border-l-2 border-rose-500/30 pl-2 opacity-80 hover:opacity-100">{log}</div>
+              <div key={i} className="text-rose-400/90 break-words border-l border-rose-500/40 pl-1.5 py-0.5 text-[9px]">
+                {log}
+              </div>
             ))
           )}
         </div>
 
-        {/* ACTION */}
+        {/* COMPILE GOD-MODE ACTION BUTTON */}
         <button 
           onClick={copyPrompt}
-          className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_-5px_rgba(16,185,129,0.5)] border border-emerald-400/40 group text-white hover:scale-[1.02]"
+          className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 rounded-xl font-mono font-black text-xs flex items-center justify-center gap-2 text-white shadow-[0_0_25px_-5px_rgba(6,182,212,0.55)] border border-cyan-400/60 transition-all duration-200 hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] group cursor-pointer relative overflow-hidden active:scale-[0.99]"
         >
-          <Copy className="h-4 w-4 group-hover:scale-110 transition-transform" /> 
-          <span className="tracking-wide">Generate God-Mode Prompt</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none"></div>
+          <Sparkles className="h-4 w-4 text-cyan-200 group-hover:scale-110 transition-transform" /> 
+          <span className="tracking-[0.16em] uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            COMPILE 24-ENGINE GOD PROMPT
+          </span>
         </button>
       </div>
     </div>
