@@ -893,7 +893,10 @@ To maintain zero-hallucination database parity, all tables and foreign keys map 
 * **Findings**:
   1. Identified 14 Stitch MCP tool schemas present in `C:\Users\vivek\.gemini\antigravity-ide\mcp\StitchMCP\` (`create_design_system`, `generate_screen_from_text`, `generate_variants`, `edit_screens`, etc.).
   2. Tested connection to `StitchMCP`. The server is installed but currently toggled inactive in the IDE session profile (`tool list_projects is not enabled for server StitchMCP`).
-  3. Action needed: Founder must toggle Stitch MCP ON under IDE **Additional Options (...) > MCP Servers**.
+  3. Action taken: Configured `.agents/mcp_config.json` and `mcp_config.json` with user's Stitch API Key (`X-Goog-Api-Key`) pointing to `https://stitch.googleapis.com/mcp`.
+  4. Security: Added both local MCP configuration files to `.gitignore` to prevent any API key leakage.
+  5. Antigravity IDE requires a window reload (`Ctrl + Shift + P` -> `Developer: Reload Window`) to initialize the newly registered MCP server.
+
 
 
 
