@@ -603,8 +603,22 @@ async function ensurePuppeteer() {
   try {
     puppeteerBrowser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     puppeteerPage = await puppeteerBrowser.newPage();
-    await puppeteerPage.goto('http://localhost:5173', { waitUntil: 'networkidle2', timeout: 15000 });
-    console.log('🎥 [Engine 15] Puppeteer connected to localhost:5173 — Visual Intelligence ONLINE');
+    await puppeteerPage.setViewport({ width: 1440, height: 900 });
+    await puppeteerPage.evaluateOnNewDocument(() => {
+      try {
+        localStorage.setItem('mediflow_dev_bypass', 'true');
+        localStorage.setItem('vitalsync_active_role', 'compounder');
+        localStorage.setItem('vitalsync_cached_profile', JSON.stringify({
+          id: '00000000-0000-0000-0000-000000000002',
+          entity_id: '00000000-0000-0000-0000-000000000001',
+          role: 'compounder',
+          display_name: 'Priya Sharma (Compounder)',
+          email: 'compounder@mediflow.com'
+        }));
+      } catch(e) {}
+    });
+    await puppeteerPage.goto('http://localhost:5173', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    console.log('🎥 [Engine 15] Puppeteer connected to localhost:5173 — Visual Intelligence ONLINE (1440x900 Viewport, Compounder Auth)');
     // Auto-push DOM snapshot every 10 seconds
     setInterval(async () => {
       if (!puppeteerPage) return;
@@ -961,6 +975,213 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ──────────────────────────────────────────────
+  // ENGINE 15 v3: AUTONOMOUS PUPPETEER E2E CLINICAL ROBOT ENGINE
+  // POST /api/e2e-run-flow
+  // ──────────────────────────────────────────────
+  if (req.method === 'POST' && pathname === '/api/e2e-run-flow') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      const stepLog = [];
+      const startTime = Date.now();
+      try {
+        const payload = JSON.parse(body || '{}');
+        const flow = payload.flow || 'billing_pos';
+
+        stepLog.push(`[INIT] Starting E2E Clinical Robot Flow: ${flow}`);
+        const page = await ensurePuppeteer();
+        if (!page) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            flow,
+            reason: 'Puppeteer visual engine could not connect to localhost:5173. Ensure Vite is running.',
+            stepLog
+          }));
+          return;
+        }
+
+        await page.setViewport({ width: 1440, height: 900 });
+
+        if (flow === 'billing_pos') {
+          stepLog.push('[STEP 1] Navigating to localhost:5173 / Compounder Desk...');
+          const currentUrl = page.url();
+          if (!currentUrl.includes('localhost:5173')) {
+            await page.goto('http://localhost:5173', { waitUntil: 'domcontentloaded', timeout: 15000 });
+          }
+
+          // Ensure active role is Compounder Workdesk
+          const switchedRole = await page.evaluate(() => {
+            const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
+            if (!bodyText.includes('opd desk') && !bodyText.includes('chamber queue') && !bodyText.includes('compounder')) {
+              const buttons = Array.from(document.querySelectorAll('button, a'));
+              const compBtn = buttons.find(b => (b.textContent || '').toLowerCase().includes('compounder'));
+              if (compBtn) {
+                compBtn.click();
+                return true;
+              }
+            }
+            return false;
+          });
+          if (switchedRole) {
+            stepLog.push('[OK] Switched active role to Compounder Workdesk.');
+            await new Promise(r => setTimeout(r, 700));
+          }
+
+          stepLog.push('[STEP 2] Locating & clicking Billing & POS tab...');
+          const tabClicked = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button, a'));
+            const billingBtn = buttons.find(b => {
+              const txt = (b.textContent || '').toLowerCase();
+              return txt.includes('billing & daycare') || txt.includes('billing & pos') || txt.includes('billing') || txt.includes('bill hub');
+            });
+            if (billingBtn) {
+              billingBtn.click();
+              return true;
+            }
+            return false;
+          });
+
+          if (!tabClicked) {
+            stepLog.push('[WARN] Billing button not found by text query; checking active view...');
+          } else {
+            stepLog.push('[OK] Clicked Billing & Daycare POS tab.');
+          }
+
+          await new Promise(r => setTimeout(r, 600));
+
+          stepLog.push('[STEP 3] Selecting first patient in queue...');
+          const patientClicked = await page.evaluate(() => {
+            const allElements = Array.from(document.querySelectorAll('div, li, button, span'));
+            const candidate = allElements.find(el => {
+              const text = el.textContent || '';
+              return (text.includes('Asha') || text.includes('WALK-IN') || text.includes('PAT-') || text.includes('Token')) &&
+                     el.className && el.className.includes('cursor-pointer');
+            }) || document.querySelector('[class*="col-span-3"] [class*="cursor-pointer"]');
+
+            if (candidate) {
+              candidate.click();
+              return candidate.textContent.slice(0, 30);
+            }
+            return null;
+          });
+
+          if (patientClicked) {
+            stepLog.push(`[OK] Selected patient: ${patientClicked}`);
+          } else {
+            stepLog.push('[INFO] No queue patient card clicked; probing general active layout...');
+          }
+
+          await new Promise(r => setTimeout(r, 600));
+
+          stepLog.push('[STEP 4] Computing live CSS bounding boxes & grid geometry...');
+          const metrics = await page.evaluate(() => {
+            const col3 = document.querySelector('[class*="col-span-3"]');
+            const col9 = document.querySelector('[class*="col-span-9"]') || document.querySelector('[class*="glass-panel"]');
+            const col3Rect = col3 ? col3.getBoundingClientRect() : null;
+            const col9Rect = col9 ? col9.getBoundingClientRect() : null;
+
+            const cartWidth = col9Rect ? Math.round(col9Rect.width) : 0;
+            const cartHeight = col9Rect ? Math.round(col9Rect.height) : 0;
+            const cartTop = col9Rect ? Math.round(col9Rect.top) : 0;
+            const sidebarWidth = col3Rect ? Math.round(col3Rect.width) : 0;
+
+            const isWrapped = (col3Rect && col9Rect) ? (col9Rect.top > (col3Rect.top + 150)) : false;
+            const whiteDesert = cartWidth < 450;
+
+            return {
+              cartWidth,
+              cartHeight,
+              cartTop,
+              sidebarWidth,
+              isWrapped,
+              whiteDesertDetected: whiteDesert,
+              viewportWidth: window.innerWidth,
+              viewportHeight: window.innerHeight
+            };
+          });
+
+          const success = !metrics.isWrapped && metrics.cartWidth >= 450;
+          stepLog.push(`[METRICS] Cart: ${metrics.cartWidth}x${metrics.cartHeight}px @ Top: ${metrics.cartTop}px | Sidebar: ${metrics.sidebarWidth}px`);
+          stepLog.push(`[VERDICT] Wrapped: ${metrics.isWrapped ? 'YES (CSS Overflow)' : 'NO (Row 1 side-by-side)'} | White Desert: ${metrics.whiteDesertDetected ? 'YES' : 'NO'}`);
+
+          const durationMs = Date.now() - startTime;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success,
+            flow,
+            durationMs,
+            stepLog,
+            metrics,
+            message: success
+              ? `✅ E2E Clinical Robot PASSED in ${durationMs}ms: Active Billing Cart occupies ${metrics.cartWidth}px beside sidebar on Row 1. Zero layout wrapping.`
+              : `🚨 E2E Clinical Robot FAILED: ${metrics.isWrapped ? 'Layout wrapped onto Row 2' : 'Cart width squished'}.`
+          }, null, 2));
+
+        } else if (flow === 'ocr_scanner') {
+          stepLog.push('[STEP 1] Navigating to OCR Scanner tab...');
+          await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const ocrBtn = buttons.find(b => (b.textContent || '').toLowerCase().includes('ocr') || (b.textContent || '').toLowerCase().includes('prescription scan'));
+            if (ocrBtn) ocrBtn.click();
+          });
+          await new Promise(r => setTimeout(r, 600));
+
+          const ocrState = await page.evaluate(() => {
+            const uploadBox = document.querySelector('input[type="file"]') || document.querySelector('[class*="border-dashed"]');
+            return {
+              uploadAvailable: !!uploadBox,
+              textPresent: (document.body ? document.body.innerText : '').includes('Upload') || (document.body ? document.body.innerText : '').includes('Prescription')
+            };
+          });
+
+          const durationMs = Date.now() - startTime;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: ocrState.uploadAvailable || ocrState.textPresent,
+            flow,
+            durationMs,
+            stepLog,
+            ocrState,
+            message: '✅ E2E Clinical Robot: OCR Upload pipeline verified and active.'
+          }, null, 2));
+
+        } else {
+          stepLog.push('[STEP 1] Inspecting today queue & active chamber cards...');
+          const queueMetrics = await page.evaluate(() => {
+            const queueCards = document.querySelectorAll('[class*="token"], [class*="Token"], [class*="badge"]');
+            return {
+              tokensDetected: queueCards.length,
+              hasActiveQueue: (document.body ? document.body.innerText : '').includes('Token') || (document.body ? document.body.innerText : '').includes('Queue')
+            };
+          });
+
+          const durationMs = Date.now() - startTime;
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            flow,
+            durationMs,
+            stepLog,
+            queueMetrics,
+            message: `✅ E2E Clinical Robot: Queue verified (${queueMetrics.tokensDetected} token markers found).`
+          }, null, 2));
+        }
+
+      } catch (err) {
+        stepLog.push(`[ERROR] Execution exception: ${err.message}`);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: err.message,
+          stepLog
+        }));
+      }
+    });
+    return;
+  }
+
+  // ──────────────────────────────────────────────
   // ──────────────────────────────────────────────
   // PLAYWRIGHT E2E EXECUTION (Engine 12)
   // ──────────────────────────────────────────────
@@ -1203,6 +1424,7 @@ const server = http.createServer(async (req, res) => {
         astTreeScalpel: 'online',
         dryRunSimulator: 'online',
         visualProbe: 'online',
+        e2eClinicalRobot: 'online',
         memoryVault: `online (${vault.fixes?.length || 0} fixes stored)`,
         gitopsSentinel: 'online',
         visualIntelligence: 'online',

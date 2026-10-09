@@ -805,6 +805,43 @@
       </div>
     </section>
 
+    <!-- SECTION: J.A.R.V.I.S. v7.0 E2E CLINICAL ROBOT VERIFICATION (OPTION B) -->
+    <section class="panel" id="e2e-robot-deck" style="margin-top: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.4); background: linear-gradient(180deg, rgba(10, 24, 20, 0.9) 0%, rgba(9, 13, 21, 0.98) 100%); box-shadow: 0 4px 20px rgba(16, 185, 129, 0.1);">
+      <div class="panel-header" style="background: rgba(16, 185, 129, 0.08); border-bottom: 1px solid rgba(16, 185, 129, 0.2);">
+        <span class="panel-title" style="color: #34d399; font-size: 0.95rem;">
+          🤖 J.A.R.V.I.S. Autonomous Puppeteer E2E Clinical Robot
+        </span>
+        <span style="font-size: 0.72rem; color: #34d399; font-family: var(--font-mono); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 0.2rem 0.5rem; border-radius: 4px;">
+          HEADLESS CHROMIUM // ZERO COMPILER BLIND SPOT
+        </span>
+      </div>
+      <div class="panel-body" style="gap: 0.85rem;">
+        <p style="font-size: 0.82rem; color: #94a3b8; margin: 0;">
+          Launch real simulated user interactions directly on <code style="color: #38bdf8;">http://localhost:5173</code> in the background. The robot navigates tabs, clicks patient cards, measures live CSS bounding boxes, and mathematically proves whether layout wrapping, clipping, or dead white space exists.
+        </p>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button class="btn btn-success" onclick="triggerE2ERobotFlow('billing_pos')" style="font-weight: 700; padding: 0.65rem 1.25rem;">
+            🛒 Verify Billing &amp; POS Flow (Patient Select &amp; Cart)
+          </button>
+          <button class="btn btn-outline" onclick="triggerE2ERobotFlow('ocr_scanner')" style="padding: 0.65rem 1.1rem;">
+            📄 Verify AI OCR Scanner Pipeline
+          </button>
+          <button class="btn btn-outline" onclick="triggerE2ERobotFlow('chamber_queue')" style="padding: 0.65rem 1.1rem;">
+            🩺 Verify Chamber Queue &amp; Tokens
+          </button>
+        </div>
+
+        <div id="e2e-robot-result" style="display: none; margin-top: 0.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <span id="e2e-status-badge" style="font-size: 0.76rem; font-family: var(--font-mono); font-weight: 700;"></span>
+            <span id="e2e-duration" style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-dim);"></span>
+          </div>
+          <div class="terminal-box" id="e2e-robot-log" style="max-height: 180px; font-size: 0.72rem; color: #e2e8f0;"></div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- TOAST NOTIFICATION -->
@@ -1356,6 +1393,62 @@ ${memorySummary}
         showToast('Re-copied prompt to clipboard!', '📋');
       });
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    // J.A.R.V.I.S. v7.0 E2E CLINICAL ROBOT CONTROLLER
+    // ─────────────────────────────────────────────────────────────────
+    async function triggerE2ERobotFlow(flow) {
+      const resultBox = document.getElementById('e2e-robot-result');
+      const logBox = document.getElementById('e2e-robot-log');
+      const badge = document.getElementById('e2e-status-badge');
+      const dur = document.getElementById('e2e-duration');
+
+      resultBox.style.display = 'block';
+      badge.textContent = '⏳ ROBOT EXECUTING HEADLESS SEQUENCE...';
+      badge.style.color = '#fbbf24';
+      dur.textContent = 'Executing...';
+      logBox.innerHTML = `<span class="info">[ROBOT]</span> Connecting to Chromium & localhost:5173 for flow: <b>${flow}</b>...`;
+
+      try {
+        const res = await fetch('/api/e2e-run-flow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ flow })
+        });
+        const data = await res.json();
+
+        dur.textContent = `Completed in ${data.durationMs || 0}ms`;
+
+        let logLines = (data.stepLog || []).map(line => {
+          if (line.includes('[OK]')) return `<span class="ok">${line}</span>`;
+          if (line.includes('[WARN]')) return `<span class="warn">${line}</span>`;
+          if (line.includes('[ERROR]')) return `<span class="err">${line}</span>`;
+          if (line.includes('[VERDICT]')) return `<span style="color: #00d4ff; font-weight: 700;">${line}</span>`;
+          if (line.includes('[METRICS]')) return `<span style="color: #38bdf8; font-weight: 600;">${line}</span>`;
+          return `<span class="info">${line}</span>`;
+        }).join('\n');
+
+        if (data.success) {
+          badge.textContent = '✅ E2E ROBOT: 100% PASS (Zero Layout Overflow)';
+          badge.style.color = '#34d399';
+          logBox.innerHTML = logLines + `\n\n<span class="ok">${data.message}</span>`;
+          showToast(`E2E Robot Pass: ${flow}`, '🤖');
+          logTerm('ok', `E2E Robot verified ${flow} in ${data.durationMs}ms with zero layout wrapping.`);
+        } else {
+          badge.textContent = '🚨 E2E ROBOT: FAILED / OVERFLOW DETECTED';
+          badge.style.color = '#f87171';
+          logBox.innerHTML = logLines + `\n\n<span class="err">${data.reason || data.message || 'Verification failed'}</span>`;
+          showToast(`E2E Robot Failed: ${flow}`, '🚨');
+          logTerm('err', `E2E Robot failed ${flow}: ${data.reason || data.message}`);
+        }
+      } catch (err) {
+        badge.textContent = '🚨 E2E ROBOT: EXCEPTION';
+        badge.style.color = '#f87171';
+        logBox.innerHTML = `<span class="err">[FAILED]</span> ${err.message}`;
+        showToast('Robot request failed', '⚠️');
+      }
+    }
+
     async function refreshAllTelemetry() {
       await Promise.all([
         fetchDaemonContext(),
