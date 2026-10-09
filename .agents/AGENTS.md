@@ -196,6 +196,23 @@ The file `founder_conversation.md` at the project root is the sovereign, permane
    - The conversation section is always updated to ensure zero memory decay.
 4. **Context Recovery Protocol**: Before initiating major strategic, architectural, or roadmap decisions, the AI agent MUST read `founder_conversation.md` to ground its recommendations in the Founder's exact vision.
 
+---
+
+## 🚫 RULE 1.11: THE SEPARATION INVARIANT BETWEEN VITINLSYNC & CORTEXOS (DUAL-VENTURE PROTOCOL) 🚫
+**ATTENTION ALL AI AGENTS & J.A.R.V.I.S.: VITINLSYNC HEALTHCARE OS AND CORTEXOS ARE TWO SOVEREIGN VENTURES.**
+1. **Absolute Codebase Separation**: 
+   - **VitalSync / Mediflow** is the clinical healthcare operating system (Clinic OS, Eagle-Eye OCR, WhatsApp 1-tap pipeline, EHR, Billing POS, Pharmacy & Pathology networks). It MUST NEVER be coupled with, diluted by, or burdened by external developer-tool packaging.
+   - **CortexOS** is the universal, standalone commercial developer supercomputer and SaaS npm package (`cortexos` / `npx cortexos`). It lives independently in `cortexos.md` (and future standalone `packages/cortexos/`).
+2. **Zero-Pollution Rule**:
+   - VitalSync source files (`frontend/src/*`, `services/*`, Supabase database migrations, etc.) MUST NEVER import or depend on CortexOS packaging artifacts.
+   - CortexOS MUST remain 100% self-contained and universally portable across ANY project, using dynamic directory discovery (`process.cwd()`), zero hardcoded VitalSync domain references, zero clinical database dependencies, and zero heavy npm dependencies on its daemon.
+3. **Dual-Venture Optimization Doctrine**:
+   - When optimizing VitalSync, the agent optimizes purely for clinical OPD throughput, 0-data-entry, 60fps virtualization, and patient care workflows.
+   - When optimizing CortexOS, the agent optimizes for universal npm distribution, multi-repo compatibility (Next.js, Vite, Node, monorepos), fast CLI boot (<300ms), 24-engine super-prompt precision, and commercial SaaS subscription scalability ($49/mo Pro, $199/mo Enterprise).
+4. **Permanent Context Memory**: The AI Taskforce must unconditionally remember this dual-venture separation across all future sessions.
+
+---
+
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.
 - Always ensure that `.gitignore` lists all environment files and credentials.
