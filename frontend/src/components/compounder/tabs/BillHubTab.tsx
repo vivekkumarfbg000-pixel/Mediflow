@@ -1661,7 +1661,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         ) : (
           <>
             {/* MAIN COLUMN: Cart, Live Catalog Search & Voice Billing */}
-            <div className="lg:col-span-12 glass-panel p-4 sm:p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-auto lg:h-[calc(100vh-140px)] transition-all flex">
+            <div className="lg:col-span-9 glass-panel p-4 sm:p-5 bg-white dark:bg-clinical-900/40 border-slate-200/80 dark:border-slate-800 shadow-sm rounded-2xl flex flex-col h-auto lg:h-[calc(100vh-140px)] transition-all flex">
               {/* Selected Patient Banner */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
                 <div className="text-left">

@@ -531,7 +531,23 @@ To maintain zero-hallucination database parity, all tables and foreign keys map 
   - Fully validated as a transformative network-effect architecture that shifts VitalSync from single-tenant software to an interconnected B2B healthcare grid.
   - Emphasized the "Uber-like" transparency of showing pending sample counts and estimated report TAT to eliminate patient anxiety.
   - Highlighted the viral flywheel where independent labs act as unpaid distribution channels by onboarding their referring clinics onto VitalSync.
-* **Knowledge Vault Updated**: Added Section 21 to Part 1.
+### 📅 Session: 2026-10-09 | Surgical Engineering Fix: BillHubTab Desktop 75% Blank Space Grid Wrapping Bug
+* **Participant**: Founder Vivek Kumar & Google/Meta CTO Taskforce (Antigravity J.A.R.V.I.S. v7.0).
+* **Status**: 100% Implemented, Verified & Memory Vault Recorded (Fix #48).
+* **Bug Triage & Root Cause**:
+  - In Compounder Desk -> Billing & POS (`BillHubTab.tsx`), selecting a patient (e.g. Asha Devi) resulted in the right 75% of the desktop screen rendering completely blank white space.
+  - Root cause was CSS Grid column overflow: the parent container at line 1329 was a 12-column grid (`grid grid-cols-1 lg:grid-cols-12 gap-6`). Left patient selection occupied `lg:col-span-3`, but the active billing cart at line 1664 was marked `lg:col-span-12`. Because `3 + 12 = 15 > 12`, CSS Grid pushed the entire billing cart down to row 2 beneath the 100vh patient list, leaving columns 4–12 on row 1 completely vacant.
+* **Surgical Solution**:
+  - Changed line 1664 in `frontend/src/components/compounder/tabs/BillHubTab.tsx` from `lg:col-span-12` to `lg:col-span-9`.
+  - The billing cart now mounts immediately on row 1 directly adjacent to the patient selection sidebar, eliminating the 75% blank void.
+* **Verification & Gate Compliance**:
+  - `npm run typecheck --prefix frontend`: Exit code 0 (0 errors).
+  - J.A.R.V.I.S. Shadow Compiler (`POST /api/shadow-compile`): PASS.
+  - J.A.R.V.I.S. Memory Vault: Updated with fix #48.
+  - Zero modifications to Clinic OS 17 core algorithms or Eagle-Eye RAG OCR logic.
+
+---
+
 ### 📅 Session: 2026-10-09 | Architectural Breakthrough: Air-Gapped Out-of-Band J.A.R.V.I.S. Cockpit Deployed on Port 9000
 * **Participant**: Founder Vivek Kumar & Google/Meta CTO Taskforce (Antigravity J.A.R.V.I.S.).
 * **Status**: 100% Implemented, Live Verified (`http://localhost:9000/jarvis`), & Passed All Compiler Gates.
