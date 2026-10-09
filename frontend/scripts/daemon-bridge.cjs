@@ -60,6 +60,7 @@ const PORT = 9000;
 const SRC_DIR = path.resolve(__dirname, '../src');
 const ROOT_DIR = path.resolve(__dirname, '../../');
 const MEMORY_VAULT_PATH = path.resolve(__dirname, 'jarvis_memory_vault.json');
+const COCKPIT_HTML_PATH = path.resolve(__dirname, 'jarvis-cockpit.html');
 
 // ─────────────────────────────────────────────────────────────────
 // COMPONENT & FEATURE KNOWLEDGE MAP (RAG Index)
@@ -641,6 +642,85 @@ const server = http.createServer(async (req, res) => {
 
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname || '/';
+
+  // ──────────────────────────────────────────────
+  // AIR-GAPPED OUT-OF-BAND J.A.R.V.I.S. COCKPIT (Port 9000 Sovereign Runtime)
+  // ──────────────────────────────────────────────
+  if (req.method === 'GET' && (pathname === '/jarvis' || pathname === '/dashboard' || pathname === '/cockpit' || pathname === '/jarvis-cockpit')) {
+    if (fs.existsSync(COCKPIT_HTML_PATH)) {
+      const html = fs.readFileSync(COCKPIT_HTML_PATH, 'utf-8');
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      });
+      res.end(html);
+      return;
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // EMERGENCY 1-TAP AUTO-REVERT ENDPOINT
+  // POST /api/quick-revert
+  // ──────────────────────────────────────────────
+  if (req.method === 'POST' && pathname === '/api/quick-revert') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        let targetFile = String(payload.file || '').trim();
+
+        if (!targetFile) {
+          const status = runGit('git status --porcelain');
+          if (status.ok && status.output) {
+            const lines = status.output.split('\n').filter(Boolean);
+            const modifiedLine = lines.find(l => l.trim().startsWith('M '));
+            if (modifiedLine) {
+              targetFile = modifiedLine.trim().substring(2).trim();
+            }
+          }
+        }
+
+        if (!targetFile) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'No target file specified and no modified files found.' }));
+          return;
+        }
+
+        // Sanitize path against injection
+        if (targetFile.includes('..') || /[\;&|`$><]/.test(targetFile)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid path: path traversal or shell metacharacters disallowed.' }));
+          return;
+        }
+
+        const revertResult = runGit(`git checkout -- "${targetFile}"`);
+        const frontendDir = path.resolve(__dirname, '..');
+
+        exec('npx tsc --noEmit 2>&1', { cwd: frontendDir, timeout: 60000 }, (error, stdout, stderr) => {
+          const output = (stdout + stderr).trim();
+          const tsErrors = output.split('\n').filter(l => l.includes('error TS'));
+          const passed = !error && tsErrors.length === 0;
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: revertResult.ok,
+            file: targetFile,
+            revertOutput: revertResult.output || 'Reverted cleanly',
+            shadowCompilePassed: passed,
+            tsErrorCount: tsErrors.length,
+            message: revertResult.ok
+              ? `⚡ Auto-Revert SUCCESS for ${targetFile}! ${passed ? '✅ Codebase is now clean (0 type errors).' : `⚠️ ${tsErrors.length} type error(s) remaining.`}`
+              : `🚨 Git revert failed: ${revertResult.output}`
+          }));
+        });
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
 
   // ──────────────────────────────────────────────
   // ──────────────────────────────────────────────
@@ -1583,6 +1663,8 @@ ${rulebookSnippets}
       realtimeSync: { engine: 'Supabase Realtime CDC', debounceMs: 250, latencyTarget: '<300ms' },
       liveDomSnapshot: latestLiveDomSnapshot || { activeRoute: 'unknown', attached: false },
       jarvisEndpoints: {
+        airGappedCockpit: 'http://localhost:9000/jarvis',
+        quickRevert: 'POST /api/quick-revert',
         blastRadius: '/api/blast-radius?file=<filename>',
         shadowCompile: 'POST /api/shadow-compile',
         memoryQuery: '/api/memory?q=<keywords>',
@@ -1730,6 +1812,7 @@ try {
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`\n🧠 ════════════════════════════════════════════════════════════`);
   console.log(`   J.A.R.V.I.S. Daemon Bridge v3.0 — ALL ENGINES ONLINE`);
+  console.log(`   ⚡ Air-Gapped Cockpit        → http://localhost:${PORT}/jarvis`);
   console.log(`   http://localhost:${PORT}/context`);
   console.log(`🕸️  Engine 1: Dependency Graph  → /api/blast-radius?file=`);
   console.log(`🛡️  Engine 2: Shadow Compiler   → POST /api/shadow-compile`);
