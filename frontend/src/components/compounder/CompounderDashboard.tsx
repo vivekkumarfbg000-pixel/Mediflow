@@ -3451,28 +3451,10 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* ── DESKTOP UNIFIED COMMAND BAR & NAVIGATION (Sleek 48px Enterprise Ribbon) ──────────── */}
-      <div className="hidden md:flex items-center justify-between gap-3 px-3.5 py-2 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 rounded-2xl shadow-xs mb-3 sticky top-0 z-20">
-        {/* Left: Clinic Identity Badge */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0E7A8A] to-teal-600 text-white flex items-center justify-center shrink-0 shadow-xs border border-teal-400/30">
-            <Stethoscope className="w-4 h-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-[12.5px] font-extrabold text-slate-900 dark:text-white truncate leading-tight flex items-center gap-1.5">
-              <span>{clinicTitle}</span>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[9.5px] font-mono font-semibold border border-emerald-200/70 dark:border-emerald-800/40">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
-              </span>
-            </div>
-            <div className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">
-              {staffList.find(s => s.id === activeStaffId)?.staffName || 'Compounder Desk'}
-            </div>
-          </div>
-        </div>
-
-        {/* Center: Sleek Medical Teal Tab Switcher */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100/80 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-white/5">
+      {/* ── DESKTOP UNIFIED COMMAND BAR (Compact 40px High-Density Ribbon) ──────────── */}
+      <div className="hidden md:flex items-center justify-between gap-2 px-3 py-1.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 rounded-xl shadow-xs mb-2 z-10">
+        {/* Left: Sleek Medical Teal Tab Switcher */}
+        <div className="flex items-center gap-1 p-0.5 bg-slate-100/90 dark:bg-slate-800/60 rounded-lg border border-slate-200/60 dark:border-white/5">
           {[
             { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
             { id: 'opd_patients', label: 'Live OPD Queue', icon: <Users className="h-3.5 w-3.5" /> },
@@ -3484,7 +3466,7 @@ export const CompounderDashboard: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => startTransition(() => setActiveTab(tab.id as any))}
-              className={`px-3 py-1.5 text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all rounded-lg cursor-pointer ${
+              className={`px-3 py-1.5 text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all rounded-md cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-[#0E7A8A] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/80 dark:hover:bg-white/5'
@@ -3496,12 +3478,15 @@ export const CompounderDashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Right: Quick Action CTAs */}
+        {/* Right: Quick Action CTAs & Live Pod Status */}
         <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-mono font-semibold border border-emerald-200/70 dark:border-emerald-800/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Pod
+          </div>
           <button
             type="button"
             onClick={() => setShowPriceBookModal(true)}
-            className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 text-[11px] font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer border border-slate-200/80 dark:border-white/10"
+            className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-slate-200/80 dark:border-white/10"
             title="Open Clinic Services & Price Book"
           >
             <Tag className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
@@ -3510,7 +3495,7 @@ export const CompounderDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowInstantAppointmentModal(true)}
-            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-[11px] rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer border-0 shrink-0"
+            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer border-0 shrink-0"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>+ Walk-In</span>
@@ -3549,6 +3534,7 @@ export const CompounderDashboard: React.FC = () => {
     const amount = Number(raw.total_amount || inv.amount) || 0;
     return sum + amount;
   }, 0);
+  const otherTotal = Math.max(0, grossTotal - (consultTotal + pharmTotal + labTotal));
 
   const pendingBillsCount = todayInvoices.filter(i => (i as any).payment_status === 'pending' || i.status === 'unpaid').length;
   const dispensaryOrdersCount = (PharmacyService.getMedicineBills() || []).filter(b => b.status === 'confirmed' || b.status === 'paid' || (b as any).status === 'pending').length;
@@ -3571,7 +3557,7 @@ export const CompounderDashboard: React.FC = () => {
 
   return (
     <div 
-      className="w-full text-slate-900 font-sans min-h-screen flex flex-col bg-slate-50 text-[13px] -mt-2 -mx-2 md:mx-auto max-w-md md:max-w-4xl lg:max-w-7xl lg:px-4 pb-24" 
+      className="w-full text-slate-900 font-sans min-h-screen flex flex-col bg-slate-50 text-[13px] mx-auto max-w-md md:max-w-4xl lg:max-w-7xl px-2 sm:px-3 lg:px-4 pb-24" 
       style={{ background: 'radial-gradient(at 0% 0%, rgba(14, 122, 138, 0.05) 0px, transparent 48%), radial-gradient(at 100% 12%, rgba(20, 195, 208, 0.05) 0px, transparent 40%), #F8FAFC' }}
     >
       {/* UNIFIED HIGH-DENSITY CLINICAL APP BAR & CLINIC IDENTITY */}
@@ -3636,7 +3622,7 @@ export const CompounderDashboard: React.FC = () => {
       </header>
 
       {/* ── HIGH-DENSITY 3-COLUMN ENTERPRISE COMMAND CENTER (12-COL: 3 : 5 : 4) ── */}
-      <div className="w-full lg:grid lg:grid-cols-12 lg:gap-4 items-start">
+      <div className="w-full lg:grid lg:grid-cols-12 lg:gap-4 items-start pt-2 md:pt-3.5">
         {/* ◀ COLUMN 1: RAPID INTAKE & LIVE TOKEN QUEUE (3 COLS / 25%) */}
         <div className="lg:col-span-3 space-y-3">
           {/* COMPACT TACTICAL HERO: QUICK SCAN RX */}
@@ -3743,6 +3729,65 @@ export const CompounderDashboard: React.FC = () => {
               className="w-full text-center text-[10.5px] font-bold text-[#0E7A8A] hover:underline pt-1 block cursor-pointer"
             >
               Open Full OPD Queue ({activeOpdAppointments.length}) →
+            </button>
+          </div>
+
+          {/* RAPID VITALS & PATIENT INTAKE POD (Fills Column 1 & Balances Grid Height) */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] space-y-2.5">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-teal-600" />
+                <span className="text-[11px] font-bold tracking-tight text-slate-800 uppercase">Rapid Vitals &amp; Intake</span>
+              </div>
+              <span className="text-[9.5px] font-mono text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.2 rounded">
+                Desk Triage
+              </span>
+            </div>
+
+            {/* 1-Tap Trigger to log vitals */}
+            <button
+              type="button"
+              onClick={() => {
+                const targetPatient = focusPatient || patients[0] || null;
+                if (targetPatient) {
+                  setVitalsPatient(targetPatient);
+                  setShowVitalsBottomSheet(true);
+                } else {
+                  setShowInstantAppointmentModal(true);
+                }
+              }}
+              className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 border border-teal-200/80 text-[#0E7A8A] font-bold text-[11px] flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer shadow-2xs"
+            >
+              <HeartPulse className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
+              <span>+ Record Patient Vitals</span>
+            </button>
+
+            {/* Quick Summary of Vitals Processed Today */}
+            <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/60 space-y-1">
+              <div className="flex items-center justify-between text-[10.5px]">
+                <span className="text-slate-500 font-medium">Triaged Today:</span>
+                <span className="font-mono font-bold text-slate-900 tabular-nums">
+                  {patients.filter(p => p.vitals?.bloodPressure || p.vitals?.pulseRate).length} Patients
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[10.5px]">
+                <span className="text-slate-500 font-medium">Awaiting Chamber:</span>
+                <span className="font-mono font-bold text-teal-700 tabular-nums">
+                  {activeOpdAppointments.length} Tokens
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Find Shortcut */}
+            <button
+              type="button"
+              onClick={() => {
+                startTransition(() => setActiveTab('opd_patients'));
+                setOpdSubTab('directory');
+              }}
+              className="w-full text-center text-[10.5px] font-bold text-slate-600 hover:text-slate-900 hover:underline pt-0.5 block cursor-pointer"
+            >
+              Search Master Directory ({patients.length}) →
             </button>
           </div>
         </div>
@@ -4116,6 +4161,23 @@ export const CompounderDashboard: React.FC = () => {
                 </div>
                 <span className="font-mono font-bold text-slate-900 tabular-nums">₹{labTotal.toLocaleString('en-IN')}</span>
               </div>
+              {/* Other / Registration Fees (if any) */}
+              {otherTotal > 0 && (
+                <div 
+                  onClick={() => { 
+                    setBillHubInitialMode('manual_billing'); 
+                    setBillingSubTab('billing'); 
+                    startTransition(() => setActiveTab('billing_daycare')); 
+                  }}
+                  className="flex items-center justify-between text-[11px] text-slate-600 hover:bg-slate-50 p-1 rounded-lg cursor-pointer transition"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                    <span>Other / Registration Fee</span>
+                  </div>
+                  <span className="font-mono font-bold text-slate-900 tabular-nums">₹{otherTotal.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               {/* Gross Counter Total */}
               <div 
                 onClick={() => { 
