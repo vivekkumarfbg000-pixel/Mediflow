@@ -473,6 +473,7 @@ To maintain zero-hallucination database parity, all tables and foreign keys map 
   3. **Live Selected-Patient Triage Inspector**: Replaced the static, empty placeholder in `lg:col-span-4` of `today_queue` with an interactive clinical triage inspector card. Displays active selected patient token `#TK-XX`, vitals status, 1-tap browser Web Speech API token announcement into waiting room, 1-tap Vitals Intake modal trigger, 1-tap BillHub POS launch, and WhatsApp CareSetu trigger.
   4. **Strict Mobile Version Protection Shield**: All desktop layout changes, sticky cards, and grid adjustments strictly scoped behind `md:` and `lg:` breakpoints with zero modifications to base mobile classes.
   5. **OPD Register Print & PDF Modal Harmonization**: Updated the daily archive print modal to brand Medical Teal header and date filter pills.
+  6. **Zero-Breakage JSX Enclosing Balance**: Surgically resolved oxc parser tag balance in `today_queue` container (`vite build` passing in 7.59s).
 * **CTO Assessment & Takeaways**:
   - The Compounder web experience is now completely consistent, polished, and looks like a handcrafted Big Tech enterprise suite (Google/Stripe standard) rather than a mobile port.
   - Zero regression on mobile screens (<768px).
