@@ -885,6 +885,17 @@ To maintain zero-hallucination database parity, all tables and foreign keys map 
   3. **Product Positioning Moat**: Do not sell as "just another prompt generator." Position as **"The Realtime Telemetry HUD & Context Bridge for AI Coding"** (Stark Industries Iron Man HUD for web apps).
   4. **Dual Venture Balance**: VitalSync is the deep-moat Indian healthcare operating system; CortexOS is the high-margin, global USD recurring revenue SaaS.
 
+---
+
+### 📅 Session: 2026-10-10 | Google Stitch MCP Connection & Activation Status
+* **Participant**: Founder Vivek Kumar & Google/Meta CTO Taskforce (Antigravity J.A.R.V.I.S.).
+* **Inquiry**: Founder requested connecting to Stitch MCP.
+* **Findings**:
+  1. Identified 14 Stitch MCP tool schemas present in `C:\Users\vivek\.gemini\antigravity-ide\mcp\StitchMCP\` (`create_design_system`, `generate_screen_from_text`, `generate_variants`, `edit_screens`, etc.).
+  2. Tested connection to `StitchMCP`. The server is installed but currently toggled inactive in the IDE session profile (`tool list_projects is not enabled for server StitchMCP`).
+  3. Action needed: Founder must toggle Stitch MCP ON under IDE **Additional Options (...) > MCP Servers**.
+
+
 
 
 
