@@ -804,6 +804,7 @@ export const CompounderDashboard: React.FC = () => {
 
   // Swasthya Vitals Intake States
   const [vitalsPatient, setVitalsPatient] = useState<Patient | null>(null);
+  const [selectedQueuePatientId, setSelectedQueuePatientId] = useState<string | null>(null);
   const [tempVal, setTempVal] = useState('98.6');
   const [bpVal, setBpVal] = useState('120/80');
   const [pulseVal, setPulseVal] = useState('72');
@@ -811,6 +812,30 @@ export const CompounderDashboard: React.FC = () => {
   const [weightVal, setWeightVal] = useState('65');
   const [sugarVal, setSugarVal] = useState('105');
   const [isSavingVitals, setIsSavingVitals] = useState(false);
+
+  // 1-Tap Vocal Chamber Token Announcer
+  const handleAnnouncePatientToken = useCallback((patientName: string, token: string | number) => {
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const text = `Token number ${token}. Patient ${patientName}. Please proceed to Doctor consultation chamber.`;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
+        utterance.lang = 'en-IN';
+        window.speechSynthesis.speak(utterance);
+        window.dispatchEvent(new CustomEvent('mediflow-toast', {
+          detail: {
+            title: 'Chamber Announcement 📢',
+            message: `Called Token #${token} (${patientName}) to Doctor Chamber.`,
+            type: 'info'
+          }
+        }));
+      }
+    } catch (err) {
+      console.warn('[Compounder] Speech announcement error:', err);
+    }
+  }, []);
 
   // Quick Vitals Source Filter Tab
   const [vitalsSourceFilter, setVitalsSourceFilter] = useState<'all' | 'whatsapp' | 'qr_scan' | 'counter'>('all');
@@ -4246,9 +4271,9 @@ export const CompounderDashboard: React.FC = () => {
         {activeTab === 'opd_patients' && (
           <div className="space-y-6 animate-fade-in text-left">
             {/* Google-Tier Executive OPD Chamber Ribbon */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-3.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0E7A8A] to-teal-600 flex items-center justify-center text-white shadow-md shadow-[#0E7A8A]/20 shrink-0">
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
@@ -4258,7 +4283,7 @@ export const CompounderDashboard: React.FC = () => {
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Live Sync
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] dark:text-teal-300 border border-teal-200 dark:border-teal-800/60">
                       {(activeOpdAppointments || []).length} Active Patients
                     </span>
                   </h2>
@@ -4290,7 +4315,7 @@ export const CompounderDashboard: React.FC = () => {
                     onClick={() => setPatientsSubTab('directory')}
                     className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
                       patientsSubTab === 'directory'
-                        ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
+                        ? 'border-[#0E7A8A] text-[#0E7A8A] dark:text-teal-400 font-extrabold'
                         : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
                     }`}
                   >
@@ -4300,7 +4325,7 @@ export const CompounderDashboard: React.FC = () => {
                     onClick={() => setPatientsSubTab('register')}
                     className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
                       patientsSubTab === 'register'
-                        ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-extrabold'
+                        ? 'border-[#0E7A8A] text-[#0E7A8A] dark:text-teal-400 font-extrabold'
                         : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
                     }`}
                   >
@@ -4759,13 +4784,13 @@ export const CompounderDashboard: React.FC = () => {
             {opdSubTab === 'history' && (
               <div className="space-y-6 animate-fade-in text-left">
                 <div className="glass-panel p-4 sm:p-6 border-slate-200/60 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-600 to-indigo-600 opacity-80" />
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#0E7A8A] to-teal-500 opacity-80" />
                   
                   {/* Header with Title, Count, and 1-Click Export CSV Action */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-3.5 border-b border-slate-200/60 dark:border-white/10">
                     <div>
                       <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-indigo-500 shrink-0" />
+                        <Clock className="w-5 h-5 text-[#0E7A8A] shrink-0" />
                         Past Consultation History & Clinic Records
                       </h2>
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -4774,7 +4799,7 @@ export const CompounderDashboard: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                      <span className="text-xs font-mono font-bold px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 rounded-xl">
+                      <span className="text-xs font-mono font-bold px-2.5 py-1 bg-teal-50 dark:bg-teal-950/50 text-[#0E7A8A] dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 rounded-xl">
                         {(() => {
                           const todayStr = getIstDateString();
                           return appointments.filter(a => {
@@ -4802,7 +4827,7 @@ export const CompounderDashboard: React.FC = () => {
                         value={pastHistorySearchQuery}
                         onChange={setPastHistorySearchQuery}
                         placeholder="Search past appointments by Patient Name, Phone, Token #, or Date..."
-                        className="w-full text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-xl outline-none placeholder:text-slate-400 transition-all"
+                        className="w-full text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-[#0E7A8A] focus:border-[#0E7A8A] bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-xl outline-none placeholder:text-slate-400 transition-all"
                       />
                   </div>
 
@@ -4915,7 +4940,7 @@ export const CompounderDashboard: React.FC = () => {
                 {/* Left Column: Today's Appointments List */}
                 <div className="lg:col-span-8 space-y-6">
                   <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
-                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#0E7A8A] to-teal-500 opacity-60" />
                     {/* Integrated Segmented View Switcher & Operational Utility Strip */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
                       {/* 1-Tap Switcher: Today's Live Stream vs Scheduled Advance Bookings */}
@@ -4925,7 +4950,7 @@ export const CompounderDashboard: React.FC = () => {
                           onClick={() => setOpdQueueFilter('today')}
                           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
                             opdQueueFilter === 'today'
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                              ? 'bg-[#0E7A8A] text-white shadow-xs font-black'
                               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                           }`}
                         >
@@ -4943,7 +4968,7 @@ export const CompounderDashboard: React.FC = () => {
                           onClick={() => setOpdQueueFilter('upcoming')}
                           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
                             opdQueueFilter === 'upcoming'
-                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                              ? 'bg-[#0E7A8A] text-white shadow-xs font-black'
                               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
                           }`}
                         >
@@ -5108,8 +5133,11 @@ export const CompounderDashboard: React.FC = () => {
                       return (
                         <div 
                           key={appt.id} 
-                          className={`px-5 py-3.5 border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all duration-300 w-full ${
-                            isSOS
+                          onClick={() => setSelectedQueuePatientId(patient.id)}
+                          className={`px-5 py-3.5 border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all duration-300 w-full cursor-pointer ${
+                            selectedQueuePatientId === patient.id
+                              ? 'ring-2 ring-[#0E7A8A] bg-teal-50/50 dark:bg-teal-950/20 border-[#0E7A8A]'
+                              : isSOS
                               ? 'border-rose-500 bg-rose-500/10 shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/30'
                               : vitalsPatient?.id === patient.id 
                               ? 'border-rose-500/50 bg-rose-500/5 shadow-md shadow-rose-500/5' 
@@ -5487,13 +5515,184 @@ export const CompounderDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Active Vitals Quick Status */}
-            <div className="lg:col-span-4 space-y-6">
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative text-center text-slate-500 py-8 bg-white dark:bg-slate-800/80 rounded-3xl">
-                <Activity className="h-8 w-8 text-rose-500 mx-auto mb-2 animate-pulse" />
-                <h4 className="text-xs font-bold text-slate-800 dark:text-white">Vitals Intake Command</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Select any patient from the OPD Queue to open the instant Vitals Recording Modal window.</p>
-              </div>
+            {/* Right Column: Live Selected-Patient Triage Inspector */}
+            <div className="lg:col-span-4 space-y-4 lg:sticky lg:top-6 self-start">
+              {(() => {
+                // Determine active inspected appointment / patient
+                const confirmedAppts = opdQueueFilter === 'today' ? activeOpdAppointments : upcomingAdvanceBookings;
+                const activeAppt = (selectedQueuePatientId 
+                  ? confirmedAppts.find(a => (a.patientId || (a as any).patient_id) === selectedQueuePatientId || a.id === selectedQueuePatientId)
+                  : confirmedAppts[0]) || confirmedAppts[0];
+
+                if (!activeAppt) {
+                  return (
+                    <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative text-center text-slate-500 py-8 bg-white dark:bg-slate-900/80 rounded-3xl">
+                      <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] flex items-center justify-center mx-auto mb-3">
+                        <Activity className="h-6 w-6" />
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-white">Chamber Queue Clear</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">No active patients waiting in today's OPD stream.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpdSubTab('directory');
+                          setPatientsSubTab('register');
+                        }}
+                        className="mt-4 px-3.5 py-1.5 bg-[#0E7A8A] hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer border-0"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Register Walk-in</span>
+                      </button>
+                    </div>
+                  );
+                }
+
+                const patId = activeAppt.patientId || (activeAppt as any).patient_id;
+                const apptPhone = activeAppt.patientPhone || (activeAppt as any).patient_phone || '';
+                const matchedPatient = patients.find(p => 
+                  p.id === patId || 
+                  (p.phone && apptPhone && p.phone.replace(/\D/g, '').slice(-10) === String(apptPhone).replace(/\D/g, '').slice(-10))
+                );
+                const apptVitals = (activeAppt as any).vitals || (activeAppt as any).patient_vitals;
+                const targetPatient: Patient = matchedPatient ? {
+                  ...matchedPatient,
+                  vitals: matchedPatient.vitals || apptVitals
+                } : {
+                  id: patId || 'pt_temp',
+                  name: (activeAppt as any).patientName || (activeAppt as any).patient_name || 'Patient',
+                  phone: apptPhone || 'N/A',
+                  age: (activeAppt as any).patientAge || (activeAppt as any).patient_age || 30,
+                  gender: (activeAppt as any).patientGender || (activeAppt as any).patient_gender || 'Male',
+                  vitals: apptVitals,
+                  queueStatus: (apptVitals || activeAppt.status === 'ready_for_consult') ? 'awaiting_consultation' : 'awaiting_vitals',
+                  allergies: [],
+                  chronicConditions: [],
+                  createdAt: new Date().toISOString()
+                };
+
+                const rawToken = activeAppt.token_number || activeAppt.tokenNumber || (activeAppt as any).token;
+                const tokenDisplay = String(rawToken || '01');
+                const cleanToken = tokenDisplay.startsWith('TK-') || tokenDisplay.startsWith('T-') || tokenDisplay.startsWith('VIP-') ? tokenDisplay : `TK-${tokenDisplay.padStart(2, '0')}`;
+                const vitals = targetPatient.vitals || (activeAppt as any).vitals || {};
+                const hasVitals = Boolean(vitals.bloodPressure || vitals.pulseRate || vitals.temperature || vitals.spO2);
+
+                return (
+                  <div className="glass-panel p-5 border-slate-200/70 dark:border-white/10 shadow-xl relative bg-white dark:bg-slate-900/90 text-slate-800 dark:text-white rounded-3xl space-y-4">
+                    <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-[#0E7A8A] to-teal-500" />
+                    
+                    {/* Header: Token & Patient Demographics */}
+                    <div className="flex items-start justify-between gap-2 pt-1 border-b border-slate-200/60 dark:border-white/10 pb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] dark:text-teal-300 font-mono font-black text-xs border border-teal-200 dark:border-teal-800/60">
+                            #{cleanToken}
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            hasVitals
+                              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60'
+                              : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
+                          }`}>
+                            {hasVitals ? 'Ready for Doctor' : 'Awaiting Vitals'}
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1.5 truncate">
+                          {targetPatient.name}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                          {targetPatient.age}y · {targetPatient.gender} · {targetPatient.phone}
+                        </p>
+                      </div>
+
+                      {/* 1-Tap Audio Token Callout */}
+                      <button
+                        type="button"
+                        onClick={() => handleAnnouncePatientToken(targetPatient.name, cleanToken)}
+                        className="px-2.5 py-1.5 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/60 text-[#0E7A8A] dark:text-teal-300 border border-teal-200 dark:border-teal-800/60 rounded-xl text-[10px] font-bold flex items-center gap-1 transition shrink-0 cursor-pointer shadow-xs active:scale-95"
+                        title="Voice Announce Token into Waiting Room"
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Callout</span>
+                      </button>
+                    </div>
+
+                    {/* Vitals Summary Strip */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        <span>Pre-Check Vitals</span>
+                        <span className={hasVitals ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                          {hasVitals ? '● Recorded' : '○ Pending'}
+                        </span>
+                      </div>
+
+                      {hasVitals ? (
+                        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5">
+                            <span className="text-[9px] text-slate-400 block">Blood Pressure</span>
+                            <span className="font-bold text-slate-800 dark:text-white">{vitals.bloodPressure || '—'}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5">
+                            <span className="text-[9px] text-slate-400 block">Pulse Rate</span>
+                            <span className="font-bold text-slate-800 dark:text-white">{vitals.pulseRate ? `${vitals.pulseRate} bpm` : '—'}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5">
+                            <span className="text-[9px] text-slate-400 block">Temperature</span>
+                            <span className="font-bold text-slate-800 dark:text-white">{vitals.temperature ? `${vitals.temperature}°F` : '—'}</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-white/5">
+                            <span className="text-[9px] text-slate-400 block">SpO2 Oxygen</span>
+                            <span className="font-bold text-slate-800 dark:text-white">{vitals.spO2 ? `${vitals.spO2}%` : '—'}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 text-center">
+                          <p className="text-[11px] text-amber-800 dark:text-amber-300">No vitals logged yet for this visit.</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quick Command Actions */}
+                    <div className="space-y-2 pt-1 border-t border-slate-200/60 dark:border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setVitalsPatient(targetPatient)}
+                        className="w-full py-2 px-3 bg-[#0E7A8A] hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer border-0 active:scale-98"
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>{hasVitals ? 'Update Vitals' : 'Record Vitals (1-Tap)'}</span>
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPatientForBillHub(targetPatient.id);
+                            setBillingPatient(targetPatient);
+                            startTransition(() => {
+                              setActiveTab('billing_daycare');
+                              setBillingSubTab('billing');
+                              setBillHubInitialMode('manual_billing');
+                            });
+                          }}
+                          className="py-1.5 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold text-[10px] rounded-xl flex items-center justify-center gap-1 transition cursor-pointer border border-slate-200 dark:border-white/10"
+                        >
+                          <CreditCard className="w-3 h-3 text-[#0E7A8A]" />
+                          <span>BillHub POS</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleInitiateWhatsAppLoop(targetPatient)}
+                          className="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-[10px] rounded-xl flex items-center justify-center gap-1 transition cursor-pointer border border-emerald-200 dark:border-emerald-800/60"
+                        >
+                          <Smartphone className="w-3 h-3 text-emerald-600" />
+                          <span>WhatsApp</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
 
               {/* INSTANT FLOATING VITALS RECORDING MODAL OVERLAY
                    CRITICAL: outer div must be `fixed inset-0 flex items-center justify-center`
@@ -8412,7 +8611,7 @@ export const CompounderDashboard: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 text-white flex items-center justify-between shrink-0">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#0E7A8A] via-teal-700 to-[#0E7A8A] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shadow-inner">
                   <Printer className="w-5 h-5 text-white" />
@@ -8424,7 +8623,7 @@ export const CompounderDashboard: React.FC = () => {
                       Daily Archive
                     </span>
                   </div>
-                  <p className="text-[11px] text-indigo-100/90 font-medium">
+                  <p className="text-[11px] text-teal-100/90 font-medium">
                     Generate official date-wise consultation logs with letterhead, vitals & signatures
                   </p>
                 </div>
@@ -8449,7 +8648,7 @@ export const CompounderDashboard: React.FC = () => {
                     type="date"
                     value={registerSelectedDate}
                     onChange={(e) => setRegisterSelectedDate(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold font-mono outline-none focus:border-indigo-500 shadow-xs"
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold font-mono outline-none focus:border-[#0E7A8A] shadow-xs"
                   />
                 </div>
 
@@ -8460,7 +8659,7 @@ export const CompounderDashboard: React.FC = () => {
                     onClick={() => setRegisterSelectedDate(getIstOffsetDateString(-1))}
                     className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
                       registerSelectedDate === getIstOffsetDateString(-1)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        ? 'bg-[#0E7A8A] text-white border-[#0E7A8A]'
                         : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                     }`}
                   >
@@ -8471,7 +8670,7 @@ export const CompounderDashboard: React.FC = () => {
                     onClick={() => setRegisterSelectedDate(getIstDateString())}
                     className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
                       registerSelectedDate === getIstDateString()
-                        ? 'bg-indigo-600 text-white border-indigo-600 font-black'
+                        ? 'bg-[#0E7A8A] text-white border-[#0E7A8A] font-black'
                         : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                     }`}
                   >
@@ -8482,7 +8681,7 @@ export const CompounderDashboard: React.FC = () => {
                     onClick={() => setRegisterSelectedDate(getIstOffsetDateString(1))}
                     className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
                       registerSelectedDate === getIstOffsetDateString(1)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        ? 'bg-[#0E7A8A] text-white border-[#0E7A8A]'
                         : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
                     }`}
                   >
