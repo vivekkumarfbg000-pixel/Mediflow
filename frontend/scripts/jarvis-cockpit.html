@@ -559,6 +559,68 @@
       </div>
     </section>
 
+    <!-- SECTION: J.A.R.V.I.S. v7.0 SUPER PROMPT STUDIO (BUG TRIAGE & GENERATOR) -->
+    <section class="panel" id="super-prompt-studio" style="border: 1px solid rgba(0, 212, 255, 0.4); background: linear-gradient(180deg, rgba(14, 22, 38, 0.95) 0%, rgba(9, 13, 21, 0.98) 100%); box-shadow: 0 4px 25px rgba(0, 212, 255, 0.12); margin-top: 0.5rem;">
+      <div class="panel-header" style="background: rgba(0, 212, 255, 0.08); border-bottom: 1px solid rgba(0, 212, 255, 0.25);">
+        <span class="panel-title" style="color: #00d4ff; font-size: 0.95rem;">
+          🎯 J.A.R.V.I.S. v7.0 Super Prompt Studio (Bug Triage &amp; Generator)
+        </span>
+        <span style="font-size: 0.72rem; color: #34d399; font-family: var(--font-mono); font-weight: 700; background: rgba(16, 185, 129, 0.15); padding: 0.2rem 0.5rem; border-radius: 4px;">
+          AUTO-PACKAGES 24-ENGINE CONTEXT
+        </span>
+      </div>
+      <div class="panel-body" style="gap: 0.85rem;">
+        <p style="font-size: 0.82rem; color: #94a3b8; margin: 0;">
+          Describe any bug, UI glitch, or error below. J.A.R.V.I.S. will automatically probe live AST syntax trees, dependency blast radius, and memory vault solutions to create the official Google/Meta tier triage prompt.
+        </p>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem;">
+          <div>
+            <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem; font-family: var(--font-mono);">
+              Target File / Component:
+            </label>
+            <input type="text" id="studio-target-file" class="input-text" placeholder="e.g. frontend/src/components/compounder/tabs/BillHubTab.tsx" value="frontend/src/components/compounder/tabs/BillHubTab.tsx">
+          </div>
+          <div>
+            <label style="font-size: 0.76rem; color: var(--text-muted); display: block; margin-bottom: 0.35rem; font-family: var(--font-mono);">
+              Bug Severity:
+            </label>
+            <select id="studio-severity" class="input-text" style="cursor: pointer; background: #090d15;">
+              <option value="CRITICAL 🚨">CRITICAL 🚨 (Immediate — Blocks Clinic OS)</option>
+              <option value="HIGH ⚠️">HIGH ⚠️ (Core Flow / Data Issue)</option>
+              <option value="MEDIUM 🔶" selected>MEDIUM 🔶 (UI / Layout Glitch)</option>
+              <option value="LOW 🔵">LOW 🔵 (Minor Polish / Cosmetic)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 0.76rem; color: #38bdf8; display: block; margin-bottom: 0.35rem; font-family: var(--font-mono); font-weight: 600;">
+            📝 Bug Description &amp; Symptoms (What is happening vs what should happen?):
+          </label>
+          <textarea id="studio-bug-desc" class="input-text" rows="3" style="width: 100%; resize: vertical; min-height: 85px; font-size: 0.82rem; line-height: 1.45;" placeholder="e.g. In Compounder Desk -> Billing & POS, selecting any patient leaves the right 75% of the screen blank white space."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="generateAndCopySuperPrompt()" style="background: linear-gradient(135deg, #0284c7 0%, #00d4ff 100%); color: #020617; font-weight: 700; border: none; padding: 0.65rem 1.35rem; box-shadow: 0 4px 15px rgba(0, 212, 255, 0.35); font-size: 0.82rem;">
+            ⚡ Generate &amp; Copy J.A.R.V.I.S. Super Prompt
+          </button>
+          <button class="btn btn-outline" onclick="copyCurrentCompilerBugPrompt()" style="font-size: 0.78rem;">
+            🚨 Auto-Fill from Compiler Error
+          </button>
+          <span id="studio-status" style="font-size: 0.76rem; font-family: var(--font-mono); color: #34d399;"></span>
+        </div>
+
+        <div id="studio-prompt-preview" style="display: none; margin-top: 0.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <label style="font-size: 0.74rem; color: #38bdf8; font-family: var(--font-mono); font-weight: 600;">✅ Generated Super Prompt (Copied to Clipboard!):</label>
+            <button class="btn btn-outline" style="padding: 0.25rem 0.6rem; font-size: 0.7rem;" onclick="copyPreviewText()">📋 Re-Copy Prompt</button>
+          </div>
+          <div class="terminal-box" id="studio-preview-box" style="max-height: 200px; font-size: 0.72rem; color: #a5f3fc;"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- WORKSPACE / COMMAND DECKS -->
     <section class="workspace-layout">
       
@@ -577,8 +639,11 @@
             <button class="btn btn-primary" id="btn-run-compile" onclick="triggerShadowCompile()">
               🛡️ Run Shadow Compile
             </button>
+            <button class="btn btn-outline" style="border-color: rgba(0, 212, 255, 0.4); color: #38bdf8;" onclick="document.getElementById('super-prompt-studio').scrollIntoView({ behavior: 'smooth' })">
+              🎯 Create Super Prompt
+            </button>
             <button class="btn btn-outline" onclick="copyJarvisPrompt()">
-              📋 Copy J.A.R.V.I.S. Prompt
+              📋 Quick Copy Prompt
             </button>
             <button class="btn btn-outline" onclick="createSafeStateSnapshot()">
               📸 Save Safe Snapshot
@@ -1057,6 +1122,14 @@ ${memorySummary}
 4. Auto-verify live DOM context via http://localhost:9000/context.
 </USER_REQUEST_TRIAGE>`;
 
+      lastGeneratedSuperPrompt = prompt;
+      const previewBox = document.getElementById('studio-preview-box');
+      const previewWrap = document.getElementById('studio-prompt-preview');
+      if (previewBox && previewWrap) {
+        previewBox.textContent = prompt;
+        previewWrap.style.display = 'block';
+      }
+
       navigator.clipboard.writeText(prompt).then(() => {
         showToast('J.A.R.V.I.S. v7.0 Prompt copied!', '📋');
         logTerm('ok', 'Copied J.A.R.V.I.S. v7.0 Neuro-Symbolic Prompt with full AST & blast radius context to clipboard.');
@@ -1165,7 +1238,124 @@ ${memorySummary}
       }
     }
 
-    // Refresh all telemetry
+    // ─────────────────────────────────────────────────────────────────
+    // J.A.R.V.I.S. v7.0 SUPER PROMPT STUDIO (BUG TRIAGE & GENERATOR)
+    // ─────────────────────────────────────────────────────────────────
+    let lastGeneratedSuperPrompt = '';
+
+    async function generateAndCopySuperPrompt() {
+      const file = document.getElementById('studio-target-file').value.trim() || 'frontend/src/App.tsx';
+      const severity = document.getElementById('studio-severity').value;
+      const desc = document.getElementById('studio-bug-desc').value.trim() || 'UI or component bug detected during clinical operation.';
+      const statusEl = document.getElementById('studio-status');
+      statusEl.textContent = '⏳ Probing AST, blast radius & memory vault...';
+
+      // 1. Blast Radius
+      let consumers = [];
+      try {
+        const brRes = await fetch(`/api/blast-radius?file=${encodeURIComponent(file)}`);
+        if (brRes.ok) {
+          const brData = await brRes.json();
+          consumers = brData.affectedFiles || [];
+        }
+      } catch(e) {}
+
+      // 2. AST Diagnostics
+      let astInfo = 'AST Syntax Valid (0 parse errors detected)';
+      try {
+        const astRes = await fetch(`/api/ast-syntax-check?file=${encodeURIComponent(file)}`);
+        if (astRes.ok) {
+          const astData = await astRes.json();
+          if (astData.errors && astData.errors.length > 0) {
+            astInfo = astData.errors.map(err => `Line ${err.line}: ${err.message}`).join('\n');
+            if (astData.unclosedTagContext) {
+              astInfo += `\nUnclosed Tag: <${astData.unclosedTagContext.openTag}> at Line ${astData.unclosedTagContext.line}. Expected: ${astData.unclosedTagContext.expectedClose}`;
+            }
+          }
+        }
+      } catch(e) {}
+
+      // 3. Memory Vault
+      let memorySummary = 'No past fixes recorded for this file.';
+      try {
+        const memRes = await fetch(`/api/memory?q=${encodeURIComponent(file)}`);
+        if (memRes.ok) {
+          const memData = await memRes.json();
+          if (memData.results && memData.results.length > 0) {
+            memorySummary = memData.results.slice(0, 2).map(r => `• Fix: ${r.bugDescription} -> Solved by: ${r.solution}`).join('\n');
+          }
+        }
+      } catch(e) {}
+
+      // 4. Live Telemetry Context
+      const liveRoute = document.getElementById('telemetry-route')?.textContent || '/';
+      const domErrors = document.getElementById('telemetry-dom-errors')?.textContent || '0';
+
+      const prompt = `<USER_REQUEST_TRIAGE>
+╔═══════════════════════════════════════════════════════════════════╗
+║  🧠 J.A.R.V.I.S. v7.0 — VitalSync GOD MODE Super Intelligence   ║
+║  24-Engine Multi-Persona Agentic Supercomputer Protocol           ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+🚨 BUG SEVERITY: ${severity}
+Urgency: ${severity.includes('CRITICAL') ? 'Immediate — Blocks Clinic OS / Port 5173' : 'High Priority Clinical Fix'}
+
+🚨 BUG DESCRIPTION:
+${desc}
+
+📁 TARGET COMPONENT / FILE:
+${file}
+
+🔬 AST SYNTAX DIAGNOSTICS (Engine 11 v2):
+${astInfo}
+
+📊 LIVE TELEMETRY CONTEXT:
+• Active Route: ${liveRoute}
+• DOM Telemetry: ${domErrors}
+
+🕸️ BLAST RADIUS CONSUMERS (Engine 1):
+${consumers.length > 0 ? consumers.map(c => `• ${c}`).join('\n') : '• Isolated component (0 direct consumers)'}
+
+🧠 MEMORY VAULT PRIOR SOLUTIONS (Engine 3):
+${memorySummary}
+
+🎯 MISSION OBJECTIVES:
+1. Conduct Surgical 360° Root Cause Analysis on ${file}.
+2. Comply with Rule 00 (Zero-Breakage Shield) and Rule 1.1 (Clinic OS Fortress Shield).
+3. Deliver the Minimal Surgical Diff in ONE attempt to pass npx tsc --noEmit with 0 errors.
+4. Auto-verify live DOM context via http://localhost:9000/context.
+</USER_REQUEST_TRIAGE>`;
+
+      lastGeneratedSuperPrompt = prompt;
+
+      navigator.clipboard.writeText(prompt).then(() => {
+        statusEl.textContent = '✅ Copied to clipboard!';
+        showToast('J.A.R.V.I.S. v7.0 Super Prompt copied!', '📋');
+        document.getElementById('studio-prompt-preview').style.display = 'block';
+        document.getElementById('studio-preview-box').textContent = prompt;
+        logTerm('ok', `Generated Super Prompt for ${file}. Copied to clipboard.`);
+      }).catch(() => {
+        statusEl.textContent = '✅ Generated! (Copy from preview below)';
+        document.getElementById('studio-prompt-preview').style.display = 'block';
+        document.getElementById('studio-preview-box').textContent = prompt;
+      });
+    }
+
+    function copyCurrentCompilerBugPrompt() {
+      const errText = document.getElementById('alert-msg')?.textContent || '';
+      const fileInput = document.getElementById('target-revert-file')?.value || 'frontend/src/App.tsx';
+      document.getElementById('studio-target-file').value = fileInput;
+      document.getElementById('studio-severity').value = 'CRITICAL 🚨';
+      document.getElementById('studio-bug-desc').value = `TypeScript Compiler error detected: ${errText}`;
+      generateAndCopySuperPrompt();
+    }
+
+    function copyPreviewText() {
+      if (!lastGeneratedSuperPrompt) return;
+      navigator.clipboard.writeText(lastGeneratedSuperPrompt).then(() => {
+        showToast('Re-copied prompt to clipboard!', '📋');
+      });
+    }
     async function refreshAllTelemetry() {
       await Promise.all([
         fetchDaemonContext(),
