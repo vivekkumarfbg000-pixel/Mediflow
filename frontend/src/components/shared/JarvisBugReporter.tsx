@@ -154,11 +154,34 @@ export const JarvisBugReporter: React.FC = () => {
     };
   }, [isTargeting]);
 
-  const copyPrompt = () => {
+  const copyPrompt = async () => {
+    try {
+      const res = await fetch('http://localhost:9000/api/super-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: bugDescription || `UI Anomaly at ${appContext.url || 'current route'}: Element ${capturedElement?.id || 'targeted'}`,
+          windowSize: `${window.innerWidth}x${window.innerHeight}`
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.prompt) {
+          await navigator.clipboard.writeText(data.prompt);
+          window.dispatchEvent(new CustomEvent('mediflow-toast', {
+            detail: { title: 'J.A.R.V.I.S. v8.0 Super Prompt Copied!', message: 'All 24 engines compiled to clipboard.', type: 'success' }
+          }));
+          return;
+        }
+      }
+    } catch(e) {
+      // Fallback to local prompt if daemon offline
+    }
+
     const prompt = `<USER_REQUEST_TRIAGE>
 ╔═══════════════════════════════════════════════════════════════════╗
-║  🧠 J.A.R.V.I.S. v5.0 — VitalSync Bug Command Center            ║
-║  17-Engine Anti-Hallucination Supercomputer Protocol              ║
+║  🧠 J.A.R.V.I.S. v8.0 — VitalSync Bug Command Center             ║
+║  24-Engine Anti-Hallucination Supercomputer Protocol              ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 🚨 BUG DESCRIPTION:

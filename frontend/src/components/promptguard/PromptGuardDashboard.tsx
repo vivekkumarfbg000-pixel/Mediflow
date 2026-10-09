@@ -205,11 +205,12 @@ export const PromptGuardDashboard: React.FC = () => {
           body: JSON.stringify({ imageBase64: imagePreview, timestamp: new Date().toISOString() })
         }).catch(() => {});
       }
-      const r = await fetch(`${DAEMON}/api/diagnostics`, {
+      const r = await fetch(`${DAEMON}/api/super-prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bugDescription,
+          description: bugDescription,
+          targetFile: blastFile || '',
           windowSize: `${window.innerWidth}x${window.innerHeight}`,
           hasImage: !!imagePreview,
           imageBase64: imagePreview || null

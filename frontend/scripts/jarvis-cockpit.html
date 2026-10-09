@@ -1276,7 +1276,8 @@ ${memorySummary}
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // J.A.R.V.I.S. v7.0 SUPER PROMPT STUDIO (BUG TRIAGE & GENERATOR)
+    // ─────────────────────────────────────────────────────────────────
+    // J.A.R.V.I.S. v8.0 SUPER PROMPT STUDIO (BUG TRIAGE & GENERATOR)
     // ─────────────────────────────────────────────────────────────────
     let lastGeneratedSuperPrompt = '';
 
@@ -1285,9 +1286,38 @@ ${memorySummary}
       const severity = document.getElementById('studio-severity').value;
       const desc = document.getElementById('studio-bug-desc').value.trim() || 'UI or component bug detected during clinical operation.';
       const statusEl = document.getElementById('studio-status');
-      statusEl.textContent = '⏳ Probing AST, blast radius & memory vault...';
+      statusEl.textContent = '⏳ Compiling Omniscient 24-Engine J.A.R.V.I.S. v8.0 Super Prompt...';
 
-      // 1. Blast Radius
+      // 1. Try calling master 24-Engine backend compiler first
+      try {
+        const spRes = await fetch('/api/super-prompt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: desc,
+            targetFile: file,
+            windowSize: `${window.innerWidth}x${window.innerHeight}`
+          })
+        });
+        if (spRes.ok) {
+          const spData = await spRes.json();
+          if (spData.prompt) {
+            lastGeneratedSuperPrompt = spData.prompt;
+            await navigator.clipboard.writeText(spData.prompt);
+            statusEl.textContent = '✅ Copied 24-Engine v8.0 Super Prompt!';
+            showToast('J.A.R.V.I.S. v8.0 Omniscient Super Prompt copied!', '📋');
+            document.getElementById('studio-prompt-preview').style.display = 'block';
+            document.getElementById('studio-preview-box').textContent = spData.prompt;
+            logTerm('ok', `Compiled 24-Engine Super Prompt for ${file} (${spData.prompt.length} chars). Copied.`);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Backend /api/super-prompt unreachable, using local fallback:', e);
+      }
+
+      // 2. Fallback to client-side assembly if backend offline
+      statusEl.textContent = '⏳ Probing local AST, blast radius & memory vault...';
       let consumers = [];
       try {
         const brRes = await fetch(`/api/blast-radius?file=${encodeURIComponent(file)}`);
@@ -1297,7 +1327,6 @@ ${memorySummary}
         }
       } catch(e) {}
 
-      // 2. AST Diagnostics
       let astInfo = 'AST Syntax Valid (0 parse errors detected)';
       try {
         const astRes = await fetch(`/api/ast-syntax-check?file=${encodeURIComponent(file)}`);
@@ -1312,7 +1341,6 @@ ${memorySummary}
         }
       } catch(e) {}
 
-      // 3. Memory Vault
       let memorySummary = 'No past fixes recorded for this file.';
       try {
         const memRes = await fetch(`/api/memory?q=${encodeURIComponent(file)}`);
@@ -1324,13 +1352,12 @@ ${memorySummary}
         }
       } catch(e) {}
 
-      // 4. Live Telemetry Context
       const liveRoute = document.getElementById('telemetry-route')?.textContent || '/';
       const domErrors = document.getElementById('telemetry-dom-errors')?.textContent || '0';
 
       const prompt = `<USER_REQUEST_TRIAGE>
 ╔═══════════════════════════════════════════════════════════════════╗
-║  🧠 J.A.R.V.I.S. v7.0 — VitalSync GOD MODE Super Intelligence   ║
+║  🧠 J.A.R.V.I.S. v8.0 — VitalSync GOD MODE Super Intelligence   ║
 ║  24-Engine Multi-Persona Agentic Supercomputer Protocol           ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
@@ -1367,7 +1394,7 @@ ${memorySummary}
 
       navigator.clipboard.writeText(prompt).then(() => {
         statusEl.textContent = '✅ Copied to clipboard!';
-        showToast('J.A.R.V.I.S. v7.0 Super Prompt copied!', '📋');
+        showToast('J.A.R.V.I.S. v8.0 Super Prompt copied!', '📋');
         document.getElementById('studio-prompt-preview').style.display = 'block';
         document.getElementById('studio-preview-box').textContent = prompt;
         logTerm('ok', `Generated Super Prompt for ${file}. Copied to clipboard.`);
