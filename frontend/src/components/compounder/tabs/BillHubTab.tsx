@@ -457,12 +457,12 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     const query = manualItemSearchQuery.trim().toLowerCase();
     if (!query) return [];
 
-    const matchedMeds = inventory
+    const matchedMeds = (inventory || [])
       .filter(m => (m.name || '').toLowerCase().includes(query) || (m.genericName || '').toLowerCase().includes(query))
       .slice(0, 5)
       .map(m => ({ id: m.id, name: m.name || 'Medicine Item', type: 'pharmacy' as const, price: m.price || 0, item: m }));
 
-    const matchedTests = LabService.getTestCatalog()
+    const matchedTests = (LabService.getTestCatalog() || [])
       .filter(t => (t.name || '').toLowerCase().includes(query))
       .slice(0, 5)
       .map(t => ({ id: t.loincCode, name: t.name || 'Lab Test', type: 'lab' as const, price: t.price || 0, item: t }));
@@ -480,22 +480,22 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       allInvoices = safeGetStorageJSON<UnifiedInvoice[]>('unified_invoices', []);
     }
 
-    const todayPaidInvoices = allInvoices.filter(inv => {
+    const todayPaidInvoices = (allInvoices || []).filter(inv => {
       const invDate = getIstDateString(inv.createdAt || (inv as any).created_at || (inv as any).clearedAt);
       return invDate === todayStr && (inv as any).status === 'paid';
     });
 
     const cashTotal = todayPaidInvoices
       .filter(inv => ((inv.paymentMethod || '') as string).toLowerCase() === 'cash')
-      .reduce((sum, inv) => sum + (inv.totalAmount || (inv as any).finalTotal || 0), 0);
+      .reduce((sum, inv) => sum + (Number(inv.totalAmount ?? (inv as any).finalTotal ?? 0) || 0), 0);
 
     const upiTotal = todayPaidInvoices
       .filter(inv => ((inv.paymentMethod || '') as string).toLowerCase() !== 'cash')
-      .reduce((sum, inv) => sum + (inv.totalAmount || (inv as any).finalTotal || 0), 0);
+      .reduce((sum, inv) => sum + (Number(inv.totalAmount ?? (inv as any).finalTotal ?? 0) || 0), 0);
 
     const totalCollected = cashTotal + upiTotal;
 
-    const todayAppts = BillingService.getAppointments().filter(a => {
+    const todayAppts = (BillingService.getAppointments() || []).filter(a => {
       const aDate = getEffectiveAppointmentDate(a);
       return (aDate === todayStr || getIstDateString(a.createdAt) === todayStr) && a.status !== 'cancelled';
     });

@@ -416,7 +416,7 @@ export class PharmacyService {
     notify();
 
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'pharmacy_inventory' } }));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'pharmacy_inventory', table: 'pharmacy_inventory' } }));
     }
 
     if (skipRemoteSync) return;

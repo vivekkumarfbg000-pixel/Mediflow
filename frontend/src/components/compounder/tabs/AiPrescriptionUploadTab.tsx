@@ -92,7 +92,32 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
       }, 150);
       return () => clearTimeout(scrollTimer);
     }
-  }, [currentStep, extractedPatient]);
+  // 1-Tap Direct Camera Trigger: Open device camera immediately from elevated FAB or dashboard hero
+  useEffect(() => {
+    const triggerCamera = () => {
+      setTimeout(() => {
+        if (cameraInputRef.current) {
+          cameraInputRef.current.click();
+        }
+      }, 100);
+    };
+
+    try {
+      if (sessionStorage.getItem('mediflow_pending_camera_trigger') === 'true') {
+        sessionStorage.removeItem('mediflow_pending_camera_trigger');
+        triggerCamera();
+      }
+    } catch { /* ignore */ }
+
+    const handleCameraEvent = () => {
+      triggerCamera();
+    };
+
+    window.addEventListener('mediflow-trigger-ocr-camera', handleCameraEvent);
+    return () => {
+      window.removeEventListener('mediflow-trigger-ocr-camera', handleCameraEvent);
+    };
+  }, []);
 
   const [activeVoiceField, setActiveVoiceField] = useState<string | null>(null);
 

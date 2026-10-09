@@ -109,7 +109,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
         let clinic = 0;
         let pharmacy = 0;
         let lab = 0;
-        ledgers.forEach(e => {
+        (ledgers || []).forEach(e => {
           const type = (e.transactionType || (e as any).transaction_type || '').toLowerCase();
           const amount = Number(e.grossAmount ?? (e as any).gross_amount ?? (e as any).amount ?? 0);
           if (type.includes('appointment') || type.includes('consult')) clinic += amount;
@@ -127,7 +127,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           await chunkYield();
           const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
           const dayLabel = daysOfWeek[d.getDay()];
-          const dayLedgers = financialLedgers.filter(entry => {
+          const dayLedgers = (financialLedgers || []).filter(entry => {
             if (!entry.createdAt) return false;
             const entryDate = new Date(entry.createdAt);
             return entryDate.getFullYear() === d.getFullYear() && entryDate.getMonth() === d.getMonth() && entryDate.getDate() === d.getDate();
@@ -144,7 +144,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - endDayOffset);
           startDate.setHours(0, 0, 0, 0);
           endDate.setHours(23, 59, 59, 999);
-          const bucketLedgers = financialLedgers.filter(entry => {
+          const bucketLedgers = (financialLedgers || []).filter(entry => {
             if (!entry.createdAt) return false;
             const entryDate = new Date(entry.createdAt);
             return entryDate >= startDate && entryDate <= endDate;
@@ -159,7 +159,7 @@ export const FinancialsTab: React.FC<FinancialsTabProps> = React.memo(({
           await chunkYield();
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const monthLabel = d.toLocaleString('en-US', { month: 'short' });
-          const monthLedgers = financialLedgers.filter(entry => {
+          const monthLedgers = (financialLedgers || []).filter(entry => {
             if (!entry.createdAt) return false;
             const entryDate = new Date(entry.createdAt);
             return entryDate.getFullYear() === d.getFullYear() && entryDate.getMonth() === d.getMonth();

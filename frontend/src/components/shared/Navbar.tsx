@@ -39,7 +39,9 @@ import {
   Sliders,
   Video,
   HeartPulse,
-  Camera
+  Camera,
+  ScanLine,
+  LayoutGrid
 } from 'lucide-react';
 import { useClinic } from '../../context/ClinicContext';
 import { ProfileSettingsModal, type SettingsTabType } from './ProfileSettingsModal';
@@ -334,6 +336,21 @@ export const Navbar: React.FC<NavbarProps> = ({
     return api.subscribe(updateNavbarState);
   }, []);
 
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsMobileDrawerOpen(prev => !prev);
+    };
+    const handleOpen = () => {
+      setIsMobileDrawerOpen(true);
+    };
+    window.addEventListener('mediflow-toggle-sidebar', handleToggle);
+    window.addEventListener('mediflow-open-mobile-drawer', handleOpen);
+    return () => {
+      window.removeEventListener('mediflow-toggle-sidebar', handleToggle);
+      window.removeEventListener('mediflow-open-mobile-drawer', handleOpen);
+    };
+  }, []);
+
 
 
   const roles = [
@@ -397,10 +414,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (currentRole === 'compounder') {
       return [
         { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-        { id: 'opd_patients', label: 'OPD Token Queue', icon: Users },
-        { id: 'ai_ocr_upload', label: 'Prescription Scan', icon: Camera },
-        { id: 'clinical_hub', label: isOphthalmology ? 'Biometry / Rx' : 'Labs & Rx Hub', icon: FlaskConical },
-        { id: 'billing_daycare', label: isOphthalmology ? 'Bill / Daycare' : 'Bill & OT', icon: Receipt }
+        { id: 'opd_patients', label: 'OPD Queue', icon: Users },
+        { id: 'ai_ocr_upload', label: 'Rx Scan', icon: Camera },
+        { id: 'clinical_hub', label: isOphthalmology ? 'Biometry' : 'Pathology', icon: FlaskConical },
+        { id: 'more_hub', label: 'More', icon: LayoutGrid }
       ];
     }
     if (currentRole === 'pharmacy') {
@@ -784,8 +801,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </aside>
 
-      {/* Mobile Top Header Navigation (Hidden for saas_admin which has its dedicated mobile app bar) */}
-      {currentRole !== 'saas_admin' && (
+      {/* Mobile Top Header Navigation (Hidden for saas_admin, and compounder overview which starts cleanly from Bento identity card) */}
+      {currentRole !== 'saas_admin' && (currentRole !== 'compounder' || activeCompounderTab !== 'overview') && (
         <nav 
           className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full"
           style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
@@ -1232,12 +1249,52 @@ export const Navbar: React.FC<NavbarProps> = ({
                 { id: 'overview', label: 'Overview', icon: LayoutDashboard },
                 { id: 'opd_patients', label: 'OPD Queue', icon: Users },
                 { id: 'ai_ocr_upload', label: 'Rx Scan', icon: Camera },
-                { id: 'clinical_hub', label: isOphthalmology ? 'Biometry/Rx' : 'Labs & Rx', icon: FlaskConical },
-                { id: 'billing_daycare', label: isOphthalmology ? 'Bill/Daycare' : 'Bill & OT', icon: Receipt }
+                { id: 'clinical_hub', label: isOphthalmology ? 'Biometry/Rx' : 'Pathology', icon: FlaskConical },
+                { id: 'more_hub', label: 'More', icon: LayoutGrid }
               ];
               return compTabs.map(t => {
                 const Icon = t.icon;
                 const isActive = activeCompounderTab === t.id;
+                const isScanFab = t.id === 'ai_ocr_upload';
+
+                if (isScanFab) {
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveCompounderTab(t.id);
+                        window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: t.id }));
+                        window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: t.id }));
+                        try { sessionStorage.setItem('mediflow_pending_camera_trigger', 'true'); } catch {}
+                        window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera', { detail: { autoCapture: true } }));
+                      }}
+                      className="group relative -translate-y-4 flex flex-col items-center justify-center shrink-0 mx-1 cursor-pointer bg-transparent border-0 outline-none select-none active:scale-95 transition-all duration-200"
+                      title="Quick Scan Rx (OCR)"
+                    >
+                      {/* PhonePe Elevated Scanner FAB Dual-Ring */}
+                      <div className="relative flex items-center justify-center w-[52px] h-[52px] rounded-full p-1 bg-white dark:bg-slate-900 shadow-lg shadow-teal-500/30 border-2 border-slate-100 dark:border-white/10 ring-4 ring-white/90 dark:ring-slate-900/90 group-hover:scale-105 transition-transform duration-200">
+                        {/* Outer Glow Ring */}
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-teal-400/30 to-emerald-400/30 blur-xs -z-10 animate-pulse pointer-events-none" />
+                        {/* Illuminated Core with Gradient */}
+                        <div className={`w-full h-full rounded-full flex items-center justify-center text-white transition-all shadow-inner relative overflow-hidden ${
+                          isActive
+                            ? 'bg-gradient-to-tr from-[#0E7A8A] via-teal-500 to-emerald-400 ring-2 ring-teal-300 ring-offset-1'
+                            : 'bg-gradient-to-tr from-[#0E7A8A] via-[#11998E] to-[#14C3D0]'
+                        }`}>
+                          <div className="absolute inset-0 bg-white/15 opacity-60 animate-pulse pointer-events-none" />
+                          <ScanLine className="w-5.5 h-5.5 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.4)] transition-transform group-hover:scale-110" />
+                        </div>
+                      </div>
+                      <span className={`text-[9px] font-black tracking-tight whitespace-nowrap mt-1 leading-none ${
+                        isActive ? 'text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-300'
+                      }`}>
+                        Rx Scan
+                      </span>
+                    </button>
+                  );
+                }
+
                 return (
                   <button
                     key={t.id}

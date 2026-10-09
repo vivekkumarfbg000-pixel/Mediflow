@@ -52,6 +52,7 @@ const ClinicalHubTab = lazy(() => import('./tabs/ClinicalHubTab').then(m => ({ d
 const AiPrescriptionUploadTab = lazy(() => import('./tabs/AiPrescriptionUploadTab').then(m => ({ default: m.AiPrescriptionUploadTab })));
 import { InvoiceCard } from '../InvoiceCard';
 const PatientsDirectoryTab = lazy(() => import('../doctor/tabs/PatientsDirectoryTab').then(m => ({ default: m.PatientsDirectoryTab })));
+const PharmacyStockCatalog = lazy(() => import('./tabs/PharmacyStockCatalog').then(m => ({ default: m.PharmacyStockCatalog })));
 import { WhatsAppSupportModal } from '../shared/WhatsAppSupportModal';
 import { PatientProfileModal } from '../shared/PatientProfileModal';
 import { AbhaLinkModal } from '../shared/AbhaLinkModal';
@@ -101,6 +102,7 @@ import {
   Flame,
   Timer,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   Plus,
   PhoneCall,
@@ -108,6 +110,7 @@ import {
   Check,
   Menu,
   ArrowRight,
+  ArrowLeft,
   Crosshair,
   Camera,
   CreditCard,
@@ -123,7 +126,10 @@ import {
   MoreHorizontal,
   Bell,
   Building2,
-  DollarSign
+  DollarSign,
+  LayoutGrid,
+  BookOpen,
+  Shield
 } from 'lucide-react';
 import { BrandMark, VitalSyncWordmark } from '../shared/BrandMark';
 import { SearchInput } from '../ui/SearchInput';
@@ -162,7 +168,8 @@ export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities, activePod, activeProfile } = useClinic();
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
-  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare' | 'ai_ocr_upload'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare' | 'ai_ocr_upload' | 'more_hub'>('overview');
+  const [moreHubActiveView, setMoreHubActiveView] = useState<'grid' | 'directory' | 'sops' | 'history' | 'ot_dilation' | 'pharmacy'>('grid');
   const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
   const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming'>('today');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
@@ -234,6 +241,11 @@ export const CompounderDashboard: React.FC = () => {
       String(p.tokenNumber || (p as any).token_number || '').toLowerCase().includes(term)
     );
   }, [vitalsDonePatients, batchPrintSearchTerm]);
+
+  const activeClinicSop = useMemo(() => {
+    const sops = api.getClinicSops();
+    return (sops || []).find((s: ClinicSop) => s.isActive) || (sops && sops[0]) || null;
+  }, [dataRevision]);
 
   const handlePrintPrescriptionSlips = useCallback((targetPatients: Patient[]) => {
     if (targetPatients.length === 0) return;
@@ -674,14 +686,31 @@ export const CompounderDashboard: React.FC = () => {
       const target = typeof payload === 'string' ? payload : payload?.tab;
 
       startTransition(() => {
-        if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan') {
-          startTransition(() => setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : target as any));
+        if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan' || target === 'more_hub' || target === 'more') {
+          startTransition(() => setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : (target === 'more' ? 'more_hub' : target as any)));
+          if (target === 'more_hub' || target === 'more') {
+            setMoreHubActiveView('grid');
+          }
         } else if (target === 'tokens' || target === 'patients') {
           startTransition(() => setActiveTab('opd_patients'));
           setOpdSubTab('today_queue');
-        } else if (target === 'labs' || target === 'pharmacy') {
+        } else if (target === 'labs' || target === 'pathology') {
           startTransition(() => setActiveTab('clinical_hub'));
-          setClinicalSubTab(target === 'pharmacy' ? 'pharmacy' : 'labs');
+        } else if (target === 'pharmacy' || target === 'stock') {
+          startTransition(() => {
+            setActiveTab('more_hub');
+            setMoreHubActiveView('pharmacy');
+          });
+        } else if (target === 'sops' || target === 'protocols') {
+          startTransition(() => {
+            setActiveTab('more_hub');
+            setMoreHubActiveView('sops');
+          });
+        } else if (target === 'directory' || target === 'ehr') {
+          startTransition(() => {
+            setActiveTab('more_hub');
+            setMoreHubActiveView('directory');
+          });
         } else if (target === 'ot_billing' || target === 'invoice_generator') {
           startTransition(() => setActiveTab('billing_daycare'));
         }
@@ -699,13 +728,24 @@ export const CompounderDashboard: React.FC = () => {
       });
     };
 
+    const handleCameraTrigger = () => {
+      startTransition(() => setActiveTab('ai_ocr_upload'));
+    };
+
     window.addEventListener('mediflow-compounder-tab-changed', handleTabChange);
     window.addEventListener('mediflow-change-tab', handleTabChange);
+    window.addEventListener('mediflow-trigger-ocr-camera', handleCameraTrigger);
     return () => {
       window.removeEventListener('mediflow-compounder-tab-changed', handleTabChange);
       window.removeEventListener('mediflow-change-tab', handleTabChange);
+      window.removeEventListener('mediflow-trigger-ocr-camera', handleCameraTrigger);
     };
   }, []);
+
+  // Broadcast activeTab changes so mobile navigation and global navbar stay synchronized
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: activeTab }));
+  }, [activeTab]);
 
   // Clinic Operating Mode State (Physical Paper Rx Mode vs Full Digital EMR)
   const [isDigitalEmrEnabled, setIsDigitalEmrEnabled] = useState<boolean>(() => {
@@ -3442,10 +3482,11 @@ export const CompounderDashboard: React.FC = () => {
       <div className="hidden md:flex overflow-x-auto gap-2 no-scrollbar select-none p-1.5 bg-slate-100/80 dark:bg-slate-900/60 rounded-2xl border border-slate-200/50 dark:border-white/5 backdrop-blur-md mb-4">
         {[
           { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4 text-indigo-500" /> },
-          { id: 'opd_patients', label: 'OPD & Patients', icon: <Users className="h-4 w-4 text-indigo-600" /> },
+          { id: 'opd_patients', label: 'Live OPD Queue', icon: <Users className="h-4 w-4 text-indigo-600" /> },
           { id: 'ai_ocr_upload', label: 'Prescription Scan', icon: <Camera className="h-4 w-4 text-rose-500" /> },
-          { id: 'clinical_hub', label: isOphthalmology ? 'Biometry & Optical' : 'Labs & Pharmacy', icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
-          { id: 'billing_daycare', label: isOphthalmology ? 'Billing & Daycare' : 'Billing & Minor OT', icon: <Receipt className="h-4 w-4 text-amber-500" /> }
+          { id: 'clinical_hub', label: isOphthalmology ? 'Biometry & Diagnostics' : 'Pathology & Diagnostics', icon: <FlaskConical className="h-4 w-4 text-teal-500" /> },
+          { id: 'billing_daycare', label: isOphthalmology ? 'Billing & Daycare' : 'Billing & Minor OT', icon: <Receipt className="h-4 w-4 text-amber-500" /> },
+          { id: 'more_hub', label: 'More Hub & Operations', icon: <LayoutGrid className="h-4 w-4 text-purple-500" /> }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -3515,30 +3556,52 @@ export const CompounderDashboard: React.FC = () => {
 
   return (
     <div 
-      className="w-full text-slate-900 font-sans min-h-screen flex flex-col bg-slate-50 text-[13px] -mt-2 -mx-2 sm:mx-auto max-w-md pb-24" 
+      className="w-full text-slate-900 font-sans min-h-screen flex flex-col bg-slate-50 text-[13px] -mt-2 -mx-2 md:mx-auto max-w-md md:max-w-4xl lg:max-w-7xl lg:px-4 pb-24" 
       style={{ background: 'radial-gradient(at 0% 0%, rgba(14, 122, 138, 0.05) 0px, transparent 48%), radial-gradient(at 100% 12%, rgba(20, 195, 208, 0.05) 0px, transparent 40%), #F8FAFC' }}
     >
       {/* UNIFIED HIGH-DENSITY CLINICAL APP BAR & CLINIC IDENTITY */}
-      <header className="sticky top-0 inset-x-0 z-30 bg-white/95 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_1px_8px_rgba(15,23,42,0.03)] -mx-2 px-3.5 py-2 space-y-1.5 mb-3 rounded-2xl">
-        {/* Top Primary Row: App Branding + Session Active + Account */}
+      <header 
+        className="sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-[0_1px_8px_rgba(15,23,42,0.03)] -mx-2 px-3.5 py-2 space-y-1.5 mb-3 rounded-2xl md:hidden"
+        style={{ paddingTop: 'max(8px, env(safe-area-inset-top, 8px))' }}
+      >
+        {/* Top Primary Row: App Branding as Console Switcher Button + Account Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-white border border-[#E2EDF0] flex items-center justify-center shrink-0 shadow-xs p-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
+            }}
+            className="group flex items-center gap-2 min-w-0 p-1.5 -ml-1 rounded-xl border border-teal-500/30 bg-teal-50/50 hover:bg-teal-100/50 dark:bg-teal-950/30 dark:hover:bg-teal-900/40 active:scale-95 transition-all duration-150 cursor-pointer text-left shadow-2xs"
+            title="Switch Dashboard Console / Open Navigation Menu"
+            aria-label="Switch Dashboard Console"
+          >
+            <div className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-teal-300/80 dark:border-teal-500/40 flex items-center justify-center shrink-0 shadow-xs p-0.5 group-hover:border-teal-500 transition-colors relative">
               <BrandMark size={24} />
+              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#0E7A8A] text-white flex items-center justify-center shadow-xs">
+                <ChevronDown className="w-2.5 h-2.5 text-white stroke-[3] group-hover:translate-y-0.5 transition-transform" />
+              </div>
             </div>
             <div className="flex items-center gap-1.5 truncate">
               <VitalSyncWordmark fontSize="14px" />
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-1.5 shrink-0">
-            <button aria-label="Notifications" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors relative border border-slate-200/80 bg-white shadow-2xs" type="button">
+            <button aria-label="Notifications" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors relative border border-slate-200/80 bg-white shadow-2xs cursor-pointer" type="button">
               <Bell className="w-4 h-4 text-slate-600" />
               <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#0E7A8A] ring-2 ring-white"></span>
             </button>
-            <div className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-slate-300/80 ml-0.5 shadow-2xs bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-[10px]">
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
+              }}
+              className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-slate-300/80 ml-0.5 shadow-2xs bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-[10px] cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+              title="Profile & Console Switcher"
+              aria-label="Profile and Console Switcher"
+            >
               {initials}
-            </div>
+            </button>
           </div>
         </div>
         {/* Compact Clinic Sub-bar: Clean Clinical Context */}
@@ -3557,9 +3620,17 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* COMPACT TACTICAL HERO: QUICK SCAN RX */}
+      {/* RESPONSIVE ENTERPRISE BENTO GRID (DESKTOP: 7-COL OPS | 5-COL TRIAGE & LEDGER) */}
+      <div className="w-full lg:grid lg:grid-cols-12 lg:gap-5 items-start">
+        {/* ◀ PRIMARY OPERATIONS COLUMN (7 COLS ON DESKTOP) */}
+        <div className="lg:col-span-7 space-y-3">
+          {/* COMPACT TACTICAL HERO: QUICK SCAN RX */}
       <div 
-        onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
+        onClick={() => {
+          sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
+          startTransition(() => setActiveTab('ai_ocr_upload'));
+          window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
+        }}
         className="relative overflow-hidden rounded-2xl p-2.5 px-3 border border-teal-500/30 text-white cursor-pointer active:scale-[0.985] transition-all duration-150 shadow-[0_8px_24px_-4px_rgba(15,23,42,0.45)] mb-3" 
         style={{ background: 'linear-gradient(135deg, #090D16 0%, #0F172A 55%, #0E7A8A 100%)' }}
       >
@@ -3595,7 +3666,7 @@ export const CompounderDashboard: React.FC = () => {
       <div className="grid grid-cols-3 gap-2 mb-3">
         <button 
           onClick={() => setShowInstantAppointmentModal(true)}
-          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group" 
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group cursor-pointer" 
           type="button"
         >
           <div className="w-5.5 h-5.5 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-700 shrink-0">
@@ -3605,7 +3676,7 @@ export const CompounderDashboard: React.FC = () => {
         </button>
         <button 
           onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
-          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group" 
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group cursor-pointer" 
           type="button"
         >
           <div className="w-5.5 h-5.5 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shrink-0">
@@ -3615,7 +3686,7 @@ export const CompounderDashboard: React.FC = () => {
         </button>
         <button 
           onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
-          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-between text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group" 
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-between text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group cursor-pointer" 
           type="button"
         >
           <div className="flex items-center justify-center gap-1.5 w-full">
@@ -3627,7 +3698,7 @@ export const CompounderDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* SECTION 1: TODAY'S OPERATIONS (HIGH-DENSITY 4-COL METRICS) */}
+      {/* SECTION 1: TODAY'S OPERATIONS (HIGH-DENSITY 4-COL METRICS — FULLY WIRED) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -3639,23 +3710,47 @@ export const CompounderDashboard: React.FC = () => {
           </span>
         </div>
         <div className="grid grid-cols-4 gap-1.5">
-          <div className="bg-white rounded-xl p-2 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+          {/* Card 1: Visited */}
+          <button 
+            type="button"
+            onClick={() => {
+              startTransition(() => setActiveTab('opd_patients'));
+              setOpdSubTab('today_queue');
+            }}
+            className="bg-white hover:bg-slate-50 active:scale-95 transition-all rounded-xl p-2 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
+          >
             <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-300"></div>
             <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-[0.05em] font-mono">Visited</span>
             <span className="font-mono text-[17px] font-bold text-slate-900 mt-0.5 tracking-tight tabular-nums">
               {activeOpdAppointments.length}
             </span>
-            <span className="text-[9px] font-medium text-slate-400 mt-0.5 truncate">checked in</span>
-          </div>
-          <div className="bg-gradient-to-b from-teal-50/60 to-white rounded-xl p-2 border border-teal-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+            <span className="text-[9px] font-medium text-slate-400 mt-0.5 truncate">checked in →</span>
+          </button>
+
+          {/* Card 2: Scanned */}
+          <button 
+            type="button"
+            onClick={() => {
+              sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
+              startTransition(() => setActiveTab('ai_ocr_upload'));
+              window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
+            }}
+            className="bg-gradient-to-b from-teal-50/60 to-white hover:from-teal-100/50 active:scale-95 transition-all rounded-xl p-2 border border-teal-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
+          >
             <div className="absolute top-0 inset-x-0 h-0.5 bg-[#0E7A8A]"></div>
             <span className="text-[9px] font-semibold text-[#0E7A8A] uppercase tracking-[0.05em] font-mono">Scanned</span>
             <span className="font-mono text-[17px] font-bold text-[#0E7A8A] mt-0.5 tracking-tight tabular-nums">
               {scannedCount}
             </span>
-            <span className="text-[9px] font-medium text-teal-600/90 mt-0.5 truncate">digitized</span>
-          </div>
-          <div className="bg-gradient-to-b from-emerald-50/60 to-white rounded-xl p-2 border border-emerald-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+            <span className="text-[9px] font-medium text-teal-600/90 mt-0.5 truncate">digitized ⚡</span>
+          </button>
+
+          {/* Card 3: OCR Accuracy */}
+          <button 
+            type="button"
+            onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
+            className="bg-gradient-to-b from-emerald-50/60 to-white hover:from-emerald-100/50 active:scale-95 transition-all rounded-xl p-2 border border-emerald-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
+          >
             <div className="absolute top-0 inset-x-0 h-0.5 bg-emerald-500"></div>
             <span className="text-[9px] font-semibold text-emerald-800 uppercase tracking-[0.05em] font-mono">OCR Acc.</span>
             <span className="font-mono text-[17px] font-bold text-emerald-600 mt-0.5 tracking-tight tabular-nums">98.2%</span>
@@ -3663,19 +3758,28 @@ export const CompounderDashboard: React.FC = () => {
               <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
               <span className="text-[9px] font-medium text-emerald-700 tabular-nums">{scannedCount} verified</span>
             </div>
-          </div>
-          <div className="bg-white rounded-xl p-2 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col relative overflow-hidden">
+          </button>
+
+          {/* Card 4: Closed */}
+          <button 
+            type="button"
+            onClick={() => {
+              startTransition(() => setActiveTab('opd_patients'));
+              setOpdSubTab('history');
+            }}
+            className="bg-white hover:bg-slate-50 active:scale-95 transition-all rounded-xl p-2 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
+          >
             <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-400"></div>
             <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-[0.05em] font-mono">Closed</span>
             <span className="font-mono text-[17px] font-bold text-slate-900 mt-0.5 tracking-tight tabular-nums">
               {completedCount}
             </span>
-            <span className="text-[9px] font-medium text-slate-400 mt-0.5 truncate">encounters</span>
-          </div>
+            <span className="text-[9px] font-medium text-slate-400 mt-0.5 truncate">history →</span>
+          </button>
         </div>
       </div>
 
-      {/* SECTION 2: WORK TO PROCESS (2x3 COMPACT QUEUE GRID) */}
+      {/* SECTION 2: WORK TO PROCESS (2x3 COMPACT QUEUE GRID — WIRED DIRECTLY) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -3688,10 +3792,14 @@ export const CompounderDashboard: React.FC = () => {
           <span className="text-[10.5px] text-slate-500 font-medium">Live Queue</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {/* Card 1 */}
+          {/* Card 1: Digitization */}
           <button 
-            onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
-            className="bg-white border border-teal-200/80 rounded-xl p-2.5 text-left hover:border-teal-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            onClick={() => {
+              sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
+              startTransition(() => setActiveTab('ai_ocr_upload'));
+              window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
+            }}
+            className="bg-white border border-teal-200/80 rounded-xl p-2.5 text-left hover:border-teal-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden cursor-pointer" 
             type="button"
           >
             <div className="flex items-center justify-between">
@@ -3699,7 +3807,7 @@ export const CompounderDashboard: React.FC = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>
                 <span className="text-[11px] font-semibold text-slate-700 truncate">Digitization</span>
               </div>
-              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200/70">Review</span>
+              <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200/70">Scan</span>
             </div>
             <div className="flex items-baseline justify-between mt-1.5">
               <span className="font-mono text-[16px] font-bold text-slate-900 tabular-nums">
@@ -3708,10 +3816,15 @@ export const CompounderDashboard: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0E7A8A] transition-colors" />
             </div>
           </button>
-          {/* Card 2 */}
+
+          {/* Card 2: Bills Pending */}
           <button 
-            onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
-            className="bg-white border border-amber-200/80 rounded-xl p-2.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            onClick={() => { 
+              setBillHubInitialMode('manual_billing'); 
+              setBillingSubTab('billing'); 
+              startTransition(() => setActiveTab('billing_daycare')); 
+            }}
+            className="bg-white border border-amber-200/80 rounded-xl p-2.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden cursor-pointer" 
             type="button"
           >
             <div className="flex items-center justify-between">
@@ -3728,10 +3841,14 @@ export const CompounderDashboard: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 transition-colors" />
             </div>
           </button>
-          {/* Card 3 */}
+
+          {/* Card 3: Dispensary */}
           <button 
-            onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
-            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            onClick={() => { 
+              setClinicalSubTab('pharmacy'); 
+              startTransition(() => setActiveTab('clinical_hub')); 
+            }}
+            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden cursor-pointer" 
             type="button"
           >
             <div className="flex items-center justify-between">
@@ -3748,10 +3865,14 @@ export const CompounderDashboard: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
             </div>
           </button>
-          {/* Card 4 */}
+
+          {/* Card 4: Pathology */}
           <button 
-            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
-            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            onClick={() => {
+              setClinicalSubTab('labs');
+              startTransition(() => setActiveTab('clinical_hub'));
+            }}
+            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden cursor-pointer" 
             type="button"
           >
             <div className="flex items-center justify-between">
@@ -3768,10 +3889,14 @@ export const CompounderDashboard: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 transition-colors" />
             </div>
           </button>
-          {/* Card 5 */}
+
+          {/* Card 5: Lab Results */}
           <button 
-            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
-            className="bg-white border border-emerald-200/80 rounded-xl p-2.5 text-left hover:border-emerald-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            onClick={() => {
+              setClinicalSubTab('labs');
+              startTransition(() => setActiveTab('clinical_hub'));
+            }}
+            className="bg-white border border-emerald-200/80 rounded-xl p-2.5 text-left hover:border-emerald-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden cursor-pointer" 
             type="button"
           >
             <div className="flex items-center justify-between">
@@ -3788,10 +3913,11 @@ export const CompounderDashboard: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
             </div>
           </button>
-          {/* Card 6 */}
+
+          {/* Card 6: Follow-up Call */}
           <button 
             onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
-            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden" 
+            className="bg-white border border-slate-200/80 rounded-xl p-2.5 text-left hover:border-slate-300 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group relative overflow-hidden cursor-pointer" 
             type="button"
           >
             <div className="flex items-center justify-between">
@@ -3810,8 +3936,11 @@ export const CompounderDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+        </div>
 
-      {/* SECTION 3: CURRENT OPERATIONAL FOCUS (DYNAMIC CLINICAL FOCUS CARD) */}
+        {/* ▶ TRIAGE & FINANCIAL LEDGER COLUMN (5 COLS ON DESKTOP) */}
+        <div className="lg:col-span-5 space-y-3 mt-3 lg:mt-0">
+          {/* SECTION 3: CURRENT OPERATIONAL FOCUS (DYNAMIC CLINICAL FOCUS CARD — INTERACTIVE VITALS) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -3826,14 +3955,18 @@ export const CompounderDashboard: React.FC = () => {
           <div className="bg-white rounded-2xl p-3 border border-teal-200/80 shadow-[0_4px_16px_-4px_rgba(14,122,138,0.08),0_1px_3px_rgba(0,0,0,0.03)] space-y-2.5 relative overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#0E7A8A] via-teal-500 to-emerald-500"></div>
             {/* Header: Patient Identity & Token */}
-            <div className="flex items-start justify-between">
+            <div 
+              onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
+              className="flex items-start justify-between cursor-pointer group"
+              title="Click to view full patient EHR & vitals history"
+            >
               <div className="flex items-center gap-2.5">
-                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-slate-950 to-teal-800 text-white font-mono text-[11.5px] font-bold flex items-center justify-center shrink-0 shadow-2xs border border-teal-400/30 tabular-nums">
+                <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-tr from-slate-950 to-teal-800 text-white font-mono text-[11.5px] font-bold flex items-center justify-center shrink-0 shadow-2xs border border-teal-400/30 tabular-nums group-hover:scale-105 transition-transform">
                   #{focusAppt?.tokenNumber || (focusAppt as any)?.token_number || focusPatient?.tokenNumber || '01'}
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-[13.5px] text-slate-950 tracking-[-0.02em]">
+                    <span className="font-bold text-[13.5px] text-slate-950 tracking-[-0.02em] group-hover:text-[#0E7A8A] transition-colors">
                       {focusAppt?.patientName || focusPatient?.name || 'Walk-in Patient'}
                     </span>
                     <span className="text-[10.5px] font-medium text-slate-600 px-1.5 py-0.2 bg-slate-100 rounded">
@@ -3879,28 +4012,40 @@ export const CompounderDashboard: React.FC = () => {
                 <span>Ready for Doctor</span>
               </div>
             </div>
-            {/* Vitals & Clinical Indicators */}
+            {/* Vitals & Clinical Indicators — Interactive Buttons */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-[9px] font-semibold uppercase tracking-[0.05em] text-slate-400 font-mono">Recorded Vitals</span>
+                <span className="text-[9px] font-semibold uppercase tracking-[0.05em] text-slate-400 font-mono">Recorded Vitals (Tap to edit)</span>
                 <span className="text-[9px] font-mono text-[#0E7A8A] font-semibold tabular-nums">Synced</span>
               </div>
               <div className="flex flex-wrap gap-1">
-                <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-slate-50 text-slate-800 border border-slate-200 font-medium flex items-center gap-1">
+                <button 
+                  type="button"
+                  onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
+                  className="text-[10.5px] px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 font-medium flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>BP: {focusPatient?.vitals?.bloodPressure || '120/80'}
-                </span>
-                <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-slate-50 text-slate-800 border border-slate-200 font-medium flex items-center gap-1">
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
+                  className="text-[10.5px] px-2 py-0.5 rounded-md bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-200 font-medium flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>Pulse: {focusPatient?.vitals?.pulseRate || '72'} bpm
-                </span>
-                <span className="text-[10.5px] px-2 py-0.5 rounded-md bg-teal-50 text-[#0E7A8A] border border-teal-200 font-mono font-bold flex items-center gap-1">
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
+                  className="text-[10.5px] px-2 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 text-[#0E7A8A] border border-teal-200 font-mono font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>Temp: {focusPatient?.vitals?.temperature || '98.6'}°F
-                </span>
+                </button>
               </div>
             </div>
             {/* Authoritative Primary Action */}
             <button 
               onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
-              className="w-full h-8.5 rounded-xl bg-gradient-to-r from-slate-950 via-[#0E7A8A] to-slate-900 hover:from-slate-900 hover:to-teal-900 text-white font-semibold text-[12px] flex items-center justify-center gap-1.5 active:scale-[0.985] transition-all shadow-[0_2px_8px_rgba(15,23,42,0.2)] border border-white/10" 
+              className="w-full h-8.5 rounded-xl bg-gradient-to-r from-slate-950 via-[#0E7A8A] to-slate-900 hover:from-slate-900 hover:to-teal-900 text-white font-semibold text-[12px] flex items-center justify-center gap-1.5 active:scale-[0.985] transition-all shadow-[0_2px_8px_rgba(15,23,42,0.2)] border border-white/10 cursor-pointer" 
               style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 8px rgba(15,23,42,0.2)' }} 
               type="button"
             >
@@ -3913,7 +4058,7 @@ export const CompounderDashboard: React.FC = () => {
             <p className="text-slate-600 text-[12px] font-medium">All queued patients have been attended.</p>
             <button
               onClick={() => setShowInstantAppointmentModal(true)}
-              className="px-3 py-1.5 bg-[#0E7A8A] text-white text-[11px] font-bold rounded-lg shadow-sm"
+              className="px-3 py-1.5 bg-[#0E7A8A] text-white text-[11px] font-bold rounded-lg shadow-sm cursor-pointer hover:bg-teal-700 transition"
               type="button"
             >
               + Add Walk-in Patient
@@ -3922,7 +4067,7 @@ export const CompounderDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* SECTION 4: LAB REPORTS ARRIVED (STREAMLINED LIST) */}
+      {/* SECTION 4: LAB REPORTS ARRIVED (STREAMLINED LIST — WIRED) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -3930,8 +4075,11 @@ export const CompounderDashboard: React.FC = () => {
             <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Incoming Diagnostics</span>
           </div>
           <button 
-            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
-            className="text-[10.5px] font-semibold text-slate-600 hover:text-slate-900 transition-colors font-mono tabular-nums" 
+            onClick={() => {
+              setClinicalSubTab('labs');
+              startTransition(() => setActiveTab('clinical_hub'));
+            }}
+            className="text-[10.5px] font-semibold text-slate-600 hover:text-slate-900 transition-colors font-mono tabular-nums cursor-pointer" 
             type="button"
           >
             All {readyLabReports.length} →
@@ -3940,7 +4088,14 @@ export const CompounderDashboard: React.FC = () => {
         <div className="bg-white border border-slate-200/80 rounded-2xl divide-y divide-slate-100 shadow-[0_1px_3px_rgba(15,23,42,0.04)] overflow-hidden">
           {recentLabs.length > 0 ? (
             recentLabs.map((lab, idx) => (
-              <div key={lab.id || idx} className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 transition-colors">
+              <div 
+                key={lab.id || idx} 
+                onClick={() => {
+                  setClinicalSubTab('labs');
+                  startTransition(() => setActiveTab('clinical_hub'));
+                }}
+                className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80 transition-colors cursor-pointer"
+              >
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-6.5 h-6.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[10.5px] font-bold flex items-center justify-center shrink-0 tabular-nums">
                     #{(lab as any).tokenNumber || (lab as any).token_number || idx + 1}
@@ -3966,9 +4121,13 @@ export const CompounderDashboard: React.FC = () => {
                     {lab.status === 'approved' ? 'Ready' : 'Doctor Rev'}
                   </span>
                   <button 
-                    onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setClinicalSubTab('labs');
+                      startTransition(() => setActiveTab('clinical_hub'));
+                    }}
                     aria-label="View report" 
-                    className="w-6.5 h-6.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 shadow-2xs" 
+                    className="w-6.5 h-6.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center text-slate-600 shadow-2xs cursor-pointer" 
                     type="button"
                   >
                     <Eye className="w-3.5 h-3.5 text-slate-600" />
@@ -3984,7 +4143,7 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 5: FOLLOW-UP OUTREACH */}
+      {/* SECTION 5: FOLLOW-UP OUTREACH (INTERACTIVE COHORTS & DIRECT WHATSAPP) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -3995,24 +4154,46 @@ export const CompounderDashboard: React.FC = () => {
         </div>
         <div className="bg-white border border-slate-200/80 rounded-2xl p-2.5 px-3 flex items-center justify-between shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
           <div className="flex items-center gap-3">
-            <div>
+            <button 
+              type="button"
+              onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
+              className="text-left cursor-pointer hover:opacity-80 transition"
+              title="View Chronic Patients Cohort"
+            >
               <span className="font-mono text-[13.5px] font-bold text-slate-900 tabular-nums">{chronicFollowUpCount}</span>
               <span className="text-[10.5px] text-slate-500 ml-0.5 font-medium">Chronic</span>
-            </div>
+            </button>
             <div className="h-3 w-px bg-slate-200"></div>
-            <div>
+            <button 
+              type="button"
+              onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+              className="text-left cursor-pointer hover:opacity-80 transition"
+              title="View Pending Rx Invoices"
+            >
               <span className="font-mono text-[13.5px] font-bold text-amber-700 tabular-nums">{pendingBillsCount}</span>
               <span className="text-[10.5px] text-slate-500 ml-0.5 font-medium">Pending Rx</span>
-            </div>
+            </button>
             <div className="h-3 w-px bg-slate-200"></div>
-            <div>
+            <button 
+              type="button"
+              onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('history'); }}
+              className="text-left cursor-pointer hover:opacity-80 transition"
+              title="View Discharged Encounters"
+            >
               <span className="font-mono text-[13.5px] font-bold text-emerald-700 tabular-nums">{completedCount}</span>
               <span className="text-[10.5px] text-slate-500 ml-0.5 font-medium">Discharged</span>
-            </div>
+            </button>
           </div>
           <button 
-            onClick={() => window.open('https://web.whatsapp.com', '_blank')}
-            className="px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-300/80 transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.98]" 
+            onClick={() => {
+              if (focusPatient?.phone) {
+                const cleanPhone = focusPatient.phone.replace(/\D/g, '').slice(-10);
+                window.open(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Namaste ${focusPatient.name || 'Patient'} ji, this is ${clinicTitle}. Following up on your clinic visit and prescription status.`)}`, '_blank');
+              } else {
+                window.open('https://web.whatsapp.com', '_blank');
+              }
+            }}
+            className="px-2.5 py-1 text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-300/80 transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.98] cursor-pointer" 
             type="button"
           >
             <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
@@ -4021,7 +4202,7 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 6: DAILY FINANCIAL LEDGER */}
+      {/* SECTION 6: DAILY FINANCIAL LEDGER (INTERACTIVE ROUTING) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -4031,28 +4212,58 @@ export const CompounderDashboard: React.FC = () => {
           <span className="text-[9.5px] font-mono text-slate-400">Live reconciliation</span>
         </div>
         <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] text-slate-600">
+          {/* Consultation */}
+          <div 
+            onClick={() => { 
+              setBillHubInitialMode('manual_billing'); 
+              setBillingSubTab('billing'); 
+              startTransition(() => setActiveTab('billing_daycare')); 
+            }}
+            className="flex items-center justify-between text-[11px] text-slate-600 hover:bg-slate-50 p-1 rounded-lg cursor-pointer transition"
+          >
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>
               <span>Consultation</span>
             </div>
             <span className="font-mono font-semibold text-slate-900 tabular-nums">₹{consultTotal.toLocaleString('en-IN')}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-600">
+          {/* Dispensary */}
+          <div 
+            onClick={() => { 
+              setClinicalSubTab('pharmacy'); 
+              startTransition(() => setActiveTab('clinical_hub')); 
+            }}
+            className="flex items-center justify-between text-[11px] text-slate-600 hover:bg-slate-50 p-1 rounded-lg cursor-pointer transition"
+          >
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span>Dispensary (Pharmacy)</span>
             </div>
             <span className="font-mono font-semibold text-slate-900 tabular-nums">₹{pharmTotal.toLocaleString('en-IN')}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-600">
+          {/* Pathology */}
+          <div 
+            onClick={() => { 
+              setClinicalSubTab('labs'); 
+              startTransition(() => setActiveTab('clinical_hub')); 
+            }}
+            className="flex items-center justify-between text-[11px] text-slate-600 hover:bg-slate-50 p-1 rounded-lg cursor-pointer transition"
+          >
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
               <span>Pathology (Labs)</span>
             </div>
             <span className="font-mono font-semibold text-slate-900 tabular-nums">₹{labTotal.toLocaleString('en-IN')}</span>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+          {/* Gross Counter */}
+          <div 
+            onClick={() => { 
+              setBillHubInitialMode('manual_billing'); 
+              setBillingSubTab('billing'); 
+              startTransition(() => setActiveTab('billing_daycare')); 
+            }}
+            className="pt-2 border-t border-slate-100 flex items-center justify-between hover:bg-slate-50 p-1 rounded-lg cursor-pointer transition"
+          >
             <span className="font-mono text-[10px] uppercase tracking-[0.05em] font-bold text-slate-700">Gross Counter</span>
             <span className="font-mono text-[15px] font-bold text-slate-950 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 tabular-nums">
               ₹{grossTotal.toLocaleString('en-IN')}
@@ -4061,7 +4272,7 @@ export const CompounderDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 7: RECENT TIMELINE FEED */}
+      {/* SECTION 7: RECENT TIMELINE FEED (INTERACTIVE AUDIT STREAM) */}
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-1.5">
@@ -4075,7 +4286,14 @@ export const CompounderDashboard: React.FC = () => {
             auditEvents.map((a, idx) => {
               const isCompleted = a.status === 'completed';
               return (
-                <div key={a.id || idx} className="flex items-start gap-2 text-[11px]">
+                <div 
+                  key={a.id || idx} 
+                  onClick={() => {
+                    startTransition(() => setActiveTab('opd_patients'));
+                    setOpdSubTab(isCompleted ? 'history' : 'today_queue');
+                  }}
+                  className="flex items-start gap-2 text-[11px] hover:bg-slate-50 p-1 rounded-lg cursor-pointer transition"
+                >
                   <span className="font-mono text-[9.5px] text-slate-500 font-semibold shrink-0 mt-0.5 bg-slate-50 px-1 py-0.2 rounded border border-slate-200/60 tabular-nums">
                     {a.appointmentTime ? a.appointmentTime.slice(11, 16) || 'Today' : 'Today'}
                   </span>
@@ -4098,62 +4316,8 @@ export const CompounderDashboard: React.FC = () => {
           )}
         </div>
       </div>
-      {/* ERGONOMIC BOTTOM TAB BAR */}
-      <nav className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(15,23,42,0.04)]">
-        <div className="h-13 px-3 flex items-center justify-between max-w-md mx-auto">
-          {/* Tab 1: Home */}
-          <button 
-            onClick={() => startTransition(() => setActiveTab('overview'))}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-[#0E7A8A] font-bold py-1 relative" 
-            type="button"
-          >
-            <Home className="w-5 h-5 text-[#0E7A8A]" />
-            <span className="text-[9.5px] tracking-tight font-bold">Home</span>
-            <span className="w-1 h-1 rounded-full bg-[#0E7A8A] mt-0.2"></span>
-          </button>
-          {/* Tab 2: Queue */}
-          <button 
-            onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400 hover:text-slate-800 transition-colors py-1 relative" 
-            type="button"
-          >
-            <ClipboardList className="w-5 h-5" />
-            <span className="text-[9.5px] tracking-tight font-medium">Queue</span>
-            <span className="absolute top-0.5 right-4 font-mono text-[8.5px] bg-slate-900 text-white px-1 rounded-full font-bold tabular-nums">
-              {activeOpdAppointments.length}
-            </span>
-          </button>
-          {/* Center Tab: Elevated Vibrant Action */}
-          <div className="flex items-center justify-center flex-1 py-1 -mt-4">
-            <button 
-              onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
-              aria-label="Scan Prescription" 
-              className="w-11 h-11 rounded-full bg-gradient-to-tr from-slate-950 via-[#0E7A8A] to-teal-500 hover:from-slate-900 hover:to-teal-600 text-white flex items-center justify-center border-2 border-white shadow-[0_4px_16px_rgba(14,122,138,0.35)] active:scale-95 transition-all" 
-              type="button"
-            >
-              <ScanLine className="w-5 h-5 text-white" />
-            </button>
-          </div>
-          {/* Tab 3: Labs & Rx */}
-          <button 
-            onClick={() => startTransition(() => setActiveTab('clinical_hub'))}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400 hover:text-slate-800 transition-colors py-1" 
-            type="button"
-          >
-            <FlaskConical className="w-5 h-5" />
-            <span className="text-[9.5px] tracking-tight font-medium">Labs &amp; Rx</span>
-          </button>
-          {/* Tab 4: More */}
-          <button 
-            onClick={() => startTransition(() => setActiveTab('opd_patients'))}
-            className="flex flex-col items-center justify-center gap-0.5 flex-1 text-slate-400 hover:text-slate-800 transition-colors py-1" 
-            type="button"
-          >
-            <MoreHorizontal className="w-5 h-5" />
-            <span className="text-[9.5px] tracking-tight font-medium">More</span>
-          </button>
         </div>
-      </nav>
+      </div>
     </div>
   );
 })()}
@@ -4162,74 +4326,71 @@ export const CompounderDashboard: React.FC = () => {
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'opd_patients' && (
           <div className="space-y-6 animate-fade-in text-left">
-            {/* 3-Column Mobile-Native Horizontal OPD Sub-Tab Switcher */}
-            <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-2">
-              <button
-                type="button"
-                onClick={() => setOpdSubTab('today_queue')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
-                  opdSubTab === 'today_queue'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
-                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Layers className="w-4 h-4 shrink-0" />
-                <span className="truncate">Today's OPD</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
-                  opdSubTab === 'today_queue' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                }`}>
-                  {activeOpdAppointments.length}
-                  {/*
-                    return appointments.filter(a => {
-                      if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
-                      return getEffectiveAppointmentDate(a) === todayStr;
-                    }).length;
-                  */}
-                </span>
-              </button>
+            {/* Google-Tier Executive OPD Chamber Ribbon */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    OPD Chamber Flow
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live Sync
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                      {(activeOpdAppointments || []).length} Active Patients
+                    </span>
+                  </h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Doctor consultation triage, vital intake clearance & clinical dispatch sequence
+                  </p>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setOpdSubTab('directory')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
-                  opdSubTab === 'directory'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
-                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Users className="w-4 h-4 shrink-0" />
-                <span className="truncate">Patient Registry</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
-                  opdSubTab === 'directory' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                }`}>
-                  {patients.length}
-                </span>
-              </button>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                {opdSubTab !== 'today_queue' && (
+                  <button
+                    type="button"
+                    onClick={() => setOpdSubTab('today_queue')}
+                    className="px-2.5 py-1.5 text-[11px] font-bold rounded-xl text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 hover:bg-slate-50 transition cursor-pointer"
+                  >
+                    ← Chamber Flow
+                  </button>
+                )}
 
-              <button
-                type="button"
-                onClick={() => setOpdSubTab('history')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 px-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95 border-0 ${
-                  opdSubTab === 'history'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md font-black'
-                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                }`}
-              >
-                <Clock className="w-4 h-4 shrink-0" />
-                <span className="truncate">Past History</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 ${
-                  opdSubTab === 'history' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                }`}>
-                  {(() => {
-                    const todayStr = getIstDateString();
-                    return appointments.filter(a => {
-                      if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
-                      const apptDate = getEffectiveAppointmentDate(a);
-                      return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
-                    }).length;
-                  })()}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    startTransition(() => {
+                      setActiveTab('more_hub');
+                      setMoreHubActiveView('directory');
+                    });
+                  }}
+                  className="px-3 py-1.5 text-[11px] font-bold rounded-xl text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800/50 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                  title="Search master patient registry in More Hub"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>EHR Registry</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    startTransition(() => {
+                      setActiveTab('more_hub');
+                      setMoreHubActiveView('sops');
+                    });
+                  }}
+                  className="px-2.5 py-1.5 text-[11px] font-bold rounded-xl text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="View clinical SOPs in More Hub"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="hidden xs:inline">SOPs</span>
+                </button>
+              </div>
             </div>
 
             {/* Sub-View 1: EHR Registry & Walk-In Registration */}
@@ -4867,85 +5028,76 @@ export const CompounderDashboard: React.FC = () => {
                 <div className="lg:col-span-8 space-y-6">
                   <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+                    {/* Integrated Segmented View Switcher & Operational Utility Strip */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
-                      <div>
-                        <h2 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                          <Activity className="h-5 w-5 text-rose-500 animate-pulse" />
-                          {opdQueueFilter === 'today' 
-                            ? "Today's Appointments Queue" 
-                            : "Scheduled Advance Bookings"}
-                        </h2>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          {opdQueueFilter === 'today' 
-                            ? "Active OPD patient token stream, clinical vitals intake, and chamber triage." 
-                            : "Patient bookings registered for upcoming dates via WhatsApp Bot & online portals."}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        {/* 🖨️ Print / Save OPD Register (PDF) Button */}
+                      {/* 1-Tap Switcher: Today's Live Stream vs Scheduled Advance Bookings */}
+                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
                         <button
                           type="button"
-                          onClick={() => {
-                            fetchLiveAppointments();
-                            setShowOpdRegisterPrintModal(true);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95"
-                          title="Print or Save Date-wise OPD Consultation Register as PDF"
+                          onClick={() => setOpdQueueFilter('today')}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                            opdQueueFilter === 'today'
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                          }`}
                         >
-                          <Printer className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span>🖨️ Print OPD Register (PDF)</span>
+                          <Zap className="w-3.5 h-3.5 shrink-0" />
+                          <span>Today's Stream</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                            opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}>
+                            {(activeOpdAppointments || []).length}
+                          </span>
                         </button>
 
+                        <button
+                          type="button"
+                          onClick={() => setOpdQueueFilter('upcoming')}
+                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
+                            opdQueueFilter === 'upcoming'
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
+                          }`}
+                        >
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span>Advance Bookings</span>
+                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                            opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}>
+                            {(upcomingAdvanceBookings || []).length}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Right Action Tools: Export CSV & Print Center Shortcut */}
+                      <div className="flex items-center gap-2 shrink-0">
                         {/* 📊 Download All Appointments CSV Button */}
                         <button
                           type="button"
                           onClick={handleDownloadAllAppointmentsCsv}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95 hidden sm:flex"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95"
                           title="Download all appointments as CSV Excel file"
                         >
                           <Download className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span>Export All (CSV)</span>
+                          <span>Export CSV</span>
                         </button>
 
-                        {/* 1-Tap Switcher: Today's Live Queue vs Scheduled Advance Bookings */}
-                        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setOpdQueueFilter('today')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                              opdQueueFilter === 'today'
-                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            <Zap className="w-3.5 h-3.5 shrink-0" />
-                            <span>Today's Queue</span>
-                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                              opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                            }`}>
-                              {activeOpdAppointments.length}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setOpdQueueFilter('upcoming')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                              opdQueueFilter === 'upcoming'
-                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-sm font-black'
-                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            <Calendar className="w-3.5 h-3.5 shrink-0" />
-                            <span>Scheduled Appointments</span>
-                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                              opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                            }`}>
-                              {upcomingAdvanceBookings.length}
-                            </span>
-                          </button>
-                        </div>
+                        {/* Quick Gateway to More Hub Print Center */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            startTransition(() => {
+                              setActiveTab('more_hub');
+                              setMoreHubActiveView('grid');
+                            });
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 transition-all cursor-pointer active:scale-95"
+                          title="Open Clinical Print Center & Registers in More Hub"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span className="hidden sm:inline">Print Center</span>
+                          <ArrowRight className="w-3 h-3 text-slate-400" />
+                        </button>
                       </div>
                     </div>
 
@@ -5654,21 +5806,16 @@ export const CompounderDashboard: React.FC = () => {
     )}
 
         {/* ══════════════════════════════════════════════════════════
-            TAB: CLINICAL HUB (LABS & PHARMACY CONSOLIDATED)
+            TAB: PATHOLOGY & DIAGNOSTICS WORKLIST (100% VIEWPORT)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'clinical_hub' && (
           <Suspense fallback={<DashboardSkeleton />}>
             <ClinicalHubTab 
-              clinicalSubTab={clinicalSubTab}
-              setClinicalSubTab={setClinicalSubTab}
               isOphthalmology={isOphthalmology}
               patients={patients}
               activePod={activePod}
               clinicTitle={clinicTitle}
               fullLabReports={fullLabReports}
-              activeInventory={activeInventory as any}
-              medSearchQuery={medSearchQuery}
-              setMedSearchQuery={setMedSearchQuery}
             />
           </Suspense>
         )}
@@ -5703,6 +5850,662 @@ export const CompounderDashboard: React.FC = () => {
             }}
           />
         </Suspense>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          TAB: MORE HUB & CLINICAL OPERATIONS (EXECUTIVE BENTO GRID)
+      ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'more_hub' && (
+        <div className="space-y-6 animate-fade-in text-left">
+          {/* Breadcrumb Navigation Bar (when drilled down into a subview) */}
+          {moreHubActiveView !== 'grid' && (
+            <div className="flex items-center justify-between p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setMoreHubActiveView('grid')}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer border-0 active:scale-95"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to More Hub</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 uppercase">
+                  {moreHubActiveView === 'directory' && 'EHR Registry'}
+                  {moreHubActiveView === 'sops' && 'Clinical SOPs'}
+                  {moreHubActiveView === 'ot_dilation' && 'Daycare & Dilation'}
+                  {moreHubActiveView === 'history' && 'Past Encounters'}
+                  {moreHubActiveView === 'pharmacy' && 'Pharmacy Stock & FEFO'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ── VIEW 0: EXECUTIVE 7-TILE BENTO GRID ───────────────────────── */}
+          {moreHubActiveView === 'grid' && (
+            <div className="space-y-6">
+              {/* Executive Header Banner */}
+              <div className="glass-panel p-5 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl bg-white/90 dark:bg-slate-950/80 rounded-3xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-600 via-indigo-600 to-teal-500 opacity-80" />
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 shrink-0">
+                      <LayoutGrid className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        More Hub & Operations Center
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                          7 Modules
+                        </span>
+                      </h1>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Centralized governance portal for EHR Directory, SOP Protocols, Daycare, Print Registers & Historic Records
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50 text-xs font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Clinic Node Active
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6-Card Bento Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                {/* 1. EHR Patient Registry */}
+                <div 
+                  onClick={() => setMoreHubActiveView('directory')}
+                  className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform shadow-sm">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/50">
+                        {patients.length} Profiles
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      EHR Patient Registry
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      Search master directory, manage ABHA credentials, and access longitudinal clinical charts.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                    <span>Open Patient Directory</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* 2. Clinical SOPs & Safety Protocols */}
+                <div 
+                  onClick={() => setMoreHubActiveView('sops')}
+                  className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform shadow-sm">
+                        <BookOpen className="w-6 h-6" />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                        Active SOP v2.4
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      Clinical SOPs & Governance
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      Review consultation fee schedules, diagnostic test prices, FEFO guidelines, and referral splits.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <span>View Clinic SOPs</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* 3. Minor OT & Eye Dilation Tracker */}
+                <div 
+                  onClick={() => setMoreHubActiveView('ot_dilation')}
+                  className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800/50 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform shadow-sm">
+                        <Eye className="w-6 h-6" />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50">
+                        {activeDilationPatients.length} Active
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                      Daycare & Eye Dilation
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      Live 15-minute countdown clock for pupil dilation, eye drop instillation, and minor OT daycare prep.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
+                    <span>Manage Dilation Timers</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* 4. Batch Print Center & Registers */}
+                <div 
+                  className="group p-5 bg-white dark:bg-slate-900/90 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg transition-all duration-200 flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/50 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-sm">
+                        <Printer className="w-6 h-6" />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
+                        1-Tap Print
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                      Clinical Print Center
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Batch generate pre-filled OPD prescription slips or generate the official daily OPD register PDF.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBatchPrescriptionPrintModal(true)}
+                      className="flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/50 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs font-bold transition-all text-center cursor-pointer"
+                    >
+                      Batch Slips
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowOpdRegisterPrintModal(true)}
+                      className="flex-1 py-1.5 px-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-all text-center cursor-pointer border-0"
+                    >
+                      Daily Register
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5. Billing POS & Counter Ledger */}
+                <div 
+                  onClick={() => {
+                    setSelectedPatientForBillHub(null);
+                    setBillHubInitialMode('manual_billing');
+                    setBillingSubTab('billing');
+                    startTransition(() => setActiveTab('billing_daycare'));
+                  }}
+                  className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-full blur-2xl group-hover:bg-sky-500/10 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/50 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform shadow-sm">
+                        <CreditCard className="w-6 h-6" />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/50">
+                        Counter POS
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                      Billing POS & Daycare
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      Direct point-of-sale invoice generation, Minor OT packages, and cash counter settlement.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-sky-600 dark:text-sky-400">
+                    <span>Open Billing POS</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* 6. Consultation History & Archive */}
+                <div 
+                  onClick={() => setMoreHubActiveView('history')}
+                  className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/50 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform shadow-sm">
+                        <CalendarCheck className="w-6 h-6" />
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50">
+                        Historic Encounters
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                      Encounters Archive & CSV
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      Review completed consultations, track doctor notes, and export comprehensive encounter CSV logs.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
+                    <span>View Encounter Records</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+
+                {/* 7. Pharmacy Inventory & FEFO Stock Catalog */}
+                <div 
+                  onClick={() => setMoreHubActiveView('pharmacy')}
+                  className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/10 transition-colors" />
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/50 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform shadow-sm">
+                        <Pill className="w-6 h-6" />
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold ${
+                        (activeInventory || []).filter(item => item.stock <= item.threshold).length > 0
+                          ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 animate-pulse'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                      }`}>
+                        {(activeInventory || []).filter(item => item.stock <= item.threshold).length > 0
+                          ? `${(activeInventory || []).filter(item => item.stock <= item.threshold).length} Low Stock Alerts`
+                          : `${(activeInventory || []).length} Medicines`}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                      Pharmacy Stock &amp; FEFO Catalog
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      Inspect batch expiry dates, FEFO substitution rules, reorder safety thresholds, and prices.
+                    </p>
+                  </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
+                    <span>Inspect Pharmacy Catalog</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── VIEW 1: PATIENTS DIRECTORY & EHR REGISTRY ───────────────── */}
+          {moreHubActiveView === 'directory' && (
+            <div className="space-y-6">
+              <Suspense fallback={<DashboardSkeleton />}>
+                <PatientsDirectoryTab
+                  patients={patients}
+                  patientSearchQuery={patientSearchQuery}
+                  setPatientSearchQuery={setPatientSearchQuery}
+                  selectedDirectoryPatient={selectedDirectoryPatient}
+                  setSelectedDirectoryPatient={setSelectedDirectoryPatient}
+                  newPatientName={newPatientName}
+                  setNewPatientName={setNewPatientName}
+                  newPatientPhone={newPatientPhone}
+                  setNewPatientPhone={setNewPatientPhone}
+                  newPatientAge={newPatientAge}
+                  setNewPatientAge={setNewPatientAge}
+                  newPatientGender={newPatientGender}
+                  setNewPatientGender={setNewPatientGender}
+                  patientRAGSummary={patientRAGSummary}
+                  setPatientRAGSummary={setPatientRAGSummary}
+                />
+              </Suspense>
+            </div>
+          )}
+
+          {/* ── VIEW 2: CLINICAL SOPS & QUALITY PROTOCOLS ───────────────── */}
+          {moreHubActiveView === 'sops' && (
+            <div className="space-y-6">
+              <div className="glass-panel p-5 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 rounded-3xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500 to-teal-500 opacity-80" />
+                
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-200/80 dark:border-white/10">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-emerald-500 shrink-0" />
+                      {activeClinicSop?.sopFileName || 'VitalSync Standard Clinical SOP'}
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Operational governance rules, revenue split model, and clinical quality directives
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
+                    Version 2.4 · Active
+                  </span>
+                </div>
+
+                {/* Key Metric Highlights */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block">Doctor Fee</span>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">
+                      ₹{activeClinicSop?.extractedConfig?.doctor_fee || 500}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block">UPI VPA</span>
+                    <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 truncate block mt-1">
+                      {activeClinicSop?.extractedConfig?.doctor_upi_vpa || 'vitalsync@axl'}
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block">Doctor Split</span>
+                    <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                      {activeClinicSop?.extractedConfig?.splits?.doctor || 40}%
+                    </span>
+                  </div>
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-white/5">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block">Lab Split</span>
+                    <span className="text-lg font-black text-teal-600 dark:text-teal-400">
+                      {activeClinicSop?.extractedConfig?.splits?.lab || 55}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Two Column Breakdown: Test Pricing & Guidelines */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Test Prices */}
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-white/5">
+                    <h3 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
+                      <FlaskConical className="w-4 h-4 text-teal-500" />
+                      Standard Diagnostic Test Rates (LOINC)
+                    </h3>
+                    <div className="space-y-2 text-xs">
+                      {Object.entries(activeClinicSop?.extractedConfig?.test_prices || { '4544-3': 350, '2160-0': 250, '3024-7': 150, '2947-0': 200, '1975-2': 300 }).map(([code, price]) => {
+                        const testLabels: Record<string, string> = {
+                          '4544-3': 'HbA1c Glycated Hemoglobin',
+                          '2160-0': 'Serum Creatinine',
+                          '3024-7': 'Blood Sugar Fasting (FBS)',
+                          '2947-0': 'Lipid Profile Complete',
+                          '1975-2': 'Liver Function Test (LFT)'
+                        };
+                        return (
+                          <div key={code} className="flex items-center justify-between py-1.5 px-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/5">
+                            <div>
+                              <span className="font-bold text-slate-800 dark:text-slate-200">{testLabels[code] || `Test (${code})`}</span>
+                              <span className="text-[10px] font-mono text-slate-400 ml-2">LOINC {code}</span>
+                            </div>
+                            <span className="font-black text-emerald-600 dark:text-emerald-400">₹{price}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Clinical Guidelines */}
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200/80 dark:border-white/5">
+                    <h3 className="text-xs font-black uppercase text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      Clinical & Operational Directives
+                    </h3>
+                    <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
+                      {(activeClinicSop?.extractedConfig?.guidelines || [
+                        'Hold pharmacy stock using FEFO (First-Expiry-First-Out)',
+                        'Auto-assign Lalit Prasad for technical lab report verification',
+                        'Verify patient consent prior to care pod routing and prescription upload',
+                        'Day-25 automated WhatsApp refills for chronic cohort patients'
+                      ]).map((guideline: string, idx: number) => (
+                        <li key={idx} className="flex items-start gap-2 p-2 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/60 dark:border-white/5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span>{guideline}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── VIEW 3: DAYCARE & EYE DILATION TRACKER ─────────────────────── */}
+          {moreHubActiveView === 'ot_dilation' && (
+            <div className="space-y-6">
+              <div className="glass-panel p-5 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 rounded-3xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-purple-500 to-indigo-500 opacity-80" />
+                
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-200/80 dark:border-white/10">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <Eye className="w-5 h-5 text-purple-500 shrink-0" />
+                      Daycare & Eye Dilation Tracker
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Real-time 15-minute countdown clock for pupil dilation and minor OT daycare intake
+                    </p>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowDilationModal(patients[0] || null)}
+                    className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 active:scale-95 text-white font-bold text-xs rounded-xl transition shadow-md shadow-purple-500/20 flex items-center gap-1.5 cursor-pointer border-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Start Eye Dilation</span>
+                  </button>
+                </div>
+
+                {/* Active Dilation Patients List */}
+                {activeDilationPatients.length === 0 ? (
+                  <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-white/10">
+                    <Eye className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No Patients in Dilation</h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      All eyes are checked or no active timers are running. Click '+ Start Eye Dilation' to initiate a countdown for OPD ophthalmic procedures.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {activeDilationPatients.map((pat) => {
+                      const elapsedSec = pat.dilationTimestamp
+                        ? Math.max(0, (currentTime.getTime() - new Date(pat.dilationTimestamp).getTime()) / 1000)
+                        : 0;
+                      const remainingSec = Math.max(0, 900 - elapsedSec);
+                      const remMin = Math.floor(remainingSec / 60);
+                      const remSec = Math.floor(remainingSec % 60);
+                      const progressPct = Math.min(100, Math.round((elapsedSec / 900) * 100));
+                      const isReady = remainingSec === 0;
+
+                      return (
+                        <div 
+                          key={pat.id}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            isReady 
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700' 
+                              : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-white/10 shadow-md'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <h4 className="font-bold text-sm text-slate-900 dark:text-white">{pat.name}</h4>
+                              <p className="text-[11px] text-slate-500 font-mono">Token #{pat.tokenNumber || (pat as any).token_number || 'OPD'} · {pat.phone}</p>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                              isReady 
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' 
+                                : 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                            }`}>
+                              {isReady ? 'READY FOR EXAM' : `${remMin}m ${remSec}s REMAINING`}
+                            </span>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden my-3">
+                            <div 
+                              className={`h-full transition-all duration-1000 ${isReady ? 'bg-emerald-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'}`}
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-500">
+                            <span>Eye: <strong className="uppercase">{pat.dilationEye || 'Both'}</strong></span>
+                            <span>Drop: <strong className="capitalize">{pat.dilationDrop || 'Tropicamide'}</strong></span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── VIEW 4: PAST CONSULTATION HISTORY & RECORDS ─────────────── */}
+          {moreHubActiveView === 'history' && (
+            <div className="space-y-6">
+              <div className="glass-panel p-4 sm:p-6 border-slate-200/80 dark:border-white/10 shadow-xl bg-white dark:bg-slate-950/80 rounded-3xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-rose-500 to-indigo-500 opacity-80" />
+                
+                {/* Header with Title and CSV Export */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-3.5 border-b border-slate-200/80 dark:border-white/10">
+                  <div>
+                    <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <CalendarCheck className="w-5 h-5 text-rose-500 shrink-0" />
+                      Past Consultation Encounters & Clinic Records
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Comprehensive log of all completed patient visits, token numbers, and clinical encounters.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60 rounded-xl">
+                      {(() => {
+                        const todayStr = getIstDateString();
+                        return appointments.filter(a => {
+                          if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
+                          const apptDate = getEffectiveAppointmentDate(a);
+                          return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
+                        }).length;
+                      })()} Records
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadPastAppointmentsCsv}
+                      className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-bold text-xs rounded-xl transition shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer border-0"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Search Bar */}
+                <div className="mb-4">
+                  <SearchInput
+                    value={pastHistorySearchQuery}
+                    onChange={setPastHistorySearchQuery}
+                    placeholder="Search past appointments by Patient Name, Phone, Token #, or Date..."
+                    className="w-full text-xs py-2.5 pl-10 pr-9 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-xl outline-none placeholder:text-slate-400 transition-all"
+                  />
+                </div>
+
+                {/* Table of Records */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase font-mono font-bold text-[10px]">
+                      <tr>
+                        <th className="p-3">Token #</th>
+                        <th className="p-3">Patient Name</th>
+                        <th className="p-3">Phone</th>
+                        <th className="p-3">Date</th>
+                        <th className="p-3">Mode</th>
+                        <th className="p-3">Attending Doctor</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Fee Clearance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                      {(() => {
+                        const todayStr = getIstDateString();
+                        const q = (pastHistorySearchQuery || '').trim().toLowerCase();
+                        const pastAppts = appointments
+                          .filter(a => {
+                            if (!isAppointmentPaid(a.patientId || (a as any).patient_id) || a.status === 'cancelled') return false;
+                            const apptDate = getEffectiveAppointmentDate(a);
+                            return Boolean(apptDate && apptDate < todayStr) || a.status === 'completed';
+                          })
+                          .filter(appt => {
+                            if (!q) return true;
+                            const patName = (appt.patientName || (appt as any).patient_name || '').toLowerCase();
+                            const patPhone = (appt.patientPhone || (appt as any).patient_phone || '').toLowerCase();
+                            const tok = String(appt.tokenNumber || (appt as any).token_number || '').toLowerCase();
+                            const apptDate = String(getEffectiveAppointmentDate(appt) || '').toLowerCase();
+                            return patName.includes(q) || patPhone.includes(q) || tok.includes(q) || apptDate.includes(q);
+                          });
+
+                        if (pastAppts.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={8} className="p-8 text-center text-slate-400">
+                                No past consultation records match your query.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return pastAppts.map((appt) => (
+                          <tr key={appt.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
+                            <td className="p-3 font-mono font-bold text-indigo-600">
+                              #{appt.tokenNumber || (appt as any).token_number || '—'}
+                            </td>
+                            <td className="p-3 font-bold text-slate-900 dark:text-white">
+                              {appt.patientName || (appt as any).patient_name || 'Patient'}
+                            </td>
+                            <td className="p-3 text-slate-500 font-mono">
+                              {appt.patientPhone || (appt as any).patient_phone || '—'}
+                            </td>
+                            <td className="p-3 text-slate-500 font-mono">
+                              {getEffectiveAppointmentDate(appt) || '—'}
+                            </td>
+                            <td className="p-3 capitalize text-slate-500">
+                              {appt.type || 'In-Person'}
+                            </td>
+                            <td className="p-3 text-slate-700 dark:text-slate-300">
+                              {appt.doctorName || 'Attending Physician'}
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 uppercase">
+                                {appt.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200">
+                                ₹{appt.fee || 500} Paid ✅
+                              </span>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── VIEW 5: PHARMACY INVENTORY & FEFO STOCK CATALOG ───────── */}
+          {moreHubActiveView === 'pharmacy' && (
+            <div className="space-y-6">
+              <Suspense fallback={<DashboardSkeleton />}>
+                <PharmacyStockCatalog
+                  activeInventory={activeInventory}
+                  medSearchQuery={medSearchQuery}
+                  setMedSearchQuery={setMedSearchQuery}
+                />
+              </Suspense>
+            </div>
+          )}
+        </div>
       )}
       </div>
 

@@ -592,6 +592,10 @@ export class PatientService {
       save('patients', rawPatients);
       save('saas_appointments', appts);
       save('appointments', appts);
+      notify();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { entity: 'tokens', table: 'patient_registry' } }));
+      }
 
       (async () => {
         try {

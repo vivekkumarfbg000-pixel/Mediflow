@@ -493,14 +493,15 @@ export const ConsultationTab: React.FC<ConsultationTabProps> = React.memo(({
     }
 
     // 4. If vitals were extracted, update patient record
-    if (selectedPatient && Object.keys(extractedScribeData.extractedVitals).length > 0) {
+    const extVitals = extractedScribeData?.extractedVitals || {};
+    if (selectedPatient && Object.keys(extVitals).length > 0) {
       const updatedVitals: PatientVitals = {
-        temperature: extractedScribeData.extractedVitals.temperature ? String(extractedScribeData.extractedVitals.temperature) : (selectedPatient.vitals?.temperature || '98.6'),
-        bloodPressure: extractedScribeData.extractedVitals.bloodPressure || selectedPatient.vitals?.bloodPressure || '120/80',
-        pulseRate: extractedScribeData.extractedVitals.pulseRate ? String(extractedScribeData.extractedVitals.pulseRate) : (selectedPatient.vitals?.pulseRate || '72'),
-        weight: extractedScribeData.extractedVitals.weight ? String(extractedScribeData.extractedVitals.weight) : (selectedPatient.vitals?.weight || '65'),
-        bloodSugar: extractedScribeData.extractedVitals.bloodSugar ? String(extractedScribeData.extractedVitals.bloodSugar) : selectedPatient.vitals?.bloodSugar,
-        spO2: extractedScribeData.extractedVitals.spO2 ? String(extractedScribeData.extractedVitals.spO2) : selectedPatient.vitals?.spO2,
+        temperature: extVitals.temperature ? String(extVitals.temperature) : (selectedPatient.vitals?.temperature || '98.6'),
+        bloodPressure: extVitals.bloodPressure || selectedPatient.vitals?.bloodPressure || '120/80',
+        pulseRate: extVitals.pulseRate ? String(extVitals.pulseRate) : (selectedPatient.vitals?.pulseRate || '72'),
+        weight: extVitals.weight ? String(extVitals.weight) : (selectedPatient.vitals?.weight || '65'),
+        bloodSugar: extVitals.bloodSugar ? String(extVitals.bloodSugar) : selectedPatient.vitals?.bloodSugar,
+        spO2: extVitals.spO2 ? String(extVitals.spO2) : selectedPatient.vitals?.spO2,
         recordedAt: new Date().toISOString(),
         ...(selectedPatient.vitals || {})
       };

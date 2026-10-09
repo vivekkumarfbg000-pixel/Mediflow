@@ -1,27 +1,36 @@
-# CTO Taskforce Implementation Plan
+# 🏛️ J.A.R.V.I.S. v6.0 Big Tech Implementation Plan
+## Compounder Desk: OPD Queue Header Streamlining & Visual Hierarchy Refinement
 
-## 360° Root Cause Analysis
-1. **Doctor Fee Inclusion:** The text `100% Doctor Direct Account (Rule 58)` reflects a legacy configuration. The user explicitly stated "Doctor fees always included means , every time it create financial ledger update with consultation fees, remove rule 100% jagraon (Rule 58)". The `includeConsult` checkbox makes the fee optional, causing it to hit ₹0.00 if unchecked. We must remove the checkbox, remove the "Rule 58" text, and lock `consultTotal = consultFee`.
-2. **POS Grid Spacing:** The green cart items (`medicinesList` and `testsList`) use `p-3` padding. Changing this to `p-1.5` and reducing the gap will make the UI denser by ~25%.
-3. **Scroll Hidden Behind Footer:** The scrollable cart container (`className="flex-1 overflow-y-auto pr-1 space-y-3...`) lacks sufficient bottom padding, causing the last items to fall behind the fixed expanded POS drawer. Adding `pb-32` will ensure they scroll fully into view.
-4. **Final Settlement Drawer:** 
-   - Takes up to `85vh` which is too much screen real estate. Reducing to `max-h-[50vh]`.
-   - Displays "✨ Premium VIP Refill Discount Applied" which is unwanted.
-   - Contains 2 split boxes for "UPI" and "Cash", plus a QR image. The user requested to remove the UPI/Cash boxes and only show a "Submit & Dispatch" button.
+### 📋 Overview & Problem Statement
+In the Compounder Desk **OPD Queue** tab (`activeTab === 'opd_patients'`), two separate header containers are vertically stacked:
+1. **Outer Tab Header (L4330-L4346)**: `"Live Chamber Queue & Tokens"` with subtitle `"Real-time doctor chamber token sequence, vitals clearance, and clinical flow"`.
+2. **Inner Card Header (L5027-L5040)**: `"Today's Appointments Queue"` with subtitle `"Active OPD patient token stream, clinical vitals intake, and chamber triage."`
+3. **Redundant & Cluttered Print Action (L5044-L5056)**: Contains duplicate printer emojis (`<Printer /> 🖨️ Print OPD Register (PDF)`), cluttering the active consultation triage workspace.
 
-## Proposed Modifications
-### `[MODIFY] frontend/src/components/compounder/tabs/BillHubTab.tsx`
-- Remove `checked={includeConsult}` checkbox from Doctor Consultation block.
-- Remove `<span className="text-[10px] text-slate-400">100% Doctor Direct Account (Rule 58)</span>`.
-- Set `const consultTotal = consultFee;` (bypassing `includeConsult`).
-- Change cart list `p-3` padding to `p-1.5`.
-- Add `pb-32` to the scrollable cart list container: `<div className="flex-1 overflow-y-auto pr-1 space-y-2 pb-32 no-scrollbar text-left">`.
-- In the Floating POS Drawer: change `max-h-[85vh]` to `max-h-[50vh]`.
-- Remove the VIP refill text block.
-- Remove the `paymentMethod` split buttons ("UPI / QR Standee" and "Cash Counter").
-- Remove the `dynamicUpiPayload` QR rendering block inside the drawer.
-- Refactor the final submit button to say "Submit & Dispatch" with premium glassmorphism/gradient.
+### 🎯 Optimization Goals
+1. **Eliminate Word & Header Duplication**: Remove the redundant inner `<h2>` and repetitive phrasing ("Queue", "Tokens", "Chamber", "Appointments").
+2. **Google/Meta-Tier Executive Command Ribbon**:
+   - Title: **"OPD Chamber Flow"** with live CDC indicator (`● Live Chamber Sync`) and clean pill badge (`{activeOpdAppointments.length} Active Patients`).
+   - Clean, purposeful subtitle without generic AI filler words.
+3. **Integrated Segmented View Switcher**:
+   - Embed the `Today's Stream` vs `Advance Bookings` switcher directly into the operational strip.
+   - Retain fast `Export CSV` with sleek Google-tier styling.
+4. **Relocate Print Register to More Hub**:
+   - Remove the cluttered `Print OPD Register` button and double printer emoji from the active queue header.
+   - Canonical home is verified in More Hub (`more_hub` -> Tile 4: **Clinical Print Center** with dedicated 1-tap PDF generation).
 
-## Anti-Regression Strategy
-- State mapping functions inside `BillingService` and the `UnifiedInvoice` generation remain structurally intact. We will retain the `paymentMethod` state defaulted to 'upi' or 'cash' (defaulted internally so `handleClearBill` doesn't crash).
-- No new UI libraries or hooks are being added. All changes are confined to tailwind classes and JSX removal.
+---
+
+### 📂 Proposed File Changes
+
+#### [MODIFY] `frontend/src/components/compounder/CompounderDashboard.tsx`
+- **Lines 4330-4390**: Refine outer tab header into the unified **"OPD Chamber Flow"** executive control bar with real-time status and quick links.
+- **Lines 5027-5070**: Replace duplicate inner header with an integrated segmented control bar (`Active Today` vs `Scheduled Advance`) and clean export tool. Remove the duplicate `Print OPD Register` button.
+
+---
+
+### 🛡️ Safety & Verification Strategy
+- **Rule 1.8 & Rule Zero Guard**: Eagle-Eye OCR, Prescription Scanning, and CDC sync remain 100% untouched.
+- **Defensive Access**: All array counts (`activeOpdAppointments.length`, `upcomingAppointments.length`) guarded defensively.
+- **Compiler Gate**: Run `npx tsc --noEmit` and verify Exit Code 0.
+- **Daemon Bridge Sync**: Shadow compile and update memory vault at port 9000.

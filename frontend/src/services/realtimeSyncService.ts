@@ -143,8 +143,10 @@ export class RealtimeSyncService {
     if (record.prescription_file_url !== undefined) normalized.prescriptionFileUrl = record.prescription_file_url;
     if (record.approved_by !== undefined) normalized.approvedBy = record.approved_by;
     if (record.approved_at !== undefined) normalized.approvedAt = record.approved_at;
-    if (record.batch_number !== undefined) normalized.batchNumber = record.batch_number;
-    if (record.expiry_date !== undefined) normalized.expiryDate = record.expiry_date;
+    if (record.batch_number !== undefined) { normalized.batchNumber = record.batch_number; normalized.batch_number = record.batch_number; }
+    if (record.batchNumber !== undefined) { normalized.batch_number = record.batchNumber; normalized.batchNumber = record.batchNumber; }
+    if (record.expiry_date !== undefined) { normalized.expiryDate = record.expiry_date; normalized.expiry_date = record.expiry_date; }
+    if (record.expiryDate !== undefined) { normalized.expiry_date = record.expiryDate; normalized.expiryDate = record.expiryDate; }
     if (record.hold_status !== undefined) normalized.holdStatus = record.hold_status;
     if (record.reagent_deductions !== undefined) normalized.reagentDeductions = record.reagent_deductions;
     if (record.rejection_reason !== undefined) normalized.rejectionReason = record.rejection_reason;
@@ -169,6 +171,11 @@ export class RealtimeSyncService {
     }
     if (record.quantity_in_stock !== undefined && normalized.stock === undefined) {
       normalized.stock = typeof record.quantity_in_stock === 'string' ? parseInt(record.quantity_in_stock, 10) : record.quantity_in_stock;
+      normalized.quantity_in_stock = normalized.stock;
+    }
+    if (record.stock !== undefined && normalized.quantity_in_stock === undefined) {
+      normalized.quantity_in_stock = typeof record.stock === 'string' ? parseInt(record.stock, 10) : record.stock;
+      normalized.stock = normalized.quantity_in_stock;
     }
     if (record.reagent_name !== undefined) {
       normalized.reagentName = record.reagent_name;
@@ -347,6 +354,7 @@ export class RealtimeSyncService {
         'lab_requisitions',
         'inventory_holds',
         'unified_invoices',
+        'pharmacy_inventory',
         'reagent_inventory',
         'whatsapp_sessions',
         'chronic_care_subscriptions'
@@ -490,8 +498,8 @@ export class RealtimeSyncService {
 
         // Single event dispatch per table
         notify();
-        window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: tableName } }));
-        if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'lab_test_bills', 'vitalsync_pool_settlements'].includes(tableName)) {
+        window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: tableName, entity: tableName } }));
+        if (['financial_ledgers', 'unified_invoices', 'appointments', 'medicine_bills', 'lab_requisitions', 'lab_test_bills', 'vitalsync_pool_settlements', 'pharmacy_inventory'].includes(tableName)) {
           window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { table: tableName } }));
         }
       });
