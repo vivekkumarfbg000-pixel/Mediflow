@@ -104,12 +104,13 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 ## 🚫 RULE 1.1: THE UNBREAKABLE CLINIC OS FORTRESS SHIELD (CORE USP OVERRIDE) 🚫
 **ATTENTION TO ALL FUTURE AI AGENTS: CLINIC OS IS THE ABSOLUTE PRIMARY CORE USP OF MEDIFLOW. IT IS STRICTLY OFF-LIMITS FOR AUTONOMOUS MODIFICATION.**
 - **Absolute Modification Ban**: Any future AI agent is STRICTLY FORBIDDEN from modifying, refactoring, deleting, or altering ANY file in the Clinic OS core subsystem without the explicit override command: `"OVERRIDE CLINIC OS FORTRESS SHIELD"`.
-- **The Protected Clinic OS Core Subsystem Inventory (15 Files)**:
-  1. *Compounder Desk & OCR*: `frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx`, `frontend/src/components/compounder/CompounderDashboard.tsx`, `frontend/src/components/compounder/tabs/BillHubTab.tsx`, `frontend/src/services/paperModeService.ts`, `frontend/src/utils/ocrFuzzyCorrector.ts`.
+- **The Protected Clinic OS Core Subsystem Inventory (17 Files)**:
+  1. *Compounder Desk, Price Book & Billing POS*: `frontend/src/components/compounder/tabs/AiPrescriptionUploadTab.tsx`, `frontend/src/components/compounder/CompounderDashboard.tsx`, `frontend/src/components/compounder/tabs/BillHubTab.tsx`, `frontend/src/services/paperModeService.ts`, `frontend/src/utils/ocrFuzzyCorrector.ts`, `frontend/src/services/priceBookService.ts`, `frontend/src/components/compounder/tabs/ServicesPriceBookModal.tsx`.
   2. *Doctor Consultation & Queue*: `frontend/src/components/doctor/DoctorDashboard.tsx`, `frontend/src/components/doctor/tabs/ConsultationTab.tsx`, `frontend/src/services/encounterService.ts`, `frontend/src/services/appointmentPipeline.ts`.
   3. *Pharmacy Dispensing & Inventory*: `frontend/src/components/pharmacy/PharmacyDashboard.tsx`, `frontend/src/services/pharmacyService.ts`.
   4. *Pathology Lab Worklist*: `frontend/src/components/lab/LabDashboard.tsx`, `frontend/src/services/labService.ts`.
   5. *State & Data Normalization*: `frontend/src/services/patientService.ts`, `frontend/src/services/billingService.ts`, `frontend/src/services/realtimeSyncService.ts`, `frontend/src/services/podContext.ts`.
+- **Pre-Seeded Price Book & Bag-to-Bill Protection Invariant**: The pre-seeded Indian medicines catalog (104+ items with market MRPs) in `priceBookService.ts`, rate card editing in `ServicesPriceBookModal.tsx`, and the 1-Click Scan-to-Bill POS engine in `BillHubTab.tsx` are permanently protected core operational assets of Clinic OS. AI agents are strictly forbidden from reverting, deleting, or replacing them with fake mock data.
 - **Zero Bug Tolerance & Anti-Regression Invariant**: If an AI touches any Clinic OS flow by explicit user request, it MUST NOT introduce ANY functional, structural, or logical bugs. If the workflow works and completes the clinical loop, it MUST work every single time without failure.
 - **No Autonomous Modals**: Modals MUST only spawn upon explicit user click actions. Never use `useEffect` or component lifecycle methods to trigger popups.
 - **Master Blueprint Ground Truth**: The complete, immutable blueprint of all Clinic OS loops is backed up in `CLINIC_OS_VAULT.md`. If in doubt, read `CLINIC_OS_VAULT.md` before answering any architectural queries.
@@ -181,6 +182,19 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 
 ## 👑 1.9: BIG TECH DESIGN DOCTRINE (NO BULGY AI UI)
 **ATTENTION AI:** Act as a Google/Meta CTO Taskforce and a 10+ years experienced Frontend Designer/Developer. Your UI designs MUST be pixel-perfect, compact, and professional. NO overly large, bulgy, generic AI-style buttons. Use refined typography, tight padding, and purposeful whitespace. Never stuff unrelated massive components (like a giant scanner) into an overview screen unless explicitly asked. The design MUST NEVER give off the impression or signature that the "dashboard was made by AI". It must look like it was handcrafted by a top-tier human engineering team.
+
+## 👑 1.10: FOUNDER EXECUTIVE MEMORY & PERSISTENT KNOWLEDGE VAULT PROTOCOL (`founder_conversation.md`)
+**ATTENTION ALL AI AGENTS & J.A.R.V.I.S.:**
+The file `founder_conversation.md` at the project root is the sovereign, permanent long-term memory vault between the Founder (Vivek) and the AI Engineering Taskforce.
+1. **Continuous Dialogue Persistence**: Whenever the Founder engages in any discussion, strategic planning, product brainstorming, architectural review, or guidance, the AI Agent MUST persistently log the discussion in `founder_conversation.md` under **PART 2: LIVE CONVERSATION STREAM**.
+2. **Dual-Section Memory Architecture**:
+   - **PART 1: FOUNDER EXECUTIVE KNOWLEDGE VAULT (YAADAS / KNOWLEDGE BOOK)**: Final distilled source of truth for the Founder's vision, clinical philosophy, strategic roadmap, long-term plans, and core invariants. This is the permanent memory bank.
+   - **PART 2: LIVE CONVERSATION STREAM (DISCUSSION LOGS)**: The working log of ongoing and recent discussions.
+3. **Autonomous & Explicit Synthesis Invariant**:
+   - When the Founder explicitly requests to save a summary of the conversation, the AI agent MUST immediately synthesize and distill the recent conversation into **PART 1**.
+   - If the Founder does not explicitly ask, but the AI agent recognizes that a discussion topic or architectural decision has concluded, the AI agent MUST autonomously update and distill the key conclusions into **PART 1 (YAADAS)** so context is NEVER lost across future sessions.
+   - The conversation section is always updated to ensure zero memory decay.
+4. **Context Recovery Protocol**: Before initiating major strategic, architectural, or roadmap decisions, the AI agent MUST read `founder_conversation.md` to ground its recommendations in the Founder's exact vision.
 
 ## 🔒 Security & Secrets Protection
 - **NEVER** add, commit, or push any files containing API keys, access tokens, or private secrets (such as `.env`, `.env.local`, `.env.production`, or private configurations) to Git.

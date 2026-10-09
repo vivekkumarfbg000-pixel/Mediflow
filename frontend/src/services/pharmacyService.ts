@@ -18,6 +18,7 @@ import type {
   FinancialLedgerEntry
 } from '../types';
 import { cloudStore } from './cloudStore';
+import { PriceBookService } from './priceBookService';
 
 export class PharmacyService {
   private static readonly AI_BASE = (() => {
@@ -405,6 +406,31 @@ export class PharmacyService {
       const selectedDefaults = isOphthalmology ? defaultOphthalmicItems : defaultGeneralItems;
       save('pharmacy_inventory', selectedDefaults);
       return selectedDefaults;
+    }
+
+    // Default In-House Clinic Bag-to-Bill Seeded Inventory
+    const priceBookItems = PriceBookService.getMedicineCatalog();
+    const seededInventory: PharmacyInventoryItem[] = priceBookItems.map((pb, idx) => ({
+      id: pb.id || `inv-${idx + 1}`,
+      name: pb.name,
+      genericName: pb.genericName,
+      category: pb.category,
+      manufacturer: pb.manufacturer || 'Standard Ph.',
+      batchNumber: `BAT-${String(idx + 1).padStart(2, '0')}`,
+      expiryDate: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().split('T')[0],
+      mrp: pb.mrp,
+      price: pb.price,
+      stock: 100, // Clinic bag stock
+      unit: (pb.unit as any) || 'tabs',
+      threshold: 15,
+      dosage: pb.dosage,
+      addedAt: new Date().toISOString(),
+      hsn: '300490'
+    }));
+
+    if (seededInventory.length > 0) {
+      save('pharmacy_inventory', seededInventory);
+      return seededInventory;
     }
 
     return [];

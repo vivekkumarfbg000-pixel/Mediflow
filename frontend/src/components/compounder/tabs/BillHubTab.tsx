@@ -30,6 +30,8 @@ import { safeGetStorageJSON } from '../../../utils/storage';
 import { save } from '../../../services/apiHelper';
 import { useCircuitBreaker } from '../../../context/CircuitBreakerContext';
 import { CryptoAuditService } from '../../../services/cryptoAuditService';
+import { PriceBookService } from '../../../services/priceBookService';
+import { ServicesPriceBookModal } from './ServicesPriceBookModal';
 import type { Patient, UnifiedInvoice, PharmacyInventoryItem, DiagnosticTest } from '../../../types';
 
 
@@ -165,6 +167,8 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
   const [excludedMedicines, setExcludedMedicines] = useState<string[]>([]);
   const [excludedTests, setExcludedTests] = useState<string[]>([]);
   const [discountInput, setDiscountInput] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<'flat' | 'percent'>('flat');
+  const [isPriceBookModalOpen, setIsPriceBookModalOpen] = useState<boolean>(false);
   const [referralCode, setReferralCode] = useState<string>("");
   const [partialCashAmount, setPartialCashAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'cash'>('upi');
@@ -338,7 +342,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               computedQty = tabsPerDay * days;
             }
 
-            // Sync with real inventory to get price, mrp, batch
+            // Sync with real inventory & pre-seeded Price Book to get authentic price, mrp, batch
             const inventoryMatch = fullInventory.find(inv => {
               const invName = (inv.name || '').toLowerCase();
               const invGeneric = (inv.genericName || '').toLowerCase();
@@ -350,18 +354,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                 rawMName.includes(invName)
               );
             });
+            const priceBookMatch = !inventoryMatch ? PriceBookService.matchMedicine(rawMName) : null;
             
-            const resolvedName = inventoryMatch?.name || m.medicineName || m.name || 'Medicine';
+            const resolvedName = inventoryMatch?.name || priceBookMatch?.name || m.medicineName || m.name || 'Medicine';
             const resolvedLower = resolvedName.toLowerCase();
             
             initialMeds[resolvedLower] = { selected: true, qty: computedQty };
             if (!resolvedMedsList.some(rm => rm.name === resolvedName)) {
               resolvedMedsList.push({
                 name: resolvedName,
-                mrp: inventoryMatch?.mrp || 120, // default 120 if not found
-                price: inventoryMatch?.price || 100, // default 100 if not found
+                mrp: inventoryMatch?.mrp || priceBookMatch?.mrp || 120,
+                price: inventoryMatch?.price || priceBookMatch?.price || 100,
                 batch: inventoryMatch?.batchNumber || 'BATCH-01',
-                stock: inventoryMatch?.stock || 10
+                stock: inventoryMatch?.stock || 50
               });
             }
           }
@@ -885,14 +890,16 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           const itemLower = (k || '').toLowerCase();
           // Bug Fix A: guard genericName — may be undefined for CSV-imported batches
           const matchedMed = inventory.find(i => (i.name || '').toLowerCase().includes(itemLower) || (i.genericName || '').toLowerCase().includes(itemLower));
-          if (matchedMed) {
-            if (!combinedMeds.some(m => (m.name || '').toLowerCase() === (matchedMed.name || '').toLowerCase())) {
+          const pbMatch = !matchedMed ? PriceBookService.matchMedicine(itemLower) : null;
+          if (matchedMed || pbMatch) {
+            const finalMedName = matchedMed?.name || pbMatch?.name || k;
+            if (!combinedMeds.some(m => (m.name || '').toLowerCase() === finalMedName.toLowerCase())) {
               combinedMeds.push({
-                name: matchedMed.name,
-                mrp: matchedMed.mrp,
-                price: matchedMed.price,
-                batch: matchedMed.batchNumber,
-                stock: matchedMed.stock
+                name: finalMedName,
+                mrp: matchedMed?.mrp || pbMatch?.mrp || 120,
+                price: matchedMed?.price || pbMatch?.price || 100,
+                batch: matchedMed?.batchNumber || 'BATCH-01',
+                stock: matchedMed?.stock || 50
               });
             }
             return;
@@ -907,14 +914,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
           }
 
           // Fallback
-          const priceNum = parseFloat((v || '').toString().replace(/[^0-9.]/g, '')) || 150;
+          const priceNum = parseFloat((v || '').toString().replace(/[^0-9.]/g, '')) || 100;
           if (!combinedMeds.some(m => (m.name || '').toLowerCase() === itemLower)) {
             combinedMeds.push({
               name: k,
               mrp: priceNum + 20,
               price: priceNum,
               batch: 'GEN-01',
-              stock: 10
+              stock: 50
             });
           }
         });
@@ -976,13 +983,19 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
     // POS Polish: Remove legacy referral and GST logic. Keep only discount.
     const b2bReferralDiscount = 0; // Legacy 
 
-    const totalDiscount = discountInput;
+    const totalBeforeDiscount = consultTotal + pharmacySub + labSub + otTotal;
+    let computedDiscount = 0;
+    if (discountType === 'percent') {
+      computedDiscount = (totalBeforeDiscount * Math.min(100, Math.max(0, Number(discountInput) || 0))) / 100;
+    } else {
+      computedDiscount = Math.min(totalBeforeDiscount, Math.max(0, Number(discountInput) || 0));
+    }
+    const totalDiscount = parseFloat(computedDiscount.toFixed(2));
 
     const pharmGst = 0;
     const labGst = 0;
     const totalGst = 0;
 
-    const totalBeforeDiscount = consultTotal + pharmacySub + labSub + otTotal;
     const finalTotal = Math.max(0, parseFloat((totalBeforeDiscount - totalDiscount).toFixed(2)));
 
     return {
@@ -1004,7 +1017,7 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
       isRefillPurchase,
       isQualifyingFirstPurchase
     };
-  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, includePharmacy, includeLabTests, selectedMedicines, selectedTests, discountInput, referralCode, inventory, isOphthalmology, refreshKey]);
+  }, [selectedPatient, billingMode, manualExtractedData, manualMedicinesList, manualTestsList, includeConsult, includeOT, includePharmacy, includeLabTests, selectedMedicines, selectedTests, discountInput, discountType, referralCode, inventory, isOphthalmology, refreshKey]);
   const handleClearBill = async () => {
     if (!selectedPatient || !billingLedger) return;
     if (isClearing) return; // Phase 8 POS Double-Tap Guard
@@ -1549,6 +1562,14 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
               <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0 relative z-10 w-full sm:w-auto">
                 <button
                   type="button"
+                  onClick={() => setIsPriceBookModalOpen(true)}
+                  className="w-full sm:w-auto px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 shadow-sm"
+                >
+                  <Tag className="w-4 h-4 text-teal-300" />
+                  <span>📖 Services &amp; Price Book</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowWalkInModal(true)}
                   className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition cursor-pointer border-0 active:scale-95"
                 >
@@ -1673,15 +1694,26 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
                   </div>
                   <span className="text-[10px] text-slate-500">{selectedPatient.phone} · {selectedPatient.age || '—'} Y / {selectedPatient.gender || '—'}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedPatient(null)}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition cursor-pointer flex items-center gap-1 shrink-0 active:scale-95"
-                  title="Return to Cashier Cockpit"
-                >
-                  <ArrowRight className="w-3.5 h-3.5 rotate-180" />
-                  <span>Switch Patient</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsPriceBookModalOpen(true)}
+                    className="text-xs text-teal-700 dark:text-teal-300 font-bold px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200/70 dark:border-teal-800/60 hover:bg-teal-100 dark:hover:bg-teal-900/80 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    title="View & Edit Clinic Services & Price Book"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Price Book</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPatient(null)}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 font-bold px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 transition cursor-pointer flex items-center gap-1 active:scale-95"
+                    title="Return to Cashier Cockpit"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                    <span>Switch Patient</span>
+                  </button>
+                </div>
               </div>
 
               {/* Search & Voice Billing Engine (Google-Style Single Row) */}
@@ -2057,14 +2089,37 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
 
                         <div className="h-px bg-white/10 my-3" />
 
-                        {/* Compounder Custom Discount */}
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400 text-xs font-semibold">Custom Discount:</span>
+                        {/* Compounder Custom Discount with Flat / % Toggle */}
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-slate-400 text-xs font-semibold">Custom Discount:</span>
+                            <div className="flex items-center bg-white/10 rounded-lg p-0.5 text-[10px] font-bold">
+                              <button
+                                type="button"
+                                onClick={() => setDiscountType('flat')}
+                                className={`px-2 py-0.5 rounded transition cursor-pointer border-0 ${
+                                  discountType === 'flat' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-transparent text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                ₹ Flat
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDiscountType('percent')}
+                                className={`px-2 py-0.5 rounded transition cursor-pointer border-0 ${
+                                  discountType === 'percent' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-transparent text-slate-400 hover:text-white'
+                                }`}
+                              >
+                                % Off
+                              </button>
+                            </div>
+                          </div>
                           <div className="flex items-center gap-1 bg-white/10 rounded-lg px-2 py-1.5">
-                            <span className="text-xs text-slate-400">₹</span>
+                            <span className="text-xs text-slate-400 font-bold">{discountType === 'flat' ? '₹' : '%'}</span>
                             <input
                               type="number"
                               min="0"
+                              max={discountType === 'percent' ? 100 : undefined}
                               placeholder="0"
                               value={discountInput || ''}
                               onChange={(e) => setDiscountInput(parseFloat(e.target.value) || 0)}
@@ -2216,6 +2271,12 @@ export const BillHubTab: React.FC<BillHubTabProps> = ({ initialMode = 'ocr_scan'
         </div>,
         document.body
       )}
+
+      {/* Services & Price Book Modal */}
+      <ServicesPriceBookModal
+        isOpen={isPriceBookModalOpen}
+        onClose={() => setIsPriceBookModalOpen(false)}
+      />
     </div>
   );
 };
