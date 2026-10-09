@@ -723,6 +723,244 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ──────────────────────────────────────────────
+  // ENGINE 11 v2: AST SYNTAX TREE SCALPEL
+  // GET /api/ast-syntax-check?file=<path>
+  // ──────────────────────────────────────────────
+  if (req.method === 'GET' && pathname === '/api/ast-syntax-check') {
+    const rawFile = String(parsedUrl.query.file || '').trim();
+    if (!rawFile) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing ?file= query parameter' }));
+      return;
+    }
+
+    try {
+      const ts = require('typescript');
+      const safeRel = rawFile.replace(/\\/g, '/');
+      const absolutePath = path.isAbsolute(safeRel) ? safeRel : path.resolve(ROOT_DIR, safeRel);
+
+      if (!fs.existsSync(absolutePath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'File not found on disk', path: absolutePath }));
+        return;
+      }
+
+      const sourceCode = fs.readFileSync(absolutePath, 'utf8');
+      const isTsx = absolutePath.endsWith('.tsx') || absolutePath.endsWith('.jsx');
+      const sourceFile = ts.createSourceFile(
+        absolutePath,
+        sourceCode,
+        ts.ScriptTarget.Latest,
+        true,
+        isTsx ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+      );
+
+      const diagnostics = sourceFile.parseDiagnostics || [];
+      const errors = diagnostics.map(d => {
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(d.start || 0);
+        const msg = typeof d.messageText === 'string' ? d.messageText : d.messageText.messageText;
+        return {
+          line: line + 1,
+          character: character + 1,
+          code: d.code,
+          message: msg,
+          raw: `${path.basename(absolutePath)}:${line + 1}:${character + 1} - error TS${d.code}: ${msg}`
+        };
+      });
+
+      let unclosedTagContext = null;
+      if (errors.length > 0 && isTsx) {
+        function findUnclosed(node) {
+          if (ts.isJsxElement(node)) {
+            const openName = node.openingElement.tagName.getText(sourceFile);
+            const closeName = node.closingElement.tagName.getText(sourceFile);
+            if (openName !== closeName) {
+              const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+              unclosedTagContext = { openTag: openName, line: line + 1, expectedClose: `</${openName}>` };
+            }
+          }
+          ts.forEachChild(node, findUnclosed);
+        }
+        try { findUnclosed(sourceFile); } catch(e) {}
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: errors.length === 0 ? 'valid' : 'syntax_error',
+        file: safeRel,
+        errorCount: errors.length,
+        errors,
+        unclosedTagContext,
+        astNodeCount: sourceFile.getChildCount(sourceFile),
+        message: errors.length === 0
+          ? '✅ AST Syntax is mathematically sound (0 parse errors).'
+          : `🚨 Detected ${errors.length} syntax/parser error(s) in AST tree.`
+      }, null, 2));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ──────────────────────────────────────────────
+  // ENGINE 2 v2: IN-MEMORY "DRY-RUN" VIRTUAL PATCH SIMULATOR
+  // POST /api/dry-run-patch
+  // ──────────────────────────────────────────────
+  if (req.method === 'POST' && pathname === '/api/dry-run-patch') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const rawFile = String(payload.file || '').trim();
+        const targetContent = payload.targetContent;
+        const replacementContent = payload.replacementContent;
+
+        if (!rawFile || targetContent === undefined || replacementContent === undefined) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Missing file, targetContent, or replacementContent in body' }));
+          return;
+        }
+
+        const safeRel = rawFile.replace(/\\/g, '/');
+        const absolutePath = path.isAbsolute(safeRel) ? safeRel : path.resolve(ROOT_DIR, safeRel);
+
+        if (!fs.existsSync(absolutePath)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'File not found on disk', path: absolutePath }));
+          return;
+        }
+
+        const originalCode = fs.readFileSync(absolutePath, 'utf8');
+        const occurrences = (originalCode.match(new RegExp(targetContent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+
+        if (occurrences === 0) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            safeToApply: false,
+            reason: 'Target content not found in file',
+            occurrences: 0
+          }));
+          return;
+        }
+
+        if (occurrences > 1 && !payload.allowMultiple) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            safeToApply: false,
+            reason: `Target content matches ${occurrences} locations. Ambiguous patch rejected.`,
+            occurrences
+          }));
+          return;
+        }
+
+        const virtualPatched = originalCode.replace(targetContent, replacementContent);
+        const ts = require('typescript');
+        const transpileResult = ts.transpileModule(virtualPatched, {
+          compilerOptions: {
+            jsx: ts.JsxEmit.ReactJSX,
+            target: ts.ScriptTarget.ESNext,
+            module: ts.ModuleKind.ESNext,
+            noEmit: true
+          },
+          reportDiagnostics: true,
+          fileName: path.basename(absolutePath)
+        });
+
+        const diagnostics = (transpileResult.diagnostics || []).filter(d => d.category === ts.DiagnosticCategory.Error);
+        const syntaxErrors = diagnostics.map(d => typeof d.messageText === 'string' ? d.messageText : d.messageText.messageText);
+        const safeToApply = syntaxErrors.length === 0;
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          safeToApply,
+          file: safeRel,
+          occurrences,
+          diffLinesDelta: replacementContent.split('\n').length - targetContent.split('\n').length,
+          syntaxErrorCount: syntaxErrors.length,
+          syntaxErrors,
+          message: safeToApply
+            ? '✅ Virtual dry-run PASSED: Patch produces 0 syntax errors in AST memory simulation.'
+            : `🚨 Virtual dry-run REJECTED: Patch introduces ${syntaxErrors.length} syntax error(s). Disk left untouched.`
+        }, null, 2));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ──────────────────────────────────────────────
+  // ENGINE 15 v2: PUPPETEER VISUAL LAYOUT & BOUNDING RECT PROBE
+  // GET /api/visual-probe?selector=<cssSelector>
+  // ──────────────────────────────────────────────
+  if (req.method === 'GET' && pathname === '/api/visual-probe') {
+    const selector = String(parsedUrl.query.selector || 'body').trim();
+    if (!puppeteerPage) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'puppeteer_offline',
+        message: 'Puppeteer visual intelligence agent not connected to localhost:5173. Ensure Vite dev server is running.'
+      }));
+      return;
+    }
+
+    try {
+      const probeResult = await puppeteerPage.evaluate((sel) => {
+        try {
+          const el = document.querySelector(sel);
+          if (!el) return { found: false, selector: sel };
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          const parent = el.parentElement;
+          const parentRect = parent ? parent.getBoundingClientRect() : null;
+
+          return {
+            found: true,
+            selector: sel,
+            tagName: el.tagName.toLowerCase(),
+            className: el.className,
+            rect: {
+              top: Math.round(rect.top),
+              left: Math.round(rect.left),
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              bottom: Math.round(rect.bottom),
+              right: Math.round(rect.right)
+            },
+            computedStyles: {
+              display: style.display,
+              position: style.position,
+              flexDirection: style.flexDirection,
+              flexWrap: style.flexWrap,
+              gridTemplateColumns: style.gridTemplateColumns,
+              overflow: style.overflow,
+              overflowX: style.overflowX,
+              overflowY: style.overflowY,
+              zIndex: style.zIndex,
+              padding: style.padding,
+              margin: style.margin
+            },
+            isClipped: parentRect ? (rect.bottom > parentRect.bottom || rect.right > parentRect.right) : false,
+            parentBounds: parentRect ? { width: Math.round(parentRect.width), height: Math.round(parentRect.height) } : null
+          };
+        } catch(e) {
+          return { found: false, error: e.message };
+        }
+      }, selector);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(probeResult, null, 2));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // ──────────────────────────────────────────────
   // ──────────────────────────────────────────────
   // PLAYWRIGHT E2E EXECUTION (Engine 12)
   // ──────────────────────────────────────────────
@@ -956,12 +1194,15 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       status: 'healthy',
-      version: '6.0-jarvis-god-mode',
+      version: '7.0-jarvis-neuro-symbolic',
       activeEngines: 24,
       uptimeSeconds: Math.round(process.uptime()),
       engines: {
         dependencyGraph: 'online',
         shadowCompiler: 'online',
+        astTreeScalpel: 'online',
+        dryRunSimulator: 'online',
+        visualProbe: 'online',
         memoryVault: `online (${vault.fixes?.length || 0} fixes stored)`,
         gitopsSentinel: 'online',
         visualIntelligence: 'online',
@@ -1664,6 +1905,9 @@ ${rulebookSnippets}
       liveDomSnapshot: latestLiveDomSnapshot || { activeRoute: 'unknown', attached: false },
       jarvisEndpoints: {
         airGappedCockpit: 'http://localhost:9000/jarvis',
+        astSyntaxCheck: 'GET /api/ast-syntax-check?file=<path>',
+        dryRunPatch: 'POST /api/dry-run-patch',
+        visualProbe: 'GET /api/visual-probe?selector=<cssSelector>',
         quickRevert: 'POST /api/quick-revert',
         blastRadius: '/api/blast-radius?file=<filename>',
         shadowCompile: 'POST /api/shadow-compile',
