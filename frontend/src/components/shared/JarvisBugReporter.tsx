@@ -5,7 +5,7 @@ import { Bug, Target, Copy, X, Camera } from 'lucide-react';
 export const JarvisBugReporter: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isTargeting, setIsTargeting] = useState(false);
-  const [capturedElement, setCapturedElement] = useState<{ html: string, id: string, className: string } | null>(null);
+  const [capturedElement, setCapturedElement] = useState<{ html: string, id: string, className: string, fiber?: any } | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [networkErrors, setNetworkErrors] = useState<string[]>([]);
   const [appContext, setAppContext] = useState<any>({});
@@ -13,6 +13,73 @@ export const JarvisBugReporter: React.FC = () => {
   const [fps, setFps] = useState(60);
   const [performanceWarning, setPerformanceWarning] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // React 18 Fiber Node Introspection Engine
+  const extractReactFiber = (target: HTMLElement) => {
+    try {
+      const fiberKey = Object.keys(target).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+      if (!fiberKey) return null;
+      const fiber = (target as any)[fiberKey];
+      let compName = 'UnknownComponent';
+      let debugSource: any = null;
+      const propsSummary: Record<string, any> = {};
+      const stateSummary: Record<string, any> = {};
+
+      let curr = fiber;
+      let depth = 0;
+      while (curr && depth < 25) {
+        if (curr.type && (typeof curr.type === 'function' || typeof curr.type === 'object')) {
+          const candidateName = curr.type.displayName || curr.type.name || (curr.type.render && curr.type.render.name);
+          if (candidateName && !candidateName.startsWith('_')) {
+            compName = candidateName;
+            if (curr._debugSource) debugSource = curr._debugSource;
+
+            if (curr.memoizedProps && typeof curr.memoizedProps === 'object') {
+              for (const [pk, pv] of Object.entries(curr.memoizedProps)) {
+                if (pk === 'children') continue;
+                if (typeof pv === 'string' || typeof pv === 'number' || typeof pv === 'boolean') {
+                  propsSummary[pk] = pv;
+                } else if (Array.isArray(pv)) {
+                  propsSummary[pk] = `Array(${pv.length})`;
+                } else if (pv && typeof pv === 'object') {
+                  propsSummary[pk] = '{...}';
+                }
+              }
+            }
+
+            if (curr.memoizedState) {
+              let hookIdx = 0;
+              let hook = curr.memoizedState;
+              while (hook && hookIdx < 8) {
+                const val = hook.memoizedState;
+                if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+                  stateSummary[`hook_${hookIdx}`] = val;
+                } else if (Array.isArray(val)) {
+                  stateSummary[`hook_${hookIdx}`] = `Array(${val.length})`;
+                } else if (val && typeof val === 'object') {
+                  stateSummary[`hook_${hookIdx}`] = '{...}';
+                }
+                hook = hook.next;
+                hookIdx++;
+              }
+            }
+            break;
+          }
+        }
+        curr = curr.return;
+        depth++;
+      }
+
+      return {
+        componentName: compName,
+        sourceFile: debugSource ? `${debugSource.fileName}:${debugSource.lineNumber}` : undefined,
+        props: Object.keys(propsSummary).length > 0 ? propsSummary : undefined,
+        state: Object.keys(stateSummary).length > 0 ? stateSummary : undefined
+      };
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -130,10 +197,12 @@ export const JarvisBugReporter: React.FC = () => {
       const target = e.target as HTMLElement;
       document.querySelectorAll('.jarvis-highlight').forEach(el => el.classList.remove('jarvis-highlight'));
       
+      const fiber = extractReactFiber(target);
       setCapturedElement({
         html: target.outerHTML.slice(0, 500) + (target.outerHTML.length > 500 ? '...' : ''),
         id: target.id || 'none',
-        className: target.className || 'none'
+        className: target.className || 'none',
+        fiber
       });
       setIsTargeting(false);
       setIsOpen(true);
@@ -156,12 +225,20 @@ export const JarvisBugReporter: React.FC = () => {
 
   const copyPrompt = async () => {
     try {
+      const compTarget = capturedElement?.fiber?.componentName ? `<${capturedElement.fiber.componentName} />` : (capturedElement?.id !== 'none' ? `#${capturedElement?.id}` : 'Target');
       const res = await fetch('http://localhost:9000/api/super-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          description: bugDescription || `UI Anomaly at ${appContext.url || 'current route'}: Element ${capturedElement?.id || 'targeted'}`,
-          windowSize: `${window.innerWidth}x${window.innerHeight}`
+          description: bugDescription || `UI Anomaly at ${appContext.url || 'current route'}: Component ${compTarget}`,
+          windowSize: `${window.innerWidth}x${window.innerHeight}`,
+          targetFile: capturedElement?.fiber?.sourceFile || '',
+          fiberContext: capturedElement?.fiber || null,
+          targetedElement: capturedElement ? {
+            id: capturedElement.id,
+            className: capturedElement.className,
+            html: capturedElement.html
+          } : null
         })
       });
       if (res.ok) {
@@ -169,12 +246,12 @@ export const JarvisBugReporter: React.FC = () => {
         if (data.prompt) {
           await navigator.clipboard.writeText(data.prompt);
           window.dispatchEvent(new CustomEvent('mediflow-toast', {
-            detail: { title: 'J.A.R.V.I.S. v8.0 Super Prompt Copied!', message: 'All 24 engines compiled to clipboard.', type: 'success' }
+            detail: { title: 'J.A.R.V.I.S. v9.0 Super Prompt Copied!', message: 'All 24 engines + React 18 Fiber compiled to clipboard.', type: 'success' }
           }));
           return;
         }
       }
-    } catch(e) {
+    } catch {
       // Fallback to local prompt if daemon offline
     }
 
