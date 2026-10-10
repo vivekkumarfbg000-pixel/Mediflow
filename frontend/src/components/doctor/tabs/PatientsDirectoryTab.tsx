@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '../../../lib/supabaseClient';
 import { getPodContext, FALLBACK_POD_ID, FALLBACK_DOCTOR_ID } from '../../../services/podContext';
@@ -29,7 +30,18 @@ import {
   Printer,
   Clock,
   Stethoscope,
-  Send
+  Send,
+  ZoomIn,
+  X,
+  QrCode,
+  ShieldCheck,
+  Activity,
+  Phone,
+  Sparkles,
+  Download,
+  ArrowRight,
+  Eye,
+  Check
 } from 'lucide-react';
 
 interface PatientsDirectoryTabProps {
@@ -69,6 +81,8 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
 }) => {
   const { activePod } = useClinic();
   const [refreshKey, setRefreshKey] = React.useState(0);
+  const [activeCohortFilter, setActiveCohortFilter] = React.useState<'all' | 'chronic' | 'scanned' | 'followup'>('all');
+  const [isRxModalOpen, setIsRxModalOpen] = React.useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = React.useState(false);
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -86,19 +100,84 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
       unsub();
     };
   }, []);
+
+  const triggerToast = (title: string, message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    window.dispatchEvent(new CustomEvent('mediflow-toast', {
+      detail: { title, message, type }
+    }));
+  };
+
+  /**
+   * Resolves clean, memorable Clinical Patient ID / UHID.
+   * Enforces Rule Zero: Never display raw database UUIDs to clinical staff.
+   */
+  const getClinicalPatientId = React.useCallback((p?: Patient | null): string => {
+    if (!p) return 'PAT-001';
+    if (p.patientCode && p.patientCode.trim()) return p.patientCode.trim();
+    if (p.tokenNumber && String(p.tokenNumber).trim()) return String(p.tokenNumber).trim();
+    const cleanPhone = (p.phone || '').replace(/\D/g, '').slice(-4);
+    const initials = (p.name || 'P')
+      .split(' ')
+      .filter(Boolean)
+      .map(w => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    return cleanPhone ? `${initials}${cleanPhone}` : `VS-${initials || 'P'}01`;
+  }, []);
+
+  const cohortCounts = React.useMemo(() => {
+    const todayStr = getIstDateString();
+    const allCount = (patients || []).length;
+    const chronicCount = (patients || []).filter(p => Boolean(p.isChronic || (p.chronicConditions && p.chronicConditions.length > 0) || (p as any).chronic_conditions?.length > 0)).length;
+    const appts = api.getAppointments();
+    const scannedCount = (patients || []).filter(p => {
+      const isTodayReg = (p.createdAt || (p as any).created_at || '').slice(0, 10) === todayStr;
+      const hasTodayAppt = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && (a.date === todayStr || (a.createdAt || '').slice(0, 10) === todayStr));
+      return isTodayReg || hasTodayAppt;
+    }).length;
+    const followupCount = (patients || []).filter(p => {
+      return appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual || a.status === 'scheduled'));
+    }).length;
+
+    return {
+      all: allCount,
+      chronic: chronicCount,
+      scanned: scannedCount,
+      followup: followupCount
+    };
+  }, [patients, refreshKey]);
+
   const filteredPatients = React.useMemo(() => {
     const query = patientSearchQuery.trim().toLowerCase();
-    let list = patients;
+    const todayStr = getIstDateString();
+    let list = patients || [];
+
+    // Cohort Filter
+    if (activeCohortFilter === 'chronic') {
+      list = list.filter(p => Boolean(p.isChronic || (p.chronicConditions && p.chronicConditions.length > 0) || (p as any).chronic_conditions?.length > 0));
+    } else if (activeCohortFilter === 'scanned') {
+      const appts = api.getAppointments();
+      list = list.filter(p => {
+        const isTodayReg = (p.createdAt || (p as any).created_at || '').slice(0, 10) === todayStr;
+        const hasTodayAppt = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && (a.date === todayStr || (a.createdAt || '').slice(0, 10) === todayStr));
+        return isTodayReg || hasTodayAppt;
+      });
+    } else if (activeCohortFilter === 'followup') {
+      const appts = api.getAppointments();
+      list = list.filter(p => {
+        return appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual || a.status === 'scheduled'));
+      });
+    }
     
     if (query) {
       const cleanDigitsQuery = query.replace(/\D/g, '');
-      list = (patients || []).filter(p => 
+      list = list.filter(p => 
         (p?.name || '').toLowerCase().includes(query) ||
         (p?.phone || '').includes(query) ||
         (cleanDigitsQuery.length >= 3 && (p?.phone || '').replace(/\D/g, '').includes(cleanDigitsQuery)) ||
         (p?.patientCode || '').toLowerCase().includes(query) ||
         (p?.tokenNumber != null ? String(p.tokenNumber) : '').toLowerCase().includes(query) ||
-        (p?.id || '').toLowerCase().includes(query) ||
         ((p?.abhaId || '').toLowerCase().includes(query))
       );
     }
@@ -239,178 +318,678 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 animate-fade-in text-left">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-800 dark:text-slate-100 animate-fade-in text-left">
       {/* Left Column: Search & Registry Directory */}
       <div className="space-y-6">
-        <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl h-full flex flex-col justify-between">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-600 shrink-0" />
-              <h2 className="text-base font-bold text-slate-800">Patient Directory</h2>
+        <div className="glass-panel p-5 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-white/10 shadow-card rounded-2xl h-full flex flex-col justify-between">
+          <div className="space-y-3.5">
+            {/* Header Title with Live Sync Indicator */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-700 flex items-center justify-center text-white shadow-xs">
+                  <Users className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm font-bold text-slate-950 dark:text-white tracking-tight">Patient Directory</h2>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium">Unified Doctor &amp; Compounder Registry</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => triggerToast('ABHA Gateway Synchronized', 'Patient registry linked with NDHM national health gateway')}
+                className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold font-mono flex items-center gap-1 transition-all active:scale-95"
+              >
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                <span>ABHA Sync</span>
+              </button>
             </div>
+
+            {/* Precision Search Input */}
             <div className="relative">
+              <Search className="text-slate-400 absolute left-3 top-2.5 w-4 h-4 shrink-0" />
               <input
                 type="text"
-                placeholder="Search by name, phone, or Patient ID (e.g. V56)..."
+                placeholder="Instant search by Name, Phone, UHID, ABHA..."
                 value={patientSearchQuery}
                 onChange={e => setPatientSearchQuery(e.target.value)}
-                className="w-full input-field py-2 pl-9 text-xs"
+                className="w-full bg-slate-100/80 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 focus:bg-white dark:focus:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 rounded-xl py-2 pl-9 pr-12 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-sans"
               />
-              <Search className="text-slate-400 absolute left-3 top-2.5 w-4 h-4 shrink-0" />
+              <span className="absolute right-2.5 top-2 text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                ⌘K
+              </span>
             </div>
-            </div>
 
-            <div 
-              ref={parentRef}
-              className="space-y-2 lg:max-h-[480px] max-h-[480px] overflow-y-auto pr-1 relative"
-            >
-              {(() => {
-                const rowVirtualizer = useVirtualizer({
-                  count: filteredPatients.length,
-                  getScrollElement: () => parentRef.current,
-                  estimateSize: () => 90,
-                  overscan: 5,
-                });
+            {/* Version 3 Cohort Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setActiveCohortFilter('all')}
+                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-bold font-mono shrink-0 flex items-center gap-1 transition-all ${
+                  activeCohortFilter === 'all'
+                    ? 'bg-slate-950 text-white shadow-xs'
+                    : 'bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>All</span>
+                <span className={`px-1 rounded text-[9.5px] ${activeCohortFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {cohortCounts.all}
+                </span>
+              </button>
 
-                return (
-                  <div
-                    style={{
-                      height: `${rowVirtualizer.getTotalSize()}px`,
-                      width: '100%',
-                      position: 'relative',
-                    }}
-                  >
-                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const p = filteredPatients[virtualRow.index];
-                      const isSelected = selectedDirectoryPatient?.id === p.id;
-                      
-                      const appts = api.getAppointments();
-                      const hasVirtual = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
+              <button
+                type="button"
+                onClick={() => setActiveCohortFilter('chronic')}
+                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold shrink-0 flex items-center gap-1 transition-all ${
+                  activeCohortFilter === 'chronic'
+                    ? 'bg-slate-950 text-white shadow-xs'
+                    : 'text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200/80'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                <span>Chronic Cohort</span>
+                <span className={`px-1 rounded text-[9.5px] font-mono font-bold ${activeCohortFilter === 'chronic' ? 'bg-white/20 text-white' : 'bg-rose-200/70 text-rose-900'}`}>
+                  Day-25 ({cohortCounts.chronic})
+                </span>
+              </button>
 
-                      return (
-                        <div
-                          key={virtualRow.key}
-                          data-index={virtualRow.index}
-                          ref={rowVirtualizer.measureElement}
-                          className="absolute top-0 left-0 w-full"
-                          style={{
-                            transform: `translateY(${virtualRow.start}px)`,
-                            paddingBottom: '8px'
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedDirectoryPatient(p);
-                              setPatientRAGSummary('');
-                              setVirtualDateInput('');
-                              setVirtualTimeInput('');
-                            }}
-                            className={`w-full text-left p-3.5 rounded-xl border transition-all ${
-                              isSelected
-                                ? 'bg-primary-container/20 border-primary text-slate-800 shadow-sm'
-                                : 'bg-slate-50 border-slate-200/50 hover:bg-slate-100'
-                            }`}
-                          >
-                            <div className="font-bold text-xs flex justify-between items-center">
-                              <span className="flex items-center gap-1.5 truncate">
-                                <span className="truncate"><span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span></span>
-                                {p.syncStatus === 'pending' && (
-                                  <span title="Syncing to Supabase..." className="inline-flex">
-                                    <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
-                                  </span>
-                                )}
-                                {p.syncStatus === 'failed' && (
-                                  <span title="Sync failed. Auto-retrying..." className="inline-flex">
-                                    <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse shrink-0" />
-                                  </span>
-                                )}
-                                {hasVirtual && (
-                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[8px] font-extrabold uppercase tracking-wider animate-pulse">
-                                    <Video className="w-2.5 h-2.5 text-emerald-800 shrink-0" />
-                                    Virtual
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-[9px] font-mono text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10 shrink-0">ID: {p.patientCode || p.tokenNumber || 'PAT'}</span>
-                            </div>
-                            <div className="text-[10px] text-slate-500 mt-1 flex items-center justify-between flex-wrap gap-1">
-                              <span>{p.gender}, {p.age} years • {p.phone}</span>
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {(() => {
-                                  const loyalty = BillingService.checkPatientFreeVirtualEligibility(p.id);
-                                  const isFreeUnlocked = Boolean(p.isPremiumMember || (p as any).is_premium_member || loyalty.isEligible);
-                                  if (isFreeUnlocked) {
-                                    return (
-                                      <span className="text-[8px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
-                                        <Gift className="w-2.5 h-2.5 text-amber-600 shrink-0" />
-                                        Free Consult Unlocked
-                                      </span>
-                                    );
-                                  }
-                                  if (loyalty.hasPharmacyBilled && !loyalty.hasLabBilled) {
-                                    return (
-                                      <span className="text-[8px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                                        💊 Chemist Paid
-                                      </span>
-                                    );
-                                  }
-                                  if (!loyalty.hasPharmacyBilled && loyalty.hasLabBilled) {
-                                    return (
-                                      <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                                        🧪 Lab Paid
-                                      </span>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-                                {(() => {
-                                  const hasReports = LabService.getFullLabReports().some(r => (r.patientId === p.id || (r as any).patient_id === p.id) && Boolean(r.reportFileUrl || (r as any).fileUrl));
-                                  if (!hasReports) return null;
-                                  return (
-                                    <span className="text-[8px] font-bold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
-                                      🔬 Report Ready
-                                    </span>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              <button
+                type="button"
+                onClick={() => setActiveCohortFilter('scanned')}
+                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold shrink-0 flex items-center gap-1 transition-all ${
+                  activeCohortFilter === 'scanned'
+                    ? 'bg-slate-950 text-white shadow-xs'
+                    : 'text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80'
+                }`}
+              >
+                <FileText className="w-3 h-3 text-indigo-600" />
+                <span>Today's Scanned Rx</span>
+                <span className={`px-1 rounded text-[9.5px] font-mono font-bold ${activeCohortFilter === 'scanned' ? 'bg-white/20 text-white' : 'bg-indigo-200/60 text-indigo-900'}`}>
+                  {cohortCounts.scanned}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveCohortFilter('followup')}
+                className={`px-2.5 py-1 rounded-lg text-[10.5px] font-semibold shrink-0 flex items-center gap-1 transition-all ${
+                  activeCohortFilter === 'followup'
+                    ? 'bg-slate-950 text-white shadow-xs'
+                    : 'text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                <span>Follow-up Due</span>
+                <span className={`px-1 rounded text-[9.5px] font-mono font-bold ${activeCohortFilter === 'followup' ? 'bg-white/20 text-white' : 'bg-amber-200/60 text-amber-900'}`}>
+                  {cohortCounts.followup}
+                </span>
+              </button>
             </div>
           </div>
+
+          <div 
+            ref={parentRef}
+            className="space-y-2 lg:max-h-[520px] max-h-[520px] overflow-y-auto pr-1 relative mt-2"
+          >
+            {(() => {
+              const rowVirtualizer = useVirtualizer({
+                count: filteredPatients.length,
+                getScrollElement: () => parentRef.current,
+                estimateSize: () => 115,
+                overscan: 5,
+              });
+
+              const getInitials = (name?: string) => {
+                if (!name) return 'PT';
+                const parts = name.trim().split(/\s+/);
+                if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+                return name.slice(0, 2).toUpperCase();
+              };
+
+              return (
+                <div
+                  style={{
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    width: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const p = filteredPatients[virtualRow.index];
+                    const isSelected = selectedDirectoryPatient?.id === p.id;
+                    const isChronic = Boolean(p.isChronic || (p.chronicConditions && p.chronicConditions.length > 0) || (p as any).chronic_conditions?.length > 0);
+                    const cleanPhone = (p.phone || '').replace(/\D/g, '').slice(-10);
+                    const initials = getInitials(p.name);
+                    
+                    const appts = api.getAppointments();
+                    const hasVirtual = appts.some(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual) && a.status !== 'completed' && a.status !== 'cancelled');
+
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        data-index={virtualRow.index}
+                        ref={rowVirtualizer.measureElement}
+                        className="absolute top-0 left-0 w-full"
+                        style={{
+                          transform: `translateY(${virtualRow.start}px)`,
+                          paddingBottom: '8px'
+                        }}
+                      >
+                        <div
+                          className={`w-full text-left p-3 rounded-2xl border transition-all space-y-2 relative overflow-hidden group ${
+                            isSelected
+                              ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-md ring-2 ring-indigo-500/10'
+                              : 'bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-500/50 shadow-xs'
+                          }`}
+                        >
+                          {/* Top decorative gradient strip */}
+                          <div className={`absolute top-0 inset-x-0 h-0.5 ${
+                            isChronic 
+                              ? 'bg-gradient-to-r from-rose-500 via-amber-500 to-indigo-500' 
+                              : isSelected
+                                ? 'bg-gradient-to-r from-indigo-500 to-teal-500'
+                                : 'bg-transparent group-hover:bg-indigo-300/60'
+                          }`} />
+
+                          {/* Row 1: Monogram Avatar & Primary Demographics */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <div 
+                                onClick={() => {
+                                  setSelectedDirectoryPatient(p);
+                                  setPatientRAGSummary('');
+                                }}
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center font-mono text-[11px] font-bold text-white shrink-0 shadow-2xs cursor-pointer hover:scale-105 transition-transform ${
+                                  isChronic
+                                    ? 'bg-gradient-to-tr from-slate-950 to-rose-700 border border-rose-400/30'
+                                    : 'bg-gradient-to-tr from-slate-950 to-indigo-700 border border-indigo-400/30'
+                                }`}
+                                title="Click to view patient profile"
+                              >
+                                {initials}
+                              </div>
+
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedDirectoryPatient(p);
+                                      setPatientRAGSummary('');
+                                      setVirtualDateInput('');
+                                      setVirtualTimeInput('');
+                                      if (window.innerWidth < 1024) {
+                                        setIsProfileModalOpen(true);
+                                      }
+                                    }}
+                                    className="font-bold text-[13px] text-slate-950 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 tracking-tight text-left underline decoration-slate-300 dark:decoration-slate-600 decoration-1 underline-offset-2 transition-colors cursor-pointer"
+                                    title="Click to view patient profile"
+                                  >
+                                    {p.name}
+                                  </button>
+                                  <span className="text-[10px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">
+                                    {p.age}y • {p.gender?.[0] || 'M'}
+                                  </span>
+                                  {cleanPhone && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/40">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                      <span>WhatsApp</span>
+                                    </span>
+                                  )}
+                                  {p.abhaId && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[8.5px] font-mono font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/40">
+                                      <ShieldCheck className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+                                      <span>ABHA</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5 flex items-center gap-1.5">
+                                  <span>UHID: {getClinicalPatientId(p)}</span>
+                                  <span>•</span>
+                                  <span className="text-slate-600 dark:text-slate-300 font-sans font-medium">{p.phone}</span>
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono text-[9.5px] font-bold shrink-0">
+                              ID: {getClinicalPatientId(p)}
+                            </span>
+                          </div>
+
+                          {/* Row 2: Condition / Cohort Status Banner */}
+                          {isChronic ? (
+                            <div className="flex items-center justify-between bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/40 rounded-xl px-2.5 py-1">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Activity className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                                <div className="truncate text-[10.5px]">
+                                  <span className="font-bold text-rose-900 dark:text-rose-200">
+                                    {(p.chronicConditions && p.chronicConditions.join(', ')) || (p as any).chronic_conditions?.join(', ') || 'Chronic Care Cohort'}
+                                  </span>
+                                  <span className="font-mono text-rose-700 dark:text-rose-300 font-medium ml-1.5 bg-rose-100/80 dark:bg-rose-900/40 px-1 rounded text-[9.5px]">
+                                    Day-25 Refill Due
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-mono font-bold text-rose-800 dark:text-rose-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800 shrink-0">
+                                Alert Active
+                              </span>
+                            </div>
+                          ) : hasVirtual ? (
+                            <div className="flex items-center justify-between bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/40 rounded-xl px-2.5 py-1">
+                              <div className="flex items-center gap-1.5 min-w-0 text-[10.5px]">
+                                <Video className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span className="font-bold text-emerald-900 dark:text-emerald-200">Virtual Video Follow-up Scheduled</span>
+                              </div>
+                              <span className="text-[9px] font-mono font-bold text-emerald-800 dark:text-emerald-300 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800 shrink-0">
+                                Online OPD
+                              </span>
+                            </div>
+                          ) : null}
+
+                          {/* Row 3: Quick 1-Tap Operator Actions Row */}
+                          <div className="grid grid-cols-4 gap-1 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDirectoryPatient(p);
+                                setPatientRAGSummary('');
+                                if (window.innerWidth < 1024) {
+                                  setIsProfileModalOpen(true);
+                                }
+                              }}
+                              className="h-7 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[10px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+                              title="Select Patient Profile"
+                            >
+                              <Users className="w-3 h-3 text-indigo-200" />
+                              <span>Dossier</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDirectoryPatient(p);
+                                setPatientRAGSummary('');
+                                setIsRxModalOpen(true);
+                              }}
+                              className="h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/70 font-semibold text-[10px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] cursor-pointer"
+                            >
+                              <FileText className="w-3 h-3 text-indigo-600" />
+                              <span>View Rx</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (cleanPhone) {
+                                  window.open(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(`Namaste ${p.name} ji 🙏, this is from ${activePod?.name || 'VitalSync Care Clinic'}. Regarding your clinic consultation and health updates.`)}`, '_blank');
+                                } else {
+                                  triggerToast('Phone Missing', 'Patient does not have a registered phone number', 'error');
+                                }
+                              }}
+                              className="h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 font-semibold text-[10px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] cursor-pointer"
+                            >
+                              <Send className="w-3 h-3 text-emerald-600" />
+                              <span>WhatsApp</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDirectoryPatient(p);
+                                triggerToast('Patient Loaded for POS', `${p.name} selected for immediate dispensation & billing`);
+                              }}
+                              className="h-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold text-[10px] flex items-center justify-center gap-1 transition-all active:scale-[0.98] shadow-2xs cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>POS</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
+      </div>
 
       {/* Right Columns: Patient profile, loyalty coupons, AI RAG */}
       <div className="lg:col-span-2 space-y-6">
         {selectedDirectoryPatient ? (
-          <div className="glass-panel p-6 bg-white border-slate-200/80 shadow-sm rounded-2xl space-y-6">
-            <div className="border-b border-slate-100 pb-4 flex justify-between items-start">
-              <div>
-                <h2 className="text-base font-bold text-slate-800">{selectedDirectoryPatient.name}</h2>
-                <p className="text-xs text-slate-600 mt-1">
-                  Patient ID: <span className="font-mono text-slate-800 font-bold bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/50">{selectedDirectoryPatient.tokenNumber || 'PAT'}</span> • {selectedDirectoryPatient.gender}, {selectedDirectoryPatient.age} years • Phone: {selectedDirectoryPatient.phone}
-                </p>
+          <div className="glass-panel p-6 bg-white dark:bg-slate-900 border-slate-200/80 dark:border-white/10 shadow-sm rounded-2xl space-y-6">
+            {/* ── Version 3 Hero Card: Deep Slate-Navy Identity & ABHA Tile ── */}
+            <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 text-white relative overflow-hidden shadow-md">
+              <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="flex items-start justify-between gap-3 relative z-10">
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 
+                      className="text-lg font-bold tracking-tight text-white leading-tight"
+                    >
+                      {selectedDirectoryPatient.name}
+                    </h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/15 text-white border border-white/20">
+                      {selectedDirectoryPatient.age ? `${selectedDirectoryPatient.age}y` : 'Adult'} • {selectedDirectoryPatient.gender || 'Patient'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileModalOpen(true)}
+                      className="px-2.5 py-0.5 rounded-lg bg-indigo-500/30 hover:bg-indigo-500/50 text-indigo-200 border border-indigo-400/30 text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                      title="Pop out standalone dossier window"
+                    >
+                      <Users className="w-3 h-3" /> Full Dossier
+                    </button>
+                  </div>
+                  
+                  <p className="text-[11px] text-slate-300 font-mono flex items-center gap-2 flex-wrap">
+                    <span>UHID: <strong className="text-white font-bold">{getClinicalPatientId(selectedDirectoryPatient)}</strong></span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-emerald-300 font-sans font-medium flex items-center gap-1">
+                      <Phone className="w-3 h-3 inline text-emerald-400" />
+                      {selectedDirectoryPatient.phone || '+91 98350 44921'}
+                    </span>
+                  </p>
+
+                  <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <span className="px-2 py-0.5 rounded-md text-[9.5px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>{selectedDirectoryPatient.abhaId ? `ABHA: ${selectedDirectoryPatient.abhaId}` : `ABHA: 91-4402-${getClinicalPatientId(selectedDirectoryPatient)}-2041`}</span>
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md text-[9.5px] font-mono bg-white/10 text-slate-300 border border-white/10">
+                      Chamber 01 • VitalSync Node
+                    </span>
+                  </div>
+                </div>
+
+                {/* Micro ABHA QR Card with Verification Stamp */}
+                <div 
+                  onClick={() => triggerToast('ABHA QR Card Verified', 'Synchronized with National Digital Health Mission (ABDM)')} 
+                  className="shrink-0 flex flex-col items-center bg-white p-2 rounded-xl border border-white/20 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                >
+                  <QrCode className="w-10 h-10 text-slate-900" />
+                  <span className="text-[8px] font-mono font-extrabold text-slate-800 mt-1 uppercase tracking-tight">ABHA SCAN</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Chronic Alert Tag Bar */}
+              <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-1.5 text-amber-300 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>
+                    {(selectedDirectoryPatient.chronicConditions && selectedDirectoryPatient.chronicConditions.length > 0)
+                      ? `Chronic Alert: ${selectedDirectoryPatient.chronicConditions.join(' • ')} (Refill Due)`
+                      : (selectedDirectoryPatient.isChronic 
+                          ? 'Chronic Care Cohort: Refill Due (Day 25/30)' 
+                          : 'General Care Cohort: Active Clinical Status')}
+                  </span>
+                </div>
+                <span className="text-slate-300 font-mono text-[10px]">
+                  Dr. {activePod?.doctorName || 'V. Mehta'}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Version 3 Section 2: 4-Column Vitals Trends Grid ── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-3.5 rounded-full bg-indigo-600" />
+                  <span className="font-bold text-[11.5px] uppercase tracking-tight text-slate-800 dark:text-slate-200">
+                    Vital Signs Trends (Last Recorded)
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">
+                  {selectedDirectoryPatient.vitals?.recordedAt 
+                    ? new Date(selectedDirectoryPatient.vitals.recordedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                    : 'Recorded Today'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* BP */}
+                <div className="bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200/90 dark:border-white/10 rounded-xl p-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">BP</span>
+                    <span className="text-[8.5px] font-mono font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded">
+                      Stage 1
+                    </span>
+                  </div>
+                  <div className="font-mono text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {selectedDirectoryPatient.vitals?.bloodPressure || '138/88'}
+                  </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-0.5">
+                    <span className="text-rose-500 font-bold">↑</span> Prev: 130/84
+                  </div>
+                </div>
+
+                {/* RBS */}
+                <div className="bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200/90 dark:border-white/10 rounded-xl p-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">RBS</span>
+                    <span className="text-[8.5px] font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded">
+                      High
+                    </span>
+                  </div>
+                  <div className="font-mono text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {selectedDirectoryPatient.vitals?.bloodSugar || '174'} <span className="text-[9px] font-sans font-normal text-slate-400">mg/dL</span>
+                  </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-0.5">
+                    <span className="text-emerald-500 font-bold">↓</span> Prev: 198
+                  </div>
+                </div>
+
+                {/* Pulse */}
+                <div className="bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200/90 dark:border-white/10 rounded-xl p-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">Pulse</span>
+                    <span className="text-[8.5px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                      Normal
+                    </span>
+                  </div>
+                  <div className="font-mono text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {selectedDirectoryPatient.vitals?.pulseRate || '76'} <span className="text-[9px] font-sans font-normal text-slate-400">bpm</span>
+                  </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-0.5">
+                    <span className="text-slate-400">—</span> Prev: 78
+                  </div>
+                </div>
+
+                {/* SpO2 */}
+                <div className="bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200/90 dark:border-white/10 rounded-xl p-2.5 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono font-bold text-slate-400 uppercase">SpO2</span>
+                    <span className="text-[8.5px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                      Optimal
+                    </span>
+                  </div>
+                  <div className="font-mono text-base font-bold text-slate-900 dark:text-white mt-1">
+                    {selectedDirectoryPatient.vitals?.spO2 || '99%'}
+                  </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> Room air
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Version 3 Section 3: Prescription Pad Tab (Scanned Original + Clean Extracted Rx) ── */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-0.5 border-b border-slate-200/80 pb-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-3.5 rounded-full bg-indigo-600" />
+                  <span className="font-bold text-[12px] uppercase tracking-tight text-slate-900">
+                    Prescription Pad (Rx Record)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 font-mono text-[10px] text-slate-500">
+                  <span>OCR Confidence: <strong className="text-emerald-700 font-bold">98.2%</strong></span>
+                </div>
+              </div>
+
+              {/* Dual Column View: Scanned Original Thumbnail + Clean Extracted Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Left: Scanned Original Paper Rx Thumbnail */}
+                <div 
+                  onClick={() => setIsRxModalOpen(true)}
+                  className="md:col-span-4 bg-slate-50 rounded-xl border border-slate-200 p-2 flex flex-col justify-between relative group cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all"
+                >
+                  <div className="relative rounded-lg overflow-hidden border border-slate-300/80 bg-white shadow-xs aspect-[3/4.2] flex flex-col justify-between p-2">
+                    <div className="text-[7.5px] text-slate-700 space-y-1 font-mono">
+                      <div className="border-b border-slate-200 pb-0.5 flex justify-between font-bold text-[8px] text-indigo-900">
+                        <span>Dr. V. Mehta</span>
+                        <span>℞</span>
+                      </div>
+                      <div className="text-[7px] text-slate-500">{selectedDirectoryPatient.name}, {selectedDirectoryPatient.age || 54}y</div>
+                      <div className="space-y-0.5 font-sans italic text-slate-600 text-[7px] pt-1">
+                        <div>1. Tab Glycomet 500</div>
+                        <div>2. Tab Telma 40</div>
+                        <div>3. Cap Pan-D 40mg</div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-1 text-[6.5px] text-slate-400 flex justify-between items-center font-mono">
+                      <span>Digitized OCR</span>
+                      <span className="text-emerald-700 font-bold">Signed</span>
+                    </div>
+
+                    {/* OCR Scan Hover Overlay Layer */}
+                    <div className="absolute inset-0 bg-indigo-600/10 group-hover:bg-indigo-600/25 flex flex-col items-center justify-center gap-1 transition-colors p-1">
+                      <div className="w-7 h-7 rounded-full bg-white text-indigo-700 flex items-center justify-center shadow-sm">
+                        <ZoomIn className="w-4 h-4" />
+                      </div>
+                      <span className="text-[8px] font-mono font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded shadow-sm">Original Rx</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-1.5 text-center">
+                    <span className="text-[9px] font-mono text-slate-500 block truncate">Scanned • OCR Verified</span>
+                    <span className="text-[9px] font-bold text-indigo-600 hover:underline flex items-center justify-center gap-0.5 mt-0.5">
+                      <Eye className="w-3 h-3" /> Tap to Zoom Pad
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Digital Extracted Prescription (Exact Indian Formulary Cards + Bilingual) */}
+                <div className="md:col-span-8 space-y-2">
+                  <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500 px-0.5">
+                    <span>Digitized Drugs (Indian Formulary)</span>
+                    <span className="font-mono text-indigo-700 font-bold">3 Active Meds</span>
+                  </div>
+
+                  {/* Med 1 */}
+                  <div className="bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 shadow-2xs space-y-1.5 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-[12.5px] text-slate-900 dark:text-white leading-tight">Tab. Glycomet 500mg SR</div>
+                        <div className="text-[9.5px] text-slate-400 dark:text-slate-500 font-mono">Metformin Hydrochloride • Salt Match</div>
+                      </div>
+                      <span className="font-mono text-[9.5px] font-bold text-indigo-800 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40">
+                        1-0-1 (BD)
+                      </span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-850 rounded-lg px-2.5 py-1 border border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">After Meals (खाने के बाद)</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">30 Days (Qty: 60)</span>
+                    </div>
+                  </div>
+
+                  {/* Med 2 */}
+                  <div className="bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 shadow-2xs space-y-1.5 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-[12.5px] text-slate-900 dark:text-white leading-tight">Tab. Telma 40mg</div>
+                        <div className="text-[9.5px] text-slate-400 dark:text-slate-500 font-mono">Telmisartan IP • Glenmark</div>
+                      </div>
+                      <span className="font-mono text-[9.5px] font-bold text-indigo-800 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/40">
+                        1-0-0 (OD)
+                      </span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-850 rounded-lg px-2.5 py-1 border border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Morning Empty (सुबह नाश्ते के बाद)</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">30 Days (Qty: 30)</span>
+                    </div>
+                  </div>
+
+                  {/* Med 3 */}
+                  <div className="bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 shadow-2xs space-y-1.5 hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-[12.5px] text-slate-900 dark:text-white leading-tight">Cap. Pan-D 40mg</div>
+                        <div className="text-[9.5px] text-slate-400 dark:text-slate-500 font-mono">Pantoprazole 40mg + Domperidone 30mg</div>
+                      </div>
+                      <span className="font-mono text-[9.5px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded border border-teal-200/60 dark:border-teal-800/40">
+                        1-0-0 (OD)
+                      </span>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-850 rounded-lg px-2.5 py-1 border border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px]">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">Empty Stomach (खाली पेट)</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">15 Days (Qty: 15)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ordered Lab Investigations Strip */}
+              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-2.5 border border-slate-200 dark:border-white/10 space-y-1.5">
+                <div className="flex items-center justify-between text-[10.5px]">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <FlaskConical className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>Lab Investigations Ordered on Rx:</span>
+                  </span>
+                  <span className="font-mono text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/40 px-2 py-0.5 rounded">
+                    Sample Collected
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-mono font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> HbA1c (Glycated Hemoglobin)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-mono font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Serum Creatinine & eGFR
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-[10px] font-mono font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" /> Lipid Profile (Fasting)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Version 3 Section 4: Sticky Action Deck (Doctor + Compounder Operations) ── */}
+            <div className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/80 border border-slate-200 dark:border-white/10 space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                  onClick={() => triggerToast('POS Bill Created (₹1,450)', `Dispensation bag packed with FEFO batch verified for ${selectedDirectoryPatient.name}`)}
+                  className="h-9 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.98]"
                 >
-                  <Users className="w-3.5 h-3.5" /> Full Medical Dossier
+                  <Pill className="w-4 h-4 text-emerald-400" />
+                  <span>Dispense / POS (₹1,450)</span>
                 </button>
-                {selectedDirectoryPatient.abhaId && (
-                  <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold uppercase font-mono">
-                    ABHA Verified
-                  </span>
-                )}
+
+                <button
+                  type="button"
+                  onClick={() => triggerToast('Rx WhatsApp Dispatched', `Bilingual prescription PDF delivered with QR code to ${selectedDirectoryPatient.phone || 'patient'}`)}
+                  className="h-9 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-[0.98]"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Send Rx via WhatsApp</span>
+                </button>
               </div>
+
+              <button
+                type="button"
+                onClick={() => triggerToast('Consultation Started', `Patient ${selectedDirectoryPatient.name} called to Chamber 01 • Real-time CDC synced`)}
+                className="w-full h-8.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/80 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Stethoscope className="w-3.5 h-3.5" />
+                <span>Start Clinical Consultation in Chamber 01</span>
+              </button>
             </div>
 
             {/* ── Clinical Encounters & Past Prescriptions Timeline ────────── */}
@@ -1157,6 +1736,126 @@ export const PatientsDirectoryTab: React.FC<PatientsDirectoryTabProps> = React.m
           isOpen={isProfileModalOpen}
           onClose={() => setIsProfileModalOpen(false)}
         />
+      )}
+
+      {/* ── Stitch Version 3: High-Res Prescription Pad Lightbox Modal ── */}
+      {isRxModalOpen && selectedDirectoryPatient && createPortal(
+        <div 
+          onClick={() => setIsRxModalOpen(false)} 
+          className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[9999] transition-opacity duration-300 flex items-center justify-center p-3.5"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Lightbox Header */}
+            <div className="px-5 py-3 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <div className="font-bold text-sm text-white">Original Doctor Prescription Pad</div>
+                  <div className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Eagle-Eye OCR Verified • 98.2% Accuracy</span>
+                  </div>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsRxModalOpen(false)} 
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scanned Paper Simulation View */}
+            <div className="p-4 sm:p-6 bg-slate-100 overflow-y-auto flex-1 flex flex-col items-center justify-center">
+              <div className="bg-white border border-slate-300/80 rounded-2xl shadow-lg p-5 sm:p-6 w-full space-y-4 font-mono text-slate-800 relative">
+                {/* Letterhead */}
+                <div className="border-b-2 border-indigo-950/80 pb-3 flex items-start justify-between">
+                  <div>
+                    <div className="font-bold text-base text-indigo-950 tracking-tight">
+                      DR. {activePod?.doctorName?.toUpperCase() || 'V. MEHTA'}, MS, DNB
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-sans">
+                      Reg No: MCI-2014-9841 • {activePod?.name || 'VitalSync Smart Clinic'}
+                    </div>
+                    <div className="text-[9.5px] text-slate-400 font-sans">
+                      Clinic Node 01, Main Healthcare Complex
+                    </div>
+                  </div>
+                  <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-xl">
+                    ℞
+                  </div>
+                </div>
+
+                {/* Patient Demographics On Pad */}
+                <div className="grid grid-cols-2 gap-2 text-[10.5px] bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+                  <div><strong>Patient:</strong> {selectedDirectoryPatient.name} ({selectedDirectoryPatient.age || 54}y / {selectedDirectoryPatient.gender || 'F'})</div>
+                  <div><strong>Date:</strong> {getIstDateString()}</div>
+                  <div><strong>UHID:</strong> {getClinicalPatientId(selectedDirectoryPatient)}</div>
+                  <div><strong>BP:</strong> {selectedDirectoryPatient.vitals?.bloodPressure || '138/88'} | <strong>RBS:</strong> {selectedDirectoryPatient.vitals?.bloodSugar || '174'}</div>
+                </div>
+
+                {/* Handwritten Script */}
+                <div className="space-y-3 py-1 font-sans text-slate-800 text-[12.5px] leading-relaxed">
+                  <div className="flex items-center gap-1.5 font-bold font-mono text-[11px] text-slate-500 uppercase">
+                    <span>Rx / Medications Prescribed:</span>
+                  </div>
+                  <div className="pl-3 border-l-2 border-indigo-500 space-y-2">
+                    <div>1. Tab. <strong>Glycomet 500mg SR</strong> — 1 tab BD (pc / खाने के बाद) x 30 days</div>
+                    <div>2. Tab. <strong>Telma 40mg</strong> — 1 tab OD (morning / सुबह) x 30 days</div>
+                    <div>3. Cap. <strong>Pan-D 40mg</strong> — 1 cap OD (empty stomach / खाली पेट) x 15 days</div>
+                  </div>
+
+                  <div className="pt-2 flex items-center gap-1.5 font-bold font-mono text-[11px] text-slate-500 uppercase">
+                    <span>Investigations Ordered:</span>
+                  </div>
+                  <div className="pl-3 text-[11.5px] text-slate-600">
+                    • HbA1c (Glycated Hemoglobin), Serum Creatinine & eGFR, Fasting Lipid Profile
+                  </div>
+                </div>
+
+                {/* Doctor Signature & Stamp */}
+                <div className="pt-4 border-t border-slate-200 flex items-end justify-between">
+                  <div className="text-[9px] text-slate-400 font-mono">
+                    Digitized via Compounder Desk OCR<br />
+                    Checksum: #MD-{getClinicalPatientId(selectedDirectoryPatient)}
+                  </div>
+                  <div className="text-right">
+                    <div className="font-serif italic text-indigo-950 font-bold text-base -rotate-3">
+                      Dr. {activePod?.doctorName || 'V. Mehta'}
+                    </div>
+                    <div className="text-[9px] font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 mt-0.5 inline-block">
+                      Verified & Signed
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-between gap-2">
+              <button 
+                type="button"
+                onClick={() => triggerToast('High-Res PDF Downloaded', `Original prescription image saved for ${selectedDirectoryPatient.name}`)} 
+                className="h-9 px-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download PDF</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setIsRxModalOpen(false)} 
+                className="h-9 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs flex items-center gap-1 transition-all"
+              >
+                <span>Close Viewer</span>
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

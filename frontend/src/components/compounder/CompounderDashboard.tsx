@@ -12,6 +12,7 @@ import { PharmacyService } from '../../services/pharmacyService';
 import { BillingService } from '../../services/billingService';
 import { PaymentService } from '../../services/paymentService';
 import { LabService } from '../../services/labService';
+import { PriceBookService } from '../../services/priceBookService';
 import { WhatsAppService } from '../../services/whatsappService';
 import { WhatsAppTemplateEngine } from '../../services/WhatsAppTemplateEngine';
 import { IoTDeviceService } from '../../services/iotDeviceService';
@@ -132,7 +133,11 @@ import {
   LayoutGrid,
   BookOpen,
   Shield,
-  Tag
+  Tag,
+  Settings,
+  Sun,
+  Moon,
+  ArrowLeftRight
 } from 'lucide-react';
 import { BrandMark, VitalSyncWordmark } from '../shared/BrandMark';
 import { SearchInput } from '../ui/SearchInput';
@@ -171,9 +176,9 @@ export const CompounderDashboard: React.FC = () => {
   const { isOphthalmology, nomenclature } = useSpecialization();
   const { podEntities, activePod, activeProfile } = useClinic();
   const clinicTitle = activePod?.name || activeProfile?.clinicName || 'Clinic Node';
-  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'clinical_hub' | 'billing_daycare' | 'ai_ocr_upload' | 'more_hub'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'opd_patients' | 'patient_directory' | 'clinical_hub' | 'billing_daycare' | 'ai_ocr_upload' | 'more_hub'>('overview');
   const [moreHubActiveView, setMoreHubActiveView] = useState<'grid' | 'directory' | 'sops' | 'history' | 'ot_dilation' | 'pharmacy'>('grid');
-  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'directory' | 'history'>('today_queue');
+  const [opdSubTab, setOpdSubTab] = useState<'today_queue' | 'history'>('today_queue');
   const [opdQueueFilter, setOpdQueueFilter] = useState<'today' | 'upcoming'>('today');
   const [pastHistorySearchQuery, setPastHistorySearchQuery] = useState('');
   const [clinicalSubTab, setClinicalSubTab] = useState<'labs' | 'pharmacy'>('labs');
@@ -181,6 +186,71 @@ export const CompounderDashboard: React.FC = () => {
   const [billHubInitialMode, setBillHubInitialMode] = useState<'ocr_scan' | 'manual_billing'>('ocr_scan');
   const [patientsSubTab, setPatientsSubTab] = useState<'directory' | 'register'>('directory');
   const [isChatDrawerOpen, setIsChatDrawerOpen] = useState(false);
+
+  // Day & Night Theme Toggle State
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      if (e?.detail?.isDark !== undefined) {
+        setIsDark(e.detail.isDark);
+      }
+    };
+    window.addEventListener('mediflow-theme-change', handleThemeChange);
+    return () => window.removeEventListener('mediflow-theme-change', handleThemeChange);
+  }, []);
+
+  const handleToggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      document.body?.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body?.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: next } }));
+  };
+
+  // VS Logo Interactive Tab Changer Dropdown State
+  const [isTabChangerOpen, setIsTabChangerOpen] = useState(false);
+  const tabChangerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tabChangerRef.current && !tabChangerRef.current.contains(e.target as Node)) {
+        setIsTabChangerOpen(false);
+      }
+    };
+    if (isTabChangerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isTabChangerOpen]);
+
+  // Interactive Glassmorphic Profile Menu State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutsideProfile = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    if (isProfileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutsideProfile);
+      return () => document.removeEventListener('mousedown', handleClickOutsideProfile);
+    }
+  }, [isProfileMenuOpen]);
 
   // Core Registry & Live Sync States
   const { isLocked } = useEphemeralVault();
@@ -228,6 +298,15 @@ export const CompounderDashboard: React.FC = () => {
   // Post-Consultation Smart Queue States
   const [assignSlotReportId, setAssignSlotReportId] = useState<string | null>(null);
   const [assignSlotTime, setAssignSlotTime] = useState('17:00');
+  const [selectedEveningSlot, setSelectedEveningSlot] = useState<string>('05:30 PM');
+  const [isAssigningSlot, setIsAssigningSlot] = useState<boolean>(false);
+  const [lastScannedPatientId, setLastScannedPatientId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('vitalsync_last_scanned_patient_id');
+    } catch {
+      return null;
+    }
+  });
 
   const vitalsDonePatients = useMemo(() => {
     return patients.filter(p => {
@@ -674,10 +753,20 @@ export const CompounderDashboard: React.FC = () => {
         setDataRevision(r => r + 1);
       });
     };
+    const handlePrescriptionScanned = (e: Event) => {
+      const customEvent = e as CustomEvent<any>;
+      const pId = customEvent.detail?.patientId;
+      if (pId) {
+        setLastScannedPatientId(pId);
+        setDataRevision(r => r + 1);
+      }
+    };
     window.addEventListener('mediflow-state-change', handlePatientStateChange);
+    window.addEventListener('mediflow-prescription-scanned', handlePrescriptionScanned);
     window.addEventListener('storage', handlePatientStateChange);
     return () => {
       window.removeEventListener('mediflow-state-change', handlePatientStateChange);
+      window.removeEventListener('mediflow-prescription-scanned', handlePrescriptionScanned);
       window.removeEventListener('storage', handlePatientStateChange);
     };
   }, []);
@@ -690,14 +779,19 @@ export const CompounderDashboard: React.FC = () => {
       const target = typeof payload === 'string' ? payload : payload?.tab;
 
       startTransition(() => {
-        if (target === 'overview' || target === 'opd_patients' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan' || target === 'more_hub' || target === 'more') {
+        if (target === 'overview' || target === 'opd_patients' || target === 'patient_directory' || target === 'clinical_hub' || target === 'billing_daycare' || target === 'ai_ocr_upload' || target === 'prescription_scan' || target === 'more_hub' || target === 'more') {
           startTransition(() => setActiveTab(target === 'prescription_scan' ? 'ai_ocr_upload' : (target === 'more' ? 'more_hub' : target as any)));
+          if (target === 'opd_patients') {
+            setOpdSubTab(payload?.subTab || 'today_queue');
+          }
           if (target === 'more_hub' || target === 'more') {
             setMoreHubActiveView('grid');
           }
         } else if (target === 'tokens' || target === 'patients') {
-          startTransition(() => setActiveTab('opd_patients'));
-          setOpdSubTab('today_queue');
+          startTransition(() => {
+            setActiveTab('opd_patients');
+            setOpdSubTab('today_queue');
+          });
         } else if (target === 'labs' || target === 'pathology') {
           startTransition(() => setActiveTab('clinical_hub'));
         } else if (target === 'pharmacy' || target === 'stock') {
@@ -712,8 +806,7 @@ export const CompounderDashboard: React.FC = () => {
           });
         } else if (target === 'directory' || target === 'ehr') {
           startTransition(() => {
-            setActiveTab('more_hub');
-            setMoreHubActiveView('directory');
+            setActiveTab('patient_directory');
           });
         } else if (target === 'ot_billing' || target === 'invoice_generator') {
           startTransition(() => setActiveTab('billing_daycare'));
@@ -1823,6 +1916,7 @@ export const CompounderDashboard: React.FC = () => {
 
   const handleConfirmEveningSlot = async (reportId: string, timeVal: string) => {
     try {
+      setIsAssigningSlot(true);
       const today = getIstDateString();
       await LabService.approveLabReport(reportId, today, timeVal, 'Compounder assigned evening review slot');
       
@@ -1844,6 +1938,8 @@ export const CompounderDashboard: React.FC = () => {
           type: 'error'
         }
       }));
+    } finally {
+      setIsAssigningSlot(false);
     }
   };
 
@@ -2616,6 +2712,7 @@ export const CompounderDashboard: React.FC = () => {
   useEffect(() => {
     syncData();
     window.addEventListener('mediflow-state-change', syncData);
+    window.addEventListener('mediflow-financial-update', syncData);
     // PERF FIX (RC-3): Removed 'storage' listener — every localStorage write was
     // triggering syncData (feedback loop: save → sync → re-render → save → …).
     // Cross-tab sync is already handled by CloudStore BroadcastChannel meshBus.
@@ -2623,6 +2720,7 @@ export const CompounderDashboard: React.FC = () => {
 
     return () => {
       window.removeEventListener('mediflow-state-change', syncData);
+      window.removeEventListener('mediflow-financial-update', syncData);
       unsubscribeApi();
     };
   }, [syncData]);
@@ -3455,10 +3553,12 @@ export const CompounderDashboard: React.FC = () => {
     }
   };
 
+  const displayName = activeProfile?.name || activeProfile?.fullName || activeProfile?.full_name || 'Rohit';
+  const initials = displayName.slice(0, 2).toUpperCase();
+
   return (
     <div 
-      className="max-w-7xl mx-auto p-2 sm:p-4 md:p-8 pb-32 md:pb-12 space-y-6 sm:space-y-8 bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen flex flex-col justify-between transition-colors duration-300"
-      style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
+      className="max-w-7xl mx-auto p-2 sm:p-3 md:p-4 md:pt-2 pb-24 md:pb-8 flex flex-col justify-start gap-1.5 sm:gap-2.5 bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-clinical-950 dark:to-indigo-950/20 text-slate-800 dark:text-clinical-100 min-h-screen transition-colors duration-300"
     >
       {/* Ambient Background Glow for visual hierarchy */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -3476,13 +3576,284 @@ export const CompounderDashboard: React.FC = () => {
         }
       `}</style>
 
-      {/* ── DESKTOP UNIFIED COMMAND BAR (Compact 40px High-Density Ribbon) ──────────── */}
-      <div className="hidden md:flex items-center justify-between gap-2 px-3 py-1.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 rounded-xl shadow-xs mb-2 z-10">
-        {/* Left: Sleek Medical Teal Tab Switcher */}
+      {/* UNIFIED ULTRA-COMPACT HIGH-DENSITY CLINICAL APP BAR (PERMANENT 1ST HEADER) */}
+      <header 
+        className="sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-[0_1px_8px_rgba(15,23,42,0.03)] -mx-2 px-2.5 sm:px-3 py-1.5 mb-1 sm:mb-1.5 rounded-2xl flex items-center justify-between gap-2"
+        style={{ paddingTop: 'max(6px, env(safe-area-inset-top, 6px))' }}
+      >
+        {/* Left Side: Exclusively the VS Logo Box & Interactive Tab Switcher */}
+        <div className="flex items-center min-w-0">
+          <div className="relative" ref={tabChangerRef}>
+            <button
+              type="button"
+              onClick={() => setIsTabChangerOpen(prev => !prev)}
+              className="group flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-xl border border-teal-500/30 bg-teal-50/50 hover:bg-teal-100/50 dark:bg-teal-950/30 dark:hover:bg-teal-900/40 active:scale-95 transition-all duration-150 cursor-pointer text-left shadow-2xs"
+              title="Click to Switch Dashboard Tabs"
+              aria-label="Switch Dashboard Tabs"
+            >
+              <div className="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 border border-teal-300/80 dark:border-teal-500/40 flex items-center justify-center shrink-0 shadow-xs p-0.5 group-hover:border-teal-500 transition-colors relative">
+                <BrandMark size={20} />
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[#0E7A8A] text-white flex items-center justify-center shadow-xs">
+                  <ChevronDown className={`w-2 h-2 text-white stroke-[3] transition-transform duration-200 ${isTabChangerOpen ? 'rotate-180' : 'group-hover:translate-y-0.5'}`} />
+                </div>
+              </div>
+              <div className="flex items-center gap-1 truncate">
+                <VitalSyncWordmark fontSize="13px" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+              </div>
+            </button>
+
+            {/* Floating Glassmorphic Tab Switcher Dropdown */}
+            {isTabChangerOpen && (
+              <div className="absolute left-0 mt-1.5 w-60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-xl border border-slate-200/80 dark:border-white/10 p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
+                  <span>Compounder Console</span>
+                  <span className="text-teal-600 dark:text-teal-400 font-mono">1-Tap Switch</span>
+                </div>
+                {[
+                  { id: 'overview', label: 'Overview Cockpit', icon: LayoutDashboard },
+                  { id: 'opd_patients', label: 'OPD Queue & Intake', icon: Users },
+                  { id: 'patient_directory', label: 'Patient Directory', icon: UserCheck },
+                  { id: 'clinical_hub', label: 'Clinical Hub & Labs', icon: FlaskConical },
+                  { id: 'billing_daycare', label: '1-Click Billing & POS', icon: CreditCard },
+                  { id: 'ai_ocr_upload', label: 'Paper OCR Scanner', icon: ScanLine },
+                  { id: 'more_hub', label: 'More Ops Hub', icon: MoreHorizontal },
+                ].map(tabItem => {
+                  const Icon = tabItem.icon;
+                  const isCurrent = activeTab === tabItem.id;
+                  return (
+                    <button
+                      key={tabItem.id}
+                      type="button"
+                      onClick={() => {
+                        startTransition(() => {
+                          if (tabItem.id === 'opd_patients') {
+                            setOpdSubTab('today_queue');
+                          }
+                          setActiveTab(tabItem.id as any);
+                          setIsTabChangerOpen(false);
+                        });
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[12px] font-semibold transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 font-bold border border-teal-500/20'
+                          : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-3.5 h-3.5 ${isCurrent ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400'}`} />
+                        <span>{tabItem.label}</span>
+                      </div>
+                      {isCurrent && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* 1-Tap Role Switcher: Move to Doctor Dashboard */}
+                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startTransition(() => {
+                        setIsTabChangerOpen(false);
+                        window.dispatchEvent(new CustomEvent('mediflow-change-role', { detail: 'doctor' }));
+                      });
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 border border-teal-500/20 transition-all cursor-pointer group"
+                    title="Switch to Doctor Dashboard"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:rotate-180 transition-transform duration-300" />
+                      <span>Switch to Doctor EMR</span>
+                    </div>
+                    <span className="text-[9px] bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 px-1 py-0.2 rounded font-mono font-bold">EMR</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Clinic Identity + Gear Settings + Day/Night Filter + Alert Icon + Avatar */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="hidden sm:flex items-center gap-1.5 min-w-0 px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-white/5">
+            <Building2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 tracking-tight truncate max-w-[130px] md:max-w-[180px]">
+              {activePod?.name || 'Dr. Mehta Ortho & Polyclinic'}
+            </span>
+            <span className="text-[9px] font-semibold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200/70 dark:border-teal-800/40 px-1 py-0.2 rounded font-mono shrink-0">
+              {displayName} (Desk)
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('mediflow-open-settings'));
+            }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 shrink-0"
+            title="Settings & System Configuration"
+            aria-label="Settings"
+          >
+            <Settings className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 shrink-0"
+            title={isDark ? "Switch to Day Mode (Light)" : "Switch to Night Mode (Dark)"}
+            aria-label="Toggle Day and Night Theme"
+          >
+            {isDark ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400 hover:rotate-45 transition-transform" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300 hover:-rotate-12 transition-transform" />
+            )}
+          </button>
+
+          <button 
+            aria-label="Notifications & Alerts" 
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors relative border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 shrink-0" 
+            type="button"
+          >
+            <Bell className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#0E7A8A] ring-2 ring-white dark:ring-slate-900"></span>
+          </button>
+
+          {/* Functional Glassmorphic Profile Menu */}
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsProfileMenuOpen(prev => !prev)}
+              className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-slate-300/80 dark:ring-white/10 shadow-2xs bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-[10px] cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
+              title="Profile & Clinic Menu"
+              aria-label="Profile and Clinic Menu"
+            >
+              {initials}
+            </button>
+
+            {/* 50% Translucent Silicon-Valley Glassmorphism Profile Popover */}
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-xl border border-slate-200/80 dark:border-white/10 p-2.5 z-50 text-left animate-in fade-in slide-in-from-top-2 duration-150">
+                {/* User Monogram & Identity */}
+                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-white/5">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-xs ring-1 ring-teal-500/30 shrink-0 relative">
+                    {initials}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4 className="text-[12px] font-bold text-slate-900 dark:text-white truncate">
+                        {displayName}
+                      </h4>
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 shrink-0">
+                        Desk
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                      Clinical Operations Lead
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sovereign Clinic Identity Pill */}
+                <div className="my-2 p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 truncate">
+                      {activePod?.name || 'VitalSync Smart PolyClinic'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-zinc-400 font-mono">
+                    <span>Pod: {activePod?.clinicCode || 'VS-V01R'}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live CDC
+                    </span>
+                  </div>
+                </div>
+
+                {/* 1-Tap Quick Action Row */}
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'profile' } }));
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <span>Compounder Profile</span>
+                    </div>
+                    <ChevronRight className="w-3 h-3 text-slate-400" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'clinic' } }));
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <span>Clinic Details</span>
+                    </div>
+                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-zinc-400">View</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      startTransition(() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-change-role', { detail: 'doctor' }));
+                      });
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 border border-teal-500/20 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:rotate-180 transition-transform duration-300" />
+                      <span>Switch to Doctor</span>
+                    </div>
+                    <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200">EMR</span>
+                  </button>
+
+                  <div className="pt-1 mt-1 border-t border-slate-100 dark:border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        supabase.auth.signOut().then(() => {
+                          window.location.reload();
+                        });
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Desktop Quick Horizontal Tab Navigator */}
+      <div className="hidden md:flex items-center justify-between gap-2 p-1 bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 rounded-xl shadow-2xs mb-2">
         <div className="flex items-center gap-1 p-0.5 bg-slate-100/90 dark:bg-slate-800/60 rounded-lg border border-slate-200/60 dark:border-white/5">
           {[
             { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
             { id: 'opd_patients', label: 'Live OPD Queue', icon: <Users className="h-3.5 w-3.5" /> },
+            { id: 'patient_directory', label: 'Patient Directory', icon: <UserCheck className="h-3.5 w-3.5" /> },
             { id: 'ai_ocr_upload', label: 'Prescription Scan', icon: <Camera className="h-3.5 w-3.5" /> },
             { id: 'clinical_hub', label: isOphthalmology ? 'Diagnostics' : 'Pathology & Labs', icon: <FlaskConical className="h-3.5 w-3.5" /> },
             { id: 'billing_daycare', label: isOphthalmology ? 'Billing' : 'Billing & POS', icon: <Receipt className="h-3.5 w-3.5" /> },
@@ -3490,7 +3861,12 @@ export const CompounderDashboard: React.FC = () => {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => startTransition(() => setActiveTab(tab.id as any))}
+              onClick={() => startTransition(() => {
+                if (tab.id === 'opd_patients') {
+                  setOpdSubTab('today_queue');
+                }
+                setActiveTab(tab.id as any);
+              })}
               className={`px-3 py-1.5 text-[11px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-all rounded-md cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-[#0E7A8A] text-white shadow-xs'
@@ -3503,20 +3879,10 @@ export const CompounderDashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Right: Quick Action CTAs & Live Pod Status */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-mono font-semibold border border-emerald-200/70 dark:border-emerald-800/40">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Pod
           </div>
-          <button
-            type="button"
-            onClick={() => setShowPriceBookModal(true)}
-            className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 text-[11px] font-bold rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-slate-200/80 dark:border-white/10"
-            title="Open Clinic Services & Price Book"
-          >
-            <Tag className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-            <span>Price Book</span>
-          </button>
           <button
             type="button"
             onClick={() => setShowInstantAppointmentModal(true)}
@@ -3529,7 +3895,7 @@ export const CompounderDashboard: React.FC = () => {
       </div>
 
       {/* TAB CONTENT SPACES — vs-tab-content scopes repaints to this area only */}
-      <div className="vs-tab-content vs-main-scroll space-y-6 w-full touch-pan-y">
+      <div className="vs-tab-content vs-main-scroll space-y-3 w-full touch-pan-y">
         {/* ══════════════════════════════════════════════════════════
             TAB: OVERVIEW COCKPIT (MODERN MOBILE-FIRST HUB)
         ══════════════════════════════════════════════════════════ */}
@@ -3539,40 +3905,43 @@ export const CompounderDashboard: React.FC = () => {
 
   // Dynamic clinical computations (100% reactive, zero mock fallbacks)
   const todayInvoices = BillingService.getInvoices() || [];
-  const consultTotal = todayInvoices.reduce((sum, inv) => {
-    const raw = inv as any;
-    const amount = Number(raw.doctor_fee || (inv.type === 'consult' ? inv.amount : 0)) || 0;
-    return sum + amount;
-  }, 0);
-  const pharmTotal = todayInvoices.reduce((sum, inv) => {
-    const raw = inv as any;
-    const amount = Number(raw.pharmacy_fee || (inv.type === 'pharmacy' ? inv.amount : 0)) || 0;
-    return sum + amount;
-  }, 0);
-  const labTotal = todayInvoices.reduce((sum, inv) => {
-    const raw = inv as any;
-    const amount = Number(raw.lab_fee || (inv.type === 'lab' ? inv.amount : 0)) || 0;
-    return sum + amount;
-  }, 0);
-  const grossTotal = todayInvoices.reduce((sum, inv) => {
-    const raw = inv as any;
-    const amount = Number(raw.total_amount || inv.amount) || 0;
-    return sum + amount;
-  }, 0);
-  const otherTotal = Math.max(0, grossTotal - (consultTotal + pharmTotal + labTotal));
+  const dailyLedgerTotals = BillingService.getDailyCounterLedgerTotals();
+  const { consultTotal, pharmTotal, labTotal, otherTotal, grossTotal } = dailyLedgerTotals;
 
-  const pendingBillsCount = todayInvoices.filter(i => (i as any).payment_status === 'pending' || i.status === 'unpaid').length;
+  const pendingBillsCount = (BillingService.getUnifiedInvoices() || []).filter(i => {
+    const status = String(i.paymentStatus || (i as any).payment_status || '').toLowerCase();
+    return status === 'pending' || status === 'unpaid';
+  }).length + todayInvoices.filter(i => (i as any).payment_status === 'pending' || i.status === 'unpaid').length;
   const dispensaryOrdersCount = (PharmacyService.getMedicineBills() || []).filter(b => b.status === 'confirmed' || b.status === 'paid' || (b as any).status === 'pending').length;
   const pendingLabReqs = (LabService.getLabRequisitions() || []).filter(r => r.status === 'pending' || (r as any).status === 'requested').length;
   const readyLabReports = (LabService.getFullLabReports() || []).filter(r => r.status === 'approved' || (r as any).status === 'completed');
   const chronicFollowUpCount = patients.filter(p => p.isChronic || (p as any).is_chronic).length;
+  const priceBookCatalogCount = (PriceBookService.getMedicineCatalog(activePod?.id).length || 104) + (PriceBookService.getLabCatalog(activePod?.id).length || 70);
 
   const scannedCount = patients.filter(p => (p as any).source === 'paper_scan' || p.queueStatus === 'awaiting_consultation').length || activeOpdAppointments.length;
   const completedCount = activeOpdAppointments.filter(a => a.status === 'completed').length;
 
-  // Active focus patient (head of queue or recent arrival)
-  const focusAppt = nextQueuedPatient || activeOpdAppointments[0] || null;
-  const focusPatient = focusAppt ? patients.find(p => p.id === (focusAppt.patientId || (focusAppt as any).patient_id)) : (patients[0] || null);
+  // Dynamic Resolution of Active Focus Item (Smart Priority Hierarchy)
+  // Priority 1: Pending Lab Report Arrived (Requires Evening Re-visit Slot Allocation)
+  const pendingLabReport = arrivedLabReports[0] || null;
+  const labPatient = pendingLabReport ? (patients.find(p => p.id === pendingLabReport.patientId) || null) : null;
+
+  // Priority 2: Newly Scanned Prescription Patient (OCR extraction)
+  const scannedPatient = lastScannedPatientId ? (patients.find(p => p.id === lastScannedPatientId) || null) : null;
+  const scannedAppt = scannedPatient ? (activeOpdAppointments.find(a => a.patientId === scannedPatient.id || (a as any).patient_id === scannedPatient.id) || null) : null;
+
+  // Priority 3: Active Queue Head
+  const queueAppt = nextQueuedPatient || activeOpdAppointments[0] || null;
+  const queuePatient = queueAppt ? (patients.find(p => p.id === (queueAppt.patientId || (queueAppt as any).patient_id)) || null) : (patients[0] || null);
+
+  const activeFocusMode: 'lab_revisit' | 'scanned_prescription' | 'queue_focus' = (pendingLabReport && labPatient)
+    ? 'lab_revisit'
+    : scannedPatient
+      ? 'scanned_prescription'
+      : 'queue_focus';
+
+  const focusAppt = activeFocusMode === 'scanned_prescription' ? scannedAppt : queueAppt;
+  const focusPatient = activeFocusMode === 'lab_revisit' ? labPatient : (activeFocusMode === 'scanned_prescription' ? scannedPatient : queuePatient);
 
   // Incoming recent lab investigations
   const recentLabs = (LabService.getFullLabReports() || []).slice(0, 2);
@@ -3581,128 +3950,56 @@ export const CompounderDashboard: React.FC = () => {
   const auditEvents = (activeOpdAppointments || []).slice(0, 4);
 
   return (
-    <div 
-      className="w-full text-slate-900 font-sans min-h-screen flex flex-col bg-slate-50 text-[13px] mx-auto max-w-md md:max-w-4xl lg:max-w-7xl px-2 sm:px-3 lg:px-4 pb-24" 
-      style={{ background: 'radial-gradient(at 0% 0%, rgba(14, 122, 138, 0.05) 0px, transparent 48%), radial-gradient(at 100% 12%, rgba(20, 195, 208, 0.05) 0px, transparent 40%), #F8FAFC' }}
-    >
-      {/* UNIFIED HIGH-DENSITY CLINICAL APP BAR & CLINIC IDENTITY */}
-      <header 
-        className="sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-[0_1px_8px_rgba(15,23,42,0.03)] -mx-2 px-3.5 py-2 space-y-1.5 mb-3 rounded-2xl md:hidden"
-        style={{ paddingTop: 'max(8px, env(safe-area-inset-top, 8px))' }}
-      >
-        {/* Top Primary Row: App Branding as Console Switcher Button + Account Actions */}
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
-            }}
-            className="group flex items-center gap-2 min-w-0 p-1.5 -ml-1 rounded-xl border border-teal-500/30 bg-teal-50/50 hover:bg-teal-100/50 dark:bg-teal-950/30 dark:hover:bg-teal-900/40 active:scale-95 transition-all duration-150 cursor-pointer text-left shadow-2xs"
-            title="Switch Dashboard Console / Open Navigation Menu"
-            aria-label="Switch Dashboard Console"
-          >
-            <div className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-teal-300/80 dark:border-teal-500/40 flex items-center justify-center shrink-0 shadow-xs p-0.5 group-hover:border-teal-500 transition-colors relative">
-              <BrandMark size={24} />
-              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#0E7A8A] text-white flex items-center justify-center shadow-xs">
-                <ChevronDown className="w-2.5 h-2.5 text-white stroke-[3] group-hover:translate-y-0.5 transition-transform" />
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 truncate">
-              <VitalSyncWordmark fontSize="14px" />
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
-            </div>
-          </button>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button aria-label="Notifications" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors relative border border-slate-200/80 bg-white shadow-2xs cursor-pointer" type="button">
-              <Bell className="w-4 h-4 text-slate-600" />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#0E7A8A] ring-2 ring-white"></span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('mediflow-toggle-sidebar'));
-              }}
-              className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-slate-300/80 ml-0.5 shadow-2xs bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-[10px] cursor-pointer hover:opacity-90 active:scale-95 transition-all"
-              title="Profile & Console Switcher"
-              aria-label="Profile and Console Switcher"
-            >
-              {initials}
-            </button>
-          </div>
-        </div>
-        {/* Compact Clinic Sub-bar: Clean Clinical Context */}
-        <div className="flex items-center justify-between pt-0.5 border-t border-slate-100">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-2">
-            <Building2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-            <h1 className="text-[13px] font-bold text-slate-900 tracking-tight truncate">
-              {activePod?.name || 'Dr. Mehta Ortho & Polyclinic'}
-            </h1>
-          </div>
-          <div className="flex items-center shrink-0">
-            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold text-teal-800 bg-teal-50 border border-teal-200/70 rounded-md font-mono">
-              {displayName} (Desk)
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* ── HIGH-DENSITY 3-COLUMN ENTERPRISE COMMAND CENTER (12-COL: 3 : 5 : 4) ── */}
-      <div className="w-full lg:grid lg:grid-cols-12 lg:gap-4 items-start pt-2 md:pt-3.5">
+    <div className="w-full lg:grid lg:grid-cols-12 lg:gap-4 items-start pt-1 md:pt-2">
         {/* ◀ COLUMN 1: RAPID INTAKE & LIVE TOKEN QUEUE (3 COLS / 25%) */}
         <div className="lg:col-span-3 space-y-3">
-          {/* COMPACT TACTICAL HERO: QUICK SCAN RX */}
-          <div 
-            onClick={() => {
-              sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
-              startTransition(() => setActiveTab('ai_ocr_upload'));
-              window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
-            }}
-            className="relative overflow-hidden rounded-2xl p-3 border border-teal-500/30 text-white cursor-pointer active:scale-[0.985] transition-all duration-150 shadow-[0_6px_20px_-4px_rgba(15,23,42,0.35)] group" 
-            style={{ background: 'linear-gradient(135deg, #090D16 0%, #0F172A 55%, #0E7A8A 100%)' }}
-          >
-            <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-teal-500/20 blur-xl pointer-events-none"></div>
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500/25 via-[#0E7A8A]/35 to-slate-950/80 border border-teal-400/40 flex items-center justify-center shrink-0 text-teal-300 shadow-[0_0_12px_rgba(45,212,191,0.3)]">
-                  <ScanLine className="w-5 h-5 text-teal-300 group-hover:scale-110 transition-transform" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-[13px] tracking-tight text-white">Quick Scan Rx</span>
-                    <span className="font-mono text-[8.5px] font-bold bg-teal-500/30 text-teal-200 px-1 py-0.2 rounded border border-teal-400/40">OCR v2.4</span>
-                  </div>
-                  <p className="text-[10px] text-slate-300/85 truncate font-medium">1-Tap digitize & token</p>
-                </div>
+          {/* SECTION 1: TODAY'S OPERATIONS (HIGH-DENSITY METRICS) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between px-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
+                <span className="text-[11.5px] font-bold tracking-tight text-slate-800 dark:text-zinc-200 uppercase font-sans">Today's Clinic Overview</span>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
-                <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform" />
-              </div>
+              <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1 tabular-nums">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live
+              </span>
             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Card 1: Visited */}
+              <button 
+                type="button"
+                onClick={() => {
+                  startTransition(() => setActiveTab('opd_patients'));
+                  setOpdSubTab('today_queue');
+                }}
+                className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/80 active:scale-95 transition-all rounded-xl p-2.5 border border-slate-200/80 dark:border-white/10 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
+              >
+                <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-300 dark:bg-slate-600"></div>
+                <span className="text-[9.5px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-mono">Visited</span>
+                <span className="font-mono text-[18px] font-extrabold text-slate-900 dark:text-white mt-0.5 tracking-tight tabular-nums">
+                  {activeOpdAppointments.length}
+                </span>
+                <span className="text-[9.5px] font-medium text-slate-400 dark:text-zinc-500 mt-0.5 truncate">checked in →</span>
+              </button>
 
-          {/* FAST UTILITY ACTIONS */}
-          <div className="grid grid-cols-2 gap-2">
-            <button 
-              onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
-              className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] cursor-pointer" 
-              type="button"
-            >
-              <div className="w-5 h-5 rounded-lg bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 shrink-0">
-                <Search className="w-3 h-3 text-teal-600" />
-              </div>
-              <span className="text-[11px] font-bold tracking-tight text-slate-800">Directory</span>
-            </button>
-            <button 
-              onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
-              className="bg-white hover:bg-slate-50 border border-slate-200/80 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] cursor-pointer" 
-              type="button"
-            >
-              <div className="w-5 h-5 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-                <Receipt className="w-3 h-3 text-emerald-600" />
-              </div>
-              <span className="text-[11px] font-bold tracking-tight text-slate-800">Billing POS</span>
-            </button>
+              {/* Card 2: Scanned */}
+              <button 
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
+                  startTransition(() => setActiveTab('ai_ocr_upload'));
+                  window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
+                }}
+                className="bg-gradient-to-b from-teal-50/60 to-white dark:from-teal-950/30 dark:to-slate-800 hover:from-teal-100/50 active:scale-95 transition-all rounded-xl p-2.5 border border-teal-200/70 dark:border-teal-500/30 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
+              >
+                <div className="absolute top-0 inset-x-0 h-0.5 bg-[#0E7A8A]"></div>
+                <span className="text-[9.5px] font-bold text-[#0E7A8A] dark:text-teal-400 uppercase tracking-wider font-mono">Scanned</span>
+                <span className="font-mono text-[18px] font-extrabold text-[#0E7A8A] dark:text-teal-300 mt-0.5 tracking-tight tabular-nums">
+                  {scannedCount}
+                </span>
+                <span className="text-[9.5px] font-medium text-teal-600/90 dark:text-teal-400 mt-0.5 truncate">digitized ⚡</span>
+              </button>
+            </div>
           </div>
 
           {/* LIVE OPD QUEUE MINI-STREAM WITH 1-TAP AUDIO CALL */}
@@ -3750,154 +4047,78 @@ export const CompounderDashboard: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
+              onClick={() => {
+                startTransition(() => {
+                  setActiveTab('opd_patients');
+                  setOpdSubTab('today_queue');
+                });
+              }}
               className="w-full text-center text-[10.5px] font-bold text-[#0E7A8A] hover:underline pt-1 block cursor-pointer"
             >
               Open Full OPD Queue ({activeOpdAppointments.length}) →
-            </button>
-          </div>
-
-          {/* RAPID VITALS & PATIENT INTAKE POD (Fills Column 1 & Balances Grid Height) */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-[0_1px_3px_rgba(15,23,42,0.04)] space-y-2.5">
-            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-              <div className="flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-teal-600" />
-                <span className="text-[11px] font-bold tracking-tight text-slate-800 uppercase">Rapid Vitals &amp; Intake</span>
-              </div>
-              <span className="text-[9.5px] font-mono text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.2 rounded">
-                Desk Triage
-              </span>
-            </div>
-
-            {/* 1-Tap Trigger to log vitals */}
-            <button
-              type="button"
-              onClick={() => {
-                const targetPatient = focusPatient || patients[0] || null;
-                if (targetPatient) {
-                  setVitalsPatient(targetPatient);
-                  setShowVitalsBottomSheet(true);
-                } else {
-                  setShowInstantAppointmentModal(true);
-                }
-              }}
-              className="w-full py-2 px-2.5 rounded-xl bg-gradient-to-r from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 border border-teal-200/80 text-[#0E7A8A] font-bold text-[11px] flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer shadow-2xs"
-            >
-              <HeartPulse className="w-3.5 h-3.5 text-teal-600 animate-pulse" />
-              <span>+ Record Patient Vitals</span>
-            </button>
-
-            {/* Quick Summary of Vitals Processed Today */}
-            <div className="p-2 rounded-xl bg-slate-50/80 border border-slate-200/60 space-y-1">
-              <div className="flex items-center justify-between text-[10.5px]">
-                <span className="text-slate-500 font-medium">Triaged Today:</span>
-                <span className="font-mono font-bold text-slate-900 tabular-nums">
-                  {patients.filter(p => p.vitals?.bloodPressure || p.vitals?.pulseRate).length} Patients
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[10.5px]">
-                <span className="text-slate-500 font-medium">Awaiting Chamber:</span>
-                <span className="font-mono font-bold text-teal-700 tabular-nums">
-                  {activeOpdAppointments.length} Tokens
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Find Shortcut */}
-            <button
-              type="button"
-              onClick={() => {
-                startTransition(() => setActiveTab('opd_patients'));
-                setOpdSubTab('directory');
-              }}
-              className="w-full text-center text-[10.5px] font-bold text-slate-600 hover:text-slate-900 hover:underline pt-0.5 block cursor-pointer"
-            >
-              Search Master Directory ({patients.length}) →
             </button>
           </div>
         </div>
 
         {/* ◀ COLUMN 2: CLINICAL OPERATIONS CORE (5 COLS / 42%) */}
         <div className="lg:col-span-5 space-y-3">
-          {/* SECTION 1: TODAY'S OPERATIONS (HIGH-DENSITY 4-COL METRICS) */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between px-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
-                <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Today's Clinic Overview</span>
-              </div>
-              <span className="text-[10px] font-mono text-emerald-700 font-semibold flex items-center gap-1 tabular-nums">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live
-              </span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {/* Card 1: Visited */}
-              <button 
-                type="button"
-                onClick={() => {
-                  startTransition(() => setActiveTab('opd_patients'));
-                  setOpdSubTab('today_queue');
-                }}
-                className="bg-white hover:bg-slate-50 active:scale-95 transition-all rounded-xl p-2.5 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
-              >
-                <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-300"></div>
-                <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wider font-mono">Visited</span>
-                <span className="font-mono text-[18px] font-extrabold text-slate-900 mt-0.5 tracking-tight tabular-nums">
-                  {activeOpdAppointments.length}
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-400 mt-0.5 truncate">checked in →</span>
-              </button>
-
-              {/* Card 2: Scanned */}
-              <button 
-                type="button"
-                onClick={() => {
-                  sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
-                  startTransition(() => setActiveTab('ai_ocr_upload'));
-                  window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
-                }}
-                className="bg-gradient-to-b from-teal-50/60 to-white hover:from-teal-100/50 active:scale-95 transition-all rounded-xl p-2.5 border border-teal-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
-              >
-                <div className="absolute top-0 inset-x-0 h-0.5 bg-[#0E7A8A]"></div>
-                <span className="text-[9.5px] font-bold text-[#0E7A8A] uppercase tracking-wider font-mono">Scanned</span>
-                <span className="font-mono text-[18px] font-extrabold text-[#0E7A8A] mt-0.5 tracking-tight tabular-nums">
-                  {scannedCount}
-                </span>
-                <span className="text-[9.5px] font-medium text-teal-600/90 mt-0.5 truncate">digitized ⚡</span>
-              </button>
-
-              {/* Card 3: OCR Accuracy */}
-              <button 
-                type="button"
-                onClick={() => startTransition(() => setActiveTab('ai_ocr_upload'))}
-                className="bg-gradient-to-b from-emerald-50/60 to-white hover:from-emerald-100/50 active:scale-95 transition-all rounded-xl p-2.5 border border-emerald-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
-              >
-                <div className="absolute top-0 inset-x-0 h-0.5 bg-emerald-500"></div>
-                <span className="text-[9.5px] font-bold text-emerald-800 uppercase tracking-wider font-mono">OCR Acc.</span>
-                <span className="font-mono text-[18px] font-extrabold text-emerald-600 mt-0.5 tracking-tight tabular-nums">98.2%</span>
-                <div className="flex items-center gap-1 mt-0.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span className="text-[9.5px] font-medium text-emerald-700 tabular-nums">{scannedCount} verified</span>
+          {/* COMPACT TACTICAL HERO: QUICK SCAN RX */}
+          <div 
+            onClick={() => {
+              sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
+              startTransition(() => setActiveTab('ai_ocr_upload'));
+              window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
+            }}
+            className="relative overflow-hidden rounded-2xl p-3 border border-teal-500/30 text-white cursor-pointer active:scale-[0.985] transition-all duration-150 shadow-[0_6px_20px_-4px_rgba(15,23,42,0.35)] group" 
+            style={{ background: 'linear-gradient(135deg, #090D16 0%, #0F172A 55%, #0E7A8A 100%)' }}
+          >
+            <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-teal-500/20 blur-xl pointer-events-none"></div>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500/25 via-[#0E7A8A]/35 to-slate-950/80 border border-teal-400/40 flex items-center justify-center shrink-0 text-teal-300 shadow-[0_0_12px_rgba(45,212,191,0.3)]">
+                  <ScanLine className="w-5 h-5 text-teal-300 group-hover:scale-110 transition-transform" />
                 </div>
-              </button>
-
-              {/* Card 4: Closed */}
-              <button 
-                type="button"
-                onClick={() => {
-                  startTransition(() => setActiveTab('opd_patients'));
-                  setOpdSubTab('history');
-                }}
-                className="bg-white hover:bg-slate-50 active:scale-95 transition-all rounded-xl p-2.5 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex flex-col text-left relative overflow-hidden cursor-pointer"
-              >
-                <div className="absolute top-0 inset-x-0 h-0.5 bg-slate-400"></div>
-                <span className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wider font-mono">Closed</span>
-                <span className="font-mono text-[18px] font-extrabold text-slate-900 mt-0.5 tracking-tight tabular-nums">
-                  {completedCount}
-                </span>
-                <span className="text-[9.5px] font-medium text-slate-400 mt-0.5 truncate">history →</span>
-              </button>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-[13px] tracking-tight text-white">Quick Scan Rx</span>
+                    <span className="font-mono text-[8.5px] font-bold bg-teal-500/30 text-teal-200 px-1 py-0.2 rounded border border-teal-400/40">OCR v2.4</span>
+                  </div>
+                  <p className="text-[10px] text-slate-300/85 truncate font-medium">1-Tap digitize & token</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+              </div>
             </div>
+          </div>
+
+          {/* FAST UTILITY ACTIONS */}
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              onClick={() => {
+                startTransition(() => {
+                  setActiveTab('patient_directory');
+                });
+              }}
+              className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-white/10 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 dark:text-zinc-200 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] cursor-pointer" 
+              type="button"
+            >
+              <div className="w-5 h-5 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-100 dark:border-teal-800/40 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+                <Search className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+              </div>
+              <span className="text-[11px] font-bold tracking-tight text-slate-800 dark:text-zinc-200">Patient Directory</span>
+            </button>
+            <button 
+              onClick={() => { setBillHubInitialMode('manual_billing'); setBillingSubTab('billing'); startTransition(() => setActiveTab('billing_daycare')); }}
+              className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-white/10 rounded-xl py-2 px-2.5 flex items-center justify-center gap-1.5 text-slate-800 dark:text-zinc-200 active:scale-[0.97] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] cursor-pointer" 
+              type="button"
+            >
+              <div className="w-5 h-5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                <Receipt className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <span className="text-[11px] font-bold tracking-tight text-slate-800 dark:text-zinc-200">Billing POS</span>
+            </button>
           </div>
 
           {/* SECTION 2: WORK TO PROCESS (2x2 ENTERPRISE GRID) */}
@@ -3913,53 +4134,53 @@ export const CompounderDashboard: React.FC = () => {
               <span className="text-[10px] text-slate-500 font-medium">Live Queue</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {/* Digitization */}
+              {/* Vitals Intake */}
               <button 
                 onClick={() => {
-                  sessionStorage.setItem('mediflow_pending_camera_trigger', 'true');
-                  startTransition(() => setActiveTab('ai_ocr_upload'));
-                  window.dispatchEvent(new CustomEvent('mediflow-trigger-ocr-camera'));
+                  const targetPatient = (pendingVitalsList && pendingVitalsList[0]) || focusPatient || (patients && patients[0]) || null;
+                  if (targetPatient) {
+                    setVitalsPatient(targetPatient);
+                    setShowVitalsBottomSheet(true);
+                  } else {
+                    setShowInstantAppointmentModal(true);
+                  }
                 }}
                 className="bg-white border border-teal-200/80 rounded-xl p-2.5 text-left hover:border-teal-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group cursor-pointer" 
                 type="button"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A]"></span>
-                    <span className="text-[11.5px] font-bold text-slate-800 truncate">Digitization</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse"></span>
+                    <span className="text-[11.5px] font-bold text-slate-800 truncate">Vitals</span>
                   </div>
-                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200/70">Scan</span>
+                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200/70">Triage</span>
                 </div>
                 <div className="flex items-baseline justify-between mt-1.5">
                   <span className="font-mono text-[16px] font-extrabold text-slate-900 tabular-nums">
-                    {pendingVitalsList.length} <span className="text-[10.5px] font-sans font-medium text-slate-400">prescriptions</span>
+                    {(pendingVitalsList || []).length} <span className="text-[10.5px] font-sans font-medium text-slate-400">awaiting</span>
                   </span>
                   <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0E7A8A] transition-colors" />
                 </div>
               </button>
 
-              {/* Bills Pending */}
+              {/* Price Book (Meds & Labs Rate Card) */}
               <button 
-                onClick={() => { 
-                  setBillHubInitialMode('manual_billing'); 
-                  setBillingSubTab('billing'); 
-                  startTransition(() => setActiveTab('billing_daycare')); 
-                }}
-                className="bg-white border border-amber-200/80 rounded-xl p-2.5 text-left hover:border-amber-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group cursor-pointer" 
+                onClick={() => setShowPriceBookModal(true)}
+                className="bg-white border border-emerald-200/80 rounded-xl p-2.5 text-left hover:border-emerald-400 active:scale-[0.98] transition-all shadow-[0_1px_3px_rgba(15,23,42,0.04)] group cursor-pointer" 
                 type="button"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    <span className="text-[11.5px] font-bold text-slate-800 truncate">Bills Pending</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span className="text-[11.5px] font-bold text-slate-800 truncate">Price Book</span>
                   </div>
-                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200/70">Dispatch</span>
+                  <span className="font-mono text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200/70">Rate Card</span>
                 </div>
                 <div className="flex items-baseline justify-between mt-1.5">
                   <span className="font-mono text-[16px] font-extrabold text-slate-900 tabular-nums">
-                    {pendingBillsCount} <span className="text-[10.5px] font-sans font-medium text-slate-400">invoices</span>
+                    {priceBookCatalogCount || 174} <span className="text-[10.5px] font-sans font-medium text-slate-400">meds &amp; labs</span>
                   </span>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 transition-colors" />
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
                 </div>
               </button>
 
@@ -4063,74 +4284,246 @@ export const CompounderDashboard: React.FC = () => {
         <div className="lg:col-span-4 space-y-3">
           {/* ACTIVE FOCUS PATIENT CARD */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between px-0.5">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-3.5 rounded-full bg-[#0E7A8A]"></span>
-                <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">Active Focus Item</span>
+            {/* ACTIVE FOCUS PATIENT CARD */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between px-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-3.5 rounded-full ${
+                    activeFocusMode === 'lab_revisit' ? 'bg-amber-500' : (activeFocusMode === 'scanned_prescription' ? 'bg-emerald-500' : 'bg-[#0E7A8A]')
+                  }`}></span>
+                  <span className="text-[11.5px] font-bold tracking-tight text-slate-800 uppercase font-sans">
+                    {activeFocusMode === 'lab_revisit' 
+                      ? 'Lab Review & Re-visit' 
+                      : (activeFocusMode === 'scanned_prescription' ? 'Scanned Patient Profile' : 'Active Focus Patient')}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-mono font-semibold flex items-center gap-1 px-1.5 py-0.2 rounded-full ${
+                  activeFocusMode === 'lab_revisit' 
+                    ? 'text-amber-700 bg-amber-50 border border-amber-200/70' 
+                    : (activeFocusMode === 'scanned_prescription' 
+                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-200/70' 
+                      : 'text-[#0E7A8A] bg-teal-50 border border-teal-200/70')
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    activeFocusMode === 'lab_revisit' ? 'bg-amber-500' : (activeFocusMode === 'scanned_prescription' ? 'bg-emerald-500' : 'bg-[#0E7A8A]')
+                  } animate-ping`}></span> 
+                  {activeFocusMode === 'lab_revisit' ? 'Lab Arrived' : (activeFocusMode === 'scanned_prescription' ? 'OCR Live' : 'Queue Head')}
+                </span>
               </div>
-              <span className="text-[10px] font-mono text-[#0E7A8A] font-semibold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0E7A8A] animate-ping"></span> Action
-              </span>
-            </div>
-            {focusAppt || focusPatient ? (
-              <div className="bg-white rounded-2xl p-3 border border-teal-200/80 shadow-[0_4px_16px_-4px_rgba(14,122,138,0.08),0_1px_3px_rgba(0,0,0,0.03)] space-y-2 relative overflow-hidden">
-                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#0E7A8A] via-teal-500 to-emerald-500"></div>
-                {/* Header */}
-                <div 
-                  onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
-                  className="flex items-start justify-between cursor-pointer group"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-slate-950 to-teal-800 text-white font-mono text-[11px] font-bold flex items-center justify-center shrink-0 shadow-2xs border border-teal-400/30 tabular-nums">
-                      #{focusAppt?.tokenNumber || (focusAppt as any)?.token_number || focusPatient?.tokenNumber || '01'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-[13px] text-slate-950 tracking-tight group-hover:text-[#0E7A8A] transition-colors">
-                          {focusAppt?.patientName || focusPatient?.name || 'Walk-in Patient'}
-                        </span>
-                        <span className="text-[10px] font-medium text-slate-600 px-1 py-0.2 bg-slate-100 rounded">
-                          {focusPatient?.age ? `${focusPatient.age}y` : '35y'} {focusPatient?.gender === 'Female' ? 'F' : 'M'}
-                        </span>
+
+              {activeFocusMode === 'lab_revisit' && pendingLabReport && labPatient ? (
+                /* ── MODE 1: PATHOLOGY LAB REPORT ARRIVED (EVENING RE-VISIT SLOT ALLOCATION) ── */
+                <div className="bg-white rounded-2xl p-3 border border-amber-200/80 shadow-[0_4px_16px_-4px_rgba(245,158,11,0.12),0_1px_3px_rgba(0,0,0,0.03)] space-y-2.5 relative overflow-hidden">
+                  <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-500"></div>
+                  
+                  {/* Header: Patient & Lab Meta */}
+                  <div 
+                    onClick={() => labPatient && setProfileModalPatient(labPatient)}
+                    className="flex items-start justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-900 to-amber-700 text-white font-mono text-[11px] font-bold flex items-center justify-center shrink-0 shadow-2xs border border-amber-400/40 tabular-nums">
+                        <FlaskConical className="w-4 h-4 text-amber-200" />
                       </div>
-                      <p className="text-[9.5px] text-slate-400 font-medium">
-                        {activePod?.doctor_name || 'Dr. Mehta (OPD)'}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-[13px] text-slate-950 tracking-tight group-hover:text-amber-700 transition-colors">
+                            {labPatient.name}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-600 px-1 py-0.2 bg-slate-100 rounded">
+                            {labPatient.age ? `${labPatient.age}y` : '35y'} {labPatient.gender === 'Female' ? 'F' : 'M'}
+                          </span>
+                        </div>
+                        <p className="text-[9.5px] text-amber-700 font-semibold flex items-center gap-1">
+                          <span>{pendingLabReport.biomarkerJson?.testName || (pendingLabReport as any)?.test_name || 'Lab Investigation Report'}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      #{labPatient.tokenNumber || '01'}
+                    </span>
+                  </div>
+
+                  {/* Biomarker Findings Snapshot */}
+                  <div className="p-2 rounded-xl bg-amber-50/50 border border-amber-200/60 text-[10.5px] text-slate-700 space-y-1">
+                    <div className="flex items-center justify-between text-[9.5px] font-bold text-amber-900 uppercase tracking-wider font-mono">
+                      <span>Pathology Findings</span>
+                      <span className="text-emerald-700 font-semibold">Report Verified</span>
+                    </div>
+                    <p className="font-mono text-[11px] font-semibold text-slate-900 line-clamp-1">
+                      {formatBiomarkerResult(pendingLabReport.biomarkerJson)}
+                    </p>
+                  </div>
+
+                  {/* Evening Re-visit Time Allocator */}
+                  <div className="space-y-1.5 pt-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-tight text-slate-700 font-mono flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-600" />
+                        <span>Doctor Re-visit Slot</span>
+                      </span>
+                      <span className="text-[9.5px] font-mono text-slate-600 font-semibold">{selectedEveningSlot}</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1">
+                      {['05:30 PM', '06:00 PM', '06:30 PM', '07:00 PM'].map((slotTime) => (
+                        <button
+                          key={slotTime}
+                          type="button"
+                          onClick={() => setSelectedEveningSlot(slotTime)}
+                          className={`text-[9.5px] font-mono py-1 rounded-lg border transition-all cursor-pointer text-center font-bold ${
+                            selectedEveningSlot === slotTime
+                              ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                              : 'bg-white text-slate-700 hover:bg-slate-50 border-slate-200'
+                          }`}
+                        >
+                          {slotTime}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <span className="font-mono text-[9px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80">
-                    98.2% OCR
-                  </span>
-                </div>
 
-                {/* Vitals Quick Pills */}
-                <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-100">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 font-medium">
-                    BP: {focusPatient?.vitals?.bloodPressure || '120/80'}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 font-medium">
-                    Pulse: {focusPatient?.vitals?.pulseRate || '72'}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200 font-mono font-bold">
-                    Temp: {focusPatient?.vitals?.temperature || '98.6'}°F
-                  </span>
+                  {/* 1-Tap Slot Allocation & WhatsApp Dispatch Button */}
+                  <button 
+                    onClick={() => handleConfirmEveningSlot(pendingLabReport.id, selectedEveningSlot)}
+                    disabled={isAssigningSlot}
+                    className="w-full h-8.5 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-emerald-600 hover:brightness-105 active:scale-[0.985] text-white font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50" 
+                    type="button"
+                  >
+                    {isAssigningSlot ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                        <span>Notifying Patient...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5 text-white" />
+                        <span>Allocate Slot &amp; Dispatch WhatsApp</span>
+                      </>
+                    )}
+                  </button>
                 </div>
+              ) : (focusAppt || focusPatient) ? (
+                /* ── MODE 2 & 3: FRESHLY SCANNED PRESCRIPTION OR QUEUE HEAD PATIENT ── */
+                <div className="bg-white rounded-2xl p-3 border border-teal-200/80 shadow-[0_4px_16px_-4px_rgba(14,122,138,0.08),0_1px_3px_rgba(0,0,0,0.03)] space-y-2 relative overflow-hidden">
+                  <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${
+                    activeFocusMode === 'scanned_prescription' ? 'from-emerald-500 via-teal-500 to-[#0E7A8A]' : 'from-[#0E7A8A] via-teal-500 to-emerald-500'
+                  }`}></div>
+                  
+                  {/* Header */}
+                  <div 
+                    onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
+                    className="flex items-start justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-slate-950 to-teal-800 text-white font-mono text-[11px] font-bold flex items-center justify-center shrink-0 shadow-2xs border border-teal-400/30 tabular-nums">
+                        #{focusAppt?.tokenNumber || (focusAppt as any)?.token_number || focusPatient?.tokenNumber || '01'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-[13px] text-slate-950 tracking-tight group-hover:text-[#0E7A8A] transition-colors">
+                            {focusPatient?.name || focusAppt?.patientName || 'Walk-in Patient'}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-600 px-1 py-0.2 bg-slate-100 rounded">
+                            {focusPatient?.age ? `${focusPatient.age}y` : '35y'} {focusPatient?.gender === 'Female' ? 'F' : 'M'}
+                          </span>
+                        </div>
+                        <p className="text-[9.5px] text-slate-400 font-medium">
+                          {focusPatient?.phone ? `+91 ${focusPatient.phone}` : (activePod?.doctor_name || 'Dr. Mehta (OPD)')}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                      activeFocusMode === 'scanned_prescription' 
+                        ? 'text-emerald-800 bg-emerald-50 border-emerald-200/80' 
+                        : 'text-teal-800 bg-teal-50 border-teal-200/80'
+                    }`}>
+                      {activeFocusMode === 'scanned_prescription' ? '⚡ Rx Scanned' : 'Head of Queue'}
+                    </span>
+                  </div>
 
-                {/* Jump to Queue Button */}
-                <button 
-                  onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('today_queue'); }}
-                  className="w-full h-8 rounded-xl bg-gradient-to-r from-slate-950 via-[#0E7A8A] to-slate-900 text-white font-semibold text-[11.5px] flex items-center justify-center gap-1.5 active:scale-[0.985] transition-all cursor-pointer shadow-xs" 
-                  type="button"
-                >
-                  <span>View in OPD Queue</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-white" />
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] text-center text-[11px] text-slate-500">
-                All queued patients attended.
-              </div>
-            )}
+                  {/* Vitals Quick Pills */}
+                  <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-100">
+                    {focusPatient?.vitals?.bloodPressure ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 font-medium">
+                        BP: {focusPatient.vitals.bloodPressure}
+                      </span>
+                    ) : null}
+                    {focusPatient?.vitals?.pulseRate ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-700 border border-slate-200 font-medium">
+                        Pulse: {focusPatient.vitals.pulseRate}
+                      </span>
+                    ) : null}
+                    {focusPatient?.vitals?.temperature ? (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-50 text-[#0E7A8A] border border-teal-200 font-mono font-bold">
+                        Temp: {focusPatient.vitals.temperature}°F
+                      </span>
+                    ) : null}
+                    {!focusPatient?.vitals?.bloodPressure && !focusPatient?.vitals?.pulseRate && !focusPatient?.vitals?.temperature && (
+                      <span 
+                        onClick={() => {
+                          if (focusPatient) {
+                            setVitalsPatient(focusPatient);
+                            setShowVitalsBottomSheet(true);
+                          }
+                        }}
+                        className="text-[9.5px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold cursor-pointer hover:bg-amber-100 transition"
+                      >
+                        + Record Intake Vitals
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 3-Tier Compact Operator Action Deck */}
+                  <div className="grid grid-cols-3 gap-1 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={() => focusPatient && setProfileModalPatient(focusPatient)}
+                      className="h-7.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-[10.5px] flex items-center justify-center gap-1 transition cursor-pointer"
+                      title="View Medical Dossier"
+                    >
+                      <FileText className="w-3 h-3 text-slate-600" />
+                      <span>Dossier</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (focusPatient) {
+                          setSelectedPatientForBillHub(focusPatient.id);
+                          setBillHubInitialMode('manual_billing');
+                          setBillingSubTab('billing');
+                          startTransition(() => setActiveTab('billing_daycare'));
+                        }
+                      }}
+                      className="h-7.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-[#0E7A8A] border border-teal-200 font-semibold text-[10.5px] flex items-center justify-center gap-1 transition cursor-pointer"
+                      title="Quick POS Checkout"
+                    >
+                      <Receipt className="w-3 h-3 text-[#0E7A8A]" />
+                      <span>POS Bill</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const pName = focusPatient?.name || focusAppt?.patientName || 'Patient';
+                        const token = focusAppt?.tokenNumber || (focusAppt as any)?.token_number || focusPatient?.tokenNumber || '01';
+                        handleCallPatientChamber(pName, token);
+                      }}
+                      className="h-7.5 rounded-xl bg-gradient-to-r from-slate-900 to-teal-900 hover:brightness-110 text-white font-semibold text-[10.5px] flex items-center justify-center gap-1 transition cursor-pointer shadow-xs"
+                      title="Call to Doctor Chamber"
+                    >
+                      <Phone className="w-3 h-3 text-white" />
+                      <span>Call</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] text-center text-[11px] text-slate-500">
+                  All queued patients attended.
+                </div>
+              )}
+            </div>
           </div>
 
           {/* DAILY FINANCIAL COUNTER LEDGER — FULLY VISIBLE ABOVE THE FOLD */}
@@ -4225,7 +4618,11 @@ export const CompounderDashboard: React.FC = () => {
             <div className="flex items-center gap-3">
               <button 
                 type="button"
-                onClick={() => { startTransition(() => setActiveTab('opd_patients')); setOpdSubTab('directory'); }}
+                onClick={() => {
+                  startTransition(() => {
+                    setActiveTab('patient_directory');
+                  });
+                }}
                 className="text-left cursor-pointer hover:opacity-80 transition"
               >
                 <span className="font-mono text-[13px] font-bold text-slate-900 tabular-nums">{chronicFollowUpCount}</span>
@@ -4262,523 +4659,75 @@ export const CompounderDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
   );
 })()}
         {/* ══════════════════════════════════════════════════════════
             TAB: OPD QUEUE & PATIENTS (CONSOLIDATED)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'opd_patients' && (
-          <div className="space-y-6 animate-fade-in text-left">
-            {/* Google-Tier Executive OPD Chamber Ribbon */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-3.5 bg-slate-100/90 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-200/60 dark:border-white/5 select-none mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0E7A8A] to-teal-600 flex items-center justify-center text-white shadow-md shadow-[#0E7A8A]/20 shrink-0">
-                  <Layers className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    OPD Chamber Flow
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Live Sync
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] dark:text-teal-300 border border-teal-200 dark:border-teal-800/60">
-                      {(activeOpdAppointments || []).length} Active Patients
-                    </span>
-                  </h2>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Doctor consultation triage, vital intake clearance & clinical dispatch sequence
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                {opdSubTab !== 'today_queue' && (
+          <div className="space-y-2.5 animate-fade-in text-left">
+            {/* Mobile-Only Sub-Control Strip (Desktop uses the docked canopy above) - Scoped strictly to queues */}
+            {(opdSubTab === 'today_queue' || opdSubTab === 'history') && (
+              <div className="flex md:hidden items-center justify-between gap-1 p-1 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md rounded-xl border border-slate-200/80 dark:border-white/10 shadow-2xs">
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setOpdSubTab('today_queue')}
-                    className="px-2.5 py-1.5 text-[11px] font-bold rounded-xl text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 hover:bg-slate-50 transition cursor-pointer"
-                  >
-                    ← Chamber Flow
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Sub-View 1: EHR Registry & Walk-In Registration */}
-            {opdSubTab === 'directory' && (
-              <div className="space-y-6 animate-fade-in text-left">
-                {/* Sub Switcher */}
-                <div className="flex border-b border-slate-200 dark:border-slate-800 pb-2 gap-4">
-                  <button
-                    onClick={() => setPatientsSubTab('directory')}
-                    className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
-                      patientsSubTab === 'directory'
-                        ? 'border-[#0E7A8A] text-[#0E7A8A] dark:text-teal-400 font-extrabold'
-                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                    onClick={() => {
+                      setOpdSubTab('today_queue');
+                      setOpdQueueFilter('today');
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border-0 cursor-pointer ${
+                      opdSubTab === 'today_queue' && opdQueueFilter === 'today'
+                        ? 'bg-[#0E7A8A] text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
-                    EHR Registry Directory
+                    <Zap className="w-3 h-3" />
+                    <span>Today ({(activeOpdAppointments || []).length})</span>
                   </button>
                   <button
-                    onClick={() => setPatientsSubTab('register')}
-                    className={`pb-2 text-xs font-bold uppercase tracking-wider transition-all border-b-2 bg-transparent border-0 cursor-pointer ${
-                      patientsSubTab === 'register'
-                        ? 'border-[#0E7A8A] text-[#0E7A8A] dark:text-teal-400 font-extrabold'
-                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'
+                    type="button"
+                    onClick={() => {
+                      setOpdSubTab('today_queue');
+                      setOpdQueueFilter('upcoming');
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border-0 cursor-pointer ${
+                      opdSubTab === 'today_queue' && opdQueueFilter === 'upcoming'
+                        ? 'bg-[#0E7A8A] text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
-                    Register New Profile
+                    <Calendar className="w-3 h-3" />
+                    <span>Scheduled ({(upcomingAdvanceBookings || []).length})</span>
                   </button>
                 </div>
-
-            {patientsSubTab === 'directory' ? (
-              <PatientsDirectoryTab
-                patients={patients}
-                patientSearchQuery={patientSearchQuery}
-                setPatientSearchQuery={setPatientSearchQuery}
-                selectedDirectoryPatient={selectedDirectoryPatient}
-                setSelectedDirectoryPatient={setSelectedDirectoryPatient}
-                newPatientName={newPatientName}
-                setNewPatientName={setNewPatientName}
-                newPatientPhone={newPatientPhone}
-                setNewPatientPhone={setNewPatientPhone}
-                newPatientAge={newPatientAge}
-                setNewPatientAge={setNewPatientAge}
-                newPatientGender={newPatientGender}
-                setNewPatientGender={setNewPatientGender}
-                patientRAGSummary={patientRAGSummary}
-                setPatientRAGSummary={setPatientRAGSummary}
-              />
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in">
-            <div className="lg:col-span-8 space-y-6">
-              
-              {/* Search Registry */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-indigo-600 opacity-60" />
-                <h2 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <Search className="w-4 h-4 text-indigo-600" />
-                  Patient Registry Lookup
-                </h2>
-                <div className="relative">
-                  <SearchInput
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder="Search patient by phone, name, or ABHA ID..."
-                    className="w-full pl-12 pr-9 focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-600 text-sm py-2.5 bg-white border border-slate-200 text-slate-800 rounded-xl outline-none transition-all"
-                  />
-                </div>
-
-                {searchQuery && (
-                  <div className="mt-4 border border-slate-200/80 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white shadow-sm animate-fade-in select-none">
-                    {filteredPatients.length === 0 ? (
-                      <div className="p-5 text-slate-600 text-xs flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-rose-500" />
-                        No matching patient found in registry.
-                      </div>
-                    ) : (
-                      filteredPatients.slice(0, 100).map(p => {
-                        const sess = sessions.find(s => s.patientPhone === p.phone);
-                        const stage = api.getActivePatientCareStage(p.id);
-                        const isSelected = activePatient?.id === p.id;
-
-                        return (
-                          <div 
-                            key={p.id} 
-                            onClick={() => api.setActivePatient(p)}
-                            className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors cursor-pointer ${
-                              isSelected ? 'bg-indigo-50/40 border-l-4 border-indigo-600 pl-3' : ''
-                            }`}
-                          >
-                            <div className="space-y-1">
-                              <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2 flex-wrap">
-                                <span onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('mediflow-open-patient-profile', { detail: p })); }} className="cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors decoration-indigo-500/30 hover:underline">{p.name}</span>
-                                <span className="text-[9px] font-black font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 px-2 py-0.5 rounded-md">
-                                  ID: {p.tokenNumber || 'N/A'}
-                                </span>
-                                <span className="text-[10px] text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-semibold">
-                                  {p.age}y · {p.gender}
-                                </span>
-                              </h4>
-                              
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
-                                  <Phone className="w-3 h-3 text-slate-500" />
-                                  {p.phone}
-                                </span>
-                                
-                                {p.abhaId && (
-                                  <span className="text-[9px] font-mono text-slate-600 bg-slate-50 border border-slate-200 px-1 rounded">
-                                    ABHA: {p.abhaId}
-                                  </span>
-                                )}
-
-                                {p.vitals ? (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-rose-50 border border-rose-200 text-rose-600 rounded">
-                                    {isOphthalmology ? '👁️' : '🌡️'} Vitals Logged
-                                  </span>
-                                ) : (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-slate-50 border border-slate-200 text-slate-600 rounded">
-                                    Awaiting Vitals
-                                  </span>
-                                )}
-
-                                {(() => {
-                                  const virtualAppt = appointments.find(a => (a.patientId === p.id || (a as any).patient_id === p.id) && Boolean(a.isVirtual || (a as any).is_virtual));
-                                  if (!virtualAppt) return null;
-                                  return (
-                                    <span className="flex items-center gap-0.5 text-[8px] font-bold bg-emerald-50 border border-emerald-255 text-emerald-700 px-1.5 py-0.2 rounded animate-pulse font-sans">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-700 font-bold" />
-                                      📹 Virtual {virtualAppt.virtualTimeAllocated ? `(${virtualAppt.virtualTime})` : 'Appt'}
-                                    </span>
-                                  );
-                                })()}
-
-                                {stage === 'diagnosing' && (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-indigo-50 border border-indigo-200 text-indigo-600 rounded animate-pulse-subtle">
-                                    🩺 In Consult
-                                  </span>
-                                )}
-                                {stage === 'lab' && (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded animate-pulse-subtle">
-                                    🧪 Lab Requisitions
-                                  </span>
-                                )}
-                                {stage === 'pharmacy' && (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-amber-50 border border-amber-200 text-amber-700 rounded animate-pulse-subtle">
-                                    💊 Rx Dispensation
-                                  </span>
-                                )}
-                                {stage === 'settled' && (
-                                  <span className="text-[8px] font-bold px-1.5 py-0.2 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded animate-pulse-subtle">
-                                    ✅ Settle Ledger
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex gap-2 self-end sm:self-auto" onClick={e => e.stopPropagation()}>
-                              <button
-                                onClick={() => {
-                                  api.setActivePatient(p);
-                                  handleInitiateWhatsAppLoop(p);
-                                }}
-                                className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer active:scale-95 ${
-                                  sess 
-                                    ? 'bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200' 
-                                    : 'bg-emerald-600 hover:bg-emerald-500 text-slate-800 border-emerald-500 hover:border-emerald-600'
-                                }`}
-                              >
-                                <Smartphone className="h-3 w-3" />
-                                {sess ? 'Focus Loop' : 'Opt-In SMS'}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Patient Registration Form */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative">
-                <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-indigo-600" />
-                  Manual Patient Registration
-                </h2>
-                <p className="text-xs text-clinical-400 mb-4 leading-relaxed">
-                  Enter patient details at the checkup counter to register a fresh profile and generate ID.
-                </p>
-
-                <form onSubmit={handleRegisterPatient} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Patient Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Rahul Kumar"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Phone Number *</label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="e.g. 9876543210"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Age *</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 35"
-                        value={age}
-                        onChange={(e) => setAge(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Gender</label>
-                      <select
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value as any)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer"
-                      >
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">ABHA Health ID</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 14-digit index"
-                        value={abhaId}
-                        onChange={(e) => setAbhaId(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">Blood Group</label>
-                      <select
-                        value={bloodGroupInput}
-                        onChange={(e) => setBloodGroupInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg cursor-pointer"
-                      >
-                        <option value="">Select</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-clinical-400 font-bold uppercase tracking-wider font-mono">WhatsApp Number</label>
-                      <input
-                        type="tel"
-                        placeholder="WhatsApp (if diff)"
-                        value={whatsAppInput}
-                        onChange={(e) => setWhatsAppInput(e.target.value)}
-                        className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-600 bg-slate-50 border-slate-200 text-slate-800 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 justify-end pt-2">
-                    <button
-                      type="submit"
-                      className="px-5 py-2.5 bg-gradient-to-r from-secondary to-primary hover:scale-105 active:scale-95 text-slate-850 font-black tracking-wider uppercase border-0 rounded-xl text-xs cursor-pointer transition-transform"
-                    >
-                      Register Patient
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Scan & Analyze Previous Reports Card — always visible */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl relative overflow-hidden bg-white text-slate-800 rounded-3xl mt-6">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
-                <h2 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-indigo-600 font-bold" />
-                  Scan &amp; Analyze Patient's Past Reports
-                </h2>
-                <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                  Upload or snap a photo of the patient's previous diagnostic reports. Clinical AI OCR will build a longitudinal health trajectory for the doctor.
-                </p>
-
-                {activePatient ? (
-                  <div className="space-y-4">
-                    <div className="flex gap-4 items-start">
-                      <label className="flex-1 flex flex-col items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-indigo-400 rounded-2xl p-4 bg-slate-50 text-center cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 transition-all shadow-sm hover:shadow-md relative overflow-hidden">
-                        {isReportScanning && (
-                          <div className="absolute inset-0 bg-indigo-50/40 flex items-center justify-center">
-                            <div className="w-full h-0.5 bg-emerald-500 absolute laser-sweep-line" />
-                          </div>
-                        )}
-                        <Upload className="w-5 h-5 text-indigo-600" />
-                        <span>{isReportScanning ? 'AI OCR Analyzing Clinical Values...' : 'Upload / Snap Previous Report'}</span>
-                        <span className="text-[9px] text-slate-500 font-medium">Supports JPG, PNG, PDF</span>
-                        <input
-                          type="file"
-                          disabled={isReportScanning}
-                          accept="image/*,application/pdf"
-                          className="hidden"
-                          style={{ display: 'none' }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handlePreviousReportScan(file);
-                          }}
-                        />
-                      </label>
-                    </div>
-
-                    {reportScanLogs.length > 0 && (
-                      <div className="bg-slate-900 border border-slate-950 rounded-xl p-3 font-mono text-[9px] text-indigo-300 space-y-1 max-h-[85px] overflow-y-auto shadow-inner">
-                        {reportScanLogs.map((log, index) => (
-                          <div key={`report-scan-log-${index}-${log.slice(0, 15)}`} className={log.includes('[ERROR]') ? 'text-rose-400 font-bold' : log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : ''}>
-                            {log}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {scannedSummary ? (
-                      <div className="bg-indigo-50 border border-indigo-200/60 p-4 rounded-xl space-y-3 animate-fade-in text-slate-800">
-                        <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">AI Scanned Report Summary (Draft)</span>
-                        <textarea
-                          value={scannedSummary}
-                          onChange={(e) => setScannedSummary(e.target.value)}
-                          rows={3}
-                          className="w-full text-xs font-semibold leading-relaxed bg-white border border-slate-200 p-2 rounded-lg text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-650"
-                        />
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setIsSavingSummary(true);
-                              try {
-                                await api.updatePatientPastReportsSummary(activePatient.id, scannedSummary);
-                                // Update active patient in state immediately
-                                setActivePatientState(prev => prev ? { ...prev, pastReportsSummary: scannedSummary } : null);
-                                setScannedSummary(null);
-                                window.dispatchEvent(new CustomEvent('mediflow-toast', {
-                                  detail: {
-                                    message: 'Report summary successfully saved to patient profile database!',
-                                    type: 'success',
-                                    title: 'Summary Persisted'
-                                  }
-                                }));
-                              } catch (err) {
-                                console.error('Error saving summary:', err);
-                              } finally {
-                                setIsSavingSummary(false);
-                              }
-                            }}
-                            disabled={isSavingSummary}
-                            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer border-0 disabled:opacity-50 transition-all text-white-force"
-                          >
-                            <Save className="w-3.5 h-3.5 text-white" />
-                            {isSavingSummary ? 'Saving...' : 'Save & Submit to Database'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : activePatient.pastReportsSummary ? (
-                      <div className="bg-indigo-50 border border-indigo-200/60 p-4 rounded-xl space-y-2.5 animate-fade-in text-slate-800">
-                        <span className="block text-[8px] font-black text-indigo-700 tracking-widest uppercase font-mono">AI — Longitudinal Report Summary</span>
-                        <p className="text-xs font-semibold leading-relaxed italic">
-                          "{activePatient.pastReportsSummary}"
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-600 italic">
-                        No previous reports scanned yet. Upload a report above to generate AI longitudinal summary.
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center gap-3 border border-dashed border-indigo-200 rounded-2xl p-6 bg-indigo-50/30 text-center">
-                    <Search className="w-6 h-6 text-indigo-400" />
-                    <p className="text-xs text-slate-600 font-medium">Search or register a patient first to enable AI report scanning.</p>
-                  </div>
-                )}
-              </div>
-
-            </div>
-
-            {/* Staff list and simulator panel */}
-            <div className="lg:col-span-4 space-y-6">
-              
-              {/* Check-in staff list */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4 select-none">
-                <h3 className="font-bold text-slate-800 text-base flex items-center gap-2 border-b border-slate-200/60 pb-3">
-                  <UserCheck className="h-5 w-5 text-secondary" />
-                  Checked-In Active Staffs
-                </h3>
-                
-                <div className="space-y-3 lg:max-h-[300px] max-h-none lg:overflow-y-auto">
-                  {staffList.length === 0 ? (
-                    <p className="text-xs text-clinical-500 text-center py-4">No staffs checked-in.</p>
-                  ) : (
-                    staffList.map((staff, idx) => (
-                      <div 
-                        key={`${staff.id}-${idx}`} 
-                        onClick={() => handleSelectActiveStaff(staff.id)}
-                        className={`p-3 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
-                          staff.id === activeStaffId 
-                            ? 'border-secondary bg-secondary/5' 
-                            : 'border-outline-variant hover:bg-surface-container/30'
-                        }`}
-                      >
-                        <div>
-                          <h5 className="font-bold text-xs text-slate-800">{staff.staffName}</h5>
-                          <span className="text-[9px] uppercase tracking-wider text-clinical-400 font-semibold">{staff.role}</span>
-                        </div>
-                        <span className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase font-mono ${
-                          staff.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
-                        }`}>
-                          {staff.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    ))
-                  )}
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleDownloadAllAppointmentsCsv}
+                    className="p-1 px-1.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 cursor-pointer flex items-center gap-1"
+                    title="Export CSV"
+                  >
+                    <Download className="w-3 h-3 text-emerald-600" />
+                    <span>CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startTransition(() => {
+                        setActiveTab('more_hub');
+                        setMoreHubActiveView('grid');
+                      });
+                    }}
+                    className="p-1 px-1.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 cursor-pointer flex items-center gap-1"
+                    title="Print"
+                  >
+                    <Printer className="w-3 h-3 text-indigo-500" />
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* staff registration panel */}
-              <div className="glass-panel p-6 border-slate-200/60 shadow-xl space-y-4">
-                <h4 className="font-bold text-sm text-slate-800 border-b border-slate-200/60 pb-2">Register Shifts Compounders</h4>
-                <form onSubmit={handleRegisterStaff} className="space-y-3">
-                  <input
-                    type="text"
-                    required
-                      className="w-full input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-850 rounded-lg"
-                  />
-                  <div className="flex gap-2">
-                    <select
-                      value={newStaffRole}
-                      onChange={(e) => setNewStaffRole(e.target.value as any)}
-                      className="flex-1 input-field text-xs py-2 px-3 focus:ring-1 focus:ring-secondary focus:border-secondary bg-surface-container border-outline-variant text-slate-850 rounded-lg cursor-pointer"
-                    >
-                      <option value="compounder">Compounder</option>
-                      <option value="receptionist">Receptionist</option>
-                      <option value="admin">Clinic Admin</option>
-                    </select>
-                    <button 
-                      type="submit"
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs cursor-pointer border-0 transition active:scale-95 shrink-0"
-                    >
-                      Register
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )}
 
             {/* Sub-View 2: Past Consultation History & Clinic Records with 1-Click CSV Export */}
             {opdSubTab === 'history' && (
@@ -4936,81 +4885,24 @@ export const CompounderDashboard: React.FC = () => {
 
             {/* Sub-View 4: Today's Active OPD Queue & Consultation Intake */}
             {opdSubTab === 'today_queue' && (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 text-left">
                 {/* Left Column: Today's Appointments List */}
-                <div className="lg:col-span-8 space-y-6">
-                  <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-3xl">
+                <div className="lg:col-span-8 space-y-3">
+                  <div className="glass-panel p-3.5 sm:p-4.5 border-slate-200/60 dark:border-white/10 shadow-sm relative overflow-hidden bg-white dark:bg-slate-950/80 text-slate-800 dark:text-white rounded-2xl">
                     <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#0E7A8A] to-teal-500 opacity-60" />
-                    {/* Integrated Segmented View Switcher & Operational Utility Strip */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 dark:border-white/10 pb-4 mb-4">
-                      {/* 1-Tap Switcher: Today's Live Stream vs Scheduled Advance Bookings */}
-                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setOpdQueueFilter('today')}
-                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                            opdQueueFilter === 'today'
-                              ? 'bg-[#0E7A8A] text-white shadow-xs font-black'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          <Zap className="w-3.5 h-3.5 shrink-0" />
-                          <span>Today's Stream</span>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                            opdQueueFilter === 'today' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                          }`}>
-                            {(activeOpdAppointments || []).length}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setOpdQueueFilter('upcoming')}
-                          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border-0 ${
-                            opdQueueFilter === 'upcoming'
-                              ? 'bg-[#0E7A8A] text-white shadow-xs font-black'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          <Calendar className="w-3.5 h-3.5 shrink-0" />
-                          <span>Advance Bookings</span>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
-                            opdQueueFilter === 'upcoming' ? 'bg-white/25 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                          }`}>
-                            {(upcomingAdvanceBookings || []).length}
-                          </span>
-                        </button>
+                    {/* Streamlined Card Subhead */}
+                    <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100 dark:border-white/5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#0E7A8A] shrink-0" />
+                        <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+                          {opdQueueFilter === 'today' ? "Today's Patient Queue" : 'Scheduled Appointments'}
+                        </h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#0E7A8A]/10 text-[#0E7A8A] dark:text-teal-300 border border-[#0E7A8A]/20">
+                          {opdQueueFilter === 'today' ? (activeOpdAppointments || []).length : (upcomingAdvanceBookings || []).length} Records
+                        </span>
                       </div>
-
-                      {/* Right Action Tools: Export CSV & Print Center Shortcut */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* 📊 Download All Appointments CSV Button */}
-                        <button
-                          type="button"
-                          onClick={handleDownloadAllAppointmentsCsv}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10 shadow-xs active:scale-95"
-                          title="Download all appointments as CSV Excel file"
-                        >
-                          <Download className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                          <span>Export CSV</span>
-                        </button>
-
-                        {/* Quick Gateway to More Hub Print Center */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            startTransition(() => {
-                              setActiveTab('more_hub');
-                              setMoreHubActiveView('grid');
-                            });
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-white/10 transition-all cursor-pointer active:scale-95"
-                          title="Open Clinical Print Center & Registers in More Hub"
-                        >
-                          <Printer className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span className="hidden sm:inline">Print Center</span>
-                          <ArrowRight className="w-3 h-3 text-slate-400" />
-                        </button>
+                      <div className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+                        {opdQueueFilter === 'today' ? 'Chronological Intake Order' : 'Upcoming Bookings'}
                       </div>
                     </div>
 
@@ -5053,20 +4945,14 @@ export const CompounderDashboard: React.FC = () => {
 
                     if (confirmedAppts.length === 0) {
                       return (
-                        <div className="p-8 text-center border border-dashed border-slate-200 dark:border-white/10 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40">
-                          {opdQueueFilter === 'today' ? (
-                            <>
-                              <Activity className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50 shrink-0" />
-                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No active tokens in today's OPD queue.</p>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Walk-in registrations and WhatsApp bookings for today will appear here.</p>
-                            </>
-                          ) : (
-                            <>
-                              <Calendar className="w-8 h-8 text-indigo-400 mx-auto mb-2 opacity-60 shrink-0" />
-                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No upcoming advance bookings found.</p>
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Patients booking future dates on WhatsApp will automatically queue here.</p>
-                            </>
-                          )}
+                        <div className="py-6 px-4 text-center rounded-xl bg-slate-50/50 dark:bg-slate-900/30 border border-dashed border-slate-200/80 dark:border-white/5 select-none">
+                          <Activity className="w-5 h-5 text-teal-600/60 mx-auto mb-1.5" />
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                            {opdQueueFilter === 'today' ? "Queue Idle · 0 In Intake" : "No Advance Bookings"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                            {opdQueueFilter === 'today' ? "Patients registered via Walk-In or WhatsApp will stream here" : "Future WhatsApp bookings will appear here"}
+                          </p>
                         </div>
                       );
                     }
@@ -5526,22 +5412,24 @@ export const CompounderDashboard: React.FC = () => {
 
                 if (!activeAppt) {
                   return (
-                    <div className="glass-panel p-6 border-slate-200/60 dark:border-white/10 shadow-xl relative text-center text-slate-500 py-8 bg-white dark:bg-slate-900/80 rounded-3xl">
-                      <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] flex items-center justify-center mx-auto mb-3">
-                        <Activity className="h-6 w-6" />
+                    <div className="glass-panel p-4 sm:p-5 border-slate-200/70 dark:border-white/10 shadow-xs relative text-center py-6 bg-white dark:bg-slate-900/80 rounded-2xl select-none">
+                      <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] flex items-center justify-center mx-auto mb-2 border border-teal-200/50">
+                        <Activity className="h-4 w-4" />
                       </div>
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-white">Chamber Queue Clear</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">No active patients waiting in today's OPD stream.</p>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-white">Chamber Ready</h4>
+                      <p className="text-[10.5px] text-slate-400 dark:text-slate-500 mt-0.5">Doctor consultation room on standby</p>
                       <button
                         type="button"
                         onClick={() => {
-                          setOpdSubTab('directory');
-                          setPatientsSubTab('register');
+                          startTransition(() => {
+                            setActiveTab('patient_directory');
+                            setPatientsSubTab('register');
+                          });
                         }}
-                        className="mt-4 px-3.5 py-1.5 bg-[#0E7A8A] hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer border-0"
+                        className="mt-3 px-3 py-1.5 bg-[#0E7A8A] hover:bg-teal-700 active:scale-95 text-white font-bold text-[11px] rounded-xl shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer border-0"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
-                        <span>Register Walk-in</span>
+                        <span>+ New Intake</span>
                       </button>
                     </div>
                   );
@@ -5892,6 +5780,33 @@ export const CompounderDashboard: React.FC = () => {
       )}
 
         {/* ══════════════════════════════════════════════════════════
+            TAB: PATIENT DIRECTORY (FIRST-CLASS EHR REGISTRY)
+        ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'patient_directory' && (
+          <Suspense fallback={<DashboardSkeleton />}>
+            <div className="animate-fade-in text-left">
+              <PatientsDirectoryTab
+                patients={patients}
+                patientSearchQuery={patientSearchQuery}
+                setPatientSearchQuery={setPatientSearchQuery}
+                selectedDirectoryPatient={selectedDirectoryPatient}
+                setSelectedDirectoryPatient={setSelectedDirectoryPatient}
+                newPatientName={newPatientName}
+                setNewPatientName={setNewPatientName}
+                newPatientPhone={newPatientPhone}
+                setNewPatientPhone={setNewPatientPhone}
+                newPatientAge={newPatientAge}
+                setNewPatientAge={setNewPatientAge}
+                newPatientGender={newPatientGender}
+                setNewPatientGender={setNewPatientGender}
+                patientRAGSummary={patientRAGSummary}
+                setPatientRAGSummary={setPatientRAGSummary}
+              />
+            </div>
+          </Suspense>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
             TAB: PATHOLOGY & DIAGNOSTICS WORKLIST (100% VIEWPORT)
         ══════════════════════════════════════════════════════════ */}
         {activeTab === 'clinical_hub' && (
@@ -6006,7 +5921,11 @@ export const CompounderDashboard: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                 {/* 1. EHR Patient Registry */}
                 <div 
-                  onClick={() => setMoreHubActiveView('directory')}
+                  onClick={() => {
+                    startTransition(() => {
+                      setActiveTab('patient_directory');
+                    });
+                  }}
                   className="group p-5 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-3xl border border-slate-200/80 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-colors" />

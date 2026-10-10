@@ -189,8 +189,14 @@ Any future AI agent modifying the source code is **FORBIDDEN** from changing the
 ---
 
 
-## 👑 1.9: BIG TECH DESIGN DOCTRINE (NO BULGY AI UI)
+## 👑 1.9: BIG TECH DESIGN DOCTRINE & MANDATORY STITCH MCP INTEGRATION (NO BULGY AI UI)
 **ATTENTION AI:** Act as a Google/Meta CTO Taskforce and a 10+ years experienced Frontend Designer/Developer. Your UI designs MUST be pixel-perfect, compact, and professional. NO overly large, bulgy, generic AI-style buttons. Use refined typography, tight padding, and purposeful whitespace. Never stuff unrelated massive components (like a giant scanner) into an overview screen unless explicitly asked. The design MUST NEVER give off the impression or signature that the "dashboard was made by AI". It must look like it was handcrafted by a top-tier human engineering team.
+
+### 🎨 Mandatory Stitch MCP Design Protocol:
+Whenever the Founder instructs you to design, build, or revamp ANY component or screen of our dashboard:
+1. **Mandatory Stitch MCP Activation**: You MUST actively invoke the **Stitch MCP** (`generate_screen_from_text`, `generate_variants`, `get_screen`, `create_design_system`, `list_screens`, `edit_screens`) to architect and synthesize ultra-premium, high-fidelity UI mockups, layout blueprints, and component structures.
+2. **Grounding in VitalSync Design Systems**: Ground all designs against our established Stitch design systems and projects (Project `9730867134360160341` *Clinical Precision Ergonomics* or Project `8226357319659205879` *Clinical Precision System*).
+3. **Ultra-Premium Standard**: No generic, bland, or cheap fallback UIs. Every component must feature curated typography (Space Grotesk/Manrope/Inter/Outfit), refined elevation, micro-radii, tight padding, and cohesive dark/light mode tokens to ensure the dashboard feels like a $100M+ enterprise SaaS product.
 
 ## 👑 1.10: FOUNDER EXECUTIVE MEMORY & PERSISTENT KNOWLEDGE VAULT PROTOCOL (`founder_conversation.md`)
 **ATTENTION ALL AI AGENTS & J.A.R.V.I.S.:**

@@ -880,6 +880,10 @@ export const AiPrescriptionUploadTab: React.FC<AiPrescriptionUploadTabProps> = (
     };
     try {
       localStorage.setItem('vitalsync_active_ocr_rx', JSON.stringify(activeRxBundle));
+      if (finalId) {
+        localStorage.setItem('vitalsync_last_scanned_patient_id', finalId);
+        window.dispatchEvent(new CustomEvent('mediflow-prescription-scanned', { detail: { patientId: finalId } }));
+      }
     } catch (_e) { /* ignore */ }
 
     if (onSuccess && finalId) {

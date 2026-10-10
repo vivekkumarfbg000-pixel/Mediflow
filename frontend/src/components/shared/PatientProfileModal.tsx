@@ -154,9 +154,9 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
   const cleanPhone = (patient.phone || '').replace(/\D/g, '').slice(-10);
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md animate-fade-in text-slate-800">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/70 backdrop-blur-md animate-fade-in text-slate-800 dark:text-slate-100">
       <div 
-        className="relative w-full max-w-5xl max-h-[92vh] bg-white rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col overflow-hidden animate-scale-up"
+        className="relative w-full max-w-5xl max-h-[92vh] bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-white/10 flex flex-col overflow-hidden animate-scale-up"
         onClick={e => e.stopPropagation()}
       >
         {/* ══ HEADER: Hero Patient Dossier ══ */}
@@ -187,7 +187,7 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">{patient.name}</h1>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-white/10 text-teal-300 border border-teal-400/30">
-                    ID: {patient.patientCode || patient.tokenNumber || 'VS-PAT'}
+                    ID: {patient.patientCode || patient.tokenNumber || (patient.phone ? `VS-${patient.phone.replace(/\D/g, '').slice(-4)}` : 'VS-PAT')}
                   </span>
                   {isFreeUnlocked && (
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 flex items-center gap-1 shadow-sm">
@@ -299,19 +299,19 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
         </div>
 
         {/* ══ MODAL BODY: Tab Content ══ */}
-        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 space-y-6">
+        <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50 dark:bg-slate-950/70 space-y-6">
           {/* ── TAB 1: Vitals & Clinical Overview ── */}
           {activeTab === 'vitals' && (
             <div className="space-y-6 animate-fade-in">
               {/* Vitals Grid */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                    <Activity className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     Latest Vital Signs Cockpit
                   </h3>
                   {vitals?.recordedAt && (
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       Recorded: {new Date(vitals.recordedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                     </span>
@@ -320,9 +320,9 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {/* Blood Pressure */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Blood Pressure</div>
-                    <div className="text-lg font-black text-slate-900 mt-1">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Blood Pressure</div>
+                    <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
                       {vitals?.bloodPressure || '—'}
                     </div>
                     <div className="mt-2">
@@ -333,57 +333,57 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
                   </div>
 
                   {/* Pulse Rate */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
                       Pulse Rate <Heart className="w-3 h-3 text-rose-500" />
                     </div>
-                    <div className="text-lg font-black text-slate-900 mt-1">
+                    <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
                       {vitals?.pulseRate ? `${vitals.pulseRate} bpm` : '—'}
                     </div>
-                    <div className="mt-2 text-[10px] text-slate-500 font-medium">
+                    <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                       Normal: 60-100
                     </div>
                   </div>
 
                   {/* SpO2 */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SpO2 (Oxygen)</div>
-                    <div className="text-lg font-black text-slate-900 mt-1">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">SpO2 (Oxygen)</div>
+                    <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
                       {vitals?.spO2 ? `${vitals.spO2}%` : '—'}
                     </div>
                     <div className="mt-2">
-                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                      <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800/40">
                         {parseInt(vitals?.spO2 || '99', 10) >= 95 ? 'Normal Saturation' : 'Hypoxia Alert'}
                       </span>
                     </div>
                   </div>
 
                   {/* Temperature */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Temperature</div>
-                    <div className="text-lg font-black text-slate-900 mt-1">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Temperature</div>
+                    <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
                       {vitals?.temperature ? `${vitals.temperature}°F` : '—'}
                     </div>
-                    <div className="mt-2 text-[10px] text-slate-500 font-medium">
+                    <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                       {parseFloat(vitals?.temperature || '98.6') > 99.5 ? '🔥 Febrile' : 'Afebrile (Normal)'}
                     </div>
                   </div>
 
                   {/* Blood Sugar */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Blood Sugar</div>
-                    <div className="text-lg font-black text-slate-900 mt-1">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Blood Sugar</div>
+                    <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
                       {vitals?.bloodSugar ? `${vitals.bloodSugar} mg/dL` : '—'}
                     </div>
-                    <div className="mt-2 text-[10px] text-slate-500 font-medium">
+                    <div className="mt-2 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                       {parseInt(vitals?.bloodSugar || '0', 10) > 140 ? '⚠️ High Glycemia' : 'Euglycemic'}
                     </div>
                   </div>
 
                   {/* Weight & BMI */}
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex flex-col justify-between">
-                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Weight / BMI</div>
-                    <div className="text-lg font-black text-slate-900 mt-1">
+                  <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+                    <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Weight / BMI</div>
+                    <div className="text-lg font-black text-slate-900 dark:text-white mt-1">
                       {vitals?.weight ? `${vitals.weight} kg` : '—'}
                     </div>
                     <div className="mt-2">
@@ -402,8 +402,8 @@ export const PatientProfileModal: React.FC<PatientProfileModalProps> = ({
               {/* Chronic Conditions & Clinical Warnings */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Chronic Conditions */}
-                <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-sm space-y-3">
-                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wider">
+                <div className="p-5 rounded-2xl bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-white/10 shadow-sm space-y-3">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
                     <Droplet className="w-4 h-4 text-rose-500" />
                     Chronic Care Protocol Cohort
                   </h4>

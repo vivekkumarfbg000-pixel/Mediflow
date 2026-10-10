@@ -1,4 +1,4 @@
-import React, { useState, useEffect, startTransition, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, startTransition, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { api, MASTER_TEST_CATALOG } from '../../services/api';
 import { BillingService } from '../../services/billingService';
@@ -41,8 +41,18 @@ import {
   UserPlus,
   Copy,
   Stethoscope,
-  Loader2
+  Loader2,
+  Sun,
+  Moon,
+  Building2,
+  Bell,
+  ChevronDown,
+  ArrowLeftRight,
+  User,
+  LogOut,
+  ChevronRight
 } from 'lucide-react';
+import { BrandMark, VitalSyncWordmark } from '../shared/BrandMark';
 import { useEphemeralVault } from '../../context/EphemeralVaultProvider';
 import { useClinic } from '../../context/ClinicContext';
 import { getIstDateString, getEffectiveAppointmentDate } from '../../utils/dateUtils';
@@ -76,6 +86,71 @@ export const DoctorDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'consultation' | 'financials' | 'patients' | 'whatsapp' | 'sop' | 'pod_view' | 'virtual_schedule' | 'chronic'>('pod_view');
   const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['pod_view', 'chronic']));
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // Day & Night Theme Toggle State
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark' || document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      if (e?.detail?.isDark !== undefined) {
+        setIsDark(e.detail.isDark);
+      }
+    };
+    window.addEventListener('mediflow-theme-change', handleThemeChange);
+    return () => window.removeEventListener('mediflow-theme-change', handleThemeChange);
+  }, []);
+
+  const handleToggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+      document.body?.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body?.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+    window.dispatchEvent(new CustomEvent('mediflow-theme-change', { detail: { isDark: next } }));
+  };
+
+  // VS Logo Interactive Tab Changer Dropdown State
+  const [isTabChangerOpen, setIsTabChangerOpen] = useState(false);
+  const tabChangerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (tabChangerRef.current && !tabChangerRef.current.contains(e.target as Node)) {
+        setIsTabChangerOpen(false);
+      }
+    };
+    if (isTabChangerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isTabChangerOpen]);
+
+  // Interactive Glassmorphic Profile Menu State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutsideProfile = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    if (isProfileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutsideProfile);
+      return () => document.removeEventListener('mousedown', handleClickOutsideProfile);
+    }
+  }, [isProfileMenuOpen]);
 
   useEffect(() => {
     setVisitedTabs(prev => {
@@ -2924,6 +2999,274 @@ Keep the tone professional, clinical, objective, and precise.`;
           <span className="text-[10px] font-mono uppercase bg-amber-500/20 px-2 py-0.5 rounded-full shrink-0">Offline</span>
         </div>
       )}
+
+      {/* UNIFIED ULTRA-COMPACT HIGH-DENSITY CLINICAL APP BAR */}
+      <header 
+        className="sticky top-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-white/10 shadow-[0_1px_8px_rgba(15,23,42,0.03)] -mx-2 px-2.5 sm:px-3 py-1.5 mb-2.5 rounded-2xl flex items-center justify-between gap-2"
+        style={{ paddingTop: 'max(6px, env(safe-area-inset-top, 6px))' }}
+      >
+        {/* Left Cluster: Functional VS Logo Tab Changer */}
+        <div className="flex items-center min-w-0">
+          <div className="relative" ref={tabChangerRef}>
+            <button
+              type="button"
+              onClick={() => setIsTabChangerOpen(prev => !prev)}
+              className="group flex items-center gap-1.5 min-w-0 px-2 py-1 rounded-xl border border-teal-500/30 bg-teal-50/50 hover:bg-teal-100/50 dark:bg-teal-950/30 dark:hover:bg-teal-900/40 active:scale-95 transition-all duration-150 cursor-pointer text-left shadow-2xs"
+              title="Click to Switch Doctor Dashboard Tabs"
+              aria-label="Switch Dashboard Tabs"
+            >
+              <div className="w-6 h-6 rounded-lg bg-white dark:bg-slate-800 border border-teal-300/80 dark:border-teal-500/40 flex items-center justify-center shrink-0 shadow-xs p-0.5 group-hover:border-teal-500 transition-colors relative">
+                <BrandMark size={20} />
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-[#0E7A8A] text-white flex items-center justify-center shadow-xs">
+                  <ChevronDown className={`w-2 h-2 text-white stroke-[3] transition-transform duration-200 ${isTabChangerOpen ? 'rotate-180' : 'group-hover:translate-y-0.5'}`} />
+                </div>
+              </div>
+              <div className="flex items-center gap-1 truncate">
+                <VitalSyncWordmark fontSize="13px" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+              </div>
+            </button>
+
+            {/* Floating Glassmorphic Tab Switcher Dropdown */}
+            {isTabChangerOpen && (
+              <div className="absolute left-0 mt-1.5 w-60 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-xl border border-slate-200/80 dark:border-white/10 p-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="px-2.5 py-1 mb-1 border-b border-slate-100 dark:border-white/5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-zinc-300">
+                  <span>Doctor Console</span>
+                  <span className="text-teal-600 dark:text-teal-400 font-mono">1-Tap Switch</span>
+                </div>
+                {[
+                  { id: 'pod_view', label: 'Clinic Dashboard', icon: LayoutDashboard },
+                  ...(isDigitalEmrEnabled ? [{ id: 'consultation', label: 'Consultation Queue', icon: ClipboardList }] : []),
+                  { id: 'chronic', label: 'Care Club 💊', icon: HeartPulse },
+                  { id: 'financials', label: 'Finances & Ledger', icon: CreditCard },
+                  { id: 'patients', label: 'Patient Directory', icon: Users },
+                  { id: 'whatsapp', label: 'WhatsApp Inbox', icon: MessageSquare },
+                  { id: 'sop', label: 'Clinic SOPs', icon: Settings },
+                ].map(tabItem => {
+                  const Icon = tabItem.icon;
+                  const isCurrent = activeTab === tabItem.id;
+                  return (
+                    <button
+                      key={tabItem.id}
+                      type="button"
+                      onClick={() => {
+                        startTransition(() => {
+                          setActiveTab(tabItem.id as any);
+                          setIsTabChangerOpen(false);
+                        });
+                      }}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[12px] font-semibold transition-all cursor-pointer ${
+                        isCurrent
+                          ? 'bg-teal-500/10 text-teal-700 dark:text-teal-300 font-bold border border-teal-500/20'
+                          : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-3.5 h-3.5 ${isCurrent ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400'}`} />
+                        <span>{tabItem.label}</span>
+                      </div>
+                      {isCurrent && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* 1-Tap Role Switcher: Move to Compounder Dashboard */}
+                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startTransition(() => {
+                        setIsTabChangerOpen(false);
+                        window.dispatchEvent(new CustomEvent('mediflow-change-role', { detail: 'compounder' }));
+                      });
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 border border-teal-500/20 transition-all cursor-pointer group"
+                    title="Switch to Compounder Desk"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:rotate-180 transition-transform duration-300" />
+                      <span>Switch to Compounder Desk</span>
+                    </div>
+                    <span className="text-[9px] bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 px-1 py-0.2 rounded font-mono font-bold">Desk</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Clinic Identity + Gear Settings + Day/Night Filter + Alert Icon + Avatar */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="hidden sm:flex items-center gap-1.5 min-w-0 px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-white/5">
+            <Building2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 tracking-tight truncate max-w-[130px] md:max-w-[180px]">
+              {activePod?.name || 'Dr. Mehta Ortho & Polyclinic'}
+            </span>
+            <span className="text-[9px] font-semibold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 border border-teal-200/70 dark:border-teal-800/40 px-1 py-0.2 rounded font-mono shrink-0">
+              {headerDoctorTitle}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('mediflow-open-settings'));
+            }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 shrink-0"
+            title="Settings & System Configuration"
+            aria-label="Settings"
+          >
+            <Settings className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 shrink-0"
+            title={isDark ? "Switch to Day Mode (Light)" : "Switch to Night Mode (Dark)"}
+            aria-label="Toggle Day and Night Theme"
+          >
+            {isDark ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400 hover:rotate-45 transition-transform" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300 hover:-rotate-12 transition-transform" />
+            )}
+          </button>
+
+          <button 
+            aria-label="Notifications & Alerts" 
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors relative border border-slate-200/80 dark:border-white/10 bg-white dark:bg-slate-800 shadow-2xs cursor-pointer active:scale-95 shrink-0" 
+            type="button"
+          >
+            <Bell className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-300" />
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#0E7A8A] ring-2 ring-white dark:ring-slate-900"></span>
+          </button>
+
+          {/* Functional Glassmorphic Profile Menu */}
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsProfileMenuOpen(prev => !prev)}
+              className="w-7 h-7 rounded-lg overflow-hidden ring-1 ring-slate-300/80 dark:ring-white/10 shadow-2xs bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-[10px] cursor-pointer hover:opacity-90 active:scale-95 transition-all shrink-0"
+              title="Doctor Profile & Clinic Menu"
+              aria-label="Doctor Profile and Clinic Menu"
+            >
+              {(doctorDisplayName || 'Doc').replace(/^Dr\.?\s*/i, '').slice(0, 2).toUpperCase() || 'DR'}
+            </button>
+
+            {/* 50% Translucent Silicon-Valley Glassmorphism Profile Popover */}
+            {isProfileMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-64 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-2xl shadow-xl border border-slate-200/80 dark:border-white/10 p-2.5 z-50 text-left animate-in fade-in slide-in-from-top-2 duration-150">
+                {/* Doctor Monogram & Identity */}
+                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100 dark:border-white/5">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#0E7A8A] to-[#14C3D0] flex items-center justify-center text-white font-bold text-xs ring-1 ring-teal-500/30 shrink-0 relative">
+                    {(doctorDisplayName || 'Doc').replace(/^Dr\.?\s*/i, '').slice(0, 2).toUpperCase() || 'DR'}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <h4 className="text-[12px] font-bold text-slate-900 dark:text-white truncate">
+                        {doctorDisplayName || 'Dr. Rajiv Mehta'}
+                      </h4>
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-teal-50 dark:bg-teal-950/60 text-[#0E7A8A] dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/40 shrink-0">
+                        Physician
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                      {headerDoctorTitle || 'Chief Medical Officer'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sovereign Clinic Identity Pill */}
+                <div className="my-2 p-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                    <span className="text-[11px] font-bold text-slate-800 dark:text-zinc-200 truncate">
+                      {activePod?.name || 'Dr. Mehta Ortho & Polyclinic'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] text-slate-500 dark:text-zinc-400 font-mono">
+                    <span>Pod: {activePod?.clinicCode || 'VS-V01R'}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live CDC
+                    </span>
+                  </div>
+                </div>
+
+                {/* 1-Tap Quick Action Row */}
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'profile' } }));
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <span>Doctor Profile & Credentials</span>
+                    </div>
+                    <ChevronRight className="w-3 h-3 text-slate-400" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      window.dispatchEvent(new CustomEvent('mediflow-open-settings', { detail: { tab: 'clinic' } }));
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                      <span>Clinic Pod Settings</span>
+                    </div>
+                    <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200 font-bold">Admin</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      startTransition(() => {
+                        window.dispatchEvent(new CustomEvent('mediflow-change-role', { detail: 'compounder' }));
+                      });
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 border border-teal-500/20 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ArrowLeftRight className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 group-hover:rotate-180 transition-transform duration-300" />
+                      <span>Switch to Compounder Desk</span>
+                    </div>
+                    <span className="text-[9px] font-mono font-bold px-1 py-0.2 rounded bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200">Desk</span>
+                  </button>
+
+                  <div className="pt-1 mt-1 border-t border-slate-100 dark:border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        supabase.auth.signOut().then(() => {
+                          window.location.reload();
+                        });
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
 
       {/* ── HEADER BLOCK: title + tabs integrated ── */}
       <div className="hidden md:block border-b border-slate-200 pb-0">

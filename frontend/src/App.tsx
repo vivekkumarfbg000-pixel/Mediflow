@@ -546,8 +546,8 @@ function AppContent({
 
       {/* Primary Dashboard viewport wrapper wrapped in secure telemetry isolated ErrorBoundary */}
       <main className={`flex-1 ${isSidebarCollapsed ? 'md:pl-0' : 'md:pl-64'} transition-[padding-left] duration-300 dense-theme flex flex-col`}>
-        {/* Premium Breadcrumb Navigator Bar */}
-        {currentRole !== 'doctor' && (
+        {/* Premium Breadcrumb Navigator Bar (Hidden for doctor and compounder consoles which use unified VS Logo Header) */}
+        {currentRole !== 'doctor' && currentRole !== 'compounder' && (
           <div className="hidden md:flex bg-slate-50/80 backdrop-blur-md border-b border-slate-200/40 px-6 py-3 items-center justify-between shrink-0 select-none">
             <div className="flex items-center gap-3">
               {/* Universal 3-Dot Sidebar Menu Trigger Button */}

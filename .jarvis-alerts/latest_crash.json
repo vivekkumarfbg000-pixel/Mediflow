@@ -1,9 +1,9 @@
 {
-  "id": "crash-1791384929421",
-  "timestamp": "2026-10-07T14:55:29.421Z",
-  "level": "unhandledrejection",
-  "url": "http://localhost:5173/promptguard",
-  "message": "Key already exists in the object store.",
-  "stack": "",
+  "id": "crash-1791623545333",
+  "timestamp": "2026-10-10T09:12:25.333Z",
+  "level": "error",
+  "url": "http://localhost:5173/",
+  "message": "Uncaught TypeError: Cannot read properties of undefined (reading 'frame')",
+  "stack": "TypeError: Cannot read properties of undefined (reading 'frame')\n    at new ErrorOverlay (http://localhost:5173/@vite/client:798:24)\n    at DocumentCloner.createElementClone (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4627:22)\n    at DocumentCloner.cloneNode (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4731:23)\n    at DocumentCloner.appendChildNode (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4714:110)\n    at DocumentCloner.cloneChildNodes (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4724:17)\n    at DocumentCloner.cloneNode (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4741:38)\n    at DocumentCloner.appendChildNode (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4714:110)\n    at DocumentCloner.cloneChildNodes (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4724:17)\n    at DocumentCloner.cloneNode (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4741:38)\n    at new DocumentCloner (http://localhost:5173/node_modules/.vite/deps/html2canvas.js?v=8b516b15:4566:33)",
   "suggestedAction": "Awaiting IDE AI (Antigravity) Review for safe patch generation."
 }

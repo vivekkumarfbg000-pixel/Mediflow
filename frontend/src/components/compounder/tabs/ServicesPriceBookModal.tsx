@@ -10,10 +10,11 @@ import { getPodContext } from '../../../services/podContext';
 interface ServicesPriceBookModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'medicines' | 'labs';
 }
 
-export const ServicesPriceBookModal: React.FC<ServicesPriceBookModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'medicines' | 'labs'>('medicines');
+export const ServicesPriceBookModal: React.FC<ServicesPriceBookModalProps> = ({ isOpen, onClose, initialTab = 'medicines' }) => {
+  const [activeTab, setActiveTab] = useState<'medicines' | 'labs'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [medicines, setMedicines] = useState<PriceBookMedicineItem[]>([]);
@@ -38,9 +39,12 @@ export const ServicesPriceBookModal: React.FC<ServicesPriceBookModalProps> = ({ 
 
   useEffect(() => {
     if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
       reloadData();
     }
-  }, [isOpen, podId]);
+  }, [isOpen, initialTab, podId]);
 
   useEffect(() => {
     const handleStateChange = (e: any) => {

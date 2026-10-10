@@ -23,6 +23,15 @@ import { FinanceEngine } from './financeEngine';
 import { cloudStore } from './cloudStore';
 
 
+export interface DailyCounterLedgerTotals {
+  consultTotal: number;
+  pharmTotal: number;
+  labTotal: number;
+  otherTotal: number;
+  grossTotal: number;
+  invoicesCount: number;
+}
+
 /**
  * IEEE-754 Epsilon-safe currency precision rounder (Directive 151)
  */
@@ -105,6 +114,165 @@ export class BillingService {
         created_at: i.createdAt || (i as any).created_at || new Date().toISOString()
       } as UnifiedInvoice;
     });
+  }
+
+  /**
+   * 🌟 DYNAMIC DAILY COUNTER LEDGER RECONCILER (100% Reactive Cloud CDC SSOT)
+   * Calculates live consultation, pharmacy, lab, and gross totals for today's counter.
+   * Eliminates historical leakage, enforces IST day boundary, and guarantees zero double-counting.
+   */
+  static getDailyCounterLedgerTotals(targetDate?: string): DailyCounterLedgerTotals {
+    const todayStr = targetDate || getIstDateString();
+
+    // 1. Fetch unified invoices and filter strictly for today's settled records
+    const allUnified = this.getUnifiedInvoices();
+    const todayUnified = allUnified.filter(i => {
+      const dateStr = getIstDateString(i.createdAt || (i as any).created_at || (i as any).date);
+      const statusRaw = String(i.paymentStatus || (i as any).payment_status || '').toLowerCase();
+      const isPaid = statusRaw === 'cleared' || statusRaw === 'paid' || statusRaw === 'completed' || statusRaw === 'settled';
+      return dateStr === todayStr && isPaid;
+    });
+
+    let consultSum = 0;
+    let pharmSum = 0;
+    let labSum = 0;
+    let grossSum = 0;
+    const trackedInvoiceIds = new Set<string>();
+
+    todayUnified.forEach(inv => {
+      if (inv.id) trackedInvoiceIds.add(inv.id);
+      const c = Number(inv.doctorFee ?? (inv as any).doctor_fee ?? 0);
+      const p = Number(inv.pharmacyFee ?? (inv as any).pharmacy_fee ?? 0);
+      const l = Number(inv.labFee ?? (inv as any).lab_fee ?? 0);
+      const total = Number(inv.totalAmount ?? (inv as any).total_amount ?? (c + p + l)) || (c + p + l);
+      consultSum += c;
+      pharmSum += p;
+      labSum += l;
+      grossSum += total;
+    });
+
+    // 2. Fetch financial ledgers and reconcile standalone splits not covered by unified invoices
+    const allLedgers = this.getFinancialLedgers();
+    const todayLedgers = allLedgers.filter(l => {
+      const dateStr = getIstDateString(l.createdAt || l.settledAt || (l as any).created_at);
+      const statusRaw = String(l.paymentStatus || (l as any).payment_status || 'cleared').toLowerCase();
+      const isCleared = statusRaw === 'cleared' || statusRaw === 'paid' || statusRaw === 'settled' || !statusRaw;
+      return dateStr === todayStr && isCleared;
+    });
+
+    todayLedgers.forEach(l => {
+      const invId = l.invoiceId || (l as any).invoice_id;
+      if (invId && trackedInvoiceIds.has(invId)) {
+        return;
+      }
+      const type = String(l.transactionType || (l as any).transaction_type || '').toLowerCase();
+      const amt = Number(l.grossAmount ?? (l as any).gross_amount ?? (l as any).amount ?? 0);
+      if (amt <= 0) return;
+
+      if (type.includes('appointment') || type.includes('consult')) {
+        consultSum += amt;
+        grossSum += amt;
+        if (invId) trackedInvoiceIds.add(invId);
+      } else if (type.includes('medicine') || type.includes('pharmacy')) {
+        pharmSum += amt;
+        grossSum += amt;
+        if (invId) trackedInvoiceIds.add(invId);
+      } else if (type.includes('lab') || type.includes('pathology') || type.includes('diagnostic')) {
+        labSum += amt;
+        grossSum += amt;
+        if (invId) trackedInvoiceIds.add(invId);
+      } else if (type !== 'platform_fee') {
+        grossSum += amt;
+        if (invId) trackedInvoiceIds.add(invId);
+      }
+    });
+
+    // 3. Reconcile standalone saas_invoices (e.g. WhatsApp consultation fees)
+    const allSaasInvs = this.getInvoices();
+    const todaySaasInvs = allSaasInvs.filter(i => {
+      const dateStr = getIstDateString(i.createdAt || (i as any).created_at || (i as any).date);
+      const statusRaw = String(i.status || (i as any).paymentStatus || (i as any).payment_status || '').toLowerCase();
+      const isPaid = statusRaw === 'paid' || statusRaw === 'cleared' || statusRaw === 'completed';
+      return dateStr === todayStr && isPaid;
+    });
+
+    todaySaasInvs.forEach(i => {
+      if (i.id && trackedInvoiceIds.has(i.id)) return;
+      const amt = Number(i.amount || 0);
+      if (amt <= 0) return;
+
+      if (i.type === 'consult') {
+        consultSum += amt;
+        grossSum += amt;
+      } else if (i.type === 'pharmacy') {
+        pharmSum += amt;
+        grossSum += amt;
+      } else if (i.type === 'lab') {
+        labSum += amt;
+        grossSum += amt;
+      } else {
+        grossSum += amt;
+      }
+      if (i.id) trackedInvoiceIds.add(i.id);
+    });
+
+    // 4. Reconcile standalone medicine bills
+    try {
+      const medBills = load<any[]>('medicine_bills', []);
+      medBills.forEach(b => {
+        const dateStr = getIstDateString(b.createdAt || b.created_at || b.date);
+        const statusRaw = String(b.status || '').toLowerCase();
+        const isPaid = statusRaw === 'paid' || statusRaw === 'cleared' || statusRaw === 'completed';
+        if (dateStr === todayStr && isPaid) {
+          const bId = b.id || '';
+          const invId = b.invoiceId || b.invoice_id;
+          if ((bId && trackedInvoiceIds.has(bId)) || (invId && trackedInvoiceIds.has(invId))) return;
+          const amt = Number(b.totalAmount || b.total_amount || b.amount || 0);
+          if (amt > 0) {
+            pharmSum += amt;
+            grossSum += amt;
+            if (bId) trackedInvoiceIds.add(bId);
+          }
+        }
+      });
+    } catch (_e) { /* ignore */ }
+
+    // 5. Reconcile standalone lab test bills
+    try {
+      const labBills = load<any[]>('lab_test_bills', []);
+      labBills.forEach(b => {
+        const dateStr = getIstDateString(b.createdAt || b.created_at || b.date);
+        const statusRaw = String(b.status || '').toLowerCase();
+        const isPaid = statusRaw === 'paid' || statusRaw === 'cleared' || statusRaw === 'completed';
+        if (dateStr === todayStr && isPaid) {
+          const bId = b.id || '';
+          const invId = b.invoiceId || b.invoice_id;
+          if ((bId && trackedInvoiceIds.has(bId)) || (invId && trackedInvoiceIds.has(invId))) return;
+          const amt = Number(b.totalAmount || b.total_amount || b.amount || 0);
+          if (amt > 0) {
+            labSum += amt;
+            grossSum += amt;
+            if (bId) trackedInvoiceIds.add(bId);
+          }
+        }
+      });
+    } catch (_e) { /* ignore */ }
+
+    const consultTotal = Math.round(consultSum);
+    const pharmTotal = Math.round(pharmSum);
+    const labTotal = Math.round(labSum);
+    const calculatedSub = consultTotal + pharmTotal + labTotal;
+    const grossTotal = Math.round(Math.max(grossSum, calculatedSub));
+    const otherTotal = Math.max(0, grossTotal - calculatedSub);
+
+    return {
+      consultTotal,
+      pharmTotal,
+      labTotal,
+      otherTotal,
+      grossTotal,
+      invoicesCount: trackedInvoiceIds.size
+    };
   }
 
   static saveFinancialLedgers(entries: FinancialLedgerEntry[]): void {
@@ -293,7 +461,8 @@ export class BillingService {
       } catch (_e) { /* ignore */ }
     }
 
-    let ledgers = load<FinancialLedgerEntry[]>('financial_ledgers', []);
+    const storeLedgers = cloudStore.getSnapshot<FinancialLedgerEntry>('financial_ledgers');
+    let ledgers = (storeLedgers && storeLedgers.length > 0) ? [...storeLedgers] : load<FinancialLedgerEntry[]>('financial_ledgers', []);
     if (!isDemoAccount) {
       const currentPodId = getPodContext().podId;
       const demoPatientIds = new Set([
@@ -2085,8 +2254,13 @@ export class BillingService {
     const idx = invoices.findIndex(i => i.id === invoice.id);
     if (idx >= 0) invoices[idx] = invoice;
     else invoices.push(invoice);
+    cloudStore.applyLocalDiff('unified_invoices', invoice);
     save('unified_invoices', invoices);
     notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update', { detail: { invoiceId: invoice.id } }));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: 'unified_invoices' } }));
+    }
 
     const rawApptId = (invoice as any).appointmentId || (invoice.encounterId && invoice.encounterId !== 'walkin' && invoice.encounterId !== 'counter-checkout' ? invoice.encounterId : null);
     supabase.from('unified_invoices').upsert({
@@ -2112,8 +2286,13 @@ export class BillingService {
   }
 
   static saveUnifiedInvoices(invoices: UnifiedInvoice[]): void {
+    invoices.forEach(inv => cloudStore.applyLocalDiff('unified_invoices', inv));
     save('unified_invoices', invoices);
     notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mediflow-financial-update'));
+      window.dispatchEvent(new CustomEvent('mediflow-state-change', { detail: { table: 'unified_invoices' } }));
+    }
   }
 
   static saveInvoices(invoices: Invoice[]): void {

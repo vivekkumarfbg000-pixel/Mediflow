@@ -174,8 +174,13 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (customEvent.detail) setActiveDoctorTab(customEvent.detail);
     };
     const handleCompounderTabChange = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) setActiveCompounderTab(customEvent.detail);
+      const customEvent = e as CustomEvent<any>;
+      if (customEvent.detail) {
+        const target = typeof customEvent.detail === 'object' && customEvent.detail !== null
+          ? customEvent.detail.tab
+          : String(customEvent.detail);
+        setActiveCompounderTab(target);
+      }
     };
     const handlePharmacyTabChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
@@ -456,8 +461,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: tabId }));
     } else if (currentRole === 'compounder') {
       setActiveCompounderTab(tabId);
-      window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: tabId }));
-      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: tabId }));
+      const payload = tabId === 'opd_patients' ? { tab: 'opd_patients', subTab: 'today_queue' } : tabId;
+      window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: payload }));
+      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: payload }));
     } else if (currentRole === 'pharmacy') {
       setActivePharmacyTab(tabId);
       window.dispatchEvent(new CustomEvent('mediflow-pharmacy-tab-changed', { detail: tabId }));
@@ -801,8 +807,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </aside>
 
-      {/* Mobile Top Header Navigation (Hidden for saas_admin, and compounder overview which starts cleanly from Bento identity card) */}
-      {currentRole !== 'saas_admin' && (currentRole !== 'compounder' || activeCompounderTab !== 'overview') && (
+      {/* Mobile Top Header Navigation (Hidden for saas_admin, and compounder/doctor which have their own unified permanent VS Logo Header) */}
+      {currentRole !== 'saas_admin' && currentRole !== 'compounder' && currentRole !== 'doctor' && (
         <nav 
           className="md:hidden border-b border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-950/60 backdrop-blur-xl sticky top-0 z-50 px-3 py-1.5 shadow-[0_1px_4px_rgba(15,23,42,0.02)] w-full"
           style={{ paddingTop: 'env(safe-area-inset-top, 16px)' }}
@@ -826,9 +832,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         : activeProfile.display_name)
                     : 'VitalSync'}
                   {' · '}
-                  {currentRole === 'doctor' ? 'Doctor Dashboard' :
-                   currentRole === 'compounder' ? 'Compounder Operations' :
-                   currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
+                  {currentRole === 'lab' ? (isOphthalmology ? 'Diagnostics' : 'Pathology Lab') :
                    currentRole === 'pharmacy' ? (isOphthalmology ? 'Optician' : 'Pharmacy POS') :
                    currentRole === 'billing' ? 'UPI Ledger' : 'Care Dashboard'}
                 </h1>
@@ -1301,8 +1305,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveCompounderTab(t.id);
-                      window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: t.id }));
-                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: t.id }));
+                      const payload = t.id === 'opd_patients' ? { tab: 'opd_patients', subTab: 'today_queue' } : t.id;
+                      window.dispatchEvent(new CustomEvent('mediflow-compounder-tab-changed', { detail: payload }));
+                      window.dispatchEvent(new CustomEvent('mediflow-change-tab', { detail: payload }));
                     }}
                     className={`flex flex-col items-center justify-center flex-1 h-full py-1 transition-all duration-200 cursor-pointer bg-transparent border-0 outline-none select-none relative rounded-xl ${
                       isActive 
@@ -1484,6 +1489,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         initialTab={profileModalInitialTab}
         isDarkMode={isDark}
         onToggleDarkMode={handleToggleTheme}
+        userRole={currentRole}
       />
     </>
   );

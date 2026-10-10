@@ -33,6 +33,7 @@ interface ProfileSettingsModalProps {
   initialTab?: SettingsTabType;
   isDarkMode?: boolean;
   onToggleDarkMode?: () => void;
+  userRole?: string;
 }
 
 export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({ 
@@ -40,12 +41,17 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   onClose,
   initialTab = 'profile',
   isDarkMode = false,
-  onToggleDarkMode
+  onToggleDarkMode,
+  userRole
 }) => {
   useBodyScrollLock(isOpen);
   const { podEntities, activeEntity, activePod, refreshClinic, updatePodDetails, isLoading: isClinicLoading } = useClinic();
   const [activeTab, setActiveTab] = useState<SettingsTabType>(initialTab);
   const [activeProfile, setActiveProfile] = useState<any>(null);
+
+  // Role-based clearance: Only Doctor and Clinic Admin can edit Clinic Pod settings
+  const isCompounder = userRole === 'compounder' || activeProfile?.role === 'compounder' || (activeEntity as any)?.type === 'compounder' || (typeof window !== 'undefined' && localStorage.getItem('vitalsync_role') === 'compounder');
+  const canEditClinic = !isCompounder;
   
   useEffect(() => {
     if (isOpen && initialTab) {
@@ -169,6 +175,10 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
 
   const handleSaveClinicPod = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditClinic) {
+      setErrorMsg('Only Doctors and Clinic Administrators can modify clinic pod settings.');
+      return;
+    }
     if (!clinicName.trim()) {
       setErrorMsg('Clinic name cannot be empty.');
       return;
@@ -591,6 +601,15 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
           {/* CLINIC POD TAB */}
           {activeTab === 'clinic' && (
             <form onSubmit={handleSaveClinicPod} className="space-y-4 animate-fade-in">
+              {!canEditClinic && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-200 font-medium">
+                  <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>
+                    <strong>View-Only Clearance:</strong> Clinic Pod branding and billing settings are managed by the Doctor / Clinic Administrator.
+                  </span>
+                </div>
+              )}
+
               <div className="p-4 bg-gradient-to-br from-indigo-50/80 to-purple-50/40 border border-indigo-100/80 rounded-2xl space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -616,10 +635,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   <input
                     type="text"
                     required
+                    readOnly={!canEditClinic}
                     value={clinicName}
                     onChange={(e) => setClinicName(e.target.value)}
                     placeholder="e.g. VitalSync Smart PolyClinic"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                    className={`w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                      !canEditClinic ? 'opacity-80 bg-slate-100 dark:bg-slate-800/80 cursor-not-allowed' : 'bg-slate-50'
+                    }`}
                   />
                 </div>
                 <span className="text-[10px] text-slate-600 mt-1 block">
@@ -633,10 +655,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 </label>
                 <input
                   type="text"
+                  readOnly={!canEditClinic}
                   value={clinicLocation}
                   onChange={(e) => setClinicLocation(e.target.value)}
                   placeholder="e.g. Line Bazar, Purnea, Bihar - 854301"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400"
+                  className={`w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 ${
+                    !canEditClinic ? 'opacity-80 bg-slate-100 dark:bg-slate-800/80 cursor-not-allowed' : 'bg-slate-50'
+                  }`}
                 />
               </div>
 
@@ -647,10 +672,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   </label>
                   <input
                     type="text"
+                    readOnly={!canEditClinic}
                     value={clinicUpiVpa}
                     onChange={(e) => setClinicUpiVpa(e.target.value)}
                     placeholder="e.g. vitalsync@axl or doctor@upi"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                    className={`w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                      !canEditClinic ? 'opacity-80 bg-slate-100 dark:bg-slate-800/80 cursor-not-allowed' : 'bg-slate-50'
+                    }`}
                   />
                   <span className="text-[9.5px] text-slate-600 mt-0.5 block">
                     Zero-fee dynamic UPI payment QR at Compounder Desk & Pharmacy.
@@ -662,10 +690,13 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                   </label>
                   <input
                     type="text"
+                    readOnly={!canEditClinic}
                     value={clinicGstin}
                     onChange={(e) => setClinicGstin(e.target.value)}
                     placeholder="e.g. 10AAAAA0000A1Z5"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal"
+                    className={`w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all placeholder:text-slate-400 placeholder:font-normal ${
+                      !canEditClinic ? 'opacity-80 bg-slate-100 dark:bg-slate-800/80 cursor-not-allowed' : 'bg-slate-50'
+                    }`}
                   />
                   <span className="text-[9.5px] text-slate-600 mt-0.5 block">
                     Included in printed pharmacy tax invoices.
@@ -686,23 +717,30 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                 <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-mono text-[9px] font-black uppercase">Live</span>
               </div>
 
-              <button
-                type="submit"
-                disabled={isSavingClinic || isClinicLoading}
-                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500/50 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10"
-              >
-                {isSavingClinic ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Saving Clinic Pod Settings...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-3.5 w-3.5" />
-                    Save Clinic Pod Settings
-                  </>
-                )}
-              </button>
+              {canEditClinic ? (
+                <button
+                  type="submit"
+                  disabled={isSavingClinic || isClinicLoading}
+                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500/50 text-white rounded-xl font-bold text-xs uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10"
+                >
+                  {isSavingClinic ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving Clinic Pod Settings...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" />
+                      Save Clinic Pod Settings
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-zinc-400 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 select-none">
+                  <Lock className="h-3.5 w-3.5" />
+                  Clinic Profile Managed by Doctor
+                </div>
+              )}
             </form>
           )}
 
